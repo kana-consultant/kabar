@@ -1,24 +1,204 @@
-# Logs
-logs
-*.log
+# =======================
+# Go specific
+# =======================
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Dependency directories
+vendor/
+
+# Build artifacts
+/bin/
+/dist/
+/build/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Golang coverage
+*.cover
+*.coverprofile
+*.out
+
+# IDE - Go specifics
+.idea/**/*.iml
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+.idea/**/contentModel.xml
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+.idea/**/gradle.xml
+.idea/**/libraries
+.idea/**/mongoSettings.xml
+
+# =======================
+# React / JavaScript specific
+# =======================
+# Dependencies
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Build outputs
+dist/
+build/
+.next/
+out/
+.storybook-out/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Vite
+.vite/
+
+# =======================
+# Monorepo specific
+# =======================
+# Turborepo
+.turbo/
+
+# Nx
+.nx/
+nx.json
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# =======================
+# Environment & Secrets
+# =======================
+.env
+.env.*
+!.env.example
+.env.local
+.env.production
+.env.development
+*.pem
+*.key
+*.crt
+*.p12
+
+# =======================
+# IDE - Common
+# =======================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.iml
+
+# =======================
+# OS files
+# =======================
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# =======================
+# Logs & Temporary files
+# =======================
+logs/
+*.log
+*.log.*
+*.tmp
+*.temp
+*.cache
+*.pid
+*.seed
+*.pid.lock
+
+# =======================
+# Testing & Coverage
+# =======================
+coverage/
+.nyc_output/
+*.lcov
+jest-coverage/
+testem.log
+
+# =======================
+# Docker & Kubernetes
+# =======================
+# Docker compose override (keep only docker-compose.yml)
+docker-compose.override.yml
+docker-compose.*.yml
+!.docker/docker-compose.yml
+
+# K8s secrets (keep example)
+*secret.yaml
+!*secret.example.yaml
+.values.yaml
+!.helm/values.yaml
+
+# =======================
+# Database local files
+# =======================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# =======================
+# Binary & Build artifacts
+# =======================
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.o
+*.a
+
+# =======================
+# Project specific (adjust paths as needed)
+# =======================
+# For monorepo structure:
+# /backend/go/...
+# /frontend/react/...
+
+# Backend specific
+**/backend/*/main
+**/backend/*/*.exe
+**/backend/*/*.test
+**/backend/tmp/
+
+# Frontend specific  
+**/frontend/out/
+**/frontend/.next/
+**/frontend/build/
+**/frontend/dist/
+
+# Binary name (change to your binary name)
+/main
+/app
+/api
+/backend-app
