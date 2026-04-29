@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"fmt"
 	"seo-backend/internal/builder"
 	"seo-backend/internal/database"
 	"strings"
@@ -28,7 +27,7 @@ func ScheduleDraft(
 	} else {
 
 		parsedTime, err :=
-			parseTimeFlexible(scheduledFor)
+			ParseWIBTime(scheduledFor)
 
 		if err != nil {
 			return false
@@ -57,25 +56,4 @@ func ScheduleDraft(
 	}
 
 	return true
-}
-
-// Helper function to parse time flexibly
-func parseTimeFlexible(timeStr string) (time.Time, error) {
-	// List of possible formats
-	formats := []string{
-		time.RFC3339,          // "2006-01-02T15:04:05Z07:00"
-		"2006-01-02T15:04:05", // Without timezone
-		"2006-01-02 15:04:05",
-		"2006-01-02",
-		"2006-01-02T15:04",
-		"2006-01-02 15:04",
-	}
-
-	for _, format := range formats {
-		if parsed, err := time.Parse(format, timeStr); err == nil {
-			return parsed, nil
-		}
-	}
-
-	return time.Time{}, fmt.Errorf("unable to parse time: %s", timeStr)
 }

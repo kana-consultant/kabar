@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
+
 	"seo-backend/internal/database"
 	"seo-backend/internal/helper"
-
-	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/robfig/cron/v3"
@@ -27,7 +27,7 @@ type ScheduledTask struct {
 	ScheduledFor   time.Time  `json:"scheduled_for"`
 	TeamID         string     `json:"team_id"`
 	UserID         string     `json:"user_id"`
-	Status         string     `json:"status"` // pending, processing, completed, failed
+	Status         string     `json:"status"`
 	RetryCount     int        `json:"retry_count"`
 	MaxRetries     int        `json:"max_retries"`
 	CreatedAt      time.Time  `json:"created_at"`
@@ -57,13 +57,21 @@ func (s *RedisScheduler) RegisterTaskHandler(taskName string, handler TaskHandle
 	s.taskHandlers[taskName] = handler
 }
 
-// ScheduleDraftTask schedules a draft for publishing
-func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Time, taskData *ScheduledTask) error {
+// =====================================================
+// SCHEDULE DRAFT TASK
+// =====================================================
+func (s *RedisScheduler) ScheduleDraftTask(
+	draftID string,
+	scheduledFor time.Time,
+	taskData *ScheduledTask,
+) error {
+
 	taskID := fmt.Sprintf(
 		"draft_%s_%d",
 		draftID,
 		scheduledFor.Unix(),
 	)
+
 	task := &ScheduledTask{
 		ID:             taskID,
 		DraftID:        draftID,
@@ -82,116 +90,237 @@ func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Tim
 		CreatedAt:      time.Now(),
 	}
 
-	// Save to Redis
 	taskKey := fmt.Sprintf("schedule:draft:%s", taskID)
+
 	taskDataBytes, err := json.Marshal(task)
 	if err != nil {
-		return fmt.Errorf("failed to marshal task: %w", err)
+		return fmt.Errorf("marshal task failed: %w", err)
 	}
 
-	log.Println("taskKey:", taskKey)
+	// ================= LOGGING =================
+	log.Println("===================================")
+	log.Println("[SCHED] NEW TASK")
+	log.Printf("[SCHED] taskID        : %s", taskID)
+	log.Printf("[SCHED] draftID       : %s", draftID)
+	log.Printf("[SCHED] scheduledFor  : %s", scheduledFor.Format(time.RFC3339))
+	log.Printf("[SCHED] redisKey      : %s", taskKey)
+	log.Printf("[SCHED] redis nil?    : %v", s.redisClient == nil)
+	log.Println("===================================")
 
-	log.Println("scheduler ptr:", s)
-	log.Println("redisClient nil:", s.redisClient == nil)
+	err = s.redisClient.Set(
+		s.ctx,
+		taskKey,
+		taskDataBytes,
+		0,
+	).Err()
 
-	// log.Println("scheduler nil:", s == nil)
-	// log.Println("handler scheduler nil?", s.schedule)
-	// log.Println("cron nil:", s.cron == nil)
-	// log.Println("ctx nil:", s.ctx == nil)
-
-	err = s.redisClient.Set(s.ctx, taskKey, taskDataBytes, 0).Err()
 	if err != nil {
-		return fmt.Errorf("failed to save task: %w", err)
+		return fmt.Errorf("failed save task redis: %w", err)
 	}
 
-	// Schedule with cron
-	cronExpr := fmt.Sprintf("%d %d %d %d *",
+	log.Println("[SCHED] Task persisted to redis")
+
+	// second minute hour day month weekday
+	cronExpr := fmt.Sprintf(
+		"0 %d %d %d %d *",
 		scheduledFor.Minute(),
 		scheduledFor.Hour(),
 		scheduledFor.Day(),
-		int(scheduledFor.Month()))
+		int(scheduledFor.Month()),
+	)
 
-	_, err = s.cron.AddFunc(cronExpr, func() {
-		s.executeDraftTask(taskID)
-	})
+	log.Printf("[CRON] Registering cron => %s", cronExpr)
+
+	_, err = s.cron.AddFunc(
+		cronExpr,
+		func() {
+
+			log.Println("===================================")
+			log.Println("[CRON] CRON FIRED")
+			log.Printf("[CRON] taskID : %s", taskID)
+			log.Printf("[CRON] now    : %s", time.Now().Format(time.RFC3339))
+			log.Println("===================================")
+
+			s.executeDraftTask(taskID)
+		},
+	)
 
 	if err != nil {
-		return fmt.Errorf("failed to schedule task: %w", err)
+		return fmt.Errorf("cron registration failed: %w", err)
 	}
 
-	log.Printf("Draft %d scheduled at %s with task ID: %s", draftID, scheduledFor.Format(time.RFC3339), taskID)
+	log.Printf("[SCHED] Task registered successfully %s", taskID)
+
 	return nil
 }
 
-// executeDraftTask runs the scheduled draft publishing
+// =====================================================
+// EXECUTE TASK
+// =====================================================
 func (s *RedisScheduler) executeDraftTask(taskID string) {
-	log.Printf("Executing scheduled draft task: %s", taskID)
 
-	// Get task from Redis
+	log.Println("===================================")
+	log.Println("[TASK] EXECUTION START")
+	log.Printf("[TASK] taskID : %s", taskID)
+	log.Println("===================================")
+
 	task, err := s.getTask(taskID)
 	if err != nil {
-		log.Printf("Failed to get task %s: %v", taskID, err)
+		log.Printf("[TASK] Redis fetch failed: %v", err)
 		return
 	}
 
-	// Mark as processing
-	task.Status = "processing"
-	s.updateTask(task)
+	log.Printf("[TASK] Loaded DraftID=%s", task.DraftID)
+	log.Printf("[TASK] Current status=%s", task.Status)
 
-	// Update draft status to publishing
-	err = s.updateDraftStatus(task.DraftID, "publishing")
+	task.Status = "processing"
+
+	if err := s.updateTask(task); err != nil {
+		log.Printf("[TASK] updateTask error: %v", err)
+	}
+
+	log.Println("[DB] Updating draft -> publishing")
+
+	err = s.updateDraftStatus(
+		task.DraftID,
+		"publishing",
+	)
+
 	if err != nil {
-		log.Printf("Failed to update draft %d status: %v", task.DraftID, err)
+		log.Printf(
+			"[DB] Failed update draft status %s : %v",
+			task.DraftID,
+			err,
+		)
+
 		task.Status = "failed"
 		task.Error = err.Error()
 		s.updateTask(task)
+
 		return
 	}
 
-	// Execute publishing with retry
 	err = s.publishDraft(task)
+
 	if err != nil {
-		log.Printf("Failed to publish draft %d after retries: %v", task.DraftID, err)
+
+		log.Println("===================================")
+		log.Printf(
+			"[TASK] PUBLISH FAILED draft=%s err=%v",
+			task.DraftID,
+			err,
+		)
+		log.Println("===================================")
+
 		task.Status = "failed"
 		task.Error = err.Error()
-		s.updateDraftStatus(task.DraftID, "failed")
+
+		s.updateDraftStatus(
+			task.DraftID,
+			"failed",
+		)
+
 	} else {
-		log.Printf("Draft %d published successfully", task.DraftID)
+
+		log.Println("===================================")
+		log.Printf(
+			"[TASK] PUBLISH SUCCESS draft=%s",
+			task.DraftID,
+		)
+		log.Println("===================================")
+
 		task.Status = "completed"
-		s.updateDraftStatus(task.DraftID, "published")
+
+		s.updateDraftStatus(
+			task.DraftID,
+			"published",
+		)
 	}
 
 	now := time.Now()
 	task.ExecutedAt = &now
+
 	s.updateTask(task)
+
+	log.Printf(
+		"[TASK] Execution finished at %s",
+		now.Format(time.RFC3339),
+	)
 }
 
-// publishDraft with retry mechanism
-func (s *RedisScheduler) publishDraft(task *ScheduledTask) error {
+// =====================================================
+// RETRY PUBLISH
+// =====================================================
+func (s *RedisScheduler) publishDraft(
+	task *ScheduledTask,
+) error {
+
 	var lastErr error
 
+	log.Printf(
+		"[PUBLISH] Starting publish retries max=%d",
+		task.MaxRetries,
+	)
+
 	for i := 0; i <= task.MaxRetries; i++ {
+
+		log.Printf(
+			"[PUBLISH] Attempt %d/%d Draft=%s",
+			i+1,
+			task.MaxRetries+1,
+			task.DraftID,
+		)
+
 		if i > 0 {
-			log.Printf("Retrying draft %d (attempt %d/%d)", task.DraftID, i+1, task.MaxRetries+1)
-			time.Sleep(time.Duration(i*5) * time.Second)
+			time.Sleep(
+				time.Duration(i*5) * time.Second,
+			)
 		}
 
 		err := s.doPublishDraft(task)
+
 		if err == nil {
+
+			log.Printf(
+				"[PUBLISH] Success on attempt=%d",
+				i+1,
+			)
+
 			return nil
 		}
 
+		log.Printf(
+			"[PUBLISH] Attempt failed: %v",
+			err,
+		)
+
 		lastErr = err
+
 		task.RetryCount = i + 1
+
 		s.updateTask(task)
 	}
 
-	return fmt.Errorf("max retries exceeded: %w", lastErr)
+	return fmt.Errorf(
+		"max retries exceeded: %w",
+		lastErr,
+	)
 }
 
-// doPublishDraft actually publishes the draft
-func (s *RedisScheduler) doPublishDraft(task *ScheduledTask) error {
-	// 1. FIRST: Ambil data lengkap draft dari database
+// =====================================================
+// ACTUAL PUBLISH
+// =====================================================
+func (s *RedisScheduler) doPublishDraft(
+	task *ScheduledTask,
+) error {
+
+	log.Println("===================================")
+	log.Printf(
+		"[PUBLISH] Loading draft from DB %s",
+		task.DraftID,
+	)
+	log.Println("===================================")
+
 	var draft struct {
 		Title          string
 		Topic          string
@@ -201,145 +330,229 @@ func (s *RedisScheduler) doPublishDraft(task *ScheduledTask) error {
 		ImagePrompt    string
 	}
 
+	var targetProductsJSON []byte
+
 	err := database.GetDB().QueryRow(`
-        SELECT title, topic, article, image_url, target_products, team_id, user_id
-        FROM drafts
-        WHERE id = $1
-    `, task.DraftID).Scan(
-		&draft.Title, &draft.Topic, &draft.Article,
-		&draft.ImageURL, &draft.TargetProducts,
+	SELECT title, topic, article, image_url, target_products, image_prompt
+	FROM drafts
+	WHERE id = $1
+`, task.DraftID).Scan(
+		&draft.Title,
+		&draft.Topic,
+		&draft.Article,
+		&draft.ImageURL,
+		&targetProductsJSON,
+		&draft.ImagePrompt,
 	)
+
 	if err != nil {
-		return fmt.Errorf("failed to get draft: %w", err)
+		return fmt.Errorf("failed get draft: %w", err)
 	}
+
+	// decode JSONB -> []string
+	if len(targetProductsJSON) > 0 {
+		err = json.Unmarshal(targetProductsJSON, &draft.TargetProducts)
+		if err != nil {
+			return fmt.Errorf("failed decode target_products: %w", err)
+		}
+	}
+
+	log.Printf("[PUBLISH] Draft title=%s", draft.Title)
+	log.Printf("[PUBLISH] Products=%v", draft.TargetProducts)
 
 	postService := helper.NewPostService()
 
-	result, _, _, err := postService.ProcessDraftProducts(draft)
-	if err != nil {
-		return fmt.Errorf("database update failed: %w", err)
-	}
-	log.Printf("[PROCESS RESULT] %+v", result)
+	log.Println("[PUBLISH] Sending to ProcessDraftProducts...")
 
-	// 3. Update database status
+	result, _, _, err :=
+		postService.ProcessDraftProducts(draft)
+
+	if err != nil {
+		return fmt.Errorf(
+			"process draft failed: %w",
+			err,
+		)
+	}
+
+	log.Printf(
+		"[PUBLISH] Process result => %+v",
+		result,
+	)
+
+	log.Println("[DB] Updating status -> published")
+
 	_, err = database.GetDB().Exec(`
-        UPDATE drafts 
-        SET status = 'published', 
-            published_at = $1,
-            updated_at = $2
-        WHERE id = $3 AND status = 'scheduled'
-    `, time.Now(), time.Now(), task.DraftID)
+		UPDATE drafts
+		SET status='published',
+			published_at=$1,
+			updated_at=$2
+		WHERE id=$3
+	`,
+		time.Now(),
+		time.Now(),
+		task.DraftID,
+	)
 
 	if err != nil {
-		return fmt.Errorf("database update failed: %w", err)
+		return fmt.Errorf(
+			"database update failed: %w",
+			err,
+		)
 	}
 
-	// 4. Move to history
+	log.Println("[DB] Moving draft to histories")
+
 	_, err = database.GetDB().Exec(`
-        INSERT INTO histories (
-            title, topic, content, image_url, target_products, 
-            status, action, published_at, created_by, team_id, user_id
-        )
-        SELECT 
-            title, topic, article, image_url, target_products,
-            'published', 'auto_publish', $1, created_by, team_id, user_id
-        FROM drafts
-        WHERE id = $2
-    `, time.Now(), task.DraftID)
+		INSERT INTO histories (
+			title,
+			topic,
+			content,
+			image_url,
+			target_products,
+			status,
+			action,
+			published_at,
+			created_by,
+			team_id,
+			user_id
+		)
+		SELECT
+			title,
+			topic,
+			article,
+			image_url,
+			target_products,
+			'published',
+			'auto_publish',
+			$1,
+			created_by,
+			team_id,
+			user_id
+		FROM drafts
+		WHERE id=$2
+	`,
+		time.Now(),
+		task.DraftID,
+	)
 
 	if err != nil {
-		log.Printf("Warning: Failed to move to history: %v", err)
+		log.Printf(
+			"[DB] Warning history insert failed: %v",
+			err,
+		)
 	}
+
+	log.Println("[PUBLISH] Draft fully published")
+
 	return nil
 }
 
-// updateDraftStatus updates draft status in database
-func (s *RedisScheduler) updateDraftStatus(draftID string, status string) error {
+// =====================================================
+// DB HELPERS
+// =====================================================
+func (s *RedisScheduler) updateDraftStatus(
+	draftID string,
+	status string,
+) error {
+
+	log.Printf(
+		"[DB] updateDraftStatus draft=%s status=%s",
+		draftID,
+		status,
+	)
+
 	_, err := database.GetDB().Exec(`
-		UPDATE drafts 
-		SET status = $1, updated_at = $2
-		WHERE id = $3
-	`, status, time.Now(), draftID)
+		UPDATE drafts
+		SET status=$1,
+			updated_at=$2
+		WHERE id=$3
+	`,
+		status,
+		time.Now(),
+		draftID,
+	)
 
 	return err
 }
 
-func (s *RedisScheduler) getTask(taskID string) (*ScheduledTask, error) {
-	taskKey := fmt.Sprintf("schedule:draft:%s", taskID)
-	taskData, err := s.redisClient.Get(s.ctx, taskKey).Bytes()
+func (s *RedisScheduler) getTask(
+	taskID string,
+) (*ScheduledTask, error) {
+
+	taskKey := fmt.Sprintf(
+		"schedule:draft:%s",
+		taskID,
+	)
+
+	log.Printf("[REDIS] GET %s", taskKey)
+
+	taskData, err :=
+		s.redisClient.Get(
+			s.ctx,
+			taskKey,
+		).Bytes()
+
 	if err != nil {
 		return nil, err
 	}
 
 	var task ScheduledTask
-	if err := json.Unmarshal(taskData, &task); err != nil {
+
+	if err := json.Unmarshal(
+		taskData,
+		&task,
+	); err != nil {
 		return nil, err
 	}
 
 	return &task, nil
 }
 
-func (s *RedisScheduler) updateTask(task *ScheduledTask) error {
-	taskKey := fmt.Sprintf("schedule:draft:%s", task.ID)
+func (s *RedisScheduler) updateTask(
+	task *ScheduledTask,
+) error {
+
+	taskKey := fmt.Sprintf(
+		"schedule:draft:%s",
+		task.ID,
+	)
+
+	log.Printf(
+		"[REDIS] UPDATE %s status=%s retry=%d",
+		taskKey,
+		task.Status,
+		task.RetryCount,
+	)
+
 	taskData, err := json.Marshal(task)
 	if err != nil {
 		return err
 	}
-	return s.redisClient.Set(s.ctx, taskKey, taskData, 0).Err()
+
+	return s.redisClient.Set(
+		s.ctx,
+		taskKey,
+		taskData,
+		0,
+	).Err()
 }
 
-// CancelScheduledTask cancels a scheduled draft
-func (s *RedisScheduler) CancelScheduledTask(draftID int64) error {
-	pattern := fmt.Sprintf("schedule:draft:draft_%d_*", draftID)
-	keys, err := s.redisClient.Keys(s.ctx, pattern).Result()
-	if err != nil {
-		return err
-	}
-
-	for _, key := range keys {
-		if err := s.redisClient.Del(s.ctx, key).Err(); err != nil {
-			log.Printf("Failed to delete task key %s: %v", key, err)
-		}
-	}
-
-	log.Printf("Cancelled scheduled tasks for draft %d", draftID)
-	return nil
-}
-
-// GetScheduledTasks gets all scheduled drafts
-func (s *RedisScheduler) GetScheduledTasks() ([]*ScheduledTask, error) {
-	pattern := "schedule:draft:*"
-	keys, err := s.redisClient.Keys(s.ctx, pattern).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	var tasks []*ScheduledTask
-	for _, key := range keys {
-		taskData, err := s.redisClient.Get(s.ctx, key).Bytes()
-		if err != nil {
-			continue
-		}
-
-		var task ScheduledTask
-		if err := json.Unmarshal(taskData, &task); err != nil {
-			continue
-		}
-
-		tasks = append(tasks, &task)
-	}
-
-	return tasks, nil
-}
-
-// Start starts the scheduler
+// =====================================================
+// START / STOP
+// =====================================================
 func (s *RedisScheduler) Start() {
+	log.Println("===================================")
+	log.Println("[BOOT] Starting Redis Scheduler...")
+	log.Printf("[BOOT] scheduler=%p", s)
+	log.Printf("[BOOT] redis nil? %v", s.redisClient == nil)
+	log.Println("===================================")
+
 	s.cron.Start()
-	log.Println("Redis Scheduler started")
+
+	log.Println("[BOOT] Redis Scheduler started")
 }
 
-// Stop stops the scheduler
 func (s *RedisScheduler) Stop() {
 	s.cron.Stop()
-	log.Println("Redis Scheduler stopped")
+	log.Println("[BOOT] Redis Scheduler stopped")
 }

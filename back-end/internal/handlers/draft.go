@@ -18,18 +18,14 @@ import (
 	"seo-backend/internal/scheduler"
 )
 
-type DraftHandler struct{}
-
-func NewDraftHandler() *DraftHandler {
-	return &DraftHandler{}
+type DraftHandler struct {
+	scheduler *scheduler.RedisScheduler
 }
 
-var redisScheduler *scheduler.RedisScheduler
-
-// InitScheduler initializes the scheduler when app starts
-func InitScheduler() {
-	redisScheduler = scheduler.NewRedisScheduler(database.RedisClient)
-	redisScheduler.Start()
+func NewDraftHandler(s *scheduler.RedisScheduler) *DraftHandler {
+	return &DraftHandler{
+		scheduler: s,
+	}
 }
 
 // GetAll drafts - menggunakan query builder
@@ -278,7 +274,7 @@ func (h *DraftHandler) Update(w http.ResponseWriter, r *http.Request) {
 						data[dbField] = scheduledStr
 					} else {
 						// Parse ISO timestamp
-						parsedTime, err := time.Parse(time.RFC3339, scheduledStr)
+						parsedTime, err := helper.ParseWIBTime(scheduledStr)
 						if err == nil {
 							data[dbField] = parsedTime
 						} else {
@@ -425,13 +421,18 @@ func (h *DraftHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	if req.ScheduledFor != "" {
 
 		ok := helper.ScheduleDraft(id, req.ScheduledFor)
-
 		if !ok {
 			http.Error(w, "Failed to schedule draft", http.StatusInternalServerError)
 			return
 		}
 
-		// Schedule in Redis
+		// parse WIB time (no UTC conversion issue)
+		scheduledFor, err := helper.ParseWIBTime(req.ScheduledFor)
+		if err != nil {
+			http.Error(w, "Invalid schedule format", http.StatusBadRequest)
+			return
+		}
+
 		taskData := &scheduler.ScheduledTask{
 			ID:             id,
 			Title:          draft.Title,
@@ -440,30 +441,38 @@ func (h *DraftHandler) Publish(w http.ResponseWriter, r *http.Request) {
 			ImageURL:       *draft.ImageURL,
 			ImagePrompt:    draft.ImagePrompt,
 			TargetProducts: draft.TargetProducts,
+			ScheduledFor:   scheduledFor,
 			TeamID:         teamID,
 			UserID:         userID,
 		}
 
-		ScheduledFor, err := parseTimeFlexible(req.ScheduledFor)
-		if err != nil {
-			panic(err)
-		}
+		err = h.scheduler.ScheduleDraftTask(
+			id,
+			scheduledFor,
+			taskData,
+		)
 
-		err = redisScheduler.ScheduleDraftTask(id, ScheduledFor, taskData)
 		if err != nil {
 			log.Printf("Failed to schedule in Redis: %v", err)
-			// Rollback the insert
-			database.GetDB().Exec("DELETE FROM drafts WHERE id = $1", id)
-			http.Error(w, "Failed to schedule draft", http.StatusInternalServerError)
+
+			database.GetDB().Exec(
+				"DELETE FROM drafts WHERE id = $1",
+				id,
+			)
+
+			http.Error(
+				w,
+				"Failed to schedule draft",
+				http.StatusInternalServerError,
+			)
 			return
 		}
 
-		// Response
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"message":       "Draft scheduled successfully",
 			"draft_id":      id,
 			"status":        "scheduled",
-			"scheduled_for": ScheduledFor.Format(time.RFC3339),
+			"scheduled_for": scheduledFor.Format(time.RFC3339),
 		})
 
 		return
@@ -646,27 +655,6 @@ func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// Helper function to parse time flexibly
-func parseTimeFlexible(timeStr string) (time.Time, error) {
-	// List of possible formats
-	formats := []string{
-		time.RFC3339,          // "2006-01-02T15:04:05Z07:00"
-		"2006-01-02T15:04:05", // Without timezone
-		"2006-01-02 15:04:05",
-		"2006-01-02",
-		"2006-01-02T15:04",
-		"2006-01-02 15:04",
-	}
-
-	for _, format := range formats {
-		if parsed, err := time.Parse(format, timeStr); err == nil {
-			return parsed, nil
-		}
-	}
-
-	return time.Time{}, fmt.Errorf("unable to parse time: %s", timeStr)
-}
-
 // ScheduleDraft - Endpoint khusus untuk menjadwalkan draft
 func (h *DraftHandler) ScheduleDraft(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -686,28 +674,36 @@ func (h *DraftHandler) ScheduleDraft(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 
-	// Parse time
-	var scheduledFor time.Time
-	var err error
-
-	scheduledFor, err = time.Parse(time.RFC3339, req.ScheduledFor)
+	// =========================
+	// PARSE WIB TIME (FIXED)
+	// =========================
+	scheduledFor, err := helper.ParseWIBTime(req.ScheduledFor)
 	if err != nil {
-		scheduledFor, err = time.Parse("2006-01-02T15:04:05", req.ScheduledFor)
-		if err != nil {
-			http.Error(w, "Invalid scheduledFor format", http.StatusBadRequest)
-			return
-		}
+		log.Printf("Invalid time format: %v", err)
+		http.Error(w, "Invalid scheduledFor format", http.StatusBadRequest)
+		return
 	}
 
-	// Validate scheduled time is in the future
+	// =========================
+	// VALIDATION (FUTURE CHECK)
+	// =========================
 	if scheduledFor.Before(now) {
 		http.Error(w, "scheduledFor must be in the future", http.StatusBadRequest)
 		return
 	}
 
-	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
+	// =========================
+	// JSON PRODUCTS
+	// =========================
+	targetProductsJSON, err := json.Marshal(req.TargetProducts)
+	if err != nil {
+		http.Error(w, "Invalid target products", http.StatusBadRequest)
+		return
+	}
 
-	// Insert draft with scheduled status
+	// =========================
+	// INSERT INTO DATABASE
+	// =========================
 	var draftID string
 	err = database.GetDB().QueryRow(`
 		INSERT INTO drafts (
@@ -717,18 +713,30 @@ func (h *DraftHandler) ScheduleDraft(w http.ResponseWriter, r *http.Request) {
 		) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13)
 		RETURNING id
 	`,
-		req.Title, req.Topic, req.Article, req.ImageURL, req.ImagePrompt,
-		string(targetProductsJSON), req.HasImage, "scheduled",
-		scheduledFor, now, userID, teamID, userID,
+		req.Title,
+		req.Topic,
+		req.Article,
+		req.ImageURL,
+		req.ImagePrompt,
+		string(targetProductsJSON),
+		req.HasImage,
+		"scheduled",
+		scheduledFor,
+		now,
+		userID,
+		teamID,
+		userID,
 	).Scan(&draftID)
 
 	if err != nil {
-		log.Printf("Failed to insert scheduled draft: %v", err)
+		log.Printf("DB insert failed: %v", err)
 		http.Error(w, "Failed to schedule draft", http.StatusInternalServerError)
 		return
 	}
 
-	// Schedule in Redis
+	// =========================
+	// REDIS TASK DATA
+	// =========================
 	taskData := &scheduler.ScheduledTask{
 		DraftID:        draftID,
 		Title:          req.Title,
@@ -737,76 +745,35 @@ func (h *DraftHandler) ScheduleDraft(w http.ResponseWriter, r *http.Request) {
 		ImageURL:       req.ImageURL,
 		ImagePrompt:    req.ImagePrompt,
 		TargetProducts: req.TargetProducts,
+		ScheduledFor:   scheduledFor,
 		TeamID:         teamID,
 		UserID:         userID,
 	}
 
-	err = redisScheduler.ScheduleDraftTask(draftID, scheduledFor, taskData)
+	// =========================
+	// PUSH TO SCHEDULER
+	// =========================
+	err = h.scheduler.ScheduleDraftTask(draftID, scheduledFor, taskData)
 	if err != nil {
-		log.Printf("Failed to schedule in Redis: %v", err)
-		// Rollback the insert
-		database.GetDB().Exec("DELETE FROM drafts WHERE id = $1", draftID)
+		log.Printf("Redis schedule failed: %v", err)
+
+		// rollback DB kalau Redis gagal
+		_, _ = database.GetDB().Exec("DELETE FROM drafts WHERE id = $1", draftID)
+
 		http.Error(w, "Failed to schedule draft", http.StatusInternalServerError)
 		return
 	}
 
-	// Response
+	// =========================
+	// RESPONSE
+	// =========================
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":       "Draft scheduled successfully",
 		"draft_id":      draftID,
 		"status":        "scheduled",
 		"scheduled_for": scheduledFor.Format(time.RFC3339),
 	})
-}
-
-// CancelScheduledDraft cancels a scheduled draft
-func (h *DraftHandler) CancelScheduledDraft(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		DraftID int64 `json:"draft_id"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-
-	// Cancel in Redis
-	err := redisScheduler.CancelScheduledTask(req.DraftID)
-	if err != nil {
-		log.Printf("Failed to cancel scheduled task: %v", err)
-	}
-
-	// Update draft status
-	_, err = database.GetDB().Exec(`
-		UPDATE drafts 
-		SET status = 'draft', updated_at = $1
-		WHERE id = $2 AND status = 'scheduled'
-	`, time.Now(), req.DraftID)
-
-	if err != nil {
-		log.Printf("Failed to update draft status: %v", err)
-		http.Error(w, "Failed to cancel schedule", http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message":  "Schedule cancelled",
-		"draft_id": req.DraftID,
-		"status":   "draft",
-	})
-}
-
-// GetScheduledDrafts gets all scheduled drafts
-func (h *DraftHandler) GetScheduledDrafts(w http.ResponseWriter, r *http.Request) {
-	tasks, err := redisScheduler.GetScheduledTasks()
-	if err != nil {
-		log.Printf("Failed to get scheduled tasks: %v", err)
-		http.Error(w, "Failed to get schedules", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
 }
 
 func writeAllProductsFailed(

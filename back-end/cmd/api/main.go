@@ -14,10 +14,6 @@ import (
 
 var redisScheduler *scheduler.RedisScheduler
 
-func InitScheduler() {
-	redisScheduler = scheduler.NewRedisScheduler(database.RedisClient)
-	redisScheduler.Start()
-}
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
@@ -34,10 +30,11 @@ func main() {
 	if err := database.InitRedis(); err != nil {
 		log.Fatal("Failed to connect to Redis:", err)
 	}
-	defer database.CloseRedis()
-	r := routes.SetupRoutes(cfg)
 
-	InitScheduler()
+	sched := scheduler.NewRedisScheduler(database.RedisClient)
+	sched.Start()
+	defer database.CloseRedis()
+	r := routes.SetupRoutes(sched, cfg)
 
 	log.Printf("Server starting on port %s", cfg.ServerPort)
 	log.Printf("Dashboard stats: http://localhost:%s/api/dashboard/stats", cfg.ServerPort)

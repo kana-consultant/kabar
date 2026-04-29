@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"runtime"
 	"time"
@@ -15,11 +16,13 @@ import (
 	"seo-backend/internal/database"
 	"seo-backend/internal/handlers"
 	"seo-backend/internal/middleware/auth"
+	"seo-backend/internal/scheduler"
 )
 
-func SetupRoutes(cfg *config.Config) *chi.Mux {
+func SetupRoutes(sched *scheduler.RedisScheduler, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
+	fmt.Println("==================================SCHED", sched)
 	// Global middleware
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -39,7 +42,7 @@ func SetupRoutes(cfg *config.Config) *chi.Mux {
 	authHandler := handlers.NewAuthHandler(cfg)
 	userHandler := handlers.NewUserHandler()
 	productHandler := handlers.NewProductHandler()
-	draftHandler := handlers.NewDraftHandler()
+	draftHandler := handlers.NewDraftHandler(sched)
 	historyHandler := handlers.NewHistoryHandler()
 	generateHandler := handlers.NewGenerateHandler()
 	teamHandler := handlers.NewTeamHandler()
