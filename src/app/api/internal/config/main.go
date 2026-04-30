@@ -21,17 +21,15 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		DBHost:       getEnv("DB_HOST", "localhost"),
-		DBPort:       getEnv("DB_PORT", "5432"),
-		DBUser:       getEnv("DB_USER", "postgres"),
-		DBPassword:   getEnv("DB_PASSWORD", "postgres"),
-		DBName:       getEnv("DB_NAME", "test_kabar"),
-		DBSSLMode:    getEnv("DB_SSL_MODE", "disable"),
-		JWTSecret:    getEnv("JWT_SECRET", "default-secret-key"),
-		JWTExpiry:    getEnvAsInt("JWT_EXPIRY_HOURS", 24),
-		ServerPort:   getEnv("SERVER_PORT", "8080"),
-		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
-		ImageAPIKey:  getEnv("IMAGE_API_KEY", ""),
+		DBHost:     getEnv("DB_HOST", "localhost"),
+		DBPort:     getEnv("DB_PORT", "5432"),
+		DBUser:     getEnv("DB_USER", "postgres"),
+		DBPassword: getEnv("DB_PASSWORD", "postgres"),
+		DBName:     getEnv("DB_NAME", "test_kabar"),
+		DBSSLMode:  getEnv("DB_SSL_MODE", "disable"),
+		JWTSecret:  getEnv("JWT_SECRET", "default-secret-key"),
+		JWTExpiry:  getEnvAsInt("JWT_EXPIRY_HOURS", 24),
+		ServerPort: getEnv("SERVER_PORT", "8080"),
 	}
 }
 
