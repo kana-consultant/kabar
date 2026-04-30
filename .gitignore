@@ -14,9 +14,11 @@
 vendor/
 
 # Build artifacts
-/bin/
 /dist/
 /build/
+bin/
+
+pnpm-lock.yaml
 
 # Go workspace file
 go.work
