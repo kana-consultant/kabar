@@ -1,426 +1,328 @@
-# SEO Multi-Post Dashboard
+# Kana Automation Builder for Article executoR (KABAR)
 
 **1 dashboard. N products. 1 click. Done.**
 
-Open-source dashboard to manage SEO content (articles + images) from one place and publish it to multiple products/platforms at once.
+KABAR is an open-source automation dashboard designed to manage, generate, and distribute SEO content (articles and images) across multiple platforms from a single unified system.
+
+---
+
+## What is KABAR?
+
+Kana Automation Builder for Article executoR (KABAR) is a fully autonomous AI-powered content automation platform that streamlines the entire SEO content lifecycle — from generation to multi-platform publishing.
+
+Instead of manually writing articles and publishing them one by one to different platforms, KABAR centralizes and automates the entire workflow:
+
+1. Generate — AI produces SEO-optimized articles and images
+2. Save — Store content as drafts for editing and review
+3. Publish — Instantly publish to multiple platforms
+4. Schedule — Plan and automate future publishing
+5. Track — Monitor publishing history and activity
+
+KABAR is built for scalability, enabling teams and individuals to manage high-volume content production efficiently.
 
 ---
 
 ## Features
 
-- ✅ AI Article Generation (Gemini, GPT-4o, Claude, Llama, etc.)
-- ✅ AI Image Generation (Nano Banana, Imagen 3.0)
-- ✅ One-click publish to multiple products (WordPress, Shopify, Custom API)
-- ✅ Adapter pattern for multi-platform integrations
-- ✅ Multi-user team management
-- ✅ Scheduled publishing
-- ✅ Full publishing history tracking
-- ✅ Encrypted API key storage
+### Content Generation
+
+* AI-powered article generation using multiple models
+* AI image generation support
+* SEO optimization with structured output
+* Ready-to-publish HTML content
+
+### Publishing
+
+* One-click multi-platform publishing
+* Integration with WordPress, Shopify, and custom APIs
+* Scheduled publishing with timezone support
+* Batch publishing for multiple drafts
+
+### Management
+
+* Multi-user system with role-based access control
+* Draft management system
+* Product/platform configuration
+* Full publishing history tracking
+
+### Automation
+
+* Background job processing with scheduler
+* Automated publishing workflows
+* Extensible system for future automation features
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Backend | Go + Chi Router |
-| Frontend | React + TanStack Router + Tailwind |
-| Database | PostgreSQL |
-| Auth | JWT + bcrypt |
-| AI Providers | OpenRouter, Google Gemini |
-| API Docs | Swagger |
+| Layer            | Technology                         |
+| ---------------- | ---------------------------------- |
+| Backend          | Go (Chi Router)                    |
+| Frontend         | React + TanStack Router + Tailwind |
+| Database         | PostgreSQL                         |
+| Cache / Queue    | Redis                              |
+| Authentication   | JWT + bcrypt                       |
+
 
 ---
 
-# Requirements
+## Architecture Overview
 
-- Go 1.21+
-- Node.js 18+
-- PostgreSQL 14+
-- Redis (for queue processing)
+KABAR is built using a clean and modular architecture approach, separating concerns into multiple layers:
+
+```
+Frontend (React)
+│
+▼
+Backend API (Go)
+│
+┌──────┴──────────────┐
+│ Application Layer   │
+│ - Draft             │
+│ - Generate          │
+│ - Product           │
+│ - Team              │
+│ - User              │
+│ - History           │
+│ - Scheduler         │
+└──────┬──────────────┘
+▼
+Domain Layer (Entities + Interfaces)
+▼
+Infrastructure Layer
+(PostgreSQL, Redis, AI Services)
+```
+
+This architecture ensures scalability, maintainability, and clear separation between business logic and infrastructure.
 
 ---
 
-# Installation
+## Pipeline Flow
 
-## 1. Clone Repository
+### Content Generation Flow
+
+```
+[ User Input ]
+       ↓
+[ AI Generation Engine ]
+       ↓
+[ SEO Optimization & Structuring ]
+       ↓
+[ Draft Storage ]
+       ↓
+[ Manual Review / Editing ]
+       ↓
+[ Publish Trigger ]
+       ↓
+[ Distribution Engine ]
+       ↓
+[ History & Tracking ]
+```
+
+---
+
+### Scheduled Publishing Flow
+
+```
+[ Scheduler (Cron + Redis) ]
+               ↓
+[ Scan Scheduled Drafts ]
+               ↓
+[ Time Validation (scheduled_for <= now) ]
+               ↓
+[ Auto Publish Execution ]
+               ↓
+[ Status Update (published) ]
+               ↓
+[ History Logging ]
+```
+
+---
+
+### Multi-Platform Publishing Flow
+
+```
+[ Draft Selected ]
+        ↓
+[ Product Selection ]
+        ↓
+[ Adapter Layer (Transform Content) ]
+        ↓
+[ API Dispatch (Parallel Requests) ]
+        ↓
+[ Response Collection ]
+        ↓
+[ Success / Failed Mapping ]
+        ↓
+[ History Recording ]
+```
+
+
+---
+
+## Requirements
+
+* Go 1.21+
+* Node.js 20+
+* pnpm
+* PostgreSQL
+* Redis
+* Docker (optional)
+
+---
+
+## Getting Started
+
+### Clone Repository
 
 ```bash
-git clone https://github.com/yourname/seo-dashboard.git
-cd seo-dashboard
+git clone https://github.com/yourname/kabar.git
+cd kabar
 ```
 
----
-
-## 2. Backend Setup (Go)
+### Install Dependencies
 
 ```bash
-cd backend
-cp .env.example .env
-
-# Edit .env with your database and JWT configuration
-
-go mod download
-go run cmd/main.go
+cd src/app/api/go mod download
+cd ../frontend && pnpm install
 ```
 
-Backend runs at:
+### Run Infrastructure
 
 ```bash
-http://localhost:8080
+docker-compose up -d
 ```
 
----
-
-## 3. Frontend Setup (React)
+### Setup Environment
 
 ```bash
-cd frontend
-cp .env.example .env
-
-# Edit .env with backend API URL
-
-npm install
-npm run dev
+cp src/app/api/.env.example backend/.env
+cp .env.example frontend/.env
 ```
 
-Frontend runs at:
+### Run Application
 
 ```bash
-http://localhost:5173
+cd src/app/api/ go run cmd/api/main.go
+cd frontend && pnpm dev
 ```
 
 ---
 
-## 4. Database Migration
+## API Overview
+
+### Public Endpoints
+
+* POST /api/auth/register
+* POST /api/auth/login
+* GET /health
+
+### Protected Endpoints
+
+* Draft management
+* Content generation
+* Product integration
+* Publishing system
+* History tracking
+
+---
+
+## Product Integration
+
+KABAR supports multiple platform integrations:
+
+### WordPress
+
+* REST API integration
+* Application password authentication
+
+### Shopify
+
+* Store API integration
+* Access token authentication
+
+### Custom API
+
+* Fully configurable endpoint
+* Field mapping support
+
+---
+
+## Security
+
+* Password hashing using bcrypt
+* API key encryption using AES-256
+* JWT-based authentication
+* Input validation and sanitization
+* Protection against SQL injection
+
+---
+
+## Role-Based Access Control
+
+| Role        | Description         |
+| ----------- | ------------------- |
+| super_admin | Full system access  |
+| admin       | Team-level access   |
+| manager     | Manage team members |
+| viewer      | Read-only access    |
+
+---
+
+## Development
 
 ```bash
-psql -U postgres -d seo_db < database/schema.sql
+go test ./...
+pnpm test
 ```
 
 ---
 
-# Environment Variables
+## Docker
 
-## Backend `.env`
-
-```env
-PORT=8080
-
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=yourpassword
-DB_NAME=seo_db
-
-JWT_SECRET=your_jwt_secret_key_min_32_char
-ENCRYPTION_KEY=your_aes_encryption_key_32_char
+```bash
+docker-compose up -d
 ```
 
 ---
 
-## Frontend `.env`
+## Documentation
 
-```env
-VITE_API_URL=http://localhost:8080
+```
+http://localhost:8080/swagger/index.html
 ```
 
 ---
 
-# API Endpoints
+## Contributing
 
-## Public Routes
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/auth/register | Register user |
-| POST | /api/auth/login | Login user |
-| POST | /api/auth/forgot-password | Forgot password |
+* Open an issue
+* Discuss changes
+* Submit pull request
 
 ---
 
-## Protected Routes (Require JWT)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /api/dashboard/stats | Dashboard statistics |
-| GET | /api/products | Get products |
-| POST | /api/products | Add product |
-| POST | /api/products/{id}/test | Test product API |
-| GET | /api/drafts | Get drafts |
-| POST | /api/drafts | Create draft |
-| POST | /api/drafts/{id}/publish | Publish draft |
-| POST | /api/drafts/publish | Batch publish |
-| POST | /api/drafts/schedule | Schedule post |
-| POST | /api/generate/article | Generate article |
-| POST | /api/generate/image | Generate image |
-| GET | /api/history | Publishing history |
-| GET | /api/models | AI model list |
-| CRUD | /api/teams | Team management |
-| CRUD | /api/api-keys | API key management |
-
----
-
-## Utility Routes
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /health | Health check |
-| GET | /metrics | System metrics |
-| GET | /swagger/* | Swagger documentation |
-
----
-
-# Adding a New Product
-
-## WordPress
-
-Go to:
-
-```text
-Products → Add Product
-```
-
-Select:
-
-```text
-WordPress
-```
-
-Enter:
-
-```text
-API URL:
-https://yourdomain.com/wp-json/wp/v2/posts
-```
-
-Provide:
-
-- Application Password
-
-Then:
-
-```text
-Test Connection → Save
-```
-
----
-
-## Shopify
-
-Select:
-
-```text
-Shopify
-```
-
-Enter:
-
-```text
-Store URL:
-https://store-name.myshopify.com
-```
-
-Provide:
-
-- Access Token
-- Blog ID
-
-Then:
-
-```text
-Test Connection → Save
-```
-
----
-
-## Custom API
-
-Select:
-
-```text
-Custom API
-```
-
-Configure:
-
-- API Endpoint
-- HTTP Method (POST / PUT)
-- Field Mapping (drag & drop)
-
-Then:
-
-```text
-Test Connection → Save
-```
-
----
-
-# Custom API Field Mapping
-
-| Internal Field | API Field |
-|----------------|-----------|
-| title | post_title |
-| body | content_html |
-| imageUrl | thumbnail_url |
-| status | is_published |
-
-Example JSON Mapping:
-
-```json
-{
-  "title": "post_title",
-  "body": "content",
-  "imageUrl": "featured_image",
-  "status": "publish_status"
-}
-```
-
----
-
-# Workflow
-
-## Step 1 — Generate Content
-
-- Open Generate menu
-- Select AI model (Gemini, GPT-4o, etc.)
-- Enter topic or keyword
-- Click Generate Article
-- Optionally generate image
-- Preview result
-
----
-
-## Step 2 — Save as Draft
-
-- Edit content if needed
-- Click Save to Drafts
-- Select target products
-
----
-
-## Step 3 — Publish
-
-## Option A — Publish Now
-
-- Open Drafts
-- Select draft
-- Click Publish Now
-
----
-
-## Option B — Schedule
-
-- Open Schedule
-- Select draft and time
-- Click Schedule
-
----
-
-## Option C — Batch Publish
-
-- Select multiple drafts
-- Click Publish Selected
-- Choose target products
-
-```text
-One click publishes everywhere 🚀
-```
-
----
-
-# Security
-
-| Feature | Implementation |
-|---------|----------------|
-| User Passwords | bcrypt hashing |
-| API Keys | AES-256 encryption |
-| JWT | Access + Refresh tokens |
-| CORS | Whitelisted domains |
-| SQL Protection | Prepared statements |
-
----
-
-# Database Structure
-
-```text
-users           - Users and authentication
-teams           - Teams
-team_members    - Team members
-
-api_providers   - OpenRouter, Gemini, etc.
-ai_models       - AI model catalog
-api_keys        - Encrypted user keys
-
-products        - WordPress / Shopify / Custom
-adapter_configs - Custom API mappings
-
-drafts          - Unpublished content
-histories       - Publish history
-```
-
----
-
-# Development
-
-## Add a New AI Model
-
-Insert into:
-
-```text
-api_providers
-ai_models
-```
-
-It will automatically appear in frontend.
-
----
-
-## Add a New Platform
-
-1. Add new enum in:
-
-```text
-products.platform
-```
-
-2. Create adapter in:
-
-```text
-internal/adapters/
-```
-
-3. Update:
-
-```text
-adapter_configs schema
-```
-
----
-
-# License
+## License
 
 MIT License
 
 ---
 
-# Contributing
+## Credits
 
-Pull Requests are welcome.
-
-For major changes:
-
-1. Open an issue first  
-2. Discuss the proposal  
-3. Submit PR
+* Built with Go and React
+* Powered by OpenRouter
+* Infrastructure using PostgreSQL and Redis
 
 ---
 
-# Contact
+## Contact
 
-- Issues: GitHub Issues  
-- Discord: Join Server
+* GitHub Issues
+* Community channel (Discord, etc.)
 
 ---
 
-## Built with using Go + React
+Kana Automation Builder for Article executoR (KABAR)
+
+1 dashboard. N products. 1 click. Done.
