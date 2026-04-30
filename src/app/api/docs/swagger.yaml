@@ -1,6 +1,6 @@
 swagger: "2.0"
 info:
-  title: KABAR SEO Backend API
+  title: SEO Backend API
   description: API for SEO Content Management System
   version: 1.0.0
   termsOfService: http://swagger.io/terms/
@@ -41,6 +41,14 @@ tags:
     description: History management
   - name: generate
     description: AI generation endpoints
+  - name: api-keys
+    description: API Key management
+  - name: models
+    description: AI Model management
+  - name: providers
+    description: Provider management
+  - name: dashboard
+    description: Dashboard endpoints
   - name: health
     description: Health check endpoints
 
@@ -104,14 +112,17 @@ definitions:
     properties:
       email:
         type: string
+        example: "user@example.com"
       password:
         type: string
+        example: "password123"
 
   LoginResponse:
     type: object
     properties:
       token:
         type: string
+        example: "eyJhbGciOiJIUzI1NiIs..."
       user:
         $ref: "#/definitions/User"
 
@@ -125,11 +136,14 @@ definitions:
       email:
         type: string
         format: email
+        example: "user@example.com"
       name:
         type: string
+        example: "John Doe"
       password:
         type: string
         format: password
+        example: "password123"
 
   ChangePasswordRequest:
     type: object
@@ -139,8 +153,10 @@ definitions:
     properties:
       oldPassword:
         type: string
+        example: "oldpass123"
       newPassword:
         type: string
+        example: "newpass123"
 
   ForgotPasswordRequest:
     type: object
@@ -149,6 +165,8 @@ definitions:
     properties:
       email:
         type: string
+        format: email
+        example: "user@example.com"
 
   Team:
     type: object
@@ -217,10 +235,13 @@ definitions:
     properties:
       name:
         type: string
+        example: "Marketing Team"
       description:
         type: string
+        example: "Team for content marketing"
       logo:
         type: string
+        example: "https://example.com/logo.png"
 
   UpdateTeamRequest:
     type: object
@@ -246,6 +267,15 @@ definitions:
       userId:
         type: string
         format: uuid
+      role:
+        type: string
+        enum: [manager, editor, viewer]
+
+  UpdateMemberRoleRequest:
+    type: object
+    required:
+      - role
+    properties:
       role:
         type: string
         enum: [manager, editor, viewer]
@@ -330,13 +360,17 @@ definitions:
     properties:
       name:
         type: string
+        example: "My WordPress Site"
       platform:
         type: string
         enum: [wordpress, shopify, custom]
+        example: "wordpress"
       apiEndpoint:
         type: string
+        example: "https://mywp.com/wp-json"
       apiKey:
         type: string
+        example: "wp_api_key_123"
       teamId:
         type: string
         format: uuid
@@ -348,17 +382,21 @@ definitions:
     properties:
       endpointPath:
         type: string
+        example: "/wp-json/wp/v2/posts"
       httpMethod:
         type: string
         enum: [POST, PUT, PATCH, GET]
+        example: "POST"
       customHeaders:
         type: object
       fieldMapping:
         type: string
       timeoutSeconds:
         type: integer
+        example: 30
       retryCount:
         type: integer
+        example: 3
 
   UpdateProductRequest:
     type: object
@@ -479,12 +517,16 @@ definitions:
     properties:
       title:
         type: string
+        example: "10 SEO Tips"
       topic:
         type: string
+        example: "SEO Best Practices"
       article:
         type: string
+        example: "<p>Content here...</p>"
       excerpt:
         type: string
+        example: "Summary of the article"
       imageUrl:
         type: string
       imagePrompt:
@@ -552,11 +594,22 @@ definitions:
       approve:
         type: boolean
 
-  RejectDraftRequest:
+  ScheduleDraftRequest:
+    type: object
+    required:
+      - scheduledFor
+    properties:
+      scheduledFor:
+        type: string
+        format: date-time
+
+  PublishContentRequest:
     type: object
     properties:
-      notes:
-        type: string
+      draftIds:
+        type: array
+        items:
+          type: string
 
   History:
     type: object
@@ -656,6 +709,20 @@ definitions:
       executionTimeMs:
         type: integer
 
+  HistoryStats:
+    type: object
+    properties:
+      total:
+        type: integer
+      success:
+        type: integer
+      failed:
+        type: integer
+      pending:
+        type: integer
+      byAction:
+        type: object
+
   GenerateArticleRequest:
     type: object
     required:
@@ -663,46 +730,58 @@ definitions:
     properties:
       topic:
         type: string
+        example: "Cara Meningkatkan SEO Website"
       tone:
         type: string
         enum: [professional, casual, friendly, formal]
         default: professional
+        example: "professional"
       length:
         type: string
         enum: [short, medium, long]
         default: medium
+        example: "medium"
       keywords:
         type: array
         items:
           type: string
+        example: ["SEO", "website", "optimization"]
       language:
         type: string
         enum: [id, en]
         default: id
+        example: "id"
 
   GenerateArticleResponse:
     type: object
     properties:
       title:
         type: string
+        example: "10 Cara Meningkatkan SEO Website"
       content:
         type: string
+        example: "<p>Content artikel SEO...</p>"
       excerpt:
         type: string
+        example: "Pelajari 10 cara efektif..."
       keywords:
         type: array
         items:
           type: string
       imagePrompt:
         type: string
+        example: "SEO website illustration"
       imageUrl:
         type: string
       wordCount:
         type: integer
+        example: 1500
       readabilityScore:
         type: integer
+        example: 85
       seoScore:
         type: integer
+        example: 92
 
   GenerateImageRequest:
     type: object
@@ -711,20 +790,142 @@ definitions:
     properties:
       prompt:
         type: string
+        example: "A modern SEO dashboard with analytics"
 
   GenerateImageResponse:
     type: object
     properties:
       imageUrl:
         type: string
+        example: "https://storage.example.com/image.jpg"
       prompt:
         type: string
       generatedAt:
         type: string
+        format: date-time
       model:
         type: string
+        example: "dall-e-3"
+
+  APIKey:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      key:
+        type: string
+      permissions:
+        type: array
+        items:
+          type: string
+      expiresAt:
+        type: string
+        format: date-time
+      lastUsedAt:
+        type: string
+        format: date-time
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  CreateAPIKeyRequest:
+    type: object
+    required:
+      - name
+    properties:
+      name:
+        type: string
+      permissions:
+        type: array
+        items:
+          type: string
+      expiresIn:
+        type: integer
+        description: "Expiration in days"
+
+  AIModel:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      provider:
+        type: string
+      type:
+        type: string
+        enum: [text, image]
+      status:
+        type: string
+        enum: [active, inactive, maintenance]
+      capabilities:
+        type: array
+        items:
+          type: string
+
+  Provider:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      type:
+        type: string
+        enum: [openai, anthropic, google, custom]
+      apiEndpoint:
+        type: string
+      status:
+        type: string
+        enum: [active, inactive, error]
+      config:
+        type: object
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  DashboardStats:
+    type: object
+    properties:
+      totalDrafts:
+        type: integer
+      totalProducts:
+        type: integer
+      totalTeams:
+        type: integer
+      totalUsers:
+        type: integer
+      publishedCount:
+        type: integer
+      scheduledCount:
+        type: integer
+      reviewCount:
+        type: integer
 
 paths:
+  # ========== ROOT & HEALTH ==========
+  /:
+    get:
+      tags:
+        - health
+      summary: API root information
+      operationId: rootInfo
+      responses:
+        200:
+          description: API information
+          schema:
+            type: object
+
   /health:
     get:
       tags:
@@ -741,6 +942,10 @@ paths:
                 type: string
               timestamp:
                 type: string
+              services:
+                type: object
+              system:
+                type: object
 
   /metrics:
     get:
@@ -753,18 +958,15 @@ paths:
           description: System metrics
           schema:
             type: object
-
-  /api:
-    get:
-      tags:
-        - health
-      summary: API information
-      operationId: apiInfo
-      responses:
-        200:
-          description: API information
-          schema:
-            type: object
+            properties:
+              goroutines:
+                type: integer
+              cpu_cores:
+                type: integer
+              go_version:
+                type: string
+              memory:
+                type: object
 
   # ========== AUTH ==========
   /auth/login:
@@ -870,6 +1072,23 @@ paths:
           description: Reset email sent
           schema:
             $ref: "#/definitions/SuccessResponse"
+
+  # ========== DASHBOARD ==========
+  /dashboard/stats:
+    get:
+      tags:
+        - dashboard
+      summary: Get dashboard statistics
+      operationId: getDashboardStats
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Dashboard statistics
+          schema:
+            $ref: "#/definitions/DashboardStats"
+        401:
+          description: Unauthorized
 
   # ========== USERS ==========
   /users:
@@ -1147,11 +1366,7 @@ paths:
           name: body
           required: true
           schema:
-            type: object
-            properties:
-              role:
-                type: string
-                enum: [manager, editor, viewer]
+            $ref: "#/definitions/UpdateMemberRoleRequest"
       responses:
         200:
           description: Member role updated
@@ -1467,68 +1682,43 @@ paths:
           schema:
             $ref: "#/definitions/SuccessResponse"
 
-  /drafts/{id}/submit:
+  /drafts/publish:
     post:
       tags:
         - drafts
-      summary: Submit draft for review
-      operationId: submitForReview
+      summary: Publish multiple drafts
+      operationId: publishContent
       security:
         - BearerAuth: []
       parameters:
-        - in: path
-          name: id
-          required: true
-          type: string
-          format: uuid
-      responses:
-        200:
-          description: Draft submitted
-          schema:
-            $ref: "#/definitions/SuccessResponse"
-
-  /drafts/{id}/approve:
-    post:
-      tags:
-        - drafts
-      summary: Approve draft
-      operationId: approveDraft
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          type: string
-          format: uuid
-      responses:
-        200:
-          description: Draft approved
-          schema:
-            $ref: "#/definitions/SuccessResponse"
-
-  /drafts/{id}/reject:
-    post:
-      tags:
-        - drafts
-      summary: Reject draft
-      operationId: rejectDraft
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          type: string
-          format: uuid
         - in: body
           name: body
           required: true
           schema:
-            $ref: "#/definitions/RejectDraftRequest"
+            $ref: "#/definitions/PublishContentRequest"
       responses:
         200:
-          description: Draft rejected
+          description: Drafts published
+          schema:
+            $ref: "#/definitions/SuccessResponse"
+
+  /drafts/schedule:
+    post:
+      tags:
+        - drafts
+      summary: Schedule draft
+      operationId: scheduleDraft
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleDraftRequest"
+      responses:
+        200:
+          description: Draft scheduled
           schema:
             $ref: "#/definitions/SuccessResponse"
 
@@ -1600,6 +1790,25 @@ paths:
             $ref: "#/definitions/SuccessResponse"
 
   /history/{id}:
+    get:
+      tags:
+        - history
+      summary: Get history by ID
+      operationId: getHistoryById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          format: uuid
+      responses:
+        200:
+          description: History entry
+          schema:
+            $ref: "#/definitions/History"
+
     delete:
       tags:
         - history
@@ -1616,6 +1825,20 @@ paths:
       responses:
         204:
           description: History entry deleted
+
+  /history/stats:
+    get:
+      tags:
+        - history
+      summary: Get history statistics
+      operationId: getHistoryStats
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: History statistics
+          schema:
+            $ref: "#/definitions/HistoryStats"
 
   # ========== GENERATE ==========
   /generate/article:
@@ -1657,3 +1880,213 @@ paths:
           description: Generated image
           schema:
             $ref: "#/definitions/GenerateImageResponse"
+
+  # ========== API KEYS ==========
+  /api-keys:
+    get:
+      tags:
+        - api-keys
+      summary: Get all API keys
+      operationId: getApiKeys
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: List of API keys
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/APIKey"
+
+    post:
+      tags:
+        - api-keys
+      summary: Create API key
+      operationId: createApiKey
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/CreateAPIKeyRequest"
+      responses:
+        201:
+          description: API key created
+          schema:
+            $ref: "#/definitions/APIKey"
+
+  /api-keys/{id}:
+    get:
+      tags:
+        - api-keys
+      summary: Get API key by ID
+      operationId: getApiKeyById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          format: uuid
+      responses:
+        200:
+          description: API key details
+          schema:
+            $ref: "#/definitions/APIKey"
+
+    put:
+      tags:
+        - api-keys
+      summary: Update API key
+      operationId: updateApiKey
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          format: uuid
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+      responses:
+        200:
+          description: API key updated
+          schema:
+            $ref: "#/definitions/SuccessResponse"
+
+  # ========== MODELS ==========
+  /models:
+    get:
+      tags:
+        - models
+      summary: Get all AI models
+      operationId: getModels
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: List of AI models
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/AIModel"
+
+  /models/with-status:
+    get:
+      tags:
+        - models
+      summary: Get all AI models with status
+      operationId: getModelsWithStatus
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: List of AI models with status
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/AIModel"
+
+  # ========== PROVIDERS ==========
+  /providers:
+    get:
+      tags:
+        - providers
+      summary: Get all providers
+      operationId: getProviders
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: List of providers
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Provider"
+
+    post:
+      tags:
+        - providers
+      summary: Create provider
+      operationId: createProvider
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+      responses:
+        201:
+          description: Provider created
+          schema:
+            $ref: "#/definitions/Provider"
+
+  /providers/{id}:
+    get:
+      tags:
+        - providers
+      summary: Get provider by ID
+      operationId: getProviderById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          format: uuid
+      responses:
+        200:
+          description: Provider details
+          schema:
+            $ref: "#/definitions/Provider"
+
+    put:
+      tags:
+        - providers
+      summary: Update provider
+      operationId: updateProvider
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          format: uuid
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+      responses:
+        200:
+          description: Provider updated
+          schema:
+            $ref: "#/definitions/SuccessResponse"
+
+    delete:
+      tags:
+        - providers
+      summary: Delete provider
+      operationId: deleteProvider
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          format: uuid
+      responses:
+        204:
+          description: Provider deleted
