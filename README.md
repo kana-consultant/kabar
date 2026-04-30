@@ -1,24 +1,41 @@
-# Kana Automation Builder for Article executoR (KABAR)
+<div align="center">
 
-**1 dashboard. N products. 1 click. Done.**
 
-KABAR is an open-source automation dashboard designed to manage, generate, and distribute SEO content (articles and images) across multiple platforms from a single unified system.
+<br/>
+
+
+### Kana Automation Builder for Article executoR
+
+**AI-Powered Content Automation Platform**
+
+<br/>
+
+<a href="#overview">Overview</a> • <a href="#features">Features</a> • <a href="#architecture">Architecture</a> • <a href="#pipeline-flow">Pipeline Flow</a> • <a href="#getting-started">Getting Started</a> • <a href="#tech-stack">Tech Stack</a> • <a href="#security">Security</a> • <a href="#license">License</a>
+
+<br/><br/>
+
+![Go](https://img.shields.io/badge/Go-1.21-blue?logo=go)
+![React](https://img.shields.io/badge/React-19-blue?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)
+![Redis](https://img.shields.io/badge/Redis-7-red?logo=redis)
+![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)
+
+</div>
 
 ---
 
-## What is KABAR?
+## Overview
 
-Kana Automation Builder for Article executoR (KABAR) is a fully autonomous AI-powered content automation platform that streamlines the entire SEO content lifecycle — from generation to multi-platform publishing.
+Kana Automation Builder for Article executoR (KABAR) is a fully autonomous AI-powered platform designed to automate the entire SEO content lifecycle — from generation to multi-platform publishing.
 
-Instead of manually writing articles and publishing them one by one to different platforms, KABAR centralizes and automates the entire workflow:
+KABAR eliminates repetitive manual workflows by providing a centralized system for:
 
-1. Generate — AI produces SEO-optimized articles and images
-2. Save — Store content as drafts for editing and review
-3. Publish — Instantly publish to multiple platforms
-4. Schedule — Plan and automate future publishing
-5. Track — Monitor publishing history and activity
-
-KABAR is built for scalability, enabling teams and individuals to manage high-volume content production efficiently.
+* AI content generation
+* Draft management
+* Multi-platform publishing
+* Scheduled automation
+* Activity tracking and analytics
 
 ---
 
@@ -26,74 +43,57 @@ KABAR is built for scalability, enabling teams and individuals to manage high-vo
 
 ### Content Generation
 
-* AI-powered article generation using multiple models
-* AI image generation support
-* SEO optimization with structured output
+* AI-powered article generation (multi-model support)
+* AI image generation integration
+* SEO-optimized structured output
 * Ready-to-publish HTML content
 
 ### Publishing
 
 * One-click multi-platform publishing
-* Integration with WordPress, Shopify, and custom APIs
+* WordPress, Shopify, and Custom API support
 * Scheduled publishing with timezone support
-* Batch publishing for multiple drafts
+* Batch publishing
 
 ### Management
 
-* Multi-user system with role-based access control
-* Draft management system
+* Role-based access control (RBAC)
+* Draft and content lifecycle management
 * Product/platform configuration
 * Full publishing history tracking
 
 ### Automation
 
-* Background job processing with scheduler
-* Automated publishing workflows
-* Extensible system for future automation features
+* Cron-based scheduler with Redis
+* Background job processing
+* Extensible automation workflows
 
 ---
 
-## Tech Stack
+## Architecture
 
-| Layer            | Technology                         |
-| ---------------- | ---------------------------------- |
-| Backend          | Go (Chi Router)                    |
-| Frontend         | React + TanStack Router + Tailwind |
-| Database         | PostgreSQL                         |
-| Cache / Queue    | Redis                              |
-| Authentication   | JWT + bcrypt                       |
-
-
----
-
-## Architecture Overview
-
-KABAR is built using a clean and modular architecture approach, separating concerns into multiple layers:
-
-```
+```text
 Frontend (React)
-│
-▼
+        │
+        ▼
 Backend API (Go)
-│
-┌──────┴──────────────┐
-│ Application Layer   │
-│ - Draft             │
-│ - Generate          │
-│ - Product           │
-│ - Team              │
-│ - User              │
-│ - History           │
-│ - Scheduler         │
-└──────┬──────────────┘
-▼
+        │
+ ┌──────┴──────────────┐
+ │ Application Layer   │
+ │ - Draft             │
+ │ - Generate          │
+ │ - Product           │
+ │ - Team              │
+ │ - User              │
+ │ - History           │
+ │ - Scheduler         │
+ └──────┬──────────────┘
+        ▼
 Domain Layer (Entities + Interfaces)
-▼
+        ▼
 Infrastructure Layer
 (PostgreSQL, Redis, AI Services)
 ```
-
-This architecture ensures scalability, maintainability, and clear separation between business logic and infrastructure.
 
 ---
 
@@ -101,73 +101,53 @@ This architecture ensures scalability, maintainability, and clear separation bet
 
 ### Content Generation Flow
 
+```text
+User Input
+   ↓
+AI Generation
+   ↓
+SEO Optimization
+   ↓
+Draft Storage
+   ↓
+Review
+   ↓
+Publish
+   ↓
+History Tracking
 ```
-[ User Input ]
-       ↓
-[ AI Generation Engine ]
-       ↓
-[ SEO Optimization & Structuring ]
-       ↓
-[ Draft Storage ]
-       ↓
-[ Manual Review / Editing ]
-       ↓
-[ Publish Trigger ]
-       ↓
-[ Distribution Engine ]
-       ↓
-[ History & Tracking ]
-```
-
----
 
 ### Scheduled Publishing Flow
 
+```text
+Scheduler
+   ↓
+Scan Drafts
+   ↓
+Validate Time
+   ↓
+Auto Publish
+   ↓
+Update Status
+   ↓
+Save History
 ```
-[ Scheduler (Cron + Redis) ]
-               ↓
-[ Scan Scheduled Drafts ]
-               ↓
-[ Time Validation (scheduled_for <= now) ]
-               ↓
-[ Auto Publish Execution ]
-               ↓
-[ Status Update (published) ]
-               ↓
-[ History Logging ]
-```
-
----
 
 ### Multi-Platform Publishing Flow
 
+```text
+Draft Selected
+   ↓
+Select Products
+   ↓
+Transform Content
+   ↓
+API Dispatch
+   ↓
+Collect Result
+   ↓
+Save History
 ```
-[ Draft Selected ]
-        ↓
-[ Product Selection ]
-        ↓
-[ Adapter Layer (Transform Content) ]
-        ↓
-[ API Dispatch (Parallel Requests) ]
-        ↓
-[ Response Collection ]
-        ↓
-[ Success / Failed Mapping ]
-        ↓
-[ History Recording ]
-```
-
-
----
-
-## Requirements
-
-* Go 1.21+
-* Node.js 20+
-* pnpm
-* PostgreSQL
-* Redis
-* Docker (optional)
 
 ---
 
@@ -183,8 +163,11 @@ cd kabar
 ### Install Dependencies
 
 ```bash
-cd src/app/api/go mod download
-cd ../frontend && pnpm install
+cd backend
+go mod download
+
+cd ../frontend
+pnpm install
 ```
 
 ### Run Infrastructure
@@ -193,112 +176,39 @@ cd ../frontend && pnpm install
 docker-compose up -d
 ```
 
-### Setup Environment
-
-```bash
-cp src/app/api/.env.example backend/.env
-cp .env.example frontend/.env
-```
-
 ### Run Application
 
 ```bash
-cd src/app/api/ go run cmd/api/main.go
-cd frontend && pnpm dev
+cd backend
+go run cmd/api/main.go
+
+cd frontend
+pnpm dev
 ```
 
 ---
 
-## API Overview
+## Tech Stack
 
-### Public Endpoints
+| Layer            | Technology               |
+| ---------------- | ------------------------ |
+| Backend          | Go (Chi Router)          |
+| Frontend         | React + TanStack Router  |
+| UI / Styling     | Tailwind CSS + shadcn/ui |
+| Database         | PostgreSQL               |
+| Cache / Queue    | Redis                    |
+| Authentication   | JWT + bcrypt             |
 
-* POST /api/auth/register
-* POST /api/auth/login
-* GET /health
-
-### Protected Endpoints
-
-* Draft management
-* Content generation
-* Product integration
-* Publishing system
-* History tracking
-
----
-
-## Product Integration
-
-KABAR supports multiple platform integrations:
-
-### WordPress
-
-* REST API integration
-* Application password authentication
-
-### Shopify
-
-* Store API integration
-* Access token authentication
-
-### Custom API
-
-* Fully configurable endpoint
-* Field mapping support
 
 ---
 
 ## Security
 
-* Password hashing using bcrypt
-* API key encryption using AES-256
-* JWT-based authentication
-* Input validation and sanitization
-* Protection against SQL injection
-
----
-
-## Role-Based Access Control
-
-| Role        | Description         |
-| ----------- | ------------------- |
-| super_admin | Full system access  |
-| admin       | Team-level access   |
-| manager     | Manage team members |
-| viewer      | Read-only access    |
-
----
-
-## Development
-
-```bash
-go test ./...
-pnpm test
-```
-
----
-
-## Docker
-
-```bash
-docker-compose up -d
-```
-
----
-
-## Documentation
-
-```
-http://localhost:8080/swagger/index.html
-```
-
----
-
-## Contributing
-
-* Open an issue
-* Discuss changes
-* Submit pull request
+* bcrypt password hashing
+* AES-256 encryption for API keys
+* JWT authentication
+* Input validation & sanitization
+* SQL injection protection
 
 ---
 
@@ -308,21 +218,10 @@ MIT License
 
 ---
 
-## Credits
-
-* Built with Go and React
-* Powered by OpenRouter
-* Infrastructure using PostgreSQL and Redis
-
----
-
-## Contact
-
-* GitHub Issues
-* Community channel (Discord, etc.)
-
----
+<div align="center">
 
 Kana Automation Builder for Article executoR (KABAR)
 
-1 dashboard. N products. 1 click. Done.
+**1 dashboard. N products. 1 click. Done.**
+
+</div>
