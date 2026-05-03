@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Cpu, Key, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useModels } from "@/hooks/useGenerate/useModels";
+import { useModels } from "@/hooks/useGenerate/useModel";
 import { useEffect } from "react";
 
 interface ModelSelectorProps {
