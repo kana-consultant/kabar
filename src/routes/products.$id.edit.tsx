@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { ProductForm } from "@/components/products/ProductForm/ProductForm";
-import { getProductById } from "@/services/productService";
+import { getProductById } from "@/services/product";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/products/$id/edit")({

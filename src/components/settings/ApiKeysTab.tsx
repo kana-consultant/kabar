@@ -11,10 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Eye, EyeOff, Save, Trash2, Plus, Key, CheckCircle, XCircle, Edit } from "lucide-react";
-import { getAPIKeys, createAPIKey, updateAPIKey, deleteAPIKey, type APIKey } from "@/services/apiKeyService";
-import { getModels, type AIModel } from "@/services/modelService";
-import { getProviders, type APIProvider } from "@/services/modelProviderService";
+import { Loader2, Eye, EyeOff, Trash2, Plus, Key, CheckCircle, XCircle, Edit } from "lucide-react";
+import { getAPIKeys, createAPIKey, updateAPIKey, deleteAPIKey, type APIKey } from "@/services/apiKey";
+import { getModels, type AIModel } from "@/services/model";
+import { type APIProvider } from "@/services/modelProvider/types";
+import { getProviders } from "@/services/modelProvider/modelQueries";
 
 export function ApiKeysTab() {
     const [loading, setLoading] = useState(true);

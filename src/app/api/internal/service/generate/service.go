@@ -87,7 +87,7 @@ func (s *Service) GenerateImage(params ImageGenerationParams) (*ImageResult, err
 	}
 
 	// Parse response
-	imageURL, err := parseImageResponse(response, config.ResponsePath)
+	imageURL, err := parseImageResponse(response, config.ResponseImagePath)
 	if err != nil {
 		return nil, err
 	}

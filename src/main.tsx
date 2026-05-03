@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { Toaster } from "sonner";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from 'react-dom/client'
 import {
   createRouter,
@@ -140,12 +141,15 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const queryClient = new QueryClient();
 // 6. Render
 createRoot(document.getElementById('root')!).render(
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <AuthProvider>
-      <RouterProvider router={router} />
-      <Toaster position="top-right" richColors closeButton />
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster position="top-right" richColors closeButton />
+      </QueryClientProvider>
     </AuthProvider>
   </ThemeProvider>
 ) 

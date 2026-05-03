@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { register } from '@/services/userService';
+import { register } from '@/services/user';
 
 export default function Register() {
     const navigate = useNavigate();

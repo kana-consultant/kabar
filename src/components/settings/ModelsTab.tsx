@@ -9,9 +9,11 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { createModel, updateModel, deleteModel, getProviders, type AIModel, type APIProvider } from '@/services/modelProviderService';
-import { Loader2, Plus, Edit2, Trash2, Star, Key, CheckCircle, XCircle } from 'lucide-react';
-import { getModelsWithStatus } from '@/services/modelService';
+import { type AIModel, type APIProvider } from '@/services/modelProvider/types';
+import {createModel, updateModel, deleteModel} from "@/services/model";
+import { getProviders } from '@/services/modelProvider/modelQueries';
+import { Loader2, Plus, Edit2, Trash2, Star,  CheckCircle, XCircle,  } from 'lucide-react';
+import { getModelsWithStatus } from '@/services/model';
 
 // Interface untuk model dengan status API key
 interface ModelWithStatus extends AIModel {

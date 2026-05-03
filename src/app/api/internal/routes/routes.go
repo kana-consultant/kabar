@@ -298,6 +298,7 @@ func SetupRoutes(cfg *config.Config, sched *scheduler.RedisScheduler) *chi.Mux {
 		r.Get("/api/api-keys/{id}", apiKeyHandler.GetByID)
 		r.Post("/api/api-keys", apiKeyHandler.Create)
 		r.Put("/api/api-keys/{id}", apiKeyHandler.Update)
+		r.Delete("/api/api-keys/{id}", apiKeyHandler.DeleteById)
 		r.Get("/api/models", modelHandler.GetAll)
 		r.Get("/api/models/with-status", modelHandler.GetAllWithStatus)
 

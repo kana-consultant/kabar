@@ -37,13 +37,14 @@ type ImageResult struct {
 
 // Internal types
 type ModelConfig struct {
-	APIKey       string
-	ModelName    string
-	Template     string
-	ResponsePath string
-	BaseURL      string
-	AuthType     string
-	AuthHeader   string
-	AuthPrefix   string
-	Endpoint     string
+	APIKey            string
+	ModelName         string
+	Template          string
+	ResponsePath      string
+	ResponseImagePath string
+	BaseURL           string
+	AuthType          string
+	AuthHeader        string
+	AuthPrefix        string
+	Endpoint          string
 }

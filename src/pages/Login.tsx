@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/auth/useAuth';
 
 export default function Login() {
     const navigate = useNavigate();
@@ -75,10 +75,10 @@ export default function Login() {
         navigate({ to: '/register' });
     };
 
-    const goToForgotPassword = (e: React.MouseEvent) => {
-        e.preventDefault();
-        navigate({ to: "/forgot-password" });
-    };
+    // const goToForgotPassword = (e: React.MouseEvent) => {
+    //     e.preventDefault();
+    //     navigate({ to: "/forgot-password" });
+    // };
 
     const isLoadingState = isLoading || authLoading;
 
@@ -160,14 +160,14 @@ export default function Login() {
                                 />
                                 <span className="text-slate-600 dark:text-zinc-400">Ingat saya</span>
                             </label>
-                            <button
+                            {/* <button
                                 type="button"
                                 onClick={goToForgotPassword}
                                 className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 hover:underline transition-colors"
                                 disabled={isLoadingState}
                             >
                                 Lupa password?
-                            </button>
+                            </button> */}
                         </div>
                     </CardContent>
 

@@ -153,8 +153,7 @@ func (r *Repository) scanTeams(rows *sql.Rows) ([]models.Team, error) {
 	for rows.Next() {
 		var t models.Team
 		err := rows.Scan(
-			&t.ID, &t.Name, &t.Description, &t.Logo, &t.Status,
-			&t.MaxMembers, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
+			&t.ID, &t.Name, &t.Description, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
 		)
 		if err != nil {
 			log.Printf("Scan error: %v", err)

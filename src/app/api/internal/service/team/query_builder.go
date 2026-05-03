@@ -40,7 +40,7 @@ func (qb *QueryBuilder) BuildListQuery(ctx models.UserContext, filters TeamFilte
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, name, description, logo, status, max_members,
+		SELECT id, name, description,
 			created_by, created_at, updated_at
 		FROM teams %s
 		ORDER BY created_at DESC

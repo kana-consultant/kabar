@@ -12,7 +12,6 @@ import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditTeamDialog } from "@/components/settings/EditTeamDialog";
 import { LoadingSettings } from "@/components/settings/LoadingSettings";
 import { useSettings } from "@/services/useSettings";
-
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute("/settings")({

@@ -2,7 +2,7 @@ import { Outlet, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
-import { getToken } from '@/services/authService';
+import { getToken } from '@/services/auth';
 
 export function Layout() {
     const navigate = useNavigate();

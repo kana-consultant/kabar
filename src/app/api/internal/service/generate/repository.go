@@ -23,7 +23,8 @@ func (r *Repository) GetModelConfig(modelID, serviceType string) (*ModelConfig, 
 			ak.key_encrypted,
 			m.name,
 			m.request_template,
-			m.response_text_path,
+			COALESCE(m.response_text_path, '') AS response_text_path,
+    		COALESCE(m.response_image_path, '') AS response_image_path,
 			p.base_url,
 			p.auth_type,
 			p.auth_header,
@@ -38,7 +39,7 @@ func (r *Repository) GetModelConfig(modelID, serviceType string) (*ModelConfig, 
 
 	err := database.GetDB().QueryRow(query, modelID, serviceType).Scan(
 		&encryptedKey, &config.ModelName, &config.Template,
-		&config.ResponsePath, &config.BaseURL, &config.AuthType,
+		&config.ResponsePath, &config.ResponseImagePath, &config.BaseURL, &config.AuthType,
 		&config.AuthHeader, &config.AuthPrefix, &config.Endpoint,
 	)
 
