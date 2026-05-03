@@ -1,5 +1,4 @@
 // src/components/generate/ModelSelector.tsx
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -9,66 +8,64 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Cpu, Key } from "lucide-react";
-import { getAPIKeys, type APIKey, type APIKeyDetail } from "@/services/apiKeyService";
+import { Loader2, Cpu, Key, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useModels } from "@/hooks/useGenerate/useModels";
+import { useEffect } from "react";
 
 interface ModelSelectorProps {
   selectedModelId: string;
   onModelChange: (modelId: string) => void;
+  filterByService?: "text" | "image" | "all";
 }
 
 export function ModelSelector({
   selectedModelId,
   onModelChange,
+  filterByService = "all",
 }: ModelSelectorProps) {
-  const [models, setModels] = useState<APIKeyDetail[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { 
+    models,
+    loadingModels,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    getProviderColor,
+    getServiceBadgeColor,
+    getTextAndImageModels,
+  } = useModels();
 
-  useEffect(() => {
-    loadModels();
-  }, []);
+  useEffect(()=>{
+    getTextAndImageModels()
+  },[])
 
-  const loadModels = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const data = await getAPIKeys();
-      setModels(data as any);
-      console.log(data);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load AI models");
-    } finally {
-      setLoading(false);
-    }
+  // Filter models based on service
+  const getFilteredModels = () => {
+    return models;
   };
 
-  const getProviderColor = (provider: string) => {
-    switch (provider?.toLowerCase()) {
-      case "openai":
-        return "bg-green-100 text-green-700";
-      case "anthropic":
-        return "bg-purple-100 text-purple-700";
-      case "google":
-        return "bg-blue-100 text-blue-700";
-      case "openrouter":
-        return "bg-orange-100 text-orange-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
+  const filteredModels = getFilteredModels();
 
   const getServiceBadge = (service: string) => {
+    const colors = getServiceBadgeColor(service);
+    const labels: Record<string, string> = {
+      text: "Text Generation",
+      image: "Image Generation",
+      embedding: "Embedding",
+    };
+    
     return (
-      <Badge variant="outline" className="text-xs">
-        {service}
+      <Badge variant="outline" className={`text-xs ${colors}`}>
+        {labels[service] || service}
       </Badge>
     );
   };
 
-  if (loading) {
+  // Use loadingModels or isLoading (both available)
+  const isProcessing = loadingModels || isLoading;
+
+  if (isProcessing) {
     return (
       <Card>
         <CardContent className="flex justify-center py-6">
@@ -78,23 +75,38 @@ export function ModelSelector({
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <Card>
-        <CardContent className="py-4 text-center text-red-500">
-          {error}
+        <CardContent className="py-6 text-center">
+          <p className="text-sm text-red-500 mb-2">
+            {error?.message || "Failed to load AI models"}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="mt-2"
+          >
+            <RefreshCw className="mr-2 h-3 w-3" />
+            Retry
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
-  if (!models) {
+  if (!filteredModels || filteredModels.length === 0) {
     return (
       <Card>
         <CardContent className="py-6 text-center">
           <Key className="mx-auto mb-2 h-8 w-8 text-slate-400" />
           <p className="text-sm text-slate-500">
-            Belum ada model yang dikonfigurasi
+            {filterByService === "text" 
+              ? "Belum ada model teks yang dikonfigurasi"
+              : filterByService === "image"
+                ? "Belum ada model gambar yang dikonfigurasi"
+                : "Belum ada model yang dikonfigurasi"}
           </p>
           <p className="mt-1 text-xs text-slate-400">
             Tambahkan API key di halaman settings
@@ -104,28 +116,44 @@ export function ModelSelector({
     );
   }
 
+  // Find selected model name for display
+  const selectedModel = filteredModels.find(m => m.id === selectedModelId);
+
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Cpu className="h-4 w-4 text-slate-500" />
-          <CardTitle className="text-sm font-medium">
-            AI Model
-          </CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Cpu className="h-4 w-4 text-slate-500" />
+            <CardTitle className="text-sm font-medium">
+              AI Model {filterByService !== "all" && `(${filterByService === "text" ? "Text" : "Image"})`}
+            </CardTitle>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => refetch()}
+            className="h-6 px-2"
+            title="Refresh models"
+          >
+            <RefreshCw className="h-3 w-3" />
+          </Button>
         </div>
       </CardHeader>
 
       <CardContent>
         <Select
           value={selectedModelId}
-          onValueChange={onModelChange}
+          onValueChange={(value)=>{
+            onModelChange(value)
+          }}
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Pilih AI Model" />
           </SelectTrigger>
 
           <SelectContent className="w-[650px] max-w-[95vw]">
-            {models.map((model) => (
+            {filteredModels.map((model) => (
               <SelectItem
                 key={model.id}
                 value={model.id}
@@ -133,15 +161,13 @@ export function ModelSelector({
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-sm">
-                    {model.modelDisplayName || model.modelName}
+                    {model.modelDisplayName}
                   </span>
 
                   {getServiceBadge(model.service)}
 
                   <Badge
-                    className={getProviderColor(
-                      model.providerName
-                    )}
+                    className={getProviderColor(model.providerDisplayName)}
                   >
                     {model.providerDisplayName}
                   </Badge>
@@ -149,16 +175,31 @@ export function ModelSelector({
                   {model.isActive && (
                     <Badge
                       variant="outline"
-                      className="text-blue-500"
+                      className="bg-green-50 text-green-600 border-green-200"
                     >
                       Active
                     </Badge>
                   )}
                 </div>
+                
+                {/* Show system prompt preview if exists */}
+                {model.systemPrompt && (
+                  <div className="mt-1 text-xs text-slate-400 truncate">
+                    System: {model.systemPrompt.substring(0, 50)}...
+                  </div>
+                )}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        
+        {/* Show selected model info */}
+        {selectedModelId && selectedModel && (
+          <div className="mt-3 text-xs text-slate-400 flex items-center gap-2">
+            <span>✅</span>
+            <span>{selectedModel.modelDisplayName} ready to use</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
