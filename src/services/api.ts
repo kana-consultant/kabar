@@ -1,5 +1,6 @@
-import axios, {type AxiosInstance,type InternalAxiosRequestConfig,type AxiosResponse } from 'axios';
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse } from 'axios';
 import Cookies from 'js-cookie';
+import { jwtDecode } from "jwt-decode";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
 
@@ -73,13 +74,13 @@ export const apiClient = new ApiClient();
 
 export const setAuthCookie = (token: string, user: any) => {
     const isSecure = import.meta.env.PROD; // true di production, false di development
-    const options = { 
-        expires: 7, 
+    const options = {
+        expires: 7,
         secure: isSecure,
         sameSite: 'strict' as const,
         path: '/'
     };
-    
+
     Cookies.set('auth_token', token, options);
     Cookies.set('user', JSON.stringify(user), options);
 };
@@ -94,16 +95,29 @@ export const getAuthToken = (): string | undefined => {
     return Cookies.get('auth_token');
 };
 
-export const getUserFromCookie = (): any => {
-    const userStr = Cookies.get('user');
-    if (userStr) {
-        try {
-            return JSON.parse(userStr);
-        } catch {
-            return null;
-        }
+
+interface JwtPayload {
+    user_id: string;
+    team_id: string;
+    email: string;
+    name: string;
+    role: string;
+    exp: number;
+    iat?: number;
+    [key: string]: any;
+}
+
+export const getUserFromCookie = (): JwtPayload | null => {
+    const token = Cookies.get("token");
+
+    if (!token) return null;
+
+    try {
+        const decoded = jwtDecode<JwtPayload>(token);
+        return decoded;
+    } catch {
+        return null;
     }
-    return null;
 };
 
 export const isAuthenticated = (): boolean => {

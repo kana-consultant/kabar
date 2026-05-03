@@ -8,7 +8,7 @@ import {
     getTeamId, 
     isAdmin as checkIsAdmin,
     isSuperAdmin as checkIsSuperAdmin
-} from '@/services/authService';
+} from '@/services/auth';
 import type { User } from '@/types/user';
 import { toast } from 'sonner';
 
