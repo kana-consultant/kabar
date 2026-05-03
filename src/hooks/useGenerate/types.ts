@@ -1,33 +1,31 @@
-import type { APIKey } from "@/services/apiKey";
-import type {  PublishResponse } from "@/services/draft";
 import type { Product } from "@/types/product";
+import type { AIModel } from "@/services/model";
+import type { GenerateArticleResponse } from "@/services/generate";
+import type { PublishResponse } from "@/services/draft";
 
+export type PostMode = "instant" | "scheduled" | "draft";
 export type Tone = "professional" | "casual" | "friendly" | "formal";
 export type ArticleLength = "short" | "medium" | "long";
 export type Language = "id" | "en";
-export type PostMode = "instant" | "scheduled" | "draft";
 
-export interface GenerateArticleResponse {
-    title: string;
-    content: string;
-    excerpt: string;
-    keywords: string[];
-    imagePrompt: string;
-    imageUrl: string;
-    wordCount: number;
-    readabilityScore: number;
-    seoScore: number;
-}
-
-export interface UseGenerateState {
+export interface GenerateState {
+    // Content
     topic: string;
     article: string;
     articleResponse: GenerateArticleResponse | null;
     imageUrl: string;
+    
+    // Loading states
     loadingArticle: boolean;
     loadingImage: boolean;
     publishing: boolean;
+    isPosting: boolean;
+    
+    // Selection
     selectedProducts: string[];
+    currentDraftId: string | null;
+    
+    // Post configuration
     postMode: PostMode;
     scheduleTime: string;
     scheduleDate: string;
@@ -35,58 +33,52 @@ export interface UseGenerateState {
     dailyTime: string;
     autoGenerateImage: boolean;
     postToAll: boolean;
-    currentDraftId: string | null;
+    
+    // Model
     selectedModelId: string;
+    
+    // Article options
     tone: Tone;
     articleLength: ArticleLength;
     keywords: string[];
     keywordInput: string;
     language: Language;
+    
+    // SEO Metrics
     seoScore: number | null;
     readabilityScore: number | null;
     wordCount: number | null;
-    isPosting: boolean;
 }
 
-export interface UseGenerateReturn extends UseGenerateState {
-    setTopic: (topic: string) => void;
-    setArticle: (article: string) => void;
-    setImageUrl: (url: string) => void;
-    setSelectedProducts: (products: string[]) => void;
-    setPostMode: (mode: PostMode) => void;
-    setScheduleTime: (time: string) => void;
-    setScheduleDate: (date: string) => void;
-    setDailySchedule: (enabled: boolean) => void;
-    setDailyTime: (time: string) => void;
-    setAutoGenerateImage: (enabled: boolean) => void;
-    setPostToAll: (enabled: boolean) => void;
-    setSelectedModelId: (id: string) => void;
-    setTone: (tone: Tone) => void;
-    setArticleLength: (length: ArticleLength) => void;
-    setKeywordInput: (input: string) => void;
-    setLanguage: (lang: Language) => void;
-    setIsPosting: (posting: boolean) => void;
-    
-    // Computed states
-    models: APIKey[];
-    loadingModels: boolean;
+export interface DataState {
+    models: AIModel[];
     products: Product[];
     productNames: string[];
+    loadingModels: boolean;
     productsLoading: boolean;
     productsError: string | null;
+}
+
+export interface DialogState {
     showResultDialog: boolean;
     publishResults: PublishResponse | null;
-    
-    // Actions
+}
+
+export interface GenerateActions {
     generateArticle: () => Promise<void>;
     generateImage: () => Promise<void>;
-    handleProductToggle: (product: string) => void;
-    handleSelectAll: () => void;
-    handlePost: () => Promise<void>;
     saveAsDraft: () => Promise<boolean>;
+    saveAsSchedule: () => Promise<boolean>;
+    postInstant: () => Promise<boolean>;
+    handlePost: () => Promise<void>;
+    quickGenerate: () => Promise<string | undefined>;
     resetForm: () => void;
+}
+
+export interface UIHandlers {
     handleAddKeyword: () => void;
     handleRemoveKeyword: (keyword: string) => void;
+    handleProductToggle: (product: string) => void;
+    handleSelectAll: () => void;
     closeResultDialog: () => void;
-    quickGenerate: () => Promise<string | undefined>;
 }
