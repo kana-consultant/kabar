@@ -8,7 +8,7 @@ export type {
 } from './types';
 
 // Queries (GET)
-export { getDrafts, getDraftById } from './draftQueries';
+export { getDrafts, getDraftById,getScheduled } from './draftQueries';
 
 // Mutations (POST, PUT, DELETE)
 export { 

@@ -12,6 +12,16 @@ export async function getDrafts(params?: { status?: string; search?: string }): 
     }
 }
 
+export async function getScheduled(params?: { status?: string; search?: string }): Promise<Draft[]> {
+    try {
+        const response = await apiClient.get<Draft[]>('/drafts/scheduled', params);
+        return response;
+    } catch (error) {
+        console.error('Failed to get drafts:', error);
+        throw error;
+    }
+}
+
 // Get draft by ID
 export async function getDraftById(id: string): Promise<Draft | null> {
     try {
