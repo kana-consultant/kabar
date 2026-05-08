@@ -63,7 +63,7 @@ export function DraftItem({
                         Dibuat: {formatDate(draft.createdAt)}
                     </span>
                     <span className="flex items-center gap-1">
-                         Target: {draft.targetProducts.length} produk
+                         Target: {draft.targetProducts?.length} produk
                     </span>
                     {draft.hasImage && (
                         <span className="flex items-center gap-1">

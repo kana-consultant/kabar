@@ -7,7 +7,7 @@ type CreateDraftRequest struct {
 	Article        string   `json:"article"`
 	ImageURL       *string  `json:"image_url"`
 	ImagePrompt    string   `json:"image_prompt"`
-	TargetProducts []string `json:"target_products"`
+	TargetProducts []string `json:"TargetProducts"`
 	HasImage       bool     `json:"has_image"`
 }
 
