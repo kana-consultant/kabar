@@ -1,0 +1,46 @@
+package product
+
+import (
+	"context"
+	"database/sql"
+
+	"seo-backend/internal/models"
+)
+
+type ProductRepository interface {
+	// Transaction management
+	BeginTx(ctx context.Context) (*sql.Tx, error)
+
+	// Read operations
+	GetByID(ctx context.Context, id string) (*models.Product, error)
+	GetByIDWithTx(ctx context.Context, tx *sql.Tx, id string) (*models.Product, error)
+	GetAll(ctx context.Context, query string, args []interface{}) ([]models.Product, error)
+	GetAllWithFilters(ctx context.Context) ([]models.Product, int, error)
+	GetProductsByTeamID(ctx context.Context, teamID string) ([]models.Product, error)
+	GetProductsByUserID(ctx context.Context, userID string) ([]models.Product, error)
+	GetProductBasicInfo(ctx context.Context, id string) (*ProductBasicInfo, error)
+	GetProductBasicInfoWithTx(ctx context.Context, tx *sql.Tx, id string) (*ProductBasicInfo, error)
+
+	// Write operations
+	InsertProductWithTx(ctx context.Context, tx *sql.Tx, req CreateProductRequest) (string, error)
+	UpdateProductWithTx(ctx context.Context, tx *sql.Tx, id string, updates map[string]interface{}) error
+	Delete(ctx context.Context, id string) error
+	DeleteWithTx(ctx context.Context, tx *sql.Tx, id string) error
+	DeleteProductWithTx(ctx context.Context, tx *sql.Tx, id string) error
+
+	// Business operations
+	UpdateConnectionStatus(ctx context.Context, productID string, isConnected bool) error
+	UpdateConnectionStatusWithTx(ctx context.Context, tx *sql.Tx, productID string, isConnected bool) error
+}
+
+type CreateProductRequest struct {
+	Name        string
+	Platform    string
+	APIEndpoint string
+	APIKey      string
+	Status      string
+	SyncStatus  string
+	CreatedBy   interface{}
+	TeamID      interface{}
+	UserID      interface{}
+}
