@@ -17,7 +17,7 @@ type AdapterConfigService struct {
 }
 
 // NewAdapterConfigService - constructor
-func NewAdapterConfigService(db *sql.DB, adapterRepo adapter.AdapterConfigRepository) *AdapterConfigService {
+func NewAdapterConfigService(db *sql.DB, adapterRepo adapter.AdapterConfigRepository) adapter.AdapterConfigService {
 	return &AdapterConfigService{
 		db:          db,
 		adapterRepo: adapterRepo,

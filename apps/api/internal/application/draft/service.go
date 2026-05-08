@@ -237,29 +237,84 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 
 // Helper functions
 func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
+
+	log.Println("========== PREPARE UPDATE DATA ==========")
+
+	// mapping berdasarkan request yang masuk
 	fieldMap := map[string]string{
+		"id":             "id",
 		"title":          "title",
 		"topic":          "topic",
 		"article":        "article",
-		"imageUrl":       "image_url",
-		"imagePrompt":    "image_prompt",
+		"ImageUrl":       "image_url",
+		"ImagePrompt":    "image_prompt",
+		"targetProducts": "target_products",
 		"status":         "status",
 		"scheduledFor":   "scheduled_for",
-		"targetProducts": "target_products",
 		"hasImage":       "has_image",
+		"teamId":         "team_id",
+		"userId":         "user_id",
+		"createdBy":      "created_by",
+		"createdAt":      "created_at",
+		"updatedAt":      "updated_at",
+	}
+
+	log.Println("[INFO] Incoming Updates:")
+	for k, v := range updates {
+		log.Printf("  %s => %#v\n", k, v)
 	}
 
 	data := make(map[string]interface{})
+
 	for key, value := range updates {
-		if dbField, ok := fieldMap[key]; ok {
-			if key == "targetProducts" {
-				jsonValue, _ := json.Marshal(value)
-				data[dbField] = jsonValue
-			} else {
-				data[dbField] = value
+
+		log.Println("--------------------------------------------------")
+		log.Println("[INFO] Processing Field:", key)
+
+		dbField, ok := fieldMap[key]
+
+		if !ok {
+			log.Println("[WARNING] Field not found in fieldMap:", key)
+			continue
+		}
+
+		log.Println("[INFO] Mapped DB Field:", dbField)
+
+		// khusus target products
+		if key == "TargetProducts" {
+
+			log.Println("[INFO] Marshaling TargetProducts to JSON")
+
+			jsonValue, err := json.Marshal(value)
+			if err != nil {
+
+				log.Println("[ERROR] Failed to marshal TargetProducts:", err)
+				continue
 			}
+
+			log.Println("[INFO] JSON Result:", string(jsonValue))
+
+			data[dbField] = jsonValue
+
+		} else {
+
+			log.Printf("[INFO] Assigning value to '%s'\n", dbField)
+			log.Printf("[INFO] Value Type: %T\n", value)
+			log.Printf("[INFO] Value: %#v\n", value)
+
+			data[dbField] = value
 		}
 	}
+
+	log.Println("==================================================")
+	log.Println("[INFO] Final Prepared Data:")
+
+	for k, v := range data {
+		log.Printf("  %s => %#v\n", k, v)
+	}
+
+	log.Println("[SUCCESS] prepareUpdateData completed")
+
 	return data
 }
 

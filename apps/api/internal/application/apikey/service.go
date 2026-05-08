@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"seo-backend/internal/domain/apikey"
+	"seo-backend/internal/models"
 	"seo-backend/internal/pkg/crypto"
 )
 
@@ -18,7 +19,7 @@ type Service struct {
 }
 
 // NewService - constructor
-func NewService(db *sql.DB, repo apikey.Repository, encryptor crypto.Encryptor) *Service {
+func NewService(db *sql.DB, repo apikey.Repository, encryptor crypto.Encryptor) apikey.Service {
 	return &Service{
 		db:        db,
 		repo:      repo,
@@ -26,15 +27,8 @@ func NewService(db *sql.DB, repo apikey.Repository, encryptor crypto.Encryptor) 
 	}
 }
 
-// UserContext - user info from auth middleware
-type UserContext interface {
-	GetUserID() string
-	GetTeamID() string
-	GetUserRole() string
-}
-
 // CreateAPIKey - create new API key
-func (s *Service) CreateAPIKey(ctx context.Context, req apikey.CreateAPIKeyRequest, userCtx UserContext) (string, error) {
+func (s *Service) CreateAPIKey(ctx context.Context, req apikey.CreateAPIKeyRequest, userCtx models.UserContext) (string, error) {
 	// Business validation
 	if err := s.validateCreateRequest(req); err != nil {
 		return "", err
@@ -103,10 +97,10 @@ func (s *Service) GetAPIKeyByID(ctx context.Context, id string) (*apikey.APIKey,
 }
 
 // GetAllAPIKeys - get all API keys with filters
-func (s *Service) GetAllAPIKeys(ctx context.Context, userCtx UserContext) ([]apikey.APIKeyDetail, error) {
+func (s *Service) GetAllAPIKeys(ctx context.Context, userCtx models.UserContext) ([]apikey.APIKeyDetail, error) {
 	teamID := s.getTeamIDPtr(userCtx.GetTeamID())
 
-	keys, err := s.repo.GetAll(ctx, teamID, userCtx.GetUserID(), userCtx.GetUserRole())
+	keys, err := s.repo.GetAll(ctx, teamID, userCtx.GetUserID(), userCtx.GetRole())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API keys: %w", err)
 	}
@@ -115,7 +109,7 @@ func (s *Service) GetAllAPIKeys(ctx context.Context, userCtx UserContext) ([]api
 }
 
 // UpdateAPIKey - update API key
-func (s *Service) UpdateAPIKey(ctx context.Context, id string, req apikey.UpdateAPIKeyRequest, userCtx UserContext) error {
+func (s *Service) UpdateAPIKey(ctx context.Context, id string, req apikey.UpdateAPIKeyRequest, userCtx models.UserContext) error {
 	if id == "" {
 		return errors.New("API key id is required")
 	}
@@ -190,7 +184,7 @@ func (s *Service) UpdateAPIKey(ctx context.Context, id string, req apikey.Update
 }
 
 // DeleteAPIKey - delete API key
-func (s *Service) DeleteAPIKey(ctx context.Context, id string, userCtx UserContext) error {
+func (s *Service) DeleteAPIKey(ctx context.Context, id string, userCtx models.UserContext) error {
 	if id == "" {
 		return errors.New("API key id is required")
 	}

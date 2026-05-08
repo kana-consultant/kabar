@@ -20,7 +20,7 @@ type Service struct {
 }
 
 // NewService creates a new auth service
-func NewService(db *sql.DB, repo auth.Repository, tokenGen auth.TokenGenerator) *Service {
+func NewService(db *sql.DB, repo auth.Repository, tokenGen auth.TokenGenerator) auth.AuthService {
 	return &Service{
 		db:       db,
 		repo:     repo,
@@ -28,20 +28,8 @@ func NewService(db *sql.DB, repo auth.Repository, tokenGen auth.TokenGenerator) 
 	}
 }
 
-// LoginRequest DTO
-type LoginRequest struct {
-	Email    string
-	Password string
-}
-
-// LoginResponse DTO
-type LoginResponse struct {
-	Token string
-	User  *models.User
-}
-
 // Login authenticates a user
-func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
+func (s *Service) Login(ctx context.Context, req auth.LoginRequest) (*auth.LoginResponse, error) {
 	// Get user by email
 	user, passwordHash, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
@@ -69,21 +57,14 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResponse, 
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
-	return &LoginResponse{
+	return &auth.LoginResponse{
 		Token: token,
 		User:  user,
 	}, nil
 }
 
-// RegisterRequest DTO
-type RegisterRequest struct {
-	Email    string
-	Name     string
-	Password string
-}
-
 // Register creates a new user with team
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (*models.User, error) {
+func (s *Service) Register(ctx context.Context, req auth.RegisterRequest) (*models.User, error) {
 	// Validate request
 	if err := s.validateRegisterRequest(req); err != nil {
 		return nil, err
@@ -159,15 +140,8 @@ func (s *Service) GetMe(ctx context.Context, userID string) (*models.User, error
 	return user, nil
 }
 
-// ChangePasswordRequest DTO
-type ChangePasswordRequest struct {
-	UserID      string
-	OldPassword string
-	NewPassword string
-}
-
 // ChangePassword updates user's password
-func (s *Service) ChangePassword(ctx context.Context, req ChangePasswordRequest) error {
+func (s *Service) ChangePassword(ctx context.Context, req auth.ChangePasswordRequest) error {
 	if req.UserID == "" {
 		return errors.New("unauthorized")
 	}
@@ -214,13 +188,8 @@ func (s *Service) ChangePassword(ctx context.Context, req ChangePasswordRequest)
 	return nil
 }
 
-// ForgotPasswordRequest DTO
-type ForgotPasswordRequest struct {
-	Email string
-}
-
 // ForgotPassword sends reset link (placeholder)
-func (s *Service) ForgotPassword(ctx context.Context, req ForgotPasswordRequest) error {
+func (s *Service) ForgotPassword(ctx context.Context, req auth.ForgotPasswordRequest) error {
 	// Check if user exists (don't reveal for security)
 	exists, err := s.repo.UserExists(ctx, req.Email)
 	if err != nil || !exists {
@@ -235,7 +204,7 @@ func (s *Service) ForgotPassword(ctx context.Context, req ForgotPasswordRequest)
 }
 
 // Helper: Validate register request
-func (s *Service) validateRegisterRequest(req RegisterRequest) error {
+func (s *Service) validateRegisterRequest(req auth.RegisterRequest) error {
 	if req.Email == "" {
 		return errors.New("email is required")
 	}
