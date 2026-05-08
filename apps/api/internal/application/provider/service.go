@@ -16,7 +16,7 @@ type Service struct {
 }
 
 // NewService creates a new provider service
-func NewService(db *sql.DB, repo provider.Repository) *Service {
+func NewService(db *sql.DB, repo provider.Repository) provider.ProviderService {
 	return &Service{
 		db:   db,
 		repo: repo,
