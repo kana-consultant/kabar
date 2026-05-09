@@ -3,7 +3,7 @@ package adapter
 import (
 	"context"
 	"database/sql"
-	"seo-backend/internal/models"
+	"seo-backend/internal/domain/product"
 )
 
 // AdapterConfigRepository interface
@@ -11,7 +11,7 @@ import (
 
 type AdapterConfigRepository interface {
 	// Insert with transaction
-	InsertWithTx(ctx context.Context, tx *sql.Tx, productID string, config *models.AdapterConfig) error
+	InsertWithTx(ctx context.Context, tx *sql.Tx, productID string, config *product.AdapterConfig) error
 
 	// Update with transaction
 	UpdateWithTx(ctx context.Context, tx *sql.Tx, productID string, updates map[string]interface{}) error
@@ -20,13 +20,13 @@ type AdapterConfigRepository interface {
 	DeleteWithTx(ctx context.Context, tx *sql.Tx, productID string) error // TAMBAHKAN INI
 
 	// Get by product ID
-	GetByProductID(ctx context.Context, productID string) (*models.AdapterConfig, error)
+	GetByProductID(ctx context.Context, productID string) (*product.AdapterConfig, error)
 
 	// Load for product
-	LoadForProduct(ctx context.Context, product *models.Product) error
+	LoadForProduct(ctx context.Context, product *product.Product) error
 
 	// Get with defaults
-	GetOrDefault(ctx context.Context, productID string) (*models.AdapterConfig, error)
+	GetOrDefault(ctx context.Context, productID string) (*product.AdapterConfig, error)
 }
 
 // AdapterConfigDTO for repository operations

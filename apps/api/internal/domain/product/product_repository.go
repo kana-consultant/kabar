@@ -3,8 +3,6 @@ package product
 import (
 	"context"
 	"database/sql"
-
-	"seo-backend/internal/models"
 )
 
 type ProductRepository interface {
@@ -12,12 +10,12 @@ type ProductRepository interface {
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 
 	// Read operations
-	GetByID(ctx context.Context, id string) (*models.Product, error)
-	GetByIDWithTx(ctx context.Context, tx *sql.Tx, id string) (*models.Product, error)
-	GetAll(ctx context.Context, query string, args []interface{}) ([]models.Product, error)
-	GetAllWithFilters(ctx context.Context) ([]models.Product, int, error)
-	GetProductsByTeamID(ctx context.Context, teamID string) ([]models.Product, error)
-	GetProductsByUserID(ctx context.Context, userID string) ([]models.Product, error)
+	GetByID(ctx context.Context, id string) (*Product, error)
+	GetByIDWithTx(ctx context.Context, tx *sql.Tx, id string) (*Product, error)
+	GetAll(ctx context.Context, query string, args []interface{}) ([]Product, error)
+	GetAllWithFilters(ctx context.Context) ([]Product, int, error)
+	GetProductsByTeamID(ctx context.Context, teamID string) ([]Product, error)
+	GetProductsByUserID(ctx context.Context, userID string) ([]Product, error)
 	GetProductBasicInfo(ctx context.Context, id string) (*ProductBasicInfo, error)
 	GetProductBasicInfoWithTx(ctx context.Context, tx *sql.Tx, id string) (*ProductBasicInfo, error)
 
@@ -31,16 +29,4 @@ type ProductRepository interface {
 	// Business operations
 	UpdateConnectionStatus(ctx context.Context, productID string, isConnected bool) error
 	UpdateConnectionStatusWithTx(ctx context.Context, tx *sql.Tx, productID string, isConnected bool) error
-}
-
-type CreateProductRequest struct {
-	Name        string
-	Platform    string
-	APIEndpoint string
-	APIKey      string
-	Status      string
-	SyncStatus  string
-	CreatedBy   interface{}
-	TeamID      interface{}
-	UserID      interface{}
 }

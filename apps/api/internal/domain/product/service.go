@@ -10,7 +10,7 @@ import (
 // ProductService defines the product business logic interface
 type ProductService interface {
 	// CreateProduct creates a new product
-	CreateProduct(ctx context.Context, req models.CreateProductRequest, userCtx models.UserContext) (string, error)
+	CreateProduct(ctx context.Context, req CreateProductRequest, userCtx models.UserContext) (string, error)
 
 	// UpdateProduct updates an existing product
 	UpdateProduct(ctx context.Context, id string, updates map[string]interface{}, userCtx models.UserContext) error
@@ -19,10 +19,10 @@ type ProductService interface {
 	DeleteProduct(ctx context.Context, id string) error
 
 	// GetByID retrieves a product by ID with its adapter config
-	GetByID(ctx context.Context, id string) (*models.Product, error)
+	GetByID(ctx context.Context, id string) (*Product, error)
 
 	// GetAllProducts retrieves all products with filters
-	GetAllProducts(ctx context.Context) ([]models.Product, int, error)
+	GetAllProducts(ctx context.Context) ([]Product, int, error)
 
 	// UpdateConnectionStatus updates product connection status
 	UpdateConnectionStatus(ctx context.Context, productID string, isConnected bool) error

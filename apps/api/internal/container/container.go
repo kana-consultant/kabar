@@ -173,7 +173,7 @@ func NewContainer(db *sql.DB, httpClient *client.HTTPClient,
 	authService := authApp.NewService(db, authRepo, jwtGenerator)
 	historyService := historyApp.NewService(historyRepo, *qb_history)
 	dashboardService := dashboardApp.NewDashboardService(dashboardRepo)
-	draftService := draftApp.NewService(draftRepo, redisScheduler, postService)
+	draftService := draftApp.NewService(draftRepo, redisScheduler, postService, productRepo)
 	modelService := modelApp.NewService(modelRepo)
 
 	// ========== TEAM SERVICE ==========

@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"seo-backend/internal/domain/adapter"
-	"seo-backend/internal/models"
+	"seo-backend/internal/domain/product"
 )
 
 // AdapterConfigService - Application Layer
@@ -25,7 +25,7 @@ func NewAdapterConfigService(db *sql.DB, adapterRepo adapter.AdapterConfigReposi
 }
 
 // GetAdapterConfig - get config with defaults
-func (s *AdapterConfigService) GetAdapterConfig(ctx context.Context, productID string) (*models.AdapterConfig, error) {
+func (s *AdapterConfigService) GetAdapterConfig(ctx context.Context, productID string) (*product.AdapterConfig, error) {
 	if productID == "" {
 		return nil, errors.New("product id is required")
 	}
@@ -53,28 +53,6 @@ func (s *AdapterConfigService) UpdateAdapterConfig(ctx context.Context, productI
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
-
-	// Check if config exists
-	existingConfig, err := s.adapterRepo.GetByProductID(ctx, productID)
-	if err != nil {
-		return fmt.Errorf("failed to get existing config: %w", err)
-	}
-
-	// If config doesn't exist and we're updating, create default first
-	if existingConfig == nil {
-		defaultConfig := models.AdapterConfig{
-			HTTPMethod:     "GET",
-			TimeoutSeconds: 30,
-			RetryCount:     3,
-			CustomHeaders:  make(map[string]string),
-			FieldMapping:   make(map[string]string),
-		}
-
-		if err := s.adapterRepo.InsertWithTx(ctx, tx, productID, &defaultConfig); err != nil {
-			return fmt.Errorf("failed to create default config: %w", err)
-		}
-	}
 
 	// Update config
 	if err := s.adapterRepo.UpdateWithTx(ctx, tx, productID, updates); err != nil {
@@ -86,7 +64,7 @@ func (s *AdapterConfigService) UpdateAdapterConfig(ctx context.Context, productI
 }
 
 // CreateOrUpdateAdapterConfig - create or update full config
-func (s *AdapterConfigService) CreateOrUpdateAdapterConfig(ctx context.Context, productID string, config *models.AdapterConfig) error {
+func (s *AdapterConfigService) CreateOrUpdateAdapterConfig(ctx context.Context, productID string, config *product.AdapterConfig) error {
 	if productID == "" {
 		return errors.New("product id is required")
 	}
@@ -130,7 +108,7 @@ func (s *AdapterConfigService) CreateOrUpdateAdapterConfig(ctx context.Context, 
 }
 
 // LoadConfigForProduct - load and attach config to product
-func (s *AdapterConfigService) LoadConfigForProduct(ctx context.Context, product *models.Product) error {
+func (s *AdapterConfigService) LoadConfigForProduct(ctx context.Context, product *product.Product) error {
 	if product == nil {
 		return errors.New("product is required")
 	}
@@ -174,7 +152,7 @@ func (s *AdapterConfigService) validateUpdates(updates map[string]interface{}) e
 	return nil
 }
 
-func (s *AdapterConfigService) validateConfig(config *models.AdapterConfig) error {
+func (s *AdapterConfigService) validateConfig(config *product.AdapterConfig) error {
 	if config.TimeoutSeconds < 1 || config.TimeoutSeconds > 300 {
 		return errors.New("timeout seconds must be between 1 and 300")
 	}
@@ -194,7 +172,7 @@ func (s *AdapterConfigService) validateConfig(config *models.AdapterConfig) erro
 	return nil
 }
 
-func (s *AdapterConfigService) configToUpdates(config *models.AdapterConfig) map[string]interface{} {
+func (s *AdapterConfigService) configToUpdates(config *product.AdapterConfig) map[string]interface{} {
 	updates := make(map[string]interface{})
 
 	if config.EndpointPath != "" {

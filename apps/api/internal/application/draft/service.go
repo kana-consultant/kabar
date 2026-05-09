@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/draft"
+	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/scheduler"
 )
@@ -17,12 +18,14 @@ type DraftServiceImpl struct {
 	repo           draft.Repository
 	redisScheduler *scheduler.RedisScheduler
 	postService    *helper.PostService
+	productService product.ProductRepository
 }
 
 func NewService(
 	repo draft.Repository,
 	redisScheduler *scheduler.RedisScheduler,
 	postService *helper.PostService,
+	productService product.ProductRepository,
 ) draft.Service {
 	return &DraftServiceImpl{
 		repo:           repo,
@@ -66,17 +69,47 @@ func (s *DraftServiceImpl) GetDraftByID(ctx context.Context, id string) (*draft.
 }
 
 // PublishDraft implements draft.Service
-func (s *DraftServiceImpl) PublishDraft(ctx context.Context, id string, scheduledForStr string, teamID, userID string) (*draft.PublishResult, error) {
+func (s *DraftServiceImpl) PublishDraft(
+	ctx context.Context,
+	id string,
+	scheduledForStr string,
+	teamID, userID string,
+) (*draft.PublishResult, error) {
+
+	log.Printf("[PublishDraft] START id=%s teamID=%s userID=%s scheduledFor=%s",
+		id, teamID, userID, scheduledForStr)
+
 	draftData, err := s.repo.GetByID(ctx, id)
 	if err != nil {
+		log.Printf("[PublishDraft] ERROR GetByID id=%s err=%v", id, err)
 		return nil, err
 	}
 
+	log.Printf("[PublishDraft] Draft fetched successfully id=%s", id)
+
+	// jika ada schedule
 	if scheduledForStr != "" {
-		return s.scheduleDraft(ctx, id, scheduledForStr, draftData, teamID, userID)
+		log.Printf("[PublishDraft] Routing to scheduleDraft id=%s scheduledFor=%s", id, scheduledForStr)
+
+		result, err := s.scheduleDraft(ctx, id, scheduledForStr, draftData, teamID, userID)
+		if err != nil {
+			log.Printf("[PublishDraft] ERROR scheduleDraft id=%s err=%v", id, err)
+			return nil, err
+		}
+
+		log.Printf("[PublishDraft] SUCCESS scheduleDraft id=%s", id)
+		return result, nil
 	}
 
-	return s.processPublish(ctx, draftData, id, teamID, userID)
+	log.Printf("[PublishDraft] Routing to processPublish id=%s", id)
+
+	result, err := s.processPublish(ctx, draftData, id, teamID, userID)
+	if err != nil {
+		log.Printf("[PublishDraft] ERROR processPublish id=%s err=%v", id, err)
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // PublishContent implements draft.Service
@@ -165,12 +198,18 @@ func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForSt
 		return nil, err
 	}
 
+	var imageURL string
+
+	if draftData.ImageURL != nil {
+		imageURL = *draftData.ImageURL
+	}
+
 	taskData := &scheduler.ScheduledTask{
 		DraftID:        id,
 		Title:          draftData.Title,
 		Topic:          draftData.Topic,
 		Article:        draftData.Article,
-		ImageURL:       *draftData.ImageURL,
+		ImageURL:       imageURL,
 		ImagePrompt:    draftData.ImagePrompt,
 		TargetProducts: draftData.TargetProducts,
 		TeamID:         teamID,
