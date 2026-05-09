@@ -15,9 +15,7 @@ export function useProductFormActions(
     };
 
     const updateFieldMapping = (value: string) => {
-        console.log("📝 useProductForm.updateFieldMapping called with:", value);
-        console.log("📝 type:", typeof value);
-
+       
         setProduct((prev : Partial<Product> )=> {
             const newProduct = {
                 ...prev,

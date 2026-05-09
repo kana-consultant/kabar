@@ -1,7 +1,7 @@
 import { apiClient } from '../api';
 import type { Product } from '@/types/product';
 
-// Get all products (backend akan otomatis filter berdasarkan team dari token)
+// Get all products (seo-backend akan otomatis filter berdasarkan team dari token)
 export async function getProducts(params?: {
     page?: number;
     limit?: number;

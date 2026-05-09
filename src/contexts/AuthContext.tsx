@@ -38,7 +38,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Permission mapping (gunakan role yang sesuai dengan backend)
+// Permission mapping (gunakan role yang sesuai dengan seo-backend)
 const permissionsMap: Record<string, string[]> = {
     // Draft permissions
     'draft:create': ['editor', 'manager', 'admin', 'super_admin'],

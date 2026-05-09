@@ -17,6 +17,7 @@ export function useGenerateData(
         setProductsError(null);
         try {
             const productsData = await getProducts();
+            console.log(productsData)
             setProducts(productsData || []);
             setProductNames(productsData ? productsData.map(p => p.name) : []);
         } catch (error) {

@@ -14,9 +14,9 @@ export function useProductFormState() {
         adapterConfig: {
             endpointPath: "",
             httpMethod: "POST",
-            customHeaders: {
+            customHeaders: JSON.stringify({
                 "Content-Type": "application/json",
-            },
+            }),
             fieldMapping: JSON.stringify([], null, 2),
         },
     });

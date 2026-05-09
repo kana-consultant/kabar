@@ -14,6 +14,7 @@ export function useProductsData(
         setProductsError(null);
         try {
             const productsData = await getProducts();
+            console.log(productsData)
             setProducts(productsData || []);
 
             // Extract product names for display
