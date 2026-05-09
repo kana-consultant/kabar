@@ -184,14 +184,14 @@ docker-compose.*.yml
 # Project specific (adjust paths as needed)
 # =======================
 # For monorepo structure:
-# /backend/go/...
+# /seo-backend/go/...
 # /frontend/react/...
 
-# Backend specific
-**/backend/*/main
-**/backend/*/*.exe
-**/backend/*/*.test
-**/backend/tmp/
+# seo-backend specific
+**/seo-backend/*/main
+**/seo-backend/*/*.exe
+**/seo-backend/*/*.test
+**/seo-backend/tmp/
 
 # Frontend specific  
 **/frontend/out/
@@ -203,4 +203,4 @@ docker-compose.*.yml
 /main
 /app
 /api
-/backend-app
+/seo-backend-app

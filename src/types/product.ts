@@ -22,7 +22,7 @@ export interface AdapterConfig {
     productId?: string;
     endpointPath: string;
     httpMethod: 'POST' | 'PUT' | 'PATCH';
-    customHeaders: Record<string, string>;
+    customHeaders: string;
     fieldMapping: string;
     timeoutSeconds?: number;
     retryCount?: number;

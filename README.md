@@ -76,7 +76,7 @@ KABAR eliminates repetitive manual workflows by providing a centralized system f
 Frontend (React)
         │
         ▼
-Backend API (Go)
+seo-backend API (Go)
         │
  ┌──────┴──────────────┐
  │ Application Layer   │
@@ -163,7 +163,7 @@ cd kabar
 ### Install Dependencies
 
 ```bash
-cd backend
+cd seo-backend
 go mod download
 
 cd ../frontend
@@ -179,7 +179,7 @@ docker-compose up -d
 ### Run Application
 
 ```bash
-cd backend
+cd seo-backend
 go run cmd/api/main.go
 
 cd frontend
@@ -192,7 +192,7 @@ pnpm dev
 
 | Layer            | Technology               |
 | ---------------- | ------------------------ |
-| Backend          | Go (Chi Router)          |
+| seo-backend          | Go (Chi Router)          |
 | Frontend         | React + TanStack Router  |
 | UI / Styling     | Tailwind CSS + shadcn/ui |
 | Database         | PostgreSQL               |
