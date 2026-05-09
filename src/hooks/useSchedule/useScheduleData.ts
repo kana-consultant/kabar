@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { getDrafts } from "@/services/draft";
+import { getScheduled } from "@/services/draft";
 
 export async function loadSchedulesData(
     setSchedules: (data: any[]) => void,
@@ -7,7 +7,7 @@ export async function loadSchedulesData(
 ) {
     setLoading(true);
     try {
-        const allDrafts = await getDrafts();
+        const allDrafts = await getScheduled();
         const scheduled = allDrafts ? allDrafts.filter(d => d.status === "scheduled") : [];
         setSchedules(scheduled || []);
     } catch (error) {
