@@ -2,8 +2,10 @@
 package draft
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -165,23 +167,84 @@ func (h *DraftHandler) Publish(w http.ResponseWriter, r *http.Request) {
 // PublishContent - publish content directly (without saving to drafts)
 func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	log.Println("========== PUBLISH CONTENT ==========")
+	log.Printf("Method: %s | URL: %s\n", r.Method, r.URL.Path)
+
 	teamID := auth.GetTeamID(ctx)
 	userID := auth.GetUserID(ctx)
 
-	var req draft.DraftDataPost
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	log.Printf("TeamID: %s\n", teamID)
+	log.Printf("UserID: %s\n", userID)
+
+	// READ RAW BODY
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+
+		log.Printf("Failed read request body: %v\n", err)
+
+		http.Error(
+			w,
+			"Failed to read request body",
+			http.StatusBadRequest,
+		)
+
 		return
 	}
 
-	result, err := h.draftService.PublishContent(ctx, req, teamID, userID)
-	if err != nil {
-		log.Printf("Failed to publish content: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	log.Printf("RAW BODY: %s\n", string(bodyBytes))
+
+	// restore body
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	var req draft.DraftDataPost
+
+	log.Println("Decoding request body...")
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+
+		log.Printf("Failed decode request body: %v\n", err)
+
+		http.Error(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		)
+
 		return
 	}
+
+	log.Printf("Parsed Request: %+v\n", req)
+
+	log.Println("Calling PublishContent service...")
+
+	result, err := h.draftService.PublishContent(
+		ctx,
+		req,
+		teamID,
+		userID,
+	)
+
+	if err != nil {
+
+		log.Printf("Failed to publish content: %v\n", err)
+
+		http.Error(
+			w,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
+
+		return
+	}
+
+	log.Printf("Publish Result: %+v\n", result)
+
+	log.Println("Writing response...")
 
 	h.writePublishResponse(w, result)
+
+	log.Println("========== END PUBLISH CONTENT ==========")
 }
 
 // ScheduleDraft - schedule a draft for future publishing

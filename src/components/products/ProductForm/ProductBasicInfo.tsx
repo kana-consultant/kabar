@@ -8,6 +8,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Wifi } from "lucide-react";
 import type { Product } from "@/types/product";
 
 interface ProductBasicInfoProps {
@@ -84,6 +86,20 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     <p className="text-xs text-slate-400">
                         ⚠️ Key akan dienkripsi sebelum disimpan ke database
                     </p>
+                </div>
+
+                {/* Tombol Test Koneksi */}
+                <div className="pt-2">
+                    <Button
+                        type="button"
+                        onClick={onTestConnection}
+                        disabled={isTesting}
+                        className="w-full"
+                        variant="outline"
+                    >
+                        <Wifi className="mr-2 h-4 w-4" />
+                        {isTesting ? "Menguji Koneksi..." : "Test Koneksi API"}
+                    </Button>
                 </div>
             </CardContent>
         </Card>

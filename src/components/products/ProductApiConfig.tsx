@@ -40,6 +40,7 @@ export function ProductApiConfig({ config, onChange }: ProductApiConfigProps) {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem value="GET">GET</SelectItem>
                             <SelectItem value="POST">POST</SelectItem>
                             <SelectItem value="PUT">PUT</SelectItem>
                             <SelectItem value="PATCH">PATCH</SelectItem>

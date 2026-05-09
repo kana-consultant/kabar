@@ -8,7 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"seo-backend/internal/models"
+	"seo-backend/internal/domain/adapter"
+	"seo-backend/internal/domain/product"
 )
 
 type AdapterConfigRepository struct {
@@ -16,12 +17,12 @@ type AdapterConfigRepository struct {
 }
 
 // Constructor - implements interface
-func NewAdapterConfigRepository(db *sql.DB) *AdapterConfigRepository {
+func NewAdapterConfigRepository(db *sql.DB) adapter.AdapterConfigRepository {
 	return &AdapterConfigRepository{db: db}
 }
 
 // LoadForProduct - load config and attach to product
-func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, product *models.Product) error {
+func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *product.Product) error {
 	query := `
 		SELECT id, product_id, endpoint_path, http_method,
 			custom_headers, field_mapping, timeout_seconds,
@@ -29,11 +30,11 @@ func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, product *m
 		FROM adapter_configs WHERE product_id = $1
 	`
 
-	var config models.AdapterConfig
+	var config product.AdapterConfig
 	var customHeadersJSON []byte
 	var fieldMappingJSON []byte
 
-	err := r.db.QueryRowContext(ctx, query, product.ID).Scan(
+	err := r.db.QueryRowContext(ctx, query, data.ID).Scan(
 		&config.ID, &config.ProductID, &config.EndpointPath,
 		&config.HTTPMethod, &customHeadersJSON, &fieldMappingJSON,
 		&config.TimeoutSeconds, &config.RetryCount,
@@ -60,18 +61,18 @@ func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, product *m
 		}
 	}
 
-	product.AdapterConfig = &config
+	data.AdapterConfig = &config
 	return nil
 }
 
 // GetOrDefault - get config with default values
-func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID string) (*models.AdapterConfig, error) {
-	config := &models.AdapterConfig{
+func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID string) (*product.AdapterConfig, error) {
+	config := &product.AdapterConfig{
 		HTTPMethod:     "GET",
 		TimeoutSeconds: 10,
 		RetryCount:     1,
-		CustomHeaders:  make(map[string]string),
-		FieldMapping:   make(map[string]string),
+		CustomHeaders:  "",
+		FieldMapping:   "",
 	}
 
 	query := `
@@ -115,7 +116,7 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 }
 
 // GetByProductID - get config by product ID (without defaults)
-func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID string) (*models.AdapterConfig, error) {
+func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID string) (*product.AdapterConfig, error) {
 	query := `
 		SELECT id, product_id, endpoint_path, http_method,
 			custom_headers, field_mapping, timeout_seconds,
@@ -123,7 +124,7 @@ func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID 
 		FROM adapter_configs WHERE product_id = $1
 	`
 
-	var config models.AdapterConfig
+	var config product.AdapterConfig
 	var customHeadersJSON []byte
 	var fieldMappingJSON []byte
 
@@ -153,7 +154,7 @@ func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID 
 }
 
 // InsertWithTx - insert config with transaction
-func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, productID string, config *models.AdapterConfig) error {
+func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, productID string, config *product.AdapterConfig) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is required for InsertWithTx")
 	}

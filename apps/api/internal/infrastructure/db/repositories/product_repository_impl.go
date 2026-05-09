@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/product"
-	"seo-backend/internal/models"
 )
 
 type ProductRepository struct {
@@ -31,11 +30,11 @@ func (r *ProductRepository) BeginTx(ctx context.Context) (*sql.Tx, error) {
 // =======================
 // BASIC CRUD (dengan optional tx)
 // =======================
-func (r *ProductRepository) GetByID(ctx context.Context, id string) (*models.Product, error) {
+func (r *ProductRepository) GetByID(ctx context.Context, id string) (*product.Product, error) {
 	return r.GetByIDWithTx(ctx, nil, id)
 }
 
-func (r *ProductRepository) GetByIDWithTx(ctx context.Context, tx *sql.Tx, id string) (*models.Product, error) {
+func (r *ProductRepository) GetByIDWithTx(ctx context.Context, tx *sql.Tx, id string) (*product.Product, error) {
 	query := `
 		SELECT id, name, platform, api_key_encrypted, api_endpoint,
 			status, sync_status, last_sync, created_by, team_id,
@@ -43,7 +42,7 @@ func (r *ProductRepository) GetByIDWithTx(ctx context.Context, tx *sql.Tx, id st
 		FROM products WHERE id = $1
 	`
 
-	var p models.Product
+	var p product.Product
 	var err error
 
 	if tx != nil {
@@ -73,7 +72,7 @@ func (r *ProductRepository) GetByIDWithTx(ctx context.Context, tx *sql.Tx, id st
 }
 
 // GetAllWithFilters - Build query sendiri dengan filters
-func (r *ProductRepository) GetAllWithFilters(ctx context.Context) ([]models.Product, int, error) {
+func (r *ProductRepository) GetAllWithFilters(ctx context.Context) ([]product.Product, int, error) {
 	// Base query
 	baseQuery := `
 		SELECT id, name, platform, api_endpoint, status, sync_status, 
@@ -114,7 +113,7 @@ func (r *ProductRepository) GetAllWithFilters(ctx context.Context) ([]models.Pro
 }
 
 // GetAll - legacy method, tetap menerima query dari luar untuk kompatibilitas
-func (r *ProductRepository) GetAll(ctx context.Context, query string, args []interface{}) ([]models.Product, error) {
+func (r *ProductRepository) GetAll(ctx context.Context, query string, args []interface{}) ([]product.Product, error) {
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch products: %w", err)
@@ -198,7 +197,7 @@ func (r *ProductRepository) GetProductBasicInfo(ctx context.Context, id string) 
 
 func (r *ProductRepository) GetProductBasicInfoWithTx(ctx context.Context, tx *sql.Tx, id string) (*product.ProductBasicInfo, error) {
 	query := `
-		SELECT id, name, platform, api_endpoint, COALESCE(api_key_encrypted, '')
+		SELECT id, name,custom_headers, platform, api_endpoint, COALESCE(api_key_encrypted, '')
 		FROM products WHERE id = $1
 	`
 
@@ -233,7 +232,7 @@ func (r *ProductRepository) GetProductBasicInfoWithTx(ctx context.Context, tx *s
 	return &info, nil
 }
 
-func (r *ProductRepository) GetProductsByTeamID(ctx context.Context, teamID string) ([]models.Product, error) {
+func (r *ProductRepository) GetProductsByTeamID(ctx context.Context, teamID string) ([]product.Product, error) {
 	query := `
 		SELECT id, name, platform, api_endpoint, status, sync_status, 
 			last_sync, created_by, team_id, user_id, created_at, updated_at
@@ -249,7 +248,7 @@ func (r *ProductRepository) GetProductsByTeamID(ctx context.Context, teamID stri
 	return r.scanProducts(rows)
 }
 
-func (r *ProductRepository) GetProductsByUserID(ctx context.Context, userID string) ([]models.Product, error) {
+func (r *ProductRepository) GetProductsByUserID(ctx context.Context, userID string) ([]product.Product, error) {
 	query := `
 		SELECT id, name, platform, api_endpoint, status, sync_status, 
 			last_sync, created_by, team_id, user_id, created_at, updated_at
@@ -276,15 +275,14 @@ func (r *ProductRepository) InsertProductWithTx(ctx context.Context, tx *sql.Tx,
 	query := `
 		INSERT INTO products (
 			name, platform, api_endpoint, api_key_encrypted,
-			status, sync_status, created_by, team_id, user_id, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+			team_id, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		RETURNING id
 	`
 
 	var productID string
 	err := tx.QueryRowContext(ctx, query,
-		req.Name, req.Platform, req.APIEndpoint, req.APIKey,
-		req.Status, req.SyncStatus, req.CreatedBy, req.TeamID, req.UserID,
+		req.Name, req.Platform, req.APIEndpoint, req.APIKey, req.TeamID,
 	).Scan(&productID)
 
 	if err != nil {
@@ -352,7 +350,7 @@ func (r *ProductRepository) UpdateProductWithTx(ctx context.Context, tx *sql.Tx,
 	return nil
 }
 
-func (r *ProductRepository) GetProductByIDWithTx(ctx context.Context, tx *sql.Tx, id string) (*models.Product, error) {
+func (r *ProductRepository) GetProductByIDWithTx(ctx context.Context, tx *sql.Tx, id string) (*product.Product, error) {
 	if tx == nil {
 		return nil, fmt.Errorf("transaction is required for GetProductByIDWithTx")
 	}
@@ -360,7 +358,7 @@ func (r *ProductRepository) GetProductByIDWithTx(ctx context.Context, tx *sql.Tx
 	query := `SELECT id, name, platform, api_endpoint, status, sync_status, created_at, updated_at 
 	          FROM products WHERE id = $1 FOR UPDATE`
 
-	var product models.Product
+	var product product.Product
 	err := tx.QueryRowContext(ctx, query, id).Scan(
 		&product.ID, &product.Name, &product.Platform, &product.APIEndpoint,
 		&product.Status, &product.SyncStatus, &product.CreatedAt, &product.UpdatedAt,
@@ -403,11 +401,11 @@ func (r *ProductRepository) DeleteProductWithTx(ctx context.Context, tx *sql.Tx,
 // =======================
 // HELPER FUNCTIONS
 // =======================
-func (r *ProductRepository) scanProducts(rows *sql.Rows) ([]models.Product, error) {
-	var products []models.Product
+func (r *ProductRepository) scanProducts(rows *sql.Rows) ([]product.Product, error) {
+	var products []product.Product
 
 	for rows.Next() {
-		var p models.Product
+		var p product.Product
 
 		err := rows.Scan(
 			&p.ID,

@@ -28,8 +28,8 @@ func (r *HistoryRepository) Create(ctx context.Context, data *history.History) (
 		INSERT INTO history (
 			id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+			created_by, team_id, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
 		RETURNING id
 	`
 
@@ -52,8 +52,8 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at, updated_at
-		FROM history WHERE id = $1
+			created_by, team_id, created_at
+		FROM histories WHERE id = $1
 	`
 
 	var h history.History
@@ -97,8 +97,8 @@ func (r *HistoryRepository) GetAll(ctx context.Context, userCtx *models.UserCont
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at, updated_at
-		FROM history
+			created_by, team_id, created_at
+		FROM histories
 		ORDER BY created_at DESC
 	`
 
@@ -121,8 +121,8 @@ func (r *HistoryRepository) GetByTeamID(ctx context.Context, teamID string) ([]h
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at, updated_at
-		FROM history WHERE team_id = $1
+			created_by, team_id, created_at
+		FROM histories WHERE team_id = $1
 		ORDER BY created_at DESC
 	`
 
@@ -140,8 +140,8 @@ func (r *HistoryRepository) GetByCreatedBy(ctx context.Context, createdBy string
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at, updated_at
-		FROM history WHERE created_by = $1
+			created_by, team_id, created_at
+		FROM histories WHERE created_by = $1
 		ORDER BY created_at DESC
 	`
 
@@ -159,8 +159,8 @@ func (r *HistoryRepository) GetByStatus(ctx context.Context, status string) ([]h
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at, updated_at
-		FROM history WHERE status = $1
+			created_by, team_id, created_at
+		FROM histories WHERE status = $1
 		ORDER BY created_at DESC
 	`
 
@@ -178,8 +178,8 @@ func (r *HistoryRepository) GetRecentActivity(ctx context.Context, teamID string
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at, updated_at
-		FROM history 
+			created_by, team_id, created_at
+		FROM histories 
 		WHERE team_id = $1
 		ORDER BY created_at DESC
 		LIMIT $2
@@ -236,7 +236,7 @@ func (r *HistoryRepository) Count(ctx context.Context, query history.HistoryFilt
 func (r *HistoryRepository) GetCountByStatus(ctx context.Context, teamID string) (map[string]int, error) {
 	query := `
 		SELECT status, COUNT(*) 
-		FROM history 
+		FROM histories 
 		WHERE team_id = $1 
 		GROUP BY status
 	`
@@ -303,7 +303,7 @@ func (r *HistoryRepository) Update(ctx context.Context, id string, updates map[s
 
 // Delete deletes a history record
 func (r *HistoryRepository) Delete(ctx context.Context, id string) error {
-	query := `DELETE FROM history WHERE id = $1`
+	query := `DELETE FROM histories WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -324,7 +324,7 @@ func (r *HistoryRepository) Delete(ctx context.Context, id string) error {
 
 // DeleteByTeamID deletes all history for a team
 func (r *HistoryRepository) DeleteByTeamID(ctx context.Context, teamID string) error {
-	query := `DELETE FROM history WHERE team_id = $1`
+	query := `DELETE FROM histories WHERE team_id = $1`
 
 	_, err := r.db.ExecContext(ctx, query, teamID)
 	if err != nil {
@@ -336,7 +336,7 @@ func (r *HistoryRepository) DeleteByTeamID(ctx context.Context, teamID string) e
 
 // DeleteByStatus deletes history by status
 func (r *HistoryRepository) DeleteByStatus(ctx context.Context, status string) error {
-	query := `DELETE FROM history WHERE status = $1`
+	query := `DELETE FROM histories WHERE status = $1`
 
 	_, err := r.db.ExecContext(ctx, query, status)
 	if err != nil {

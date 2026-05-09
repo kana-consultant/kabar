@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductBasicInfo } from "./ProductBasicInfo";
@@ -6,6 +7,23 @@ import { ProductFormActions } from "./ProductFormActions";
 import { ProductFieldMapping } from "@/components/products/ProductFieldMapping";
 import { useProductForm } from "@/hooks/useProductForm";
 import type { Product } from "@/types/product";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface ProductFormProps {
     isEdit: boolean;
@@ -21,10 +39,100 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         updateProductInfo,
         updateAdapterConfig,
         updateFieldMapping,
-        handleTestConnection,
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
+
+
+
+    // Modal test state
+    const [showModal, setShowModal] = useState(false);
+    const [testUrl, setTestUrl] = useState("");
+    const [testMethod, setTestMethod] = useState("GET");
+    const [testAuthType, setTestAuthType] = useState<"none" | "apiKey" | "bearer">("none");
+    const [testApiKey, setTestApiKey] = useState("");
+    const [testBearerToken, setTestBearerToken] = useState("");
+    const [testCustomHeaders, setTestCustomHeaders] = useState<{ key: string; value: string }[]>([
+        { key: "", value: "" }
+    ]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const addTestHeader = () => {
+        setTestCustomHeaders([...testCustomHeaders, { key: "", value: "" }]);
+    };
+
+    const updateTestHeader = (index: number, field: "key" | "value", value: string) => {
+        const updated = [...testCustomHeaders];
+        updated[index][field] = value;
+        setTestCustomHeaders(updated);
+    };
+
+    const removeTestHeader = (index: number) => {
+        const updated = testCustomHeaders.filter((_, i) => i !== index);
+        setTestCustomHeaders(updated.length ? updated : [{ key: "", value: "" }]);
+    };
+
+    const handleTest = async () => {
+        if (!testUrl) {
+            toast.success("URL tidak boleh kosong");
+            return;
+        }
+
+        if (testAuthType === "apiKey" && !testApiKey) {
+            toast.error("Mohon masukkan API Key")
+            return;
+        }
+
+        if (testAuthType === "bearer" && !testBearerToken) {
+            toast.error("Mohon masukkan Bearer Token")
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            // Build headers
+            const headers: Record<string, string> = {};
+
+            // Add custom headers
+            testCustomHeaders.forEach(header => {
+                if (header.key.trim()) {
+                    headers[header.key.trim()] = header.value;
+                }
+            });
+
+            // Add auth
+            if (testAuthType === "apiKey") {
+                headers["X-API-Key"] = testApiKey;
+            } else if (testAuthType === "bearer") {
+                headers["Authorization"] = `Bearer ${testBearerToken}`;
+            }
+
+            const response = await fetch(testUrl, {
+                method: testMethod,
+                headers,
+            });
+
+            let data;
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                data = await response.json();
+            } else {
+                data = await response.text();
+            }
+
+            if (response.ok) {
+                toast.success(`Status: ${response.status} ${response.statusText}`);
+                console.log("Response data:", data);
+            } else {
+                toast.success(`Status: ${response.status} ${response.statusText}`);
+            }
+        } catch (error: any) {
+            toast.error(error.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 ">
@@ -53,7 +161,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 <ProductBasicInfo
                     product={product}
                     onUpdate={updateProductInfo}
-                    onTestConnection={handleTestConnection}
+                    onTestConnection={() => setShowModal(true)}
                     isTesting={testing}
                 />
                 <ProductApiConfig
@@ -67,7 +175,6 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 <ProductFieldMapping
                     fieldMapping={(() => {
                         try {
-                            // Coba parse ke object
                             const parsed = JSON.parse(product.adapterConfig?.fieldMapping || "{}");
                             return parsed;
                         } catch (e) {
@@ -84,6 +191,136 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 onSave={handleSave}
                 isSaving={loading}
             />
+
+            {/* Modal Test */}
+            <Dialog open={showModal} onOpenChange={setShowModal}>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Test API Connection</DialogTitle>
+                        <DialogDescription>
+                            Masukkan semua konfigurasi API untuk testing
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {/* URL */}
+                        <div className="space-y-2">
+                            <Label>URL Endpoint</Label>
+                            <Input
+                                placeholder="https://api.example.com/v1/products"
+                                value={testUrl}
+                                onChange={(e) => setTestUrl(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Method */}
+                        <div className="space-y-2">
+                            <Label>HTTP Method</Label>
+                            <Select value={testMethod} onValueChange={setTestMethod}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="GET">GET</SelectItem>
+                                    <SelectItem value="POST">POST</SelectItem>
+                                    <SelectItem value="PUT">PUT</SelectItem>
+                                    <SelectItem value="PATCH">PATCH</SelectItem>
+                                    <SelectItem value="DELETE">DELETE</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Auth Type */}
+                        <div className="space-y-2">
+                            <Label>Autentikasi</Label>
+                            <Select
+                                value={testAuthType}
+                                onValueChange={(v) => setTestAuthType(v as any)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Tanpa Autentikasi</SelectItem>
+                                    <SelectItem value="apiKey">API Key</SelectItem>
+                                    <SelectItem value="bearer">Bearer Token</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* API Key Input */}
+                        {testAuthType === "apiKey" && (
+                            <div className="space-y-2">
+                                <Label>API Key</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="Masukkan API Key"
+                                    value={testApiKey}
+                                    onChange={(e) => setTestApiKey(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        {/* Bearer Token Input */}
+                        {testAuthType === "bearer" && (
+                            <div className="space-y-2">
+                                <Label>Bearer Token</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="Masukkan Bearer Token"
+                                    value={testBearerToken}
+                                    onChange={(e) => setTestBearerToken(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        {/* Custom Headers */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label>Custom Headers</Label>
+                                <Button type="button" variant="outline" size="sm" onClick={addTestHeader}>
+                                    Tambah Header
+                                </Button>
+                            </div>
+                            <div className="space-y-2">
+                                {testCustomHeaders.map((header, index) => (
+                                    <div key={index} className="flex gap-2">
+                                        <Input
+                                            placeholder="Header Key"
+                                            value={header.key}
+                                            onChange={(e) => updateTestHeader(index, "key", e.target.value)}
+                                            className="flex-1"
+                                        />
+                                        <Input
+                                            placeholder="Header Value"
+                                            value={header.value}
+                                            onChange={(e) => updateTestHeader(index, "value", e.target.value)}
+                                            className="flex-1"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => removeTestHeader(index)}
+                                        >
+                                            Hapus
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1">
+                            Tutup
+                        </Button>
+                        <Button onClick={handleTest} disabled={isLoading} className="flex-1">
+                            {isLoading ? "Menguji..." : "Test"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

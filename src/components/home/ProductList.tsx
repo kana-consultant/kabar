@@ -53,7 +53,6 @@ export function ProductList({ products, testingId, onTest, onEdit, onDelete }: P
                                     {product.name}
                                 </CardTitle>
                             </div>
-                            {getStatusBadge(product.status)}
                         </div>
                         <CardDescription className="flex items-center gap-1 mt-1">
                             {product.platform === "wordpress" && "WordPress"}
@@ -74,20 +73,6 @@ export function ProductList({ products, testingId, onTest, onEdit, onDelete }: P
                             </span>
                         </div>
                         <div className="flex gap-2 pt-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 h-8"
-                                onClick={() => onTest(product.id)}
-                                disabled={testingId === product.id}
-                            >
-                                {testingId === product.id ? (
-                                    <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
-                                ) : (
-                                    <Wifi className="mr-1 h-3 w-3" />
-                                )}
-                                Test
-                            </Button>
                             <Button
                                 variant="outline"
                                 size="sm"

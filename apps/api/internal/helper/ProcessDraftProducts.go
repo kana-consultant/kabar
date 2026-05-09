@@ -52,7 +52,6 @@ func (s *PostService) ProcessDraftProducts(draft draft.DraftDataPost) (
 
 		fmt.Printf("=======================,%v", productID)
 		result, err := s.processSingleProduct(draft, productID)
-
 		postResults = append(postResults, result)
 
 		if err != nil {
@@ -121,7 +120,7 @@ func (s *PostService) getProductConfig(productID string) (*ProductConfig, error)
 			api_endpoint,
 			COALESCE(api_key_encrypted, '')
 		FROM products
-		WHERE id = $1 AND status = 'connected'
+		WHERE id = $1
 	`, productID).Scan(
 		&cfg.ProductID,
 		&cfg.APIEndpoint,
@@ -129,6 +128,8 @@ func (s *PostService) getProductConfig(productID string) (*ProductConfig, error)
 	)
 
 	if err != nil {
+		log.Printf("================ERRRRRR %s", err)
+		log.Printf("================ERRRRRR %s", productID)
 		return nil, err
 	}
 
@@ -201,16 +202,7 @@ func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftData
 			str = strings.ReplaceAll(str, "{title}", draft.Title)
 			str = strings.ReplaceAll(str, "{topic}", draft.Topic)
 			str = strings.ReplaceAll(str, "{content}", draft.Article)
-
-			if len(draft.Article) > 200 {
-				str = strings.ReplaceAll(str, "{excerpt}", draft.Article[:200])
-			} else {
-				str = strings.ReplaceAll(str, "{excerpt}", draft.Article)
-			}
-
-			if draft.ImageURL != nil {
-				str = strings.ReplaceAll(str, "{image_url}", *draft.ImageURL)
-			}
+			str = strings.ReplaceAll(str, "{image_url}", *draft.ImageURL)
 
 			requestBody[key] = str
 		} else {
@@ -243,17 +235,12 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 
 	for i := 0; i < cfg.RetryCount; i++ {
 
-		// 1. Marshal JSON (WAJIB aman)
+		// 1. Marshal body
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
 
-		if len(jsonBody) == 0 {
-			return nil, fmt.Errorf("empty json body")
-		}
-
-		// DEBUG (opsional tapi sangat membantu)
 		log.Printf("[REQUEST BODY] %s", string(jsonBody))
 
 		// 2. Create request
@@ -267,33 +254,67 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			continue
 		}
 
-		// 3. IMPORTANT HEADERS (ini yang sering bikin n8n masuk binary)
+		// default headers
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json")
 
-		// Custom headers
+		// =========================
+		// CUSTOM HEADERS PROCESS
+		// =========================
 		if cfg.CustomHeaders != nil {
-			for k, v := range cfg.CustomHeaders {
 
-				// skip content-type override
-				if strings.ToLower(k) == "content-type" {
-					continue
-				}
+			obj := cfg.CustomHeaders
+
+			for k, v := range obj {
 
 				v = resolveTemplate(v, map[string]string{
 					"api_key": cfg.APIKey,
 				})
 
+				kLower := strings.ToLower(strings.TrimSpace(k))
+				vTrim := strings.TrimSpace(v)
+
+				if kLower == "" {
+					continue
+				}
+
+				// =========================
+				// AUTH HANDLING
+				// =========================
+
+				// API KEY header
+				if kLower == "x-api-key" {
+					if vTrim == "" || vTrim == "{{api_key}}" {
+						v = cfg.APIKey
+					}
+				}
+
+				// BEARER TOKEN
+				if kLower == "authorization" {
+
+					if vTrim == "" ||
+						vTrim == "Bearer" ||
+						vTrim == "Bearer {{api_key}}" {
+
+						v = "Bearer " + cfg.APIKey
+					}
+				}
+
 				req.Header.Set(k, v)
 			}
 		}
 
-		// Auth
-		if cfg.APIKey != "" {
+		// =========================
+		// FALLBACK AUTH (SAFEGUARD)
+		// =========================
+		if req.Header.Get("Authorization") == "" && cfg.APIKey != "" {
 			req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
 		}
 
-		// 4. Execute request
+		// debug header penting
+		log.Printf("[AUTH HEADER] %s", req.Header.Get("Authorization"))
+
+		// 3. Execute request
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
@@ -301,7 +322,6 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			continue
 		}
 
-		// IMPORTANT: jangan defer di loop (ini fix penting)
 		bodyBytes, err := func() ([]byte, error) {
 			defer resp.Body.Close()
 			return io.ReadAll(resp.Body)
@@ -313,7 +333,7 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			continue
 		}
 
-		// 5. Success response
+		// success
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return bodyBytes, nil
 		}
@@ -330,6 +350,7 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 
 	return nil, lastErr
 }
+
 func (s *PostService) markProductSynced(productID string) {
 
 	_, err := database.GetDB().Exec(`

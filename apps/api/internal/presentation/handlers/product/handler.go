@@ -1,13 +1,14 @@
 package product
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 
 	"seo-backend/internal/domain/product"
-	"seo-backend/internal/middleware/auth"
-	"seo-backend/internal/models"
+	"seo-backend/internal/helper"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -18,17 +19,6 @@ type ProductHandler struct {
 
 func NewProductHandler(service product.ProductService) *ProductHandler {
 	return &ProductHandler{service: service}
-}
-
-// =======================
-// HELPERS
-// =======================
-func (h *ProductHandler) getUserContext(r *http.Request) *models.SimpleUserContext {
-	return &models.SimpleUserContext{
-		UserID: auth.GetUserID(r.Context()),
-		TeamID: auth.GetTeamID(r.Context()),
-		Role:   auth.GetUserRole(r.Context()),
-	}
 }
 
 func (h *ProductHandler) writeJSON(w http.ResponseWriter, data interface{}, status int) {
@@ -101,7 +91,7 @@ func (h *ProductHandler) writeError(w http.ResponseWriter, err error) {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param request body models.CreateProductRequest true "Product data"
+// @Param request body product.CreateProductRequest true "Product data"
 // @Success 201 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -109,28 +99,98 @@ func (h *ProductHandler) writeError(w http.ResponseWriter, err error) {
 func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	log.Println("========== HTTP CREATE PRODUCT ==========")
+	log.Printf("Method: %s | URL: %s\n", r.Method, r.URL.Path)
+
 	// Parse request body
-	var req models.CreateProductRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeJSON(w, map[string]string{"error": "Invalid request body"}, http.StatusBadRequest)
+	var req product.CreateProductRequest
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Failed read body: %v\n", err)
+
+		h.writeJSON(w, map[string]string{
+			"error": "Failed read request body",
+		}, http.StatusBadRequest)
+
 		return
 	}
 
+	log.Printf("RAW BODY: %s\n", string(bodyBytes))
+
+	// balikin lagi body ke reader
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	log.Println("Decoding request body...")
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+
+		log.Printf("Failed decode request body: %v\n", err)
+	}
+
+	// FULL REQUEST
+	log.Printf("FULL REQUEST: %+v\n", req)
+
+	// DETAIL PRODUCT
+	log.Println("========== PRODUCT ==========")
+	log.Printf("Name: %v\n", req.Name)
+	log.Printf("Platform: %v\n", req.Platform)
+	log.Printf("APIEndpoint: %v\n", req.APIEndpoint)
+	log.Printf("APIKey: %v\n", req.APIKey)
+
+	// DETAIL ADAPTER CONFIG
+	log.Println("========== ADAPTER CONFIG ==========")
+
+	if req.AdapterConfig != nil {
+
+		log.Printf("EndpointPath: %v\n", req.AdapterConfig.EndpointPath)
+		log.Printf("HTTPMethod: %v\n", req.AdapterConfig.HTTPMethod)
+		log.Printf("CustomHeaders: %+v\n", req.AdapterConfig.CustomHeaders)
+		log.Printf("FieldMapping: %v\n", req.AdapterConfig.FieldMapping)
+		log.Printf("TimeoutSeconds: %v\n", req.AdapterConfig.TimeoutSeconds)
+		log.Printf("RetryCount: %v\n", req.AdapterConfig.RetryCount)
+
+	} else {
+		log.Println("AdapterConfig is NIL")
+	}
+
 	// Get user context from auth middleware
-	userCtx := h.getUserContext(r)
+	log.Println("Getting user context from middleware...")
+
+	userCtx := helper.GetUserContext(r)
+
+	log.Printf(
+		"User Context => UserID: %s | TeamID: %s | Role: %s\n",
+		userCtx.GetUserID(),
+		userCtx.GetTeamID(),
+		userCtx.GetRole(),
+	)
 
 	// Call application service
+	log.Println("Calling ProductService.CreateProduct...")
+
 	productID, err := h.service.CreateProduct(ctx, req, userCtx)
 	if err != nil {
+
+		log.Printf("CreateProduct failed: %v\n", err)
+
 		h.writeError(w, err)
 		return
 	}
 
+	log.Printf("Product created successfully. ProductID: %s\n", productID)
+
 	// Return response
-	h.writeJSON(w, map[string]string{
+	response := map[string]string{
 		"id":      productID,
 		"message": "Product created successfully",
-	}, http.StatusCreated)
+	}
+
+	log.Printf("Response: %+v\n", response)
+
+	h.writeJSON(w, response, http.StatusCreated)
+
+	log.Println("========== END CREATE PRODUCT ==========")
 }
 
 // =======================
@@ -140,7 +200,7 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Tags products
 // @Produce json
 // @Param id path string true "Product ID"
-// @Success 200 {object} models.Product
+// @Success 200 {object} product.Product
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /products/{id} [get]
@@ -169,7 +229,7 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Summary Get all products
 // @Tags products
 // @Produce json
-// @Success 200 {array} models.Product
+// @Success 200 {array} product.Product
 // @Failure 500 {object} map[string]string
 // @Router /products [get]
 func (h *ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +272,7 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user context
-	userCtx := h.getUserContext(r)
+	userCtx := helper.GetUserContext(r)
 
 	// Call application service
 	if err := h.service.UpdateProduct(ctx, id, updates, userCtx); err != nil {
