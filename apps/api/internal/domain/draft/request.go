@@ -7,8 +7,9 @@ type CreateDraftRequest struct {
 	Article        string   `json:"article"`
 	ImageURL       *string  `json:"image_url"`
 	ImagePrompt    string   `json:"image_prompt"`
-	TargetProducts []string `json:"TargetProducts"`
+	TargetProducts []string `json:"target_products"`
 	HasImage       bool     `json:"has_image"`
+	ScheduledFor   string   `json:"scheduled_for"`
 }
 
 type DraftDataPost struct {
@@ -17,17 +18,17 @@ type DraftDataPost struct {
 	Article        string   `json:"article"`
 	ImageURL       *string  `json:"ImageURL"`
 	ImagePrompt    string   `json:"ImagePrompt"`
-	TargetProducts []string `json:"TargetProducts"`
+	TargetProducts []string `json:"scheduled_for"`
 }
 
 type ScheduleRequest struct {
-	Title          string   `json:"title"`
-	Topic          string   `json:"topic"`
-	Article        string   `json:"article"`
-	ImageURL       string   `json:"image_url"`
-	ImagePrompt    string   `json:"image_prompt"`
+	Title          string   `json:"Title"`
+	Topic          string   `json:"Topic"`
+	Article        string   `json:"Article"`
+	ImageURL       string   `json:"ImageURL"`
+	ImagePrompt    string   `json:"ImagePrompt"`
 	TargetProducts []string `json:"target_products"`
-	HasImage       bool     `json:"has_image"`
+	HasImage       bool     `json:"HasImage"`
 	ScheduledFor   string   `json:"scheduled_for"`
 }
 
