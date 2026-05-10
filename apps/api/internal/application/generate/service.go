@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"seo-backend/internal/domain/generate"
+	"seo-backend/internal/helper"
 	"seo-backend/internal/infrastructure/ai/builder"
 	"seo-backend/internal/infrastructure/ai/parser"
 	"seo-backend/internal/infrastructure/http/client"
@@ -138,7 +139,7 @@ func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate
 	result := &generate.ImageResult{
 		ImageURL:    imageURL,
 		Prompt:      params.Prompt,
-		GeneratedAt: time.Now().Format(time.RFC3339),
+		GeneratedAt: helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Format(time.RFC3339),
 		Model:       config.ModelName,
 	}
 
@@ -168,12 +169,13 @@ func (s *GenereteServiceImpl) validateImageParams(params generate.ImageGeneratio
 }
 
 func (s *GenereteServiceImpl) saveHistory(ctx context.Context, params generate.ArticleGenerationParams, result *generate.ArticleResult) error {
+	loc, _ := time.LoadLocation("Asia/Jakarta")
 	history := &generate.GenerationHistory{
 		Type:      "article",
 		Topic:     params.Topic,
 		Result:    result.Content,
 		ModelID:   params.ModelID,
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().In(loc),
 	}
 	return s.repo.SaveHistory(ctx, history)
 }

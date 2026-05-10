@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/draft"
+	"seo-backend/internal/helper"
 )
 
 type RepositoryImpl struct {
@@ -192,7 +193,7 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 }
 
 func (r *RepositoryImpl) Update(ctx context.Context, id string, data map[string]interface{}) error {
-	data["updated_at"] = time.Now()
+	data["updated_at"] = helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	query, args, err := r.buildUpdateQuery(id, data)
 	if err != nil {
@@ -217,7 +218,7 @@ func (r *RepositoryImpl) UpdateStatus(ctx context.Context, id string, status str
 		UPDATE drafts 
 		SET status = $1, updated_at = $2
 		WHERE id = $3 AND status = 'scheduled'
-	`, status, time.Now(), id)
+	`, status, helper.ParseWIBTime(time.Now().Format(time.RFC3339)), id)
 	return err
 }
 
@@ -228,7 +229,7 @@ func (r *RepositoryImpl) Delete(ctx context.Context, id string) error {
 
 func (r *RepositoryImpl) InsertScheduledDraft(ctx context.Context, req draft.ScheduleRequest, scheduledFor time.Time, teamID, userID string) (string, error) {
 	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
-	now := time.Now()
+	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	var draftID string
 	err := r.db.QueryRowContext(ctx, `
@@ -250,6 +251,13 @@ func (r *RepositoryImpl) InsertScheduledDraft(ctx context.Context, req draft.Sch
 func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHistoryRequest, userID, teamID, action string) error {
 	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
 
+	var status string
+	status = "published"
+
+	if action == "failed" {
+		status = "failed"
+	}
+
 	query := `INSERT INTO histories (
 		title, topic, content, image_url, target_products,
 		status, action, published_at, created_by, team_id, created_at
@@ -257,8 +265,8 @@ func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHis
 
 	_, err := r.db.ExecContext(ctx, query,
 		req.Title, req.Topic, req.Article, req.ImageURL,
-		targetProductsJSON, "published", action, time.Now(),
-		userID, teamID, time.Now(),
+		targetProductsJSON, status, action, helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
+		userID, teamID, helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
 	)
 	return err
 }

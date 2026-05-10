@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Clock, Send } from "lucide-react";
+import { CheckCircle2, X, Trash, } from "lucide-react";
 
 const activities = [
     {
@@ -36,8 +36,7 @@ import { useHistory } from "@/hooks/useHistory";
 
 const statusConfig = {
     published: { icon: CheckCircle2, color: "text-green-600", label: "Terbit" },
-    draft: { icon: Clock, color: "text-yellow-600", label: "Draft" },
-    processing: { icon: Send, color: "text-blue-600", label: "Diproses" },
+    failed: { icon: X, color: "text-red-600", label: "Draft" },
 };
 
 export interface HistoryItem {

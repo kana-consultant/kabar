@@ -2,7 +2,6 @@ package helper
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"seo-backend/internal/builder"
 	"seo-backend/internal/database"
@@ -29,12 +28,7 @@ func ScheduleDraft(
 
 	} else {
 
-		parsedTime, err :=
-			ParseWIBTime(scheduledFor)
-
-		if err != nil {
-			return false
-		}
+		parsedTime := ParseWIBTime(scheduledFor)
 
 		data["scheduled_for"] = parsedTime
 	}
@@ -61,15 +55,15 @@ func ScheduleDraft(
 	return true
 }
 
-func ParseWIBTime(timeStr string) (time.Time, error) {
+func ParseWIBTime(timeStr string) time.Time {
 	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}
 	}
 
 	// 1. Kalau ada timezone (Z / +07:00), parse langsung
 	if t, err := time.Parse(time.RFC3339, timeStr); err == nil {
-		return t.In(loc), nil
+		return t.In(loc)
 	}
 
 	// 2. Format TANPA timezone → anggap WIB
@@ -83,11 +77,11 @@ func ParseWIBTime(timeStr string) (time.Time, error) {
 
 	for _, format := range formats {
 		if t, err := time.ParseInLocation(format, timeStr, loc); err == nil {
-			return t, nil
+			return t
 		}
 	}
 
-	return time.Time{}, fmt.Errorf("invalid time format: %s", timeStr)
+	return time.Time{}
 }
 
 func WriteAllProductsFailed(

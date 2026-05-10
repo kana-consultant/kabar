@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 )
 
@@ -86,7 +87,7 @@ func (r *Repository) Update(id string, updates map[string]interface{}) error {
 	}
 
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now())
+	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	argIndex++
 
 	args = append(args, id)

@@ -31,7 +31,7 @@ func NewService(db *sql.DB, redisScheduler *scheduler.RedisScheduler) *Service {
 	return &Service{
 		db:             db,
 		redisScheduler: redisScheduler,
-		postService:    helper.NewPostService(),
+		postService:    helper.NewPostService(db),
 	}
 }
 

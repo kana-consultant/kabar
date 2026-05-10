@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"seo-backend/internal/helper"
 	"strings"
 	"time"
 )
@@ -42,7 +43,7 @@ func (c *HTTPClient) SendRequest(config *ModelConfig, body []byte, timeout time.
 	client := &http.Client{Timeout: timeout}
 	log.Printf("Sending request to: %s", fullURL)
 
-	startTime := time.Now()
+	startTime := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 	resp, err := client.Do(req)
 	duration := time.Since(startTime)
 

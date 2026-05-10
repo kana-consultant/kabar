@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/user"
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 )
 
@@ -320,7 +321,7 @@ func (s *Service) GetUserByEmail(ctx context.Context, email string) (*models.Use
 // UpdateLastActive updates user's last active timestamp
 func (s *Service) UpdateLastActive(ctx context.Context, userID string) error {
 	updates := map[string]interface{}{
-		"last_active": time.Now(),
+		"last_active": helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
 	}
 	return s.repo.Update(ctx, userID, updates)
 }

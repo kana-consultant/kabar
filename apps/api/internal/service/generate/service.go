@@ -2,6 +2,7 @@ package generate
 
 import (
 	"log"
+	"seo-backend/internal/helper"
 	"time"
 )
 
@@ -95,7 +96,7 @@ func (s *Service) GenerateImage(params ImageGenerationParams) (*ImageResult, err
 	result := &ImageResult{
 		ImageURL:    imageURL,
 		Prompt:      params.Prompt,
-		GeneratedAt: time.Now().Format(time.RFC3339),
+		GeneratedAt: helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Format(time.RFC3339),
 		Model:       config.ModelName,
 	}
 

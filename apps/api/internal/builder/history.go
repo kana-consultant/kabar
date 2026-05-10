@@ -20,9 +20,10 @@ func BuildHistoryInsert(req models.DraftDataPost, userID string, teamID string) 
 		userID,
 		teamID,
 	)
+	loc, err := time.LoadLocation("Asia/Jakarta")
 
-	createdAt := time.Now()
-	publishedAt := time.Now()
+	createdAt := time.Now().In(loc).Format(time.RFC3339)
+	publishedAt := time.Now().In(loc).Format(time.RFC3339)
 
 	qb := NewQueryBuilder("histories")
 

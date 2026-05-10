@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 )
 
@@ -103,7 +104,7 @@ func (tm *TransactionManager) updateProduct(tx *sql.Tx, id string, updates map[s
 	}
 
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now())
+	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	argIndex++
 
 	args = append(args, id)

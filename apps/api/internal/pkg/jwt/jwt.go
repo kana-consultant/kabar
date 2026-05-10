@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"fmt"
+	"seo-backend/internal/helper"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -31,8 +32,8 @@ func (g *Generator) GenerateToken(userID, teamID, email, name, role string) (str
 		"email":   email,
 		"name":    name,
 		"role":    role,
-		"exp":     time.Now().Add(g.expiry).Unix(),
-		"iat":     time.Now().Unix(),
+		"exp":     helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Add(g.expiry).Unix(),
+		"iat":     helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Unix(),
 	}
 
 	if teamID != "" {

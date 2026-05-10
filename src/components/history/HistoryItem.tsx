@@ -41,11 +41,19 @@ export function HistoryItem({
                 <div className="flex flex-wrap gap-2 text-sm text-slate-500">
                     <span>Dikirim ke: {item.targetProducts.join(", ")}</span>
                     <span>•</span>
-                    <span>{formatDate(item.publishedAt)}</span>
+                    <span>
+                        {new Date(item.publishedAt).toLocaleString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            timeZoneName: "short",
+                        })}
+                    </span>
                 </div>
-                {item.errorMessage && (
-                    <p className="text-xs text-red-500">{item.errorMessage}</p>
-                )}
+
             </div>
             <div className="flex gap-2 ml-4">
                 <Button variant="ghost" size="sm" onClick={() => onView(item)}>

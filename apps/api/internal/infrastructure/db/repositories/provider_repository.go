@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/provider"
+	"seo-backend/internal/helper"
 )
 
 type ProviderRepository struct {
@@ -261,7 +262,7 @@ func (r *ProviderRepository) Update(ctx context.Context, tx *sql.Tx, id string, 
 
 	// Always update timestamp
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now())
+	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	argIndex++
 
 	// Add WHERE clause

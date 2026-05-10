@@ -3,7 +3,6 @@ package draft
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
@@ -23,12 +22,9 @@ func NewScheduler(repo *Repository, redisScheduler *scheduler.RedisScheduler) *S
 }
 
 func (s *Scheduler) ScheduleDraft(req models.ScheduleRequest, teamID, userID string) (string, error) {
-	scheduledFor, err := helper.ParseWIBTime(req.ScheduledFor)
-	if err != nil {
-		return "", err
-	}
+	scheduledFor := helper.ParseWIBTime(req.ScheduledFor)
 
-	if scheduledFor.Before(time.Now()) {
+	if scheduledFor.Before(helper.ParseWIBTime(req.ScheduledFor)) {
 		return "", fmt.Errorf("scheduled time must be in the future")
 	}
 

@@ -221,14 +221,11 @@ func (s *DraftServiceImpl) PublishContent(ctx context.Context, req draft.DraftDa
 
 // ScheduleDraft implements draft.Service
 func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.ScheduleRequest, teamID, userID string) (string, error) {
-	scheduledFor, err := helper.ParseWIBTime(req.ScheduledFor)
-	if err != nil {
-		log.Printf("error,%v", req.ScheduledFor)
-		log.Printf("ERROR SCHEDULED : %v", err)
-		return "", err
-	}
+	scheduledFor := helper.ParseWIBTime(req.ScheduledFor)
 
-	if scheduledFor.Before(time.Now()) {
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+
+	if scheduledFor.Before(time.Now().In(loc)) {
 		return "", fmt.Errorf("scheduled time must be in the future")
 	}
 
@@ -269,11 +266,7 @@ func (s *DraftServiceImpl) CancelSchedule(ctx context.Context, draftID string) e
 
 // Private methods
 func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForStr string, draftData *draft.DraftData, teamID, userID string) (*draft.PublishResult, error) {
-	scheduledFor, err := helper.ParseWIBTime(scheduledForStr)
-	if err != nil {
-		log.Printf("ERROR : %v", err)
-		return nil, err
-	}
+	scheduledFor := helper.ParseWIBTime(scheduledForStr)
 
 	if err := s.repo.UpdateStatus(ctx, id, "scheduled", &scheduledFor); err != nil {
 		log.Printf("ERROR : %v", err)

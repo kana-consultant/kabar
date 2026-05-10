@@ -15,7 +15,7 @@ type Service interface {
 	GetAllScheduled(ctx context.Context, TeamID string) (*[]Draft, error)
 
 	// Publishing
-	PublishDraft(ctx context.Context, id string, scheduledForStr string, teamID, userID string) (*PublishResult, error)
+	PublishDraft(ctx context.Context, id string, req CreateDraftRequest, teamID, userID string) (*PublishResult, error)
 	PublishContent(ctx context.Context, req DraftDataPost, teamID, userID string) (*PublishResult, error)
 
 	// Scheduling

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/team"
+	"seo-backend/internal/helper"
 )
 
 type TeamRepositoryImpl struct {
@@ -95,7 +96,7 @@ func (r *TeamRepositoryImpl) Update(ctx context.Context, id string, updates map[
 	}
 
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now())
+	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	argIndex++
 
 	args = append(args, id)

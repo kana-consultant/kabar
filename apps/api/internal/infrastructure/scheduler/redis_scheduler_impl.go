@@ -11,6 +11,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"seo-backend/internal/domain/scheduler"
+	"seo-backend/internal/helper"
 )
 
 type RedisSchedulerImpl struct {
@@ -46,7 +47,7 @@ func (s *RedisSchedulerImpl) ScheduleTask(ctx context.Context, data scheduler.Sc
 		Status:         "pending",
 		RetryCount:     0,
 		MaxRetries:     3,
-		CreatedAt:      time.Now(),
+		CreatedAt:      helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
 	}
 
 	// Save to Redis
@@ -194,7 +195,7 @@ func (s *RedisSchedulerImpl) executeDraftTask(ctx context.Context, taskID string
 		task.Status = "completed"
 	}
 
-	now := time.Now()
+	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 	task.ExecutedAt = &now
 	s.updateTask(ctx, task)
 }
@@ -231,7 +232,7 @@ func (s *RedisSchedulerImpl) ScheduleDraftTask(ctx context.Context, draftID stri
 		Status:         "pending",
 		RetryCount:     0,
 		MaxRetries:     3,
-		CreatedAt:      time.Now(),
+		CreatedAt:      helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
 	}
 
 	// Save to Redis

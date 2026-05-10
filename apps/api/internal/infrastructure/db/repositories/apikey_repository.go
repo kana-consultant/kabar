@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/apikey"
+	"seo-backend/internal/helper"
 )
 
 type APIKeyRepository struct {
@@ -196,7 +197,7 @@ func (r *APIKeyRepository) Update(ctx context.Context, tx *sql.Tx, id string, up
 	}
 
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now())
+	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	argIndex++
 
 	args = append(args, id)

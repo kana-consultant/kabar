@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 )
 
@@ -59,7 +60,7 @@ func (r *Repository) Create(req models.CreateDraftRequest, userID, teamID string
 }
 
 func (r *Repository) Update(id string, data map[string]interface{}) error {
-	data["updated_at"] = time.Now()
+	data["updated_at"] = helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	query, args, err := buildUpdateQuery(id, data)
 	if err != nil {
@@ -90,7 +91,7 @@ func (r *Repository) UpdateStatus(id, status string, scheduledFor *time.Time) er
 		UPDATE drafts 
 		SET status = $1, updated_at = $2
 		WHERE id = $3 AND status = 'scheduled'
-	`, status, time.Now(), id)
+	`, status, helper.ParseWIBTime(time.Now().Format(time.RFC3339)), id)
 	return err
 }
 
@@ -116,7 +117,7 @@ func (r *Repository) GetDraftData(id string) (*DraftData, error) {
 
 func (r *Repository) InsertScheduledDraft(req models.ScheduleRequest, scheduledFor time.Time, teamID, userID string) (string, error) {
 	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
-	now := time.Now()
+	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	var draftID string
 	err := r.db.QueryRow(`
@@ -145,8 +146,8 @@ func (r *Repository) InsertHistory(req models.DraftDataPost, userID, teamID, act
 
 	_, err := r.db.Exec(query,
 		req.Title, req.Topic, req.Article, req.ImageURL,
-		targetProductsJSON, "published", action, time.Now(),
-		userID, teamID, time.Now(),
+		targetProductsJSON, "published", action, helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
+		userID, teamID, helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
 	)
 	return err
 }

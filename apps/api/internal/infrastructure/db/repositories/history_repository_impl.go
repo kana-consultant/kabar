@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/history"
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 )
 
@@ -277,7 +278,7 @@ func (r *HistoryRepository) Update(ctx context.Context, id string, updates map[s
 	}
 
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now())
+	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	argIndex++
 
 	args = append(args, id)

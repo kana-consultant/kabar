@@ -5,7 +5,7 @@ export interface HistoryItem {
     content: string;
     imageUrl?: string;
     targetProducts: string[];
-    status: 'success' | 'failed' | 'pending';
+    status: 'published' | 'failed' | 'pending';
     action: 'published' | 'scheduled' | 'draft_saved';
     errorMessage?: string;
     publishedAt: string;

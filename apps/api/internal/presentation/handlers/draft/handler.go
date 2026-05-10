@@ -146,15 +146,13 @@ func (h *DraftHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	teamID := auth.GetTeamID(ctx)
 	userID := auth.GetUserID(ctx)
 
-	var req struct {
-		ScheduledFor string `json:"scheduledFor,omitempty"`
-	}
+	var req draft.CreateDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	result, err := h.draftService.PublishDraft(ctx, id, req.ScheduledFor, teamID, userID)
+	result, err := h.draftService.PublishDraft(ctx, id, req, teamID, userID)
 	if err != nil {
 		log.Printf("Failed to publish draft: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -217,6 +215,8 @@ func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Parsed Request: %+v\n", req)
 
 	log.Println("Calling PublishContent service...")
+
+	log.Printf("==================DATA : %v", req)
 
 	result, err := h.draftService.PublishContent(
 		ctx,

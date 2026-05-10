@@ -1,43 +1,43 @@
 export type DraftStatus = 'draft' | 'scheduled' | 'published';
 
 export interface Draft {
-    id: string;
+    id?: string;
     title: string;
     topic: string;
     article: string;
-    imageUrl?: string;
-    imagePrompt?: string;
-    status: DraftStatus;
-    scheduledFor?: string;
-    targetProducts: string[];
-    hasImage: boolean;
-    createdBy?: string;
-    teamId?: string;
-    userId?: string;
-    createdAt: string;
-    updatedAt: string;
+    image_url?: string;
+    image_prompt?: string;
+    status?: DraftStatus;
+    scheduled_for?: string;
+    target_products: string[];
+    has_image?: boolean;
+    created_by?: string;
+    team_id?: string;
+    user_id?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface CreateDraftRequest {
-    Title: string;
-    Topic: string;
-    Article: string;
-    ImageURL?: string;
-    ImagePrompt?: string;
-    TargetProducts: string[];
-    teamId?: string;
+    title: string;
+    topic: string;
+    article: string;
+    image_url?: string;
+    image_prompt?: string;
+    target_products: string[];
+    team_id?: string;
 }
 
 export interface UpdateDraftRequest {
     title?: string;
     topic?: string;
     article?: string;
-    imageUrl?: string;
-    imagePrompt?: string;
+    image_url?: string;
+    image_prompt?: string;
     status?: DraftStatus;
-    scheduledFor?: string;
-    targetProducts?: string[];
-    hasImage?: boolean;
+    scheduled_for?: string;
+    target_products?: string[];
+    has_image?: boolean;
 }
 
 export interface PublishResponse {

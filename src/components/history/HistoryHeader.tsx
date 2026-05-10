@@ -1,5 +1,12 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Search, Trash2 } from "lucide-react";
 
 interface HistoryHeaderProps {
@@ -39,27 +46,35 @@ export default function HistoryHeader({
                     />
                 </div>
 
-                <select
+                <Select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="rounded-md border px-3 py-2 text-sm"
+                    onValueChange={(value) => setStatusFilter(value as any)}
                 >
-                    <option value="all">Semua Status</option>
-                    <option value="success">Berhasil</option>
-                    <option value="failed">Gagal</option>
-                    <option value="pending">Pending</option>
-                </select>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Semua Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Status</SelectItem>
+                        <SelectItem value="success">Berhasil</SelectItem>
+                        <SelectItem value="failed">Gagal</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                    </SelectContent>
+                </Select>
 
-                <select
+                <Select
                     value={actionFilter}
-                    onChange={(e) => setActionFilter(e.target.value as any)}
-                    className="rounded-md border px-3 py-2 text-sm"
+                    onValueChange={(value) => setActionFilter(value as any)}
                 >
-                    <option value="all">Semua Aksi</option>
-                    <option value="published">Publikasi</option>
-                    <option value="scheduled">Terjadwal</option>
-                    <option value="draft_saved">Draft</option>
-                </select>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Semua Aksi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Aksi</SelectItem>
+                        <SelectItem value="published">Published</SelectItem>
+                        <SelectItem value="scheduled">Scheduled</SelectItem>
+                        <SelectItem value="draft_saved">Draft Saved</SelectItem>
+                    </SelectContent>
+                </Select>
 
                 <Button variant="destructive" onClick={onClearAll}>
                     <Trash2 className="mr-2 h-4 w-4" />

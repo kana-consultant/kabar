@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 )
 
@@ -17,8 +18,8 @@ func (s *Service) InsertHistory(req models.DraftDataPost, userID, teamID, action
 
 	_, err := s.db.Exec(query,
 		req.Title, req.Topic, req.Article, req.ImageURL,
-		targetProductsJSON, "published", action, time.Now(),
-		userID, teamID, time.Now(),
+		targetProductsJSON, "published", action, helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
+		userID, teamID, helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
 	)
 	return err
 }

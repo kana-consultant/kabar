@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { deleteDraft, publishDraft } from "@/services/draft";
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 import type { PublishResult, ScheduleConfig } from "./types";
 
 interface UseDraftsActionsParams {
@@ -19,7 +19,7 @@ export function useDraftsActions({
     setShowResultDialog,
     closeDialogs,
 }: UseDraftsActionsParams) {
-    
+
     const handleDelete = useCallback(async (draft: Draft) => {
         try {
             await deleteDraft(draft.id);
@@ -35,14 +35,14 @@ export function useDraftsActions({
     }, [loadDrafts]);
 
     const processPublishResponse = useCallback((
-        response: any, 
-        draft: Draft, 
+        response: any,
+        draft: Draft,
         isScheduled: boolean,
         scheduleConfig?: ScheduleConfig
     ) => {
         if (response && typeof response === 'object' && response.results) {
             const hasErrors = response.results?.some((r: any) => !r.success);
-            
+
             if (hasErrors) {
                 setPublishResults({
                     success: false,
@@ -56,7 +56,7 @@ export function useDraftsActions({
                 return false;
             }
         }
-        
+
         // Success toast message
         if (isScheduled && scheduleConfig) {
             const { dailySchedule, dailyTime, date, time } = scheduleConfig;
@@ -70,7 +70,7 @@ export function useDraftsActions({
                 description: `"${draft.title}" telah dipublikasikan`,
             });
         }
-        
+
         return true;
     }, [setPublishResults, setShowResultDialog]);
 
@@ -80,30 +80,31 @@ export function useDraftsActions({
         scheduleConfig?: ScheduleConfig
     ) => {
         setPublishingId(draft.id);
-        
+       
+
         try {
-            const response = await publishDraft(draft.id, scheduledFor);
+            const response = await publishDraft(draft.id, draft);
             const isScheduled = !!scheduledFor;
-            
+
             const success = processPublishResponse(response, draft, isScheduled, scheduleConfig);
-            
+
             if (success) {
                 await loadDrafts();
                 if (isScheduled) {
                     closeDialogs();
                 }
             }
-            
+
             return success;
         } catch (error: any) {
             console.error("Publish error:", error);
-            const errorMessage = error?.response?.data?.message || error?.message || 
+            const errorMessage = error?.response?.data?.message || error?.message ||
                 (scheduledFor ? "Gagal menjadwalkan draft" : "Gagal mempublikasikan draft");
-            
+
             toast.error(scheduledFor ? "Gagal menjadwalkan draft" : "Gagal mempublikasikan draft", {
                 description: errorMessage,
             });
-            
+
             if (error?.response?.data?.results) {
                 setPublishResults({
                     success: false,
@@ -112,7 +113,7 @@ export function useDraftsActions({
                 });
                 setShowResultDialog(true);
             }
-            
+
             return false;
         } finally {
             setPublishingId(null);
@@ -125,9 +126,9 @@ export function useDraftsActions({
 
     const handleSchedule = useCallback((draft: Draft, scheduleConfig: ScheduleConfig) => {
         const { date, time, dailySchedule, dailyTime: dailyTimeValue } = scheduleConfig;
-        
+
         let scheduledFor: string | undefined;
-        
+
         if (dailySchedule) {
             scheduledFor = `daily:${dailyTimeValue}`;
         } else {
@@ -137,7 +138,9 @@ export function useDraftsActions({
             }
             scheduledFor = `${date}T${time}:00`;
         }
-        
+
+        console.log(draft)
+
         return handlePublish(draft, scheduledFor, scheduleConfig);
     }, [handlePublish]);
 

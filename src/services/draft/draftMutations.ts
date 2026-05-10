@@ -1,6 +1,6 @@
 import { apiClient } from '../api';
 import { type ScheduleRequest } from '@/types/schedule';
-import type { CreateDraftRequest, UpdateDraftRequest, PublishResponse } from './types';
+import type { CreateDraftRequest, UpdateDraftRequest, PublishResponse, Draft } from './types';
 
 // Create draft
 export async function createDraft(draftData: CreateDraftRequest): Promise<{ id: string; message: string }> {
@@ -35,9 +35,10 @@ export async function deleteDraft(id: string): Promise<void> {
 }
 
 // Publish draft
-export async function publishDraft(id: string, scheduledFor?: string): Promise<PublishResponse> {
+export async function publishDraft(id: string, draftData: Draft): Promise<PublishResponse> {
     try {
-        const payload = scheduledFor ? { scheduledFor } : {};
+        const payload = draftData ? draftData : {};
+        console.log(payload)
         const response = await apiClient.post<PublishResponse>(`/drafts/${id}/publish`, payload);
         return response;
     } catch (error: any) {

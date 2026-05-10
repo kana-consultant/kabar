@@ -68,6 +68,7 @@ func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Tim
 		draftID,
 		scheduledFor.Unix(),
 	)
+	loc, _ := time.LoadLocation("Asia/Jakarta")
 
 	task := &ScheduledTask{
 		ID:             taskID,
@@ -84,7 +85,7 @@ func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Tim
 		Status:         "pending",
 		RetryCount:     0,
 		MaxRetries:     3,
-		CreatedAt:      time.Now(),
+		CreatedAt:      time.Now().In(loc),
 	}
 
 	// Save to Redis
@@ -166,7 +167,9 @@ func (s *RedisScheduler) executeDraftTask(taskID string) {
 		s.updateDraftStatus(task.DraftID, "published")
 	}
 
-	now := time.Now()
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+
+	now := time.Now().In(loc)
 	task.ExecutedAt = &now
 	s.updateTask(task)
 }
@@ -196,110 +199,127 @@ func (s *RedisScheduler) publishDraft(task *ScheduledTask) error {
 
 // doPublishDraft actually publishes the draft
 func (s *RedisScheduler) doPublishDraft(task *ScheduledTask) error {
-	// 1. FIRST: Ambil data lengkap draft dari database
-	var draft draft.DraftDataPost
 
-	// FIX: Scan target_products ke []byte dulu, baru di-unmarshal
-	var targetProductsJSON []byte
-	var imagePrompt sql.NullString
-
-	err := database.GetDB().QueryRow(`
-        SELECT title, topic, article, image_url, target_products, COALESCE(image_prompt, '')
-        FROM drafts
-        WHERE id = $1
-    `, task.DraftID).Scan(
-		&draft.Title,
-		&draft.Topic,
-		&draft.Article,
-		&draft.ImageURL,
-		&targetProductsJSON, // Scan ke []byte dulu
-		&imagePrompt,
+	log.Printf(
+		"[Scheduler] START publish draft_id=%s title=%s products=%v",
+		task.DraftID,
+		task.Title,
+		task.TargetProducts,
 	)
 
-	if err != nil {
-		return fmt.Errorf("failed to get draft: %w", err)
+	// langsung gunakan data dari task redis
+	draftData := draft.DraftDataPost{
+		Title:          task.Title,
+		Topic:          task.Topic,
+		Article:        task.Article,
+		ImageURL:       &task.ImageURL,
+		ImagePrompt:    task.ImagePrompt,
+		TargetProducts: task.TargetProducts,
 	}
 
-	// Parse JSON setelah scan
-	if len(targetProductsJSON) > 0 {
-		if err := json.Unmarshal(targetProductsJSON, &draft.TargetProducts); err != nil {
-			log.Printf("Failed to parse target_products JSON: %v, raw: %s", err, string(targetProductsJSON))
-			// Fallback ke empty array
-			draft.TargetProducts = []string{}
-		}
-	}
-
-	draft.ImagePrompt = imagePrompt.String
-
-	log.Printf("Loaded draft %s: title=%s, products=%v", task.DraftID, draft.Title, draft.TargetProducts)
-
-	// 2. Process products
 	postService := helper.NewPostService(s.db)
 
-	result, someFailed, allFailed, err := postService.ProcessDraftProducts(draft)
+	result, someFailed, allFailed, err := postService.ProcessDraftProducts(draftData)
 	if err != nil {
 		return fmt.Errorf("failed to process products: %w", err)
 	}
-	log.Printf("[PROCESS RESULT] someFailed=%v, allFailed=%v, result=%+v", someFailed, allFailed, result)
 
-	// 3. Update database status
+	log.Printf(
+		"[PROCESS RESULT] someFailed=%v allFailed=%v result=%+v",
+		someFailed,
+		allFailed,
+		result,
+	)
+
 	status := "published"
+
 	if allFailed {
 		status = "failed"
 	}
 
 	_, err = database.GetDB().Exec(`
         UPDATE drafts 
-        SET status = $1, 
+        SET status = $1,
             published_at = $2,
             updated_at = $3
-        WHERE id = $4 AND status = 'scheduled'
-    `, status, time.Now(), time.Now(), task.DraftID)
+        WHERE id = $4
+    `,
+		status,
+		helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
+		helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
+		task.DraftID,
+	)
 
 	if err != nil {
 		return fmt.Errorf("database update failed: %w", err)
 	}
 
-	// 4. Move to history (dengan handling JSON juga)
-	var targetProductsJSONForHistory []byte
-	err = database.GetDB().QueryRow(`
-        SELECT target_products FROM drafts WHERE id = $1
-    `, task.DraftID).Scan(&targetProductsJSONForHistory)
+	targetProductsJSON, _ := json.Marshal(task.TargetProducts)
 
-	if err != nil {
-		log.Printf("Warning: Failed to get target_products for history: %v", err)
-		targetProductsJSONForHistory = []byte("[]")
-	}
+	errorMessage, _ := json.Marshal(map[string]interface{}{
+		"all_failed":  allFailed,
+		"some_failed": someFailed,
+	})
+
+	publishedAt := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	_, err = database.GetDB().Exec(`
-        INSERT INTO histories (
-            title, topic, content, image_url, target_products, 
-            status, action, published_at, created_by, team_id, user_id, error_message
-        )
-        SELECT 
-            title, topic, article, image_url, $1,
-            $2, 'auto_publish', $3, created_by, team_id, user_id, $4
-        FROM drafts
-        WHERE id = $5
-    `, targetProductsJSONForHistory, status, time.Now(),
-		map[string]interface{}{"all_failed": allFailed, "some_failed": someFailed},
-		task.DraftID)
+    INSERT INTO histories (
+        title,
+        topic,
+        content,
+        image_url,
+        target_products,
+        status,
+        action,
+        published_at,
+        created_by,
+        team_id,
+        user_id,
+        error_message
+    )
+    VALUES (
+        $1, $2, $3, $4, $5,
+        $6, 'auto_publish', $7, $8, $9, $10, $11
+    )
+`,
+		task.Title,
+		task.Topic,
+		task.Article,
+		task.ImageURL,
+		targetProductsJSON,
+		status,
+		publishedAt,
+		nil,
+		task.TeamID,
+		task.UserID,
+		errorMessage,
+	)
 
 	if err != nil {
-		log.Printf("Warning: Failed to move to history: %v", err)
+		log.Printf(
+			"Warning: Failed to insert history: %v",
+			err,
+		)
 	}
 
-	log.Printf("Successfully published draft %s with status: %s", task.DraftID, status)
+	log.Printf(
+		"[Scheduler] SUCCESS published draft_id=%s status=%s",
+		task.DraftID,
+		status,
+	)
+
 	return nil
 }
 
 // updateDraftStatus updates draft status in database
 func (s *RedisScheduler) updateDraftStatus(draftID string, status string) error {
+
 	_, err := database.GetDB().Exec(`
 		UPDATE drafts 
 		SET status = $1, updated_at = $2
 		WHERE id = $3
-	`, status, time.Now(), draftID)
+	`, status, helper.ParseWIBTime(time.Now().Format(time.RFC3339)), draftID)
 
 	return err
 }

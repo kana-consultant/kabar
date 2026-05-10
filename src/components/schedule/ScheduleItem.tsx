@@ -48,7 +48,7 @@ export function ScheduleItem({
                         Jadwal: {getScheduleDisplay(schedule.scheduledFor)}
                     </span>
                     <span className="flex items-center gap-1">
-                        🎯 Target: {schedule.targetProducts.length} produk
+                        🎯 Target: {schedule.targetProducts?.length} produk
                     </span>
                     {schedule.hasImage && <span>🖼️ Ada gambar</span>}
                 </div>

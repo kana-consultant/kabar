@@ -1,5 +1,6 @@
 import { toast } from "sonner";
-import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant } from "@/services/draft";
+import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant, type Draft } from "@/services/draft";
+import type { ScheduleRequest } from "@/types/schedule";
 
 export async function saveAsDraft(
     article: string,
@@ -15,13 +16,13 @@ export async function saveAsDraft(
     }
 
     const draftData = {
-        Title: topic,
-        Topic: topic,
-        Article: article,
-        ImageUrl: imageUrl || undefined,
-        ImagePrompt: topic,
-        TargetProducts: selectedProducts,
-        hasImage: !!imageUrl,
+        title: topic,
+        topic: topic,
+        article: article,
+        image_url: imageUrl || undefined,
+        image_prompt: topic,
+        target_products: selectedProducts,
+        has_image: !!imageUrl,
     };
 
     try {
@@ -65,6 +66,7 @@ export async function saveAsSchedule(
     }
 
     let scheduledFor: string;
+
     if (dailySchedule) {
         scheduledFor = `daily:${dailyTime}`;
     } else {
@@ -72,27 +74,42 @@ export async function saveAsSchedule(
             toast.error("Pilih tanggal jadwal");
             return false;
         }
+
         scheduledFor = `${scheduleDate}T${scheduleTime}:00`;
     }
 
     setPublishing(true);
+
     try {
         let response: any;
 
+        const draftData: Draft = {
+            title: topic,
+            topic: topic,
+            article: article,
+            image_url: imageUrl || undefined,
+            image_prompt: topic,
+            target_products: selectedProducts,
+            scheduled_for: scheduledFor,
+            has_image: !!imageUrl,
+        };
+
         if (currentDraftId) {
-            response = await publishDraft(currentDraftId, scheduledFor);
+            response = await publishDraft(currentDraftId, draftData);
         } else {
-            const draftData = {
-                Title: topic,
-                Topic: topic,
-                Article: article,
-                ImageURL: imageUrl || undefined,
-                ImagePrompt: topic,
-                TargetProducts: selectedProducts,
-                ScheduledFor: scheduledFor,
-                HasImage: !!imageUrl,
+
+            const ScheduleDraft: ScheduleRequest = {
+                title: topic,
+                topic: topic,
+                article: article,
+                image_url: imageUrl || undefined,
+                image_prompt: topic,
+                target_products: selectedProducts,
+                scheduled_for: scheduledFor,
+                has_image: !!imageUrl,
             };
-            response = await draftSchedule(draftData);
+
+            response = await draftSchedule(ScheduleDraft);
         }
 
         const hasErrors = response.results?.some((r: any) => !r.success);
@@ -100,34 +117,47 @@ export async function saveAsSchedule(
         if (hasErrors) {
             setPublishResults(response);
             setShowResultDialog(true);
+
             toast.error("Publikasi sebagian gagal", {
                 description: "Beberapa produk tidak dapat dijangkau. Lihat detail untuk info lebih lanjut."
             });
+
         } else {
+
             toast.success("Berhasil dijadwalkan!", {
                 description: dailySchedule
                     ? `"${topic}" akan diposting setiap hari jam ${dailyTime}`
                     : `"${topic}" dijadwalkan pada ${scheduleDate} jam ${scheduleTime}`,
             });
+
             resetForm();
         }
+
         return true;
+
     } catch (error: any) {
+
         console.error("Failed to save schedule:", error);
 
         if (error?.results) {
+
             setPublishResults({
                 message: error.message || "Publikasi gagal",
                 results: error.results,
                 status: "failed"
             });
+
             setShowResultDialog(true);
+
         } else {
+
             toast.error("Gagal menjadwalkan", {
                 description: error?.message || "Terjadi kesalahan pada server",
             });
         }
+
         return false;
+
     } finally {
         setPublishing(false);
     }
@@ -148,60 +178,75 @@ export async function postInstant(
         toast.error("Generate artikel terlebih dahulu");
         return false;
     }
+
     if (selectedProducts.length === 0) {
         toast.error("Pilih minimal 1 produk");
         return false;
     }
 
     setPublishing(true);
-    try {
-        let response: any;
 
+    try {
+        const draftData: Draft = {
+            title: topic,
+            topic: topic,
+            article: article,
+            image_url: imageUrl || undefined,
+            image_prompt: topic,
+            target_products: selectedProducts,
+        };
+        let response: any;
         if (currentDraftId) {
-            response = await publishDraft(currentDraftId);
+            response = await publishDraft(currentDraftId, draftData);
         } else {
-            const draftData = {
-                Title: topic,
-                Topic: topic,
-                Article: article,
-                ImageUrl: imageUrl || undefined,
-                ImagePrompt: topic,
-                TargetProducts: selectedProducts,
-            };
             response = await publishDraftInstant(draftData);
         }
 
         const hasErrors = response.results?.some((r: any) => !r.success);
 
         if (hasErrors) {
+
             setPublishResults(response);
             setShowResultDialog(true);
+
             toast.error("Publikasi sebagian gagal", {
                 description: "Beberapa produk tidak dapat dijangkau. Lihat detail untuk info lebih lanjut."
             });
+
         } else {
+
             toast.success("Berhasil diposting!", {
                 description: `"${topic}" telah diposting ke ${selectedProducts.length} produk`,
             });
+
             resetForm();
         }
+
         return true;
+
     } catch (error: any) {
+
         console.error("Failed to post:", error);
 
         if (error?.results) {
+
             setPublishResults({
                 message: error.message || "Publikasi gagal",
                 results: error.results,
                 status: "failed"
             });
+
             setShowResultDialog(true);
+
         } else {
+
             toast.error("Gagal memposting", {
                 description: error?.message || "Terjadi kesalahan pada server",
             });
         }
+
         return false;
+
     } finally {
         setPublishing(false);
     }

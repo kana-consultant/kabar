@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"seo-backend/internal/helper"
 	"time"
 )
 
@@ -59,7 +60,7 @@ func (t *ConnectionTester) Test(product *ProductBasicInfo, config *AdapterConfig
 		return &ConnectionTestResult{
 			Success:  false,
 			Message:  "Failed to connect: " + lastErr.Error(),
-			TestedAt: time.Now().Format(time.RFC3339),
+			TestedAt: helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Format(time.RFC3339),
 		}
 	}
 	defer lastResp.Body.Close()
@@ -76,7 +77,7 @@ func (t *ConnectionTester) Test(product *ProductBasicInfo, config *AdapterConfig
 		Endpoint:    fullURL,
 		Method:      config.HTTPMethod,
 		Response:    truncateString(string(bodyBytes), 500),
-		TestedAt:    time.Now().Format(time.RFC3339),
+		TestedAt:    helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Format(time.RFC3339),
 	}
 }
 

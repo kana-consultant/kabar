@@ -12,6 +12,7 @@ import (
 
 	"seo-backend/internal/config"
 	"seo-backend/internal/container"
+	"seo-backend/internal/helper"
 	"seo-backend/internal/middleware/auth"
 
 	// Swagger docs (akan digenerate)
@@ -229,17 +230,17 @@ func getClientIP(r *http.Request) string {
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`))
+	w.Write([]byte(`{"status":"ok","timestamp":"` + helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Format(time.RFC3339) + `"}`))
 }
 
 func readyCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ready","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`))
+	w.Write([]byte(`{"status":"ready","timestamp":"` + helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Format(time.RFC3339) + `"}`))
 }
 
 func liveCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"alive","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`))
+	w.Write([]byte(`{"status":"alive","timestamp":"` + helper.ParseWIBTime(time.Now().Format(time.RFC3339)).Format(time.RFC3339) + `"}`))
 }

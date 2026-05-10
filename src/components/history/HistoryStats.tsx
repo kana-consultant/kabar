@@ -17,7 +17,7 @@ export function HistoryStats({ history }: HistoryStatsProps) {
         },
         {
             title: "Berhasil",
-            value: history.filter(h => h.status === "success").length,
+            value: history.filter(h => h.status === "published").length,
             icon: CheckCircle,
             color: "text-green-500",
             bg: "bg-green-50 dark:bg-green-950/30",
@@ -29,17 +29,10 @@ export function HistoryStats({ history }: HistoryStatsProps) {
             color: "text-red-500",
             bg: "bg-red-50 dark:bg-red-950/30",
         },
-        {
-            title: "Pending",
-            value: history.filter(h => h.status === "pending").length,
-            icon: Clock,
-            color: "text-yellow-500",
-            bg: "bg-yellow-50 dark:bg-yellow-950/30",
-        },
     ];
 
     return (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
             {stats.map((stat) => (
                 <Card key={stat.title}>
                     <CardContent className="p-4">

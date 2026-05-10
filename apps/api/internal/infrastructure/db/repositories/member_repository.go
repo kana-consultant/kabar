@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/team"
+	"seo-backend/internal/helper"
 )
 
 type MemberRepositoryImpl struct {
@@ -39,11 +40,11 @@ func (r *MemberRepositoryImpl) Add(ctx context.Context, tx *sql.Tx, teamID, user
 	`
 
 	if tx != nil {
-		_, err := tx.ExecContext(ctx, query, teamID, userID, role, time.Now())
+		_, err := tx.ExecContext(ctx, query, teamID, userID, role, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 		return err
 	}
 
-	_, err := r.db.ExecContext(ctx, query, teamID, userID, role, time.Now())
+	_, err := r.db.ExecContext(ctx, query, teamID, userID, role, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	return err
 }
 

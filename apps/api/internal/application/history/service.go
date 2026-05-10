@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"seo-backend/internal/domain/history"
+	"seo-backend/internal/helper"
 	historyBuilder "seo-backend/internal/infrastructure/db/query_builder"
 	"seo-backend/internal/models"
 )
@@ -38,7 +39,7 @@ func (s *Service) Create(ctx context.Context, req history.CreateHistoryRequest) 
 	}
 
 	id := uuid.New().String()
-	now := time.Now()
+	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	data := &history.History{
 		ID:             id,

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 )
 
@@ -53,7 +54,7 @@ func (s *Service) CreateDraftRecord(req models.CreateDraftRequest, userID, teamI
 }
 
 func (s *Service) UpdateDraftRecord(id string, data map[string]interface{}) error {
-	data["updated_at"] = time.Now()
+	data["updated_at"] = helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	query, args, err := buildUpdateQuery(id, data)
 	if err != nil {
@@ -104,13 +105,13 @@ func (s *Service) updateDraftStatus(id string, status string, scheduledFor *time
 		UPDATE drafts 
 		SET status = $1, updated_at = $2
 		WHERE id = $3 AND status = 'scheduled'
-	`, status, time.Now(), id)
+	`, status, helper.ParseWIBTime(time.Now().Format(time.RFC3339)), id)
 	return err
 }
 
 func (s *Service) insertScheduledDraftRecord(req models.ScheduleRequest, scheduledFor time.Time, teamID, userID string) (string, error) {
 	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
-	now := time.Now()
+	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	var draftID string
 	err := s.db.QueryRow(`

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 	"strings"
 	"time"
@@ -142,7 +143,7 @@ func (r *AdapterConfigRepo) Update(tx *sql.Tx, productID string, updates map[str
 	}
 
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now())
+	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	argIndex++
 
 	args = append(args, productID)

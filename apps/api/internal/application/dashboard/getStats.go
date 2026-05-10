@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"seo-backend/internal/domain/dashboard"
+	"seo-backend/internal/helper"
 	"strconv"
 	"time"
 )
@@ -21,8 +22,8 @@ func (s *DashboardService) GetStats(ctx context.Context, userCtx dashboard.Dashb
 	// sementara masih pakai whereClause (nanti bisa di-refactor ke filter struct)
 	whereClause, baseArgs := s.buildWhereClause(userCtx)
 
-	currentStart := time.Now().AddDate(0, 0, -30)
-	previousStart := time.Now().AddDate(0, 0, -60)
+	currentStart := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
+	previousStart := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 	previousEnd := currentStart
 
 	stats := dashboard.DashboardStats{}
