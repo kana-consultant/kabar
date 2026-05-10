@@ -42,16 +42,18 @@ type RedisScheduler struct {
 	cron         *cron.Cron
 	ctx          context.Context
 	taskHandlers map[string]TaskHandler
+	db           *sql.DB
 }
 
 type TaskHandler func(task *ScheduledTask) error
 
-func NewRedisScheduler(redisClient *redis.Client) *RedisScheduler {
+func NewRedisScheduler(redisClient *redis.Client, db *sql.DB) *RedisScheduler {
 	return &RedisScheduler{
 		redisClient:  redisClient,
 		cron:         cron.New(cron.WithSeconds()),
 		ctx:          context.Background(),
 		taskHandlers: make(map[string]TaskHandler),
+		db:           db,
 	}
 }
 
@@ -232,7 +234,7 @@ func (s *RedisScheduler) doPublishDraft(task *ScheduledTask) error {
 	log.Printf("Loaded draft %s: title=%s, products=%v", task.DraftID, draft.Title, draft.TargetProducts)
 
 	// 2. Process products
-	postService := helper.NewPostService()
+	postService := helper.NewPostService(s.db)
 
 	result, someFailed, allFailed, err := postService.ProcessDraftProducts(draft)
 	if err != nil {

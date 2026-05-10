@@ -15,9 +15,9 @@ type DraftDataPost struct {
 	Title          string   `json:"title"`
 	Topic          string   `json:"topic"`
 	Article        string   `json:"article"`
-	ImageURL       *string  `json:"image_url"`
-	ImagePrompt    string   `json:"image_prompt"`
-	TargetProducts []string `json:"target_products"`
+	ImageURL       *string  `json:"ImageURL"`
+	ImagePrompt    string   `json:"ImagePrompt"`
+	TargetProducts []string `json:"TargetProducts"`
 }
 
 type ScheduleRequest struct {

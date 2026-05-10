@@ -144,7 +144,7 @@ func NewContainer(db *sql.DB, httpClient *client.HTTPClient,
 	teamRepository := repositories.NewTeamRepository(db)
 	memberRepository := repositories.NewMemberRepository(db)
 
-	postService := helper.NewPostService()
+	postService := helper.NewPostService(db)
 
 	// ========== EXISTING QUERY BUILDERS ==========
 	userQueryBuilder := userApp.NewQueryBuilder()

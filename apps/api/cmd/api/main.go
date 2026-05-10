@@ -67,7 +67,7 @@ func main() {
 	defer database.CloseRedis()
 
 	// 5. INITIALIZE SCHEDULER
-	scheduler := scheduler.NewRedisScheduler(database.RedisClient)
+	scheduler := scheduler.NewRedisScheduler(database.RedisClient, database.GetDB())
 	scheduler.Start()
 
 	defer scheduler.Stop()
