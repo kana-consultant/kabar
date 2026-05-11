@@ -25,7 +25,7 @@ export function ScheduleDetailDialog({
                 <DialogHeader>
                     <DialogTitle>{schedule.title}</DialogTitle>
                     <DialogDescription>
-                        Jadwal: {getScheduleDisplay(schedule.scheduledFor)}
+                        Jadwal: {getScheduleDisplay(schedule.scheduled_for)}
                     </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="article" className="w-full">
@@ -48,7 +48,7 @@ export function ScheduleDetailDialog({
                         <div>
                             <h4 className="font-medium text-sm text-slate-500">Target Produk</h4>
                             <div className="flex flex-wrap gap-2 mt-1">
-                                {schedule.targetProducts.map(p => (
+                                {schedule.target_products?.map(p => (
                                     <span key={p} className="rounded-full bg-slate-100 px-2 py-1 text-xs dark:bg-slate-800">
                                         {p}
                                     </span>
@@ -57,11 +57,11 @@ export function ScheduleDetailDialog({
                         </div>
                         <div>
                             <h4 className="font-medium text-sm text-slate-500">Dibuat</h4>
-                            <p>{formatDate(schedule.createdAt)}</p>
+                            <p>{formatDate(schedule.created_at)}</p>
                         </div>
                         <div>
                             <h4 className="font-medium text-sm text-slate-500">Terakhir Diupdate</h4>
-                            <p>{formatDate(schedule.updatedAt)}</p>
+                            <p>{formatDate(schedule.updated_at)}</p>
                         </div>
                     </TabsContent>
                 </Tabs>

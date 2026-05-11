@@ -63,6 +63,7 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string) (*[]draft.Dr
 			article, 
 			target_products, 
 			team_id,
+			image_url,
 			status,
 			COALESCE(image_prompt, '')
 		FROM drafts
@@ -87,6 +88,7 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string) (*[]draft.Dr
 			&d.Article,
 			&targetProductsJSON,
 			&d.TeamID,
+			&d.ImageURL,
 			&d.Status,
 			&d.ImagePrompt,
 		)

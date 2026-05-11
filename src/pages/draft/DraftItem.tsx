@@ -65,16 +65,6 @@ export function DraftItem({
                     <span className="flex items-center gap-1">
                          Target: {draft.target_products?.length} produk
                     </span>
-                    {draft.has_image && (
-                        <span className="flex items-center gap-1">
-                             Ada gambar
-                        </span>
-                    )}
-                    {draft.image_url && !draft.has_image && (
-                        <span className="flex items-center gap-1">
-                            Ada gambar
-                        </span>
-                    )}
                 </div>
             </div>
             <div className="flex gap-2">

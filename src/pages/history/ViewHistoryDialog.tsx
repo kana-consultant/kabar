@@ -46,19 +46,17 @@ export function ViewHistoryDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="content" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="content">Konten</TabsTrigger>
                         <TabsTrigger value="info">Informasi</TabsTrigger>
-                        <TabsTrigger value="error">Error</TabsTrigger>
                     </TabsList>
                     <TabsContent value="content" className="pt-4">
-                        <div className="rounded-lg bg-slate-50 p-4 text-sm dark:bg-slate-900 max-h-[50vh] overflow-auto">
-                            <pre className="whitespace-pre-wrap font-sans">
-                                {item.content.replace(/<[^>]*>/g, '')}
-                            </pre>
+                        <div className="rounded-lg bg-slate-50 p-4 text-sm dark:bg-slate-900 max-h-[50vh] overflow-auto"
+                        dangerouslySetInnerHTML={{ __html: item.content }}>
+                            
                         </div>
                     </TabsContent>
-                    <TabsContent value="info" className="pt-4 space-y-4">
+                    <TabsContent value="info" className="pt-4 space-y-4 ">
                         <div>
                             <h4 className="font-medium text-sm text-slate-500">Topik</h4>
                             <p>{item.topic.replace(/<[^>]*>/g, '')}</p>
@@ -83,18 +81,6 @@ export function ViewHistoryDialog({
                             <h4 className="font-medium text-sm text-slate-500">Aksi</h4>
                             <p>{action.icon} {action.label}</p>
                         </div>
-                    </TabsContent>
-                    <TabsContent value="error" className="pt-4">
-                        {item.errorMessage ? (
-                            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
-                                <p className="font-medium">Error Message:</p>
-                                <p>{item.errorMessage}</p>
-                            </div>
-                        ) : (
-                            <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
-                                Tidak ada error
-                            </div>
-                        )}
                     </TabsContent>
                 </Tabs>
             </DialogContent>

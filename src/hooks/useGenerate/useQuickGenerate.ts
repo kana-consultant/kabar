@@ -72,19 +72,19 @@ export async function quickGenerate(
         await delay(1000);
 
         const draftData = {
-            Title: topic,
-            Topic: topic,
-            Article: generatedArticle,
-            ImageURL: generatedImageUrl || undefined,
-            ImagePrompt: imagePrompt,
-            TargetProducts: selectedProducts,
+            title: topic,
+            topic: topic,
+            article: generatedArticle,
+            image_url: generatedImageUrl || undefined,
+            image_prompt: imagePrompt,
+            target_products : selectedProducts,
         };
 
         const draft = await createDraft(draftData);
 
         await delay(1500);
 
-        await publishDraft(draft.id);
+        await publishDraft(draft.id,null);
 
         toast.success("Publish berhasil");
         resetForm();

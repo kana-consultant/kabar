@@ -39,7 +39,7 @@ export function HistoryItem({
                     </span>
                 </div>
                 <div className="flex flex-wrap gap-2 text-sm text-slate-500">
-                    <span>Dikirim ke: {item.targetProducts.join(", ")}</span>
+                    <span>Dikirim ke: {item.targetProducts?.join(", ")}</span>
                     <span>•</span>
                     <span>
                         {new Date(item.publishedAt).toLocaleString(undefined, {

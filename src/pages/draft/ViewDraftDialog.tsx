@@ -21,7 +21,7 @@ export function ViewDraftDialog({ draft, open, onOpenChange, formatDate }: ViewD
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-6xl max-h-[85vh] overflow-auto">
+            <DialogContent className="sm:max-w-5xl max-h-[100vh] overflow-auto p-5">
                 <DialogHeader>
                     <DialogTitle className="text-xl">{draft.title}</DialogTitle>
                     <DialogDescription>
@@ -48,7 +48,7 @@ export function ViewDraftDialog({ draft, open, onOpenChange, formatDate }: ViewD
                         <div className="mt-4">
                             <h4 className="font-medium text-sm text-slate-500">Target Produk</h4>
                             <div className="flex flex-wrap gap-2 mt-1">
-                                {draft.target_products.map(p => (
+                                {draft.target_products?.map(p => (
                                     <span key={p} className="rounded-full bg-slate-100 px-2 py-1 text-xs dark:bg-slate-800">
                                         {p}
                                     </span>
@@ -57,9 +57,9 @@ export function ViewDraftDialog({ draft, open, onOpenChange, formatDate }: ViewD
                         </div>
                         <div className="mt-4">
                             <h4 className="font-medium text-sm text-slate-500">Artikel</h4>
-                            <div className="mt-2 rounded-lg bg-slate-50 p-4 text-sm dark:bg-slate-900 max-h-[50vh] overflow-auto">
-                                <pre className="whitespace-pre-wrap font-sans">
-                                    {draft.article}
+                            <div className="mt-2 rounded-lg bg-slate-50 p-4 text-sm dark:bg-slate-900 max-h-[30vh] overflow-auto">
+                                <pre className="whitespace-pre-wrap font-sans" dangerouslySetInnerHTML={{ __html: draft.article }} >
+
                                 </pre>
                             </div>
                         </div>
@@ -71,14 +71,14 @@ export function ViewDraftDialog({ draft, open, onOpenChange, formatDate }: ViewD
                                 <img
                                     src={draft.image_url}
                                     alt={draft.title}
-                                    className="w-full rounded-lg border object-cover"
+                                    className="w-full h-[300px] rounded-lg border object-cover"
                                 />
                                 <p className="text-center text-sm text-slate-500">
                                     Klik kanan pada gambar → Save Image As untuk menyimpan
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex min-h-[200px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
+                            <div className="flex min-h-[340px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
                                 <ImageIcon className="h-8 w-8 text-slate-400" />
                                 <p className="mt-2 text-slate-500">Tidak ada gambar</p>
                             </div>
