@@ -79,7 +79,7 @@ func (r *ProductRepository) GetAllWithFilters(ctx context.Context) ([]product.Pr
 		SELECT id, name, platform, api_endpoint, status, sync_status, 
 			last_sync, created_by, team_id, user_id, created_at, updated_at
 		FROM products
-		WHERE 1=1
+		WHERE team_id=1
 	`
 
 	// Count query
