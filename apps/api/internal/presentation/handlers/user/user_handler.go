@@ -200,6 +200,7 @@ func (h *UserHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		Role:   r.URL.Query().Get("role"),
 		Status: r.URL.Query().Get("status"),
 		Search: r.URL.Query().Get("search"),
+		TeamID: r.URL.Query().Get("team_id"),
 	}
 
 	users, err := h.service.GetAll(ctx, userCtx, filters)

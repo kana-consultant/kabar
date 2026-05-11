@@ -108,12 +108,13 @@ interface JwtPayload {
 }
 
 export const getUserFromCookie = (): JwtPayload | null => {
-    const token = Cookies.get("token");
+    const token = Cookies.get("auth_token");
 
     if (!token) return null;
 
     try {
         const decoded = jwtDecode<JwtPayload>(token);
+        console.log(decoded)
         return decoded;
     } catch {
         return null;

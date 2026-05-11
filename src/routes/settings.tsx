@@ -82,10 +82,9 @@ export default function Settings() {
             />
 
             <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="profile">Profile</TabsTrigger>
                     <TabsTrigger value="users">Users</TabsTrigger>
-                    <TabsTrigger value="teams">Teams</TabsTrigger>
                     <TabsTrigger value="api">API Keys</TabsTrigger>
                     <TabsTrigger value="preferences">Preferences</TabsTrigger>
                 </TabsList>
@@ -113,7 +112,7 @@ export default function Settings() {
                     />
                 </TabsContent>
 
-                <TabsContent value="teams" className="space-y-4">
+                {/* <TabsContent value="teams" className="space-y-4">
                     <TeamsTab
                         teams={teams}
                         currentUserId={currentUser?.id}
@@ -132,7 +131,7 @@ export default function Settings() {
                         }}
                         onRemoveMember={handleRemoveMember}
                     />
-                </TabsContent>
+                </TabsContent> */}
 
                 <TabsContent value="api" className="space-y-4">
                     <ApiKeysTab />

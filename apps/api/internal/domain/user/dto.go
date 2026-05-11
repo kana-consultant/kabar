@@ -19,10 +19,11 @@ type UpdateUserRequest struct {
 
 // UserFilters for filtering users
 type UserFilters struct {
-	Search  string
-	Role    string
-	Status  string
-	OrderBy string
-	Limit   int
-	Offset  int
+	TeamID  string `json:"team_id"` // Tambahkan field ini
+	Search  string `json:"search"`
+	Role    string `json:"role"`
+	Status  string `json:"status"`
+	OrderBy string `json:"order_by"`
+	Limit   int    `json:"limit"`
+	Offset  int    `json:"offset"`
 }
