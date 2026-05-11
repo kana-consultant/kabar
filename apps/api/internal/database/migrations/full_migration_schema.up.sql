@@ -166,7 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
 CREATE INDEX IF NOT EXISTS idx_products_team ON public.products(team_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_team ON public.drafts(team_id);
 
-
+gi
 -- Insert data ke api_providers
 INSERT INTO public.api_providers (id, name, display_name, description, base_url, auth_type, auth_header, auth_prefix, text_endpoint, image_endpoint, default_headers, request_template, response_text_path, response_image_path, is_active, created_at, updated_at) VALUES
 ('df0bf601-acc0-418a-81f4-2c14d22d02f5', 'openrouter', 'OpenRouter', 'Unified API for multiple AI models', 'https://openrouter.ai/api/v1', 'bearer', 'Authorization', 'Bearer', '/chat/completions', NULL, '{}', '{"model":"{model}","messages":[{"role":"user","content":"{prompt}"}]}', 'choices[0].message.content', NULL, true, NOW(), NOW()),
