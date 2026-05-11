@@ -82,11 +82,10 @@ export default function Settings() {
             />
 
             <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="profile">Profile</TabsTrigger>
                     <TabsTrigger value="users">Users</TabsTrigger>
                     <TabsTrigger value="api">API Keys</TabsTrigger>
-                    <TabsTrigger value="preferences">Preferences</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="profile" className="space-y-4">
@@ -137,9 +136,9 @@ export default function Settings() {
                     <ApiKeysTab />
                 </TabsContent>
 
-                <TabsContent value="preferences" className="space-y-4">
+                {/* <TabsContent value="preferences" className="space-y-4">
                     <PreferencesTab />
-                </TabsContent>
+                </TabsContent> */}
             </Tabs>
 
             {/* Dialogs */}
@@ -166,7 +165,7 @@ export default function Settings() {
                 onUpdate={handleUpdateUser}
             />
 
-            <AddTeamDialog
+            {/* <AddTeamDialog
                 open={showAddTeamDialog}
                 onOpenChange={setShowAddTeamDialog}
                 name={newTeamName}
@@ -195,7 +194,7 @@ export default function Settings() {
                 roleOptions={roleOptions}
                 users={users}
                 onAdd={handleAddMember}
-            />
+            /> */}
         </div>
     );
 }
