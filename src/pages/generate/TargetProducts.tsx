@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import type { Product } from "@servicesproduct";
+import type { Product } from "@/services/product";
 
 interface TargetProductsProps {
     products: Product[];

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useDraftsData } from "./useDraftsData";
 import { useDraftsUI } from "./useDraftsUI";
 import { useDraftsActions } from "./useDraftsActions";
-import type { Draft } from "@/types/draft";
+import { type Draft } from "@//services/draft";
 
 export function useDrafts() {
     // Data & filtering
@@ -15,11 +15,13 @@ export function useDrafts() {
         statusFilter,
         setStatusFilter,
         loadDrafts,
+        
     } = useDraftsData();
 
     // UI state
     const {
         selectedDraft,
+        setSelectedDraft,
         showScheduleDialog,
         showDeleteDialog,
         showResultDialog,
@@ -111,6 +113,7 @@ export function useDrafts() {
         openDeleteDialog,
         closeDialogs,
         formatDate,
+        setSelectedDraft
     };
 }
 

@@ -1,5 +1,5 @@
 import { getDrafts } from '../draft';
-import type { Draft } from '@/types/draft';
+import type { Draft } from '@/services/draft';
 
 // Get all scheduled drafts
 export async function getScheduledDrafts(): Promise<Draft[]> {
@@ -15,10 +15,10 @@ export async function getUpcomingSchedules(limit: number = 10): Promise<Draft[]>
     return scheduled
         .filter(s => {
             // Daily schedule selalu dianggap upcoming
-            if (s.scheduledFor?.startsWith('daily:')) return true;
+            if (s.scheduled_for?.startsWith('daily:')) return true;
             // One-time schedule: cek apakah masih di masa depan
-            if (s.scheduledFor) {
-                const scheduleDate = new Date(s.scheduledFor);
+            if (s.scheduled_for) {
+                const scheduleDate = new Date(s.scheduled_for);
                 return scheduleDate > now;
             }
             return false;
@@ -30,7 +30,7 @@ export async function getUpcomingSchedules(limit: number = 10): Promise<Draft[]>
 export async function getScheduleInfo(id: string): Promise<{
     isScheduled: boolean;
     isDaily: boolean;
-    scheduledFor?: string;
+    scheduled_for?: string;
     dailyTime?: string;
 } | null> {
     const drafts = await getDrafts();
@@ -40,12 +40,12 @@ export async function getScheduleInfo(id: string): Promise<{
         return null;
     }
 
-    const isDaily = draft.scheduledFor?.startsWith('daily:') || false;
+    const isDaily = draft.scheduled_for?.startsWith('daily:') || false;
     
     return {
         isScheduled: true,
         isDaily,
-        scheduledFor: isDaily ? undefined : draft.scheduledFor,
-        dailyTime: isDaily ? draft.scheduledFor?.replace('daily:', '') : undefined,
+        scheduled_for: isDaily ? undefined : draft.scheduled_for,
+        dailyTime: isDaily ? draft.scheduled_for?.replace('daily:', '') : undefined,
     };
 }

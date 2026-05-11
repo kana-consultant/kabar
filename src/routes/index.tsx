@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StatsCards } from "../components/dashboard/StatsCards";
-import { QuickGenerate } from "../components/dashboard/QuickGenerate";
-import { RecentActivity } from "../components/dashboard/RecentActivity";
+import { StatsCards } from "@/pages/dashboard/StatsCards";
+import { QuickGenerate } from "@/pages/dashboard/QuickGenerate";
+import { RecentActivity } from "@/pages/dashboard/RecentActivity";
 export const Route = createFileRoute("/")({
     component: Dashboard,
 });

@@ -1,13 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
-import { DraftsHeader } from "@/components/draft/DraftsHeader";
-import { DraftStats } from "@/components/draft/DraftStats";
-import { DraftList } from "@/components/draft/DraftList";
-import { ViewDraftDialog } from "@/components/draft/ViewDraftDialog";
-import { ScheduleDialog } from "@/components/draft/ScheduleDialog";
-import { DeleteAlertDialog } from "@/components/draft/DeleteAlertDialog";
-import { LoadingDrafts } from "@/components/draft/LoadingDrafts";
+import { DraftsHeader } from "@/pages/draft/DraftsHeader";
+import { DraftStats } from "@/pages/draft/DraftStats";
+import { DraftList } from "@/pages/draft/DraftList";
+import { ViewDraftDialog } from "@/pages/draft/ViewDraftDialog";
+import { ScheduleDialog } from "@/pages/draft/ScheduleDialog";
+import { DeleteAlertDialog } from "@/pages/draft/DeleteAlertDialog";
+import { LoadingDrafts } from "@/pages/draft/LoadingDrafts";
 import { useDrafts } from "@/hooks/useDrafts";
-import type { Draft } from "@/types/draft";
+import {type Draft } from "@//services/draft";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/Drafts")({
@@ -43,6 +43,7 @@ export default function Drafts() {
         closeDialogs,
         formatDate,
         setSelectedDraft
+        
     } = useDrafts();
 
     const handleEdit = (draft: Draft) => {

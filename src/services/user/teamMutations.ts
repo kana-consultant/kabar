@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { Team } from '@/types/user';
+import type { Team } from '@/services/user';
 
 // Add team
 export async function addTeam(team: Omit<Team, 'id' | 'createdAt' | 'updatedAt'>): Promise<Team> {

@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { addTeamMember, removeTeamMember } from "@/services/user";
-import type { User, Team } from "@/types/user";
+import type { User, Team } from "@/services/user";
 import type { UserRoleType } from "./types";
 import { USER_ROLES } from "./types";
 

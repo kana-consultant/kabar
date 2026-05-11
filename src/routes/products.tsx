@@ -1,11 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useProducts } from "@/hooks/useProducts";
-import { ProductHeader } from "../components/home/ProductHeader";
-import { ProductStats } from "../components/home/ProductStats";
-import { ProductList } from "../components/home/ProductList";
-import { DeleteProductDialog } from "@/components/home/DeleteProductDialog";
+import { ProductHeader } from "@/pages/home/ProductHeader";
+import { ProductStats } from "@/pages/home/ProductStats";
+import { ProductList } from "@/pages/home/ProductList";
+import { DeleteProductDialog } from "@/pages/home/DeleteProductDialog";
 import { LoadingCard } from "@/components/ui/LoadingCard";
-import type { Product } from "@/types/product";
+import type { Product } from "@/services/product";
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute("/products")({

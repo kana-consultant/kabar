@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HistoryItem } from "./HistoryItem";
 import { HistoryIcon } from "lucide-react";
-import type { HistoryItem as HistoryItemType } from "@serviceshistory";
+import type { HistoryItem as HistoryItemType } from "@/services/history";
 
 interface HistoryListProps {
     items: HistoryItemType[];

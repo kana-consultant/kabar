@@ -1,16 +1,16 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SettingsHeader } from "@/components/settings/SettingsHeader";
-import { ProfileTab } from "@/components/settings/ProfileTab";
-import { UsersTab } from "@/components/settings/UsersTab";
-import { TeamsTab } from "@/components/settings/TeamsTab";
-import { ApiKeysTab } from "@/components/settings/ApiKeysTab";
-import { PreferencesTab } from "@/components/settings/PreferencesTab";
-import { AddUserDialog } from "@/components/settings/AddUserDialog";
-import { EditUserDialog } from "@/components/settings/EditUserDialog";
-import { AddTeamDialog } from "@/components/settings/AddTeamDialog";
-import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
-import { EditTeamDialog } from "@/components/settings/EditTeamDialog";
-import { LoadingSettings } from "@/components/settings/LoadingSettings";
+import { SettingsHeader } from "@/pages/settings/SettingsHeader";
+import { ProfileTab } from "@/pages/settings/ProfileTab";
+import { UsersTab } from "@/pages/settings/UsersTab";
+import { TeamsTab } from "@/pages/settings/TeamsTab";
+import { ApiKeysTab } from "@/pages/settings/ApiKeysTab";
+import { PreferencesTab } from "@/pages/settings/PreferencesTab";
+import { AddUserDialog } from "@/pages/settings/AddUserDialog";
+import { EditUserDialog } from "@/pages/settings/EditUserDialog";
+import { AddTeamDialog } from "@/pages/settings/AddTeamDialog";
+import { AddMemberDialog } from "@/pages/settings/AddMemberDialog";
+import { EditTeamDialog } from "@/pages/settings/EditTeamDialog";
+import { LoadingSettings } from "@/pages/settings/LoadingSettings";
 import { useSettings } from "@/services/useSettings";
 import { createFileRoute } from '@tanstack/react-router'
 
@@ -153,6 +153,7 @@ export default function Settings() {
                 onRoleChange={setNewUserRole}
                 roleOptions={roleOptions}
                 onAdd={handleAddUser}
+                isAdmin={isAdmin}
             />
 
             <EditUserDialog
@@ -163,6 +164,7 @@ export default function Settings() {
                 roleOptions={roleOptions}
                 getAvailableRoles={getAvailableRoles}
                 onUpdate={handleUpdateUser}
+                isAdmin={isAdmin}
             />
 
             {/* <AddTeamDialog

@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { History, CheckCircle, XCircle, Clock } from "lucide-react";
-import type { HistoryItem } from "@serviceshistory";
+import { History, CheckCircle, XCircle } from "lucide-react";
+import type { HistoryItem } from "@/services/history";
 
 interface HistoryStatsProps {
     history: HistoryItem[];
@@ -17,7 +17,7 @@ export function HistoryStats({ history }: HistoryStatsProps) {
         },
         {
             title: "Berhasil",
-            value: history.filter(h => h.status === "published").length,
+            value: history.filter(h => h.action === "published").length,
             icon: CheckCircle,
             color: "text-green-500",
             bg: "bg-green-50 dark:bg-green-950/30",

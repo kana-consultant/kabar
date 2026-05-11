@@ -1,6 +1,6 @@
     import { toast } from "sonner";
 import { addTeam, updateTeam, deleteTeam } from "@/services/user";
-import type { Team } from "@/types/user";
+import type { Team } from "@/services/user";
 
 export function useSettingsTeamActions(loadData: () => Promise<void>) {
     const handleAddTeam = async (

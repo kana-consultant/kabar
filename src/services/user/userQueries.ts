@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { User } from '@/types/user';
+import type { User } from '@/services/user';
 
 // Get all users
 export async function getUsers(params?: {

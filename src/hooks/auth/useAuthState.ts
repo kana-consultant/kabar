@@ -6,7 +6,7 @@ import {
     getTeamId,
     hasToken
 } from '@/services/auth';
-import type { User } from '@/types/user';
+import type { User } from '@/services/user';
 
 export function useAuthState() {
     const [user, setUser] = useState<User | null>(null);

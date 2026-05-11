@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Wifi,  Clock,  Activity } from "lucide-react";
-import type { Product } from "@servicesproduct";
+import type { Product } from "@/services/product";
 import { cn } from "@/lib/utils";
 
 interface ProductStatsProps {

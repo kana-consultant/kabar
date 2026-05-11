@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Edit2, Trash2, Wifi, RefreshCw, Package as PackageIcon } from "lucide-react";
-import type { Product } from "@servicesproduct";
+import type { Product } from "@/services/product";
 
 interface ProductListProps {
     products: Product[];

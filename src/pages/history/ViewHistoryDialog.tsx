@@ -6,7 +6,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { HistoryItem } from "@serviceshistory";
+import type { HistoryItem } from "@/services/history";
 
 interface ViewHistoryDialogProps {
     item: HistoryItem | null;

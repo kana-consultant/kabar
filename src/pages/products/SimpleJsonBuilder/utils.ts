@@ -1,4 +1,4 @@
-import type { Field } from "@servicesJsonBuilder";
+import type { Field } from "@/types/JsonBuilder";
 
 // Generate unique ID
 export function genId(): string {

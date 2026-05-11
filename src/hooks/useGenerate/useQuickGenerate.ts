@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { getAPIKeys } from "@/services/apiKey";
 import { generateArticle, generateImage } from "@/services/generate";
-import { createDraft, publishDraft } from "@/services/draft";
+import { createDraft, publishDraft } from "@//services/draft";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 

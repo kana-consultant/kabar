@@ -1,4 +1,4 @@
-import type { Product, AdapterConfig } from "@/types/product";
+import type { Product, AdapterConfig } from "@/services/product";
 
 export function useProductFormActions(
     setProduct: (updater: any) => void

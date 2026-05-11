@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { addUser, updateUser, deleteUser } from "@/services/user";
-import type { User } from "@/types/user";
+import type { User } from "@/services/user";
 import type { UserRoleType } from "./types";
 
 export function useSettingsUserActions(

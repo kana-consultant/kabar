@@ -16,7 +16,7 @@ export interface NestedMapping {
     isExpanded?: boolean;       // ← untuk UI
 }
 
-// src/types/product.ts
+// srcservicesproduct.ts
 export interface AdapterConfig {
     id?: string;
     productId?: string;

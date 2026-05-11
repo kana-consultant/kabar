@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 
 export function useScheduleState() {
     const [schedules, setSchedules] = useState<Draft[]>([]);

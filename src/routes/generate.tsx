@@ -1,12 +1,12 @@
 // src/routes/generate.tsx
 import { createFileRoute } from "@tanstack/react-router";
-import { GenerateHeader } from "@/components/generate/GenerateHeader";
-import { TopicInput } from "@/components/generate/TopicInput";
-import { PostingConfig } from "@/components/generate/PostingConfig";
-import { PreviewSection } from "@/components/generate/PreviewSection";
-import { PublishResultDialog } from "@/components/draft/PublishResultDialog";
+import { GenerateHeader } from "@/pages/generate/GenerateHeader";
+import { TopicInput } from "@/pages/generate/TopicInput";
+import { PostingConfig } from "@/pages/generate/PostingConfig";
+import { PreviewSection } from "@/pages/generate/PreviewSection";
+import { PublishResultDialog } from "@/pages/draft/PublishResultDialog";
 import { useGenerate } from "@/hooks/useGenerate";
-import { ModelSelector } from '@/components/generate/ModelSelector';
+import { ModelSelector } from "@/pages/generate/ModelSelector";
 
 export const Route = createFileRoute("/generate")({
     component: Generate,

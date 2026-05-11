@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { User, Team } from "@/types/user";
+import type { User, Team } from "@/services/user";
 import type { UserRoleType } from "./types";
 
 export function useSettingsState() {

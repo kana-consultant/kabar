@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Eye, Repeat, Trash2 } from "lucide-react";
-import type { HistoryItem as HistoryItemType } from "@serviceshistory";
+import type { HistoryItem as HistoryItemType } from "@/services/history";
 
 interface HistoryItemProps {
     item: HistoryItemType;

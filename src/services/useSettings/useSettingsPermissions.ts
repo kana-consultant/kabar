@@ -1,4 +1,4 @@
-import type { User } from "@/types/user";
+import type { User } from "@/services/user";
 
 export function useSettingsPermissions(currentUser: User | null) {
     const canManageUsers = currentUser && ['super_admin', 'admin', 'manager'].includes(currentUser.role);

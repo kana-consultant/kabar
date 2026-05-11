@@ -1,6 +1,6 @@
 import { toast } from "sonner";
-import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant, type Draft } from "@/services/draft";
-import type { ScheduleRequest } from "@/types/schedule";
+import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant, type Draft } from "@//services/draft";
+import type { ScheduleRequest } from "@servicesschedule";
 
 export async function saveAsDraft(
     article: string,

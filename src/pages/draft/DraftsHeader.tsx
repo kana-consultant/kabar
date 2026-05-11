@@ -1,5 +1,12 @@
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Search, FileText, Calendar, CheckCircle } from "lucide-react";
 
 interface DraftsHeaderProps {
     searchQuery: string;
@@ -15,33 +22,60 @@ export function DraftsHeader({
     setStatusFilter,
 }: DraftsHeaderProps) {
     return (
-        <div className="flex items-center justify-between">
-            <div>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
                 <h2 className="text-2xl font-bold tracking-tight">Draft & Terjadwal</h2>
-                <p className="text-slate-500">
+                <p className="text-sm text-muted-foreground">
                     Kelola draft, jadwalkan posting, atau publikasikan langsung
                 </p>
             </div>
-            <div className="flex gap-2">
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="relative">
-                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         placeholder="Cari draft..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8 w-64"
+                        className="pl-8 w-full sm:w-64"
                     />
                 </div>
-                <select
+
+                <Select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="rounded-md border px-3 py-2 text-sm"
+                    onValueChange={(value) =>
+                        setStatusFilter(value as "all" | "draft" | "scheduled" | "published")
+                    }
                 >
-                    <option value="all">Semua</option>
-                    <option value="draft">Draft</option>
-                    <option value="scheduled">Terjadwal</option>
-                    <option value="published">Terbit</option>
-                </select>
+                    <SelectTrigger className="w-full sm:w-36">
+                        <SelectValue placeholder="Semua" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">
+                            <div className="flex items-center gap-2">
+                                <span>Semua</span>
+                            </div>
+                        </SelectItem>
+                        <SelectItem value="draft">
+                            <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                <span>Draft</span>
+                            </div>
+                        </SelectItem>
+                        <SelectItem value="scheduled">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                <span>Terjadwal</span>
+                            </div>
+                        </SelectItem>
+                        <SelectItem value="published">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4" />
+                                <span>Terbit</span>
+                            </div>
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
         </div>
     );

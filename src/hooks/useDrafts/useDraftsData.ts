@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
-import { getDrafts } from "@/services/draft";
-import type { Draft } from "@/types/draft";
+import { getDrafts } from "@//services/draft";
+import type { Draft } from "@//services/draft";
 import type { StatusFilter } from "./types";
 
 export function useDraftsData() {

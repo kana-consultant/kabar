@@ -13,7 +13,7 @@ export function useScheduleActions(
 ) {
     const handlePublishNow = async (schedule: any) => {
         try {
-            await publishDraft(schedule.id);
+            await publishDraft(schedule.id,null);
             toast.success("Konten dipublikasikan!", {
                 description: `"${schedule.title}" telah dipublikasikan`,
             });
@@ -47,7 +47,7 @@ export function useScheduleActions(
         if (selectedSchedule && newScheduleDate && newScheduleTime) {
             const dateTime = `${newScheduleDate}T${newScheduleTime}`;
             try {
-                await updateDraft(selectedSchedule.id, { scheduledFor: dateTime });
+                await updateDraft(selectedSchedule.id, { scheduled_for: dateTime });
                 toast.success("Jadwal diperbarui", {
                     description: `"${selectedSchedule.title}" dijadwalkan ulang pada ${newScheduleDate} jam ${newScheduleTime}`,
                 });

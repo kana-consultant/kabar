@@ -6,7 +6,7 @@ import { ProductApiConfig } from "./ProductApiConfig";
 import { ProductFormActions } from "./ProductFormActions";
 import { ProductFieldMapping } from "@/pages/products/ProductFieldMapping";
 import { useProductForm } from "@/hooks/useProductForm";
-import type { Product } from "@servicesproduct";
+import type { Product } from "@/services/product";
 import {
     Dialog,
     DialogContent,

@@ -1,4 +1,4 @@
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 
 export type StatusFilter = "all" | "draft" | "scheduled" | "published";
 

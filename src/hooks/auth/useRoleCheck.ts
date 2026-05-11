@@ -7,7 +7,7 @@ import {
     getRoleLevel,
     canAccessTeam
 } from '@/services/auth';
-import type { RoleChecks } from '@/types/auth';
+import type { RoleChecks } from '@servicesauth';
 
 export function useRoleCheck(): RoleChecks {
     const checks = useMemo(() => ({

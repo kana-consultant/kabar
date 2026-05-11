@@ -3,9 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Send, Calendar, AlertCircle, Settings2, Clock, ImageIcon } from "lucide-react";
+import { Send, Calendar, AlertCircle, Settings2, Clock, ImageIcon, Loader2 } from "lucide-react";
 import { TargetProducts } from "./TargetProducts";
-import type { Product } from "@servicesproduct";
+import type { Product } from "@/services/product";
+import { cn } from "@/lib/utils";
 
 interface PostingConfigProps {
     postMode: "instant" | "scheduled" | "draft";
@@ -27,8 +28,14 @@ interface PostingConfigProps {
     onSelectAll: () => void;
     article: string;
     onPost: () => void;
-    isPosting : boolean;
+    isPosting: boolean;
 }
+
+const postModeConfig = {
+    instant: { icon: Send, label: "Langsung", color: "default" },
+    scheduled: { icon: Calendar, label: "Terjadwal", color: "default" },
+    draft: { icon: AlertCircle, label: "Draft", color: "default" },
+};
 
 export function PostingConfig({
     postMode,
@@ -52,8 +59,23 @@ export function PostingConfig({
     onPost,
     isPosting
 }: PostingConfigProps) {
+    const getPostButtonText = () => {
+        const productCount = selectedProducts.length;
+        const baseText = {
+            instant: "Post Sekarang",
+            scheduled: dailySchedule ? "Jadwalkan Harian" : "Jadwalkan",
+            draft: "Simpan Draft"
+        }[postMode];
+        
+        return `${baseText} ke ${productCount} ${productCount === 1 ? 'produk' : 'produk'}`;
+    };
+
+    const isPostDisabled = () => {
+        return selectedProducts.length === 0 || !article || isPosting;
+    };
+
     return (
-        <Card>
+        <Card className="sticky top-4">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Settings2 className="h-4 w-4" />
@@ -63,49 +85,43 @@ export function PostingConfig({
                     Atur jadwal dan target posting konten
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            
+            <CardContent className="space-y-6">
                 {/* Mode Posting */}
-                <div>
-                    <Label className="mb-2 block">Mode Posting</Label>
+                <div className="space-y-2">
+                    <Label>Mode Posting</Label>
                     <div className="grid grid-cols-3 gap-2">
-                        <Button
-                            type="button"
-                            variant={postMode === "instant" ? "default" : "outline"}
-                            className="flex items-center gap-2"
-                            onClick={() => setPostMode("instant")}
-                        >
-                            <Send className="h-3 w-3" />
-                            Langsung
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={postMode === "scheduled" ? "default" : "outline"}
-                            className="flex items-center gap-2"
-                            onClick={() => setPostMode("scheduled")}
-                        >
-                            <Calendar className="h-3 w-3" />
-                            Terjadwal
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={postMode === "draft" ? "default" : "outline"}
-                            className="flex items-center gap-2"
-                            onClick={() => setPostMode("draft")}
-                        >
-                            <AlertCircle className="h-3 w-3" />
-                            Draft
-                        </Button>
+                        {Object.entries(postModeConfig).map(([mode, { icon: Icon, label }]) => (
+                            <Button
+                                key={mode}
+                                type="button"
+                                variant={postMode === mode ? "default" : "outline"}
+                                className={cn(
+                                    "flex items-center gap-2 transition-all",
+                                    postMode === mode && "shadow-md"
+                                )}
+                                onClick={() => setPostMode(mode as any)}
+                            >
+                                <Icon className="h-3.5 w-3.5" />
+                                {label}
+                            </Button>
+                        ))}
                     </div>
                 </div>
 
                 {/* Schedule Settings */}
                 {postMode === "scheduled" && (
-                    <div className="rounded-lg border p-3 space-y-3">
+                    <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
                         <div className="flex items-center justify-between">
-                            <Label className="flex items-center gap-2">
-                                <Clock className="h-3 w-3" />
-                                Posting Berulang (Daily)
-                            </Label>
+                            <div className="space-y-0.5">
+                                <Label className="flex items-center gap-2">
+                                    <Clock className="h-3.5 w-3.5" />
+                                    Posting Berulang (Daily)
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Jadwalkan posting otomatis setiap hari
+                                </p>
+                            </div>
                             <Switch
                                 checked={dailySchedule}
                                 onCheckedChange={setDailySchedule}
@@ -113,30 +129,30 @@ export function PostingConfig({
                         </div>
 
                         {dailySchedule ? (
-                            <div>
-                                <Label className="mb-1 block text-sm">Waktu Posting Harian</Label>
+                            <div className="space-y-2">
+                                <Label className="text-sm">Waktu Posting Harian</Label>
                                 <Input
                                     type="time"
                                     value={dailyTime}
                                     onChange={(e) => setDailyTime(e.target.value)}
                                     className="w-full"
                                 />
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Konten akan diposting setiap hari jam {dailyTime}
+                                <p className="text-xs text-muted-foreground">
+                                    Konten akan diposting setiap hari jam {dailyTime || "---"}
                                 </p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <Label className="mb-1 block text-sm">Tanggal</Label>
+                                <div className="space-y-2">
+                                    <Label className="text-sm">Tanggal</Label>
                                     <Input
                                         type="date"
                                         value={scheduleDate}
                                         onChange={(e) => setScheduleDate(e.target.value)}
                                     />
                                 </div>
-                                <div>
-                                    <Label className="mb-1 block text-sm">Waktu</Label>
+                                <div className="space-y-2">
+                                    <Label className="text-sm">Waktu</Label>
                                     <Input
                                         type="time"
                                         value={scheduleTime}
@@ -157,82 +173,54 @@ export function PostingConfig({
                     onSelectAll={onSelectAll}
                 />
 
-                {/* Auto Generate Image */}
-                {/* <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2">
-                        <ImageIcon className="h-3 w-3" />
-                        Auto-generate gambar
-                    </Label>
-                    <Switch
-                        checked={autoGenerateImage}
-                        onCheckedChange={setAutoGenerateImage}
-                    />
-                </div> */}
+                {/* Auto Generate Image - Uncomment if needed */}
+                {false && (
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <Label className="flex items-center gap-2">
+                                <ImageIcon className="h-3.5 w-3.5" />
+                                Auto-generate gambar
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                                Generate gambar otomatis menggunakan AI
+                            </p>
+                        </div>
+                        <Switch
+                            checked={autoGenerateImage}
+                            onCheckedChange={setAutoGenerateImage}
+                        />
+                    </div>
+                )}
+
+                {/* Error/Warning Message */}
+                {!article && (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+                        <p className="text-xs text-amber-700 text-center flex items-center justify-center gap-2">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            Generate artikel terlebih dahulu sebelum posting
+                        </p>
+                    </div>
+                )}
 
                 {/* Post Button */}
                 <Button
-                    className="w-full mt-4"
+                    className="w-full mt-6"
+                    size="lg"
                     onClick={onPost}
-                    disabled={
-                        selectedProducts.length === 0 ||
-                        !article ||
-                        isPosting
-                    }
+                    disabled={isPostDisabled()}
                 >
                     {isPosting ? (
                         <>
-                            <svg
-                                className="mr-2 h-4 w-4 animate-spin"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                            >
-                                <circle
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    opacity="0.25"
-                                />
-                                <path
-                                    d="M22 12a10 10 0 00-10-10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                />
-                            </svg>
-
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Memproses Posting...
                         </>
                     ) : (
                         <>
                             <Send className="mr-2 h-4 w-4" />
-
-                            {postMode === "instant" &&
-                                "Post Sekarang"}
-
-                            {postMode === "scheduled" &&
-                                (
-                                    dailySchedule
-                                        ? "Jadwalkan Harian"
-                                        : "Jadwalkan"
-                                )
-                            }
-
-                            {postMode === "draft" &&
-                                "Simpan Draft"}
-
-                            {" ke "}
-                            {selectedProducts.length}
-                            {" produk"}
+                            {getPostButtonText()}
                         </>
                     )}
                 </Button>
-
-                {!article && (
-                    <p className="text-xs text-amber-600 text-center">
-                        ⚠️ Generate artikel terlebih dahulu sebelum posting
-                    </p>
-                )}
             </CardContent>
         </Card>
     );

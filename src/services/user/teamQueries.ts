@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { Team } from '@/types/user';
+import type { Team } from '@/services/user';
 
 // Get all teams
 export async function getTeams(): Promise<Team[]> {

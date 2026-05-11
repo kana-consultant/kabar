@@ -9,7 +9,7 @@ import {
     isAdmin as checkIsAdmin,
     isSuperAdmin as checkIsSuperAdmin
 } from '@/services/auth';
-import type { User } from '@/types/user';
+import type { User } from '@/services/user';
 import { toast } from 'sonner';
 
 interface AuthContextType {

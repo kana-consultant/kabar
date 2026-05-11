@@ -1,4 +1,4 @@
-import type { UserRole } from "@/types/user";
+import type { UserRole } from "@/services/user";
 
 export const permissions = {
     // Product permissions

@@ -1,4 +1,4 @@
-// src/types/model.ts
+// srcservicesmodel.ts
 export interface ModelWithStatus {
     id: string;
     name: string;

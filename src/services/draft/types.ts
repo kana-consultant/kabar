@@ -1,7 +1,7 @@
 export type DraftStatus = 'draft' | 'scheduled' | 'published';
 
 export interface Draft {
-    id?: string;
+    id: string;
     title: string;
     topic: string;
     article: string;
@@ -14,8 +14,8 @@ export interface Draft {
     created_by?: string;
     team_id?: string;
     user_id?: string;
-    created_at?: string;
-    updated_at?: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface CreateDraftRequest {

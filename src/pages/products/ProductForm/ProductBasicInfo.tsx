@@ -10,7 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wifi } from "lucide-react";
-import type { Product } from "@servicesproduct";
+import type { Product } from "@/services/product";
 
 interface ProductBasicInfoProps {
     product: Partial<Product>;

@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { Team, TeamMember } from '@/types/user';
+import type { Team, TeamMember } from '@/services/user';
 import { getTeamById } from './teamQueries';
 
 // Get team members

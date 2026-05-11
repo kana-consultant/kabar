@@ -1,4 +1,4 @@
-import type { HistoryItem } from "@/types/history";
+import type { HistoryItem } from "@/services/history";
 
 export type StatusFilter = "all" | "success" | "failed" | "pending";
 export type ActionFilter = "all" | "published" | "scheduled" | "draft_saved";

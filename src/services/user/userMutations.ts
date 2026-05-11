@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { User } from '@/types/user';
+import type { User } from '@/services/user';
 
 // Update last active
 export async function updateLastActive(userId: string): Promise<void> {

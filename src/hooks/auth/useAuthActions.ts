@@ -6,7 +6,7 @@ import {
     updateLocalUser
 } from '@/services/auth';
 import { toast } from 'sonner';
-import type { User } from '@/types/user';
+import type { User } from '@/services/user';
 
 interface UseAuthActionsParams {
     setToken: (token: string | null) => void;

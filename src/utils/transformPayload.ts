@@ -1,4 +1,4 @@
-import type { FieldMapping } from "@/types/product";
+import type { FieldMapping } from "@/services/product";
 
 interface InternalData {
     title: string;

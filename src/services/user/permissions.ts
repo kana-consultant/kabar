@@ -1,7 +1,7 @@
 import Cookies from 'js-cookie';
 import { getUserFromCookie } from '../api';
 import { getUserById } from './userQueries';
-import type { UserRole } from '@/types/user';
+import type { UserRole } from '@/services/user';
 import { getUserTeams } from './teamQueries';
 
 // Get user role from cookie

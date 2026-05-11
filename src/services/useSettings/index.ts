@@ -36,6 +36,7 @@ export function useSettings() {
         setUsers, setTeams, setCurrentUser, setLoading
     );
 
+
     const { canManageUsers, canManageTeams, isSuperAdmin, isAdmin } = useSettingsPermissions(currentUser);
 
     const { handleAddUser, handleUpdateUser, handleDeleteUser } = useSettingsUserActions(

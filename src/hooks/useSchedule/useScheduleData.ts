@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { getScheduled } from "@/services/draft";
+import { getScheduled } from "@//services/draft";
 
 export async function loadSchedulesData(
     setSchedules: (data: any[]) => void,

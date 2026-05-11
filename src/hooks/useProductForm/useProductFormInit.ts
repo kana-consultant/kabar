@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { Product } from "@/types/product";
+import type { Product } from "@/services/product";
 
 export function useProductFormInit(
     isEdit: boolean,

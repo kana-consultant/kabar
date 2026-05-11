@@ -1,11 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import HistoryHeader from "@/components/history/HistoryHeader";
-import { HistoryStats } from "@/components/history/HistoryStats";
-import { HistoryList } from "@/components/history/HistoryList";
-import { ViewHistoryDialog } from "@/components/history/ViewHistoryDialog";
-import { DeleteHistoryDialog } from "@/components/history/DeleteHistoryDialog";
-import { LoadingHistory } from "@/components/history/LoadingHistory";
+import HistoryHeader from "@/pages/history/HistoryHeader";
+import { HistoryStats } from "@/pages/history/HistoryStats";
+import { HistoryList } from "@/pages/history/HistoryList";
+import { ViewHistoryDialog } from "@/pages/history/ViewHistoryDialog";
+import { DeleteHistoryDialog } from "@/pages/history/DeleteHistoryDialog";
+import { LoadingHistory } from "@/pages/history/LoadingHistory";
 import { useHistory } from "@/hooks/useHistory";
 import { toast } from "sonner";
 

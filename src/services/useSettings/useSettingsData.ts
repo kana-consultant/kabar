@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { getUsers, getTeams, getCurrentUser } from "@/services/user";
-import type { User, Team } from "@/types/user";
+import type { User, Team } from "@/services/user";
 
 export function useSettingsData(
     setUsers: (data: User[]) => void,

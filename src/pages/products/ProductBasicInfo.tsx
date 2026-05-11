@@ -8,7 +8,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Product } from "@servicesproduct";
+import type { Product } from "@/services/product";
 
 interface ProductBasicInfoProps {
     product: Product;

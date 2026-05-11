@@ -1,7 +1,7 @@
-import type { Product } from "@/types/product";
+import type { Product } from "@/services/product";
 import type { AIModel } from "@/services/model";
 import type { GenerateArticleResponse } from "@/services/generate";
-import type { PublishResponse } from "@/services/draft";
+import type { PublishResponse } from "@//services/draft";
 
 export type PostMode = "instant" | "scheduled" | "draft";
 export type Tone = "professional" | "casual" | "friendly" | "formal";

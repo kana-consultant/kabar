@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { ProductForm } from "@/components/products/ProductForm/ProductForm";
+import { ProductForm } from "@/pages/products/ProductForm/ProductForm";
 import { getProductById } from "@/services/product";
 import { toast } from "sonner";
 

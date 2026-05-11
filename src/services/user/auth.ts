@@ -1,5 +1,5 @@
 import { apiClient, getAuthToken, setAuthCookie, removeAuthCookie, getUserFromCookie } from '../api';
-import type { User } from '@/types/user';
+import type { User } from '@/services/user';
 
 // Get current logged in user from cookie
 export async function getCurrentUser(): Promise<User | any> {

@@ -12,7 +12,6 @@ export const roleOptions: { value: UserRoleType; label: string }[] = [
     { value: 'editor', label: 'Editor' },
     { value: 'manager', label: 'Manager' },
     { value: 'admin', label: 'Admin' },
-    { value: 'super_admin', label: 'Super Admin' },
 ];
 
 // Filter role options berdasarkan permission current user

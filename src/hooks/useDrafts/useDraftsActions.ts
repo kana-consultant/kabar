@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { deleteDraft, publishDraft } from "@/services/draft";
-import type { Draft } from "@/services/draft";
+import { deleteDraft, publishDraft, type Draft } from "@//services/draft";
 import type { PublishResult, ScheduleConfig } from "./types";
 
 interface UseDraftsActionsParams {

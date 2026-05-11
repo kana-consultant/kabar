@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from 'react-dom/client'
@@ -8,13 +7,13 @@ import {
   createRootRoute,
   createRoute,
 } from '@tanstack/react-router'
-import { ThemeProvider } from './components/theme-provider'
+import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from './contexts/AuthContext'
 import './index.css'
 
 // Import Layouts
-import { Layout } from './components/layout/Layout'           // Untuk protected routes
-import { AuthLayout } from './components/layout/AuthLayout'   // Untuk login/register
+import { Layout } from "@/pages/layout/Layout"           // Untuk protected routes
+import { AuthLayout } from "@/pages/layout/AuthLayout"   // Untuk login/register
 
 // Import Pages
 import { Dashboard } from './routes';

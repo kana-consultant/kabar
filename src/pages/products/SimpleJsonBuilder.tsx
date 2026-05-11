@@ -12,7 +12,7 @@ import {
 import {
     type Field,
     type SimpleJsonBuilderProps,
-} from "@servicesJsonBuilder";
+} from "@/types/JsonBuilder";
 
 import {
     genId,

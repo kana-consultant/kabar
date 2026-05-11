@@ -1,5 +1,8 @@
+
+
+
 import { useState, useCallback } from "react";
-import type { Draft } from "@/types/draft";
+import { type Draft } from "@//services/draft";
 import type { DraftsUIState, PublishResult, ScheduleConfig } from "./types";
 
 const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
@@ -78,5 +81,7 @@ export function useDraftsUI() {
         closeDialogs,
         formatDate,
         resetScheduleConfig,
+        setSelectedDraft
+        
     };
 }

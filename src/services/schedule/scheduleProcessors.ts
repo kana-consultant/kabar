@@ -1,6 +1,6 @@
 import { updateDraft } from '../draft';
 import { getScheduledDrafts } from './scheduleQueries';
-import type { Draft } from '@/types/draft';
+import type { Draft } from '@/services/draft';
 
 // Process daily schedules (untuk cron job nanti)
 export async function processDailySchedules(): Promise<Draft[]> {
@@ -12,14 +12,14 @@ export async function processDailySchedules(): Promise<Draft[]> {
 
     // Cari draft dengan daily schedule yang waktunya sekarang
     const toPublish = scheduled.filter(s => 
-        s.scheduledFor === `daily:${currentTime}`
+        s.scheduled_for === `daily:${currentTime}`
     );
 
     // Update status to published
     for (const draft of toPublish) {
         await updateDraft(draft.id, { 
             status: 'published',
-            scheduledFor: undefined, // clear schedule setelah publish
+            scheduled_for: undefined, // clear schedule setelah publish
         });
     }
 
@@ -33,8 +33,8 @@ export async function processOneTimeSchedules(): Promise<Draft[]> {
 
     // Cari draft dengan one-time schedule yang waktunya sudah lewat
     const toPublish = scheduled.filter(s => {
-        if (s.scheduledFor && !s.scheduledFor.startsWith('daily:')) {
-            const scheduleDate = new Date(s.scheduledFor);
+        if (s.scheduled_for && !s.scheduled_for.startsWith('daily:')) {
+            const scheduleDate = new Date(s.scheduled_for);
             return scheduleDate <= now && s.status === 'scheduled';
         }
         return false;
@@ -44,7 +44,7 @@ export async function processOneTimeSchedules(): Promise<Draft[]> {
     for (const draft of toPublish) {
         await updateDraft(draft.id, { 
             status: 'published',
-            scheduledFor: undefined,
+            scheduled_for: undefined,
         });
     }
 

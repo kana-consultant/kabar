@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { Product } from '@/types/product';
+import type { Product } from '@/services/product';
 import type { CreateProductRequest, UpdateProductRequest, AddProductResponse } from './types';
 import { getProductById } from './productQueries';
 
@@ -11,6 +11,7 @@ export async function createProduct(req: CreateProductRequest): Promise<{ id: st
 /**
  * Add new product with full response
  */
+// Add new product with full response
 export async function addProduct(req: CreateProductRequest): Promise<AddProductResponse> {
     const response = await apiClient.post<{ id: string; message: string }>('/products', req);
     
@@ -39,7 +40,8 @@ export async function addProduct(req: CreateProductRequest): Promise<AddProductR
             adapterConfig: req.adapterConfig ? {
                 endpointPath: req.adapterConfig.endpointPath,
                 httpMethod: req.adapterConfig.httpMethod,
-                customHeaders: req.adapterConfig.customHeaders,
+                // 🔥 Ubah: Konversi Record<string,string> ke string JSON
+                customHeaders: JSON.stringify(req.adapterConfig.customHeaders),
                 fieldMapping: req.adapterConfig.fieldMapping,
                 timeoutSeconds: req.adapterConfig.timeoutSeconds || 30,
                 retryCount: req.adapterConfig.retryCount || 3,
@@ -48,40 +50,6 @@ export async function addProduct(req: CreateProductRequest): Promise<AddProductR
             } : undefined,
         },
     };
-}
-
-/**
- * Save product (create or update)
- */
-export async function saveProduct(product: Partial<Product> & { id?: string }): Promise<Product> {
-    if (product.id) {
-        await updateProduct(product.id, {
-            name: product.name,
-            platform: product.platform,
-            apiEndpoint: product.apiEndpoint,
-            status: product.status,
-            syncStatus: product.syncStatus,
-            adapterConfig: product.adapterConfig,
-        });
-        return getProductById(product.id);
-    } else {
-        const result = await addProduct({
-            name: product.name || '',
-            platform: product.platform || 'custom',
-            apiEndpoint: product.apiEndpoint || '',
-            apiKey: product.apiKey,
-            teamId: product.teamId,
-            adapterConfig: product.adapterConfig ? {
-                endpointPath: product.adapterConfig.endpointPath,
-                httpMethod: product.adapterConfig.httpMethod,
-                customHeaders: product.adapterConfig.customHeaders,
-                fieldMapping: product.adapterConfig.fieldMapping,
-                timeoutSeconds: product.adapterConfig.timeoutSeconds,
-                retryCount: product.adapterConfig.retryCount,
-            } : undefined,
-        });
-        return result.product;
-    }
 }
 
 // Update product

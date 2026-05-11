@@ -2,7 +2,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { addProduct, updateProduct, testConnection } from "@/services/product";
-import type { Product } from "@/types/product";
+import type { Product } from "@/services/product";
 
 export function useProductFormHandlers(
     isEdit: boolean,

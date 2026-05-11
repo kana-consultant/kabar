@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit2, Trash2, Shield, UserCog, Eye, Pencil } from "lucide-react";
-import type { User } from "@servicesuser";
+import type { User } from "@/services/user";
 
 type UserRoleType = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
 

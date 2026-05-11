@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie';
 import { COOKIE_OPTIONS } from './config';
-import type { User } from '@/types/user';
+import type { User } from '@/services/user';
 
 // Get auth token - dari cookie atau localStorage
 export function getToken(): string | null {

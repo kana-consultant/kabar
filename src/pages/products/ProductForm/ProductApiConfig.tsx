@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-import type { AdapterConfig } from "@servicesproduct";
+import type { AdapterConfig } from "@/services/product";
 
 interface ProductApiConfigProps {
     config: Partial<AdapterConfig>;

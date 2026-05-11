@@ -1,5 +1,7 @@
-import type { Product, AdapterConfig } from '@/types/product';
+import type { Product, AdapterConfig, FieldMapping } from '@/types/product';
 
+
+export type { Product, AdapterConfig, FieldMapping}
 export interface CreateProductRequest {
     name: string;
     platform: string;

@@ -1,13 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ScheduleHeader } from "@/components/schedule/ScheduleHeader";
-import { ScheduleStats } from "@/components/schedule/ScheduleStats";
-import { ScheduleList } from "@/components/schedule/ScheduleList";
-import { ScheduleDetailDialog } from "@/components/schedule/ScheduleDetailDialog";
-import { RescheduleDialog } from "@/components/schedule/RescheduleDialog";
-import { DeleteScheduleDialog } from "@/components/schedule/DeleteScheduleDialog";
-import { LoadingSchedule } from "@/components/schedule/LoadingSchedule";
+import { ScheduleHeader } from "@/pages/schedule/ScheduleHeader";
+import { ScheduleStats } from "@/pages/schedule/ScheduleStats";
+import { ScheduleList } from "@/pages/schedule/ScheduleList";
+import { ScheduleDetailDialog } from "@/pages/schedule/ScheduleDetailDialog";
+import { RescheduleDialog } from "@/pages/schedule/RescheduleDialog";
+import { DeleteScheduleDialog } from "@/pages/schedule/DeleteScheduleDialog";
+import { LoadingSchedule } from "@/pages/schedule/LoadingSchedule";
 import { useSchedule } from "@/hooks/useSchedule";
-import { type Draft } from "@/types/draft";
+import { type Draft } from "@/services/draft";
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute("/schedule")({

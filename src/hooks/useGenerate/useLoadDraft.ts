@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { getDraftById } from "@/services/draft";
+import { getDraftById } from "@//services/draft";
 import { getHistoryById } from "@/services/history";
 
 export function useLoadDraft(
@@ -20,8 +20,8 @@ export function useLoadDraft(
                     if (draft) {
                         setTopic(draft.topic);
                         setArticle(draft.article);
-                        setImageUrl(draft.imageUrl || "");
-                        setSelectedProducts(draft.targetProducts || []);
+                        setImageUrl(draft.image_url || "");
+                        setSelectedProducts(draft.target_products || []);
                         setCurrentDraftId(draft.id);
                         toast.info("Memuat draft", {
                             description: `"${draft.title}" siap diedit`,

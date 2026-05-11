@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ProductForm } from "@/components/products/ProductForm/ProductForm";
+import { ProductForm } from "@/pages/products/ProductForm/ProductForm";
 
 export const Route = createFileRoute("/products/add")({
   component: AddProduct,

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, GripVertical, ChevronRight, ChevronDown } from "lucide-react";
-import { type Field, type SimpleJsonBuilderProps } from "@servicesJsonBuilder";
+import { type Field, type SimpleJsonBuilderProps } from "@/types/JsonBuilder";
 import { genId, jsonToFields, fieldsToJson, getNextFieldNumber, getNextObjectNumber } from "@/utils/SimpleJsonBuilder";
 
 export function SimpleJsonBuilder({ value, onChange }: SimpleJsonBuilderProps) {

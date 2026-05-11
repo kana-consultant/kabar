@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { HistoryItem } from "@/types/history";
+import type { HistoryItem } from "@/services/history";
 import type { StatusFilter, ActionFilter } from "./types";
 
 export function useHistoryState() {

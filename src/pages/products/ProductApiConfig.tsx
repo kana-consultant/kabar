@@ -8,7 +8,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { AdapterConfig } from "@servicesproduct";
+import type { AdapterConfig } from "@/services/product";
 
 interface ProductApiConfigProps {
     config: AdapterConfig;

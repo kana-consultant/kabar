@@ -8,7 +8,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { HistoryItem } from "@serviceshistory";
+import type { HistoryItem } from "@/services/history";
 
 interface DeleteHistoryDialogProps {
     item: HistoryItem | null;

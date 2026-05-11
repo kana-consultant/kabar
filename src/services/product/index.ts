@@ -2,8 +2,13 @@
 export type { 
     CreateProductRequest, 
     UpdateProductRequest, 
-    AddProductResponse 
+    AddProductResponse,
+    Product,
+    AdapterConfig,
+    FieldMapping
 } from './types';
+
+ 
 
 // Queries (GET)
 export { 
@@ -21,7 +26,6 @@ export {
 export { 
     createProduct, 
     addProduct, 
-    saveProduct, 
     updateProduct, 
     deleteProduct,
     testConnection,
