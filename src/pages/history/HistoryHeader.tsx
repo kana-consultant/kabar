@@ -55,27 +55,10 @@ export default function HistoryHeader({
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Semua Status</SelectItem>
-                        <SelectItem value="success">Berhasil</SelectItem>
+                        <SelectItem value="published">Berhasil</SelectItem>
                         <SelectItem value="failed">Gagal</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
                     </SelectContent>
                 </Select>
-
-                <Select
-                    value={actionFilter}
-                    onValueChange={(value) => setActionFilter(value as any)}
-                >
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Semua Aksi" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Aksi</SelectItem>
-                        <SelectItem value="published">Published</SelectItem>
-                        <SelectItem value="scheduled">Scheduled</SelectItem>
-                        <SelectItem value="draft_saved">Draft Saved</SelectItem>
-                    </SelectContent>
-                </Select>
-
                 <Button variant="destructive" onClick={onClearAll}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Hapus Semua

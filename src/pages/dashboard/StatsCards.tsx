@@ -76,17 +76,17 @@ export function StatsCards() {
             change: `${stats?.publishedPercentage || 0}% sukses`,
             color: "text-purple-600",
         },
-        {
-            title: "SEO Score Rata-rata",
-            value: Math.round(stats?.averageSeoScore || 0),
-            icon: TrendingUp,
-            change: stats?.seoScoreChange || "0%",
-            color: "text-orange-600",
-        },
+        // {
+        //     title: "SEO Score Rata-rata",
+        //     value: Math.round(stats?.averageSeoScore || 0),
+        //     icon: TrendingUp,
+        //     change: stats?.seoScoreChange || "0%",
+        //     color: "text-orange-600",
+        // },
     ];
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {statItems.map((stat) => (
                 <Card key={stat.title}>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">

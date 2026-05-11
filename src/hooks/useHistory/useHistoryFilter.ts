@@ -11,7 +11,7 @@ export function useHistoryFilter(
         let filtered = [...history];
         
         if (statusFilter !== "all") {
-            filtered = filtered.filter(h => h.status === statusFilter);
+            filtered = filtered.filter(h => h.action === statusFilter);
         }
         
         if (actionFilter !== "all") {

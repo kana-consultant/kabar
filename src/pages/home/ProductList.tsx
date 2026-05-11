@@ -52,7 +52,12 @@ export function ProductList({ products, testingId, onTest, onEdit, onDelete }: P
                                 <CardTitle className="text-base truncate" title={product.name}>
                                     {product.name}
                                 </CardTitle>
+                               
                             </div>
+                             <CardTitle className="text-base truncate" title={product.name}>
+                                    {getStatusBadge(product.status)}
+                                </CardTitle>
+                            
                         </div>
                         <CardDescription className="flex items-center gap-1 mt-1">
                             {product.platform === "wordpress" && "WordPress"}

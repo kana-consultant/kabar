@@ -21,12 +21,6 @@ export function DraftStats({ drafts }: DraftStatsProps) {
             color: "text-yellow-500",
         },
         {
-            title: "Terjadwal",
-            value: drafts.filter(d => d.status === "scheduled").length,
-            icon: Calendar,
-            color: "text-blue-500",
-        },
-        {
             title: "Sudah Terbit",
             value: drafts.filter(d => d.status === "published").length,
             icon: CheckCircle,
@@ -35,7 +29,7 @@ export function DraftStats({ drafts }: DraftStatsProps) {
     ];
 
     return (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
             {stats.map((stat) => (
                 <Card key={stat.title}>
                     <CardContent className="p-4">

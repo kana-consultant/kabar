@@ -62,12 +62,6 @@ export function DraftsHeader({
                                 <span>Draft</span>
                             </div>
                         </SelectItem>
-                        <SelectItem value="scheduled">
-                            <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                <span>Terjadwal</span>
-                            </div>
-                        </SelectItem>
                         <SelectItem value="published">
                             <div className="flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4" />
