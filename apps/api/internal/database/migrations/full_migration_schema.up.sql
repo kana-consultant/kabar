@@ -166,7 +166,59 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
 CREATE INDEX IF NOT EXISTS idx_products_team ON public.products(team_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_team ON public.drafts(team_id);
 
-gi
+-- 1. Insert User dengan password: password123
+INSERT INTO public.users (
+    id,
+    email,
+    name,
+    password_hash,
+    role,
+    status,
+    created_at,
+    updated_at
+) VALUES (
+    gen_random_uuid(),
+    'admin@kabar.com',
+    'Admin User',
+    '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    'admin',
+    'active',
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+);
+
+-- 2. Insert Team
+INSERT INTO public.teams (
+    id,
+    name,
+    description,
+    created_at,
+    updated_at,
+    created_by
+) VALUES (
+    gen_random_uuid(),
+    'SEO Management Team',
+    'Main team for SEO content management and scheduling',
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    'admin@kabar.com'
+);
+
+-- 3. Connect User to Team
+INSERT INTO public.team_members (
+    id,
+    team_id,
+    user_id,
+    role,
+    joined_at
+) VALUES (
+    gen_random_uuid(),
+    (SELECT id FROM public.teams WHERE name = 'SEO Management Team' LIMIT 1),
+    (SELECT id FROM public.users WHERE email = 'admin@kabar.com' LIMIT 1),
+    'owner',
+    CURRENT_TIMESTAMP
+);
+
 -- Insert data ke api_providers
 INSERT INTO public.api_providers (id, name, display_name, description, base_url, auth_type, auth_header, auth_prefix, text_endpoint, image_endpoint, default_headers, request_template, response_text_path, response_image_path, is_active, created_at, updated_at) VALUES
 ('df0bf601-acc0-418a-81f4-2c14d22d02f5', 'openrouter', 'OpenRouter', 'Unified API for multiple AI models', 'https://openrouter.ai/api/v1', 'bearer', 'Authorization', 'Bearer', '/chat/completions', NULL, '{}', '{"model":"{model}","messages":[{"role":"user","content":"{prompt}"}]}', 'choices[0].message.content', NULL, true, NOW(), NOW()),
