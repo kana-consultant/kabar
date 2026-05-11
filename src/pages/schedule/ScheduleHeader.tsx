@@ -10,26 +10,27 @@ interface ScheduleHeaderProps {
 
 export function ScheduleHeader({ searchQuery, setSearchQuery, onRefresh }: ScheduleHeaderProps) {
     return (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight">Jadwal Posting</h2>
-                <p className="text-slate-500">
+                <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Jadwal Posting</h2>
+                <p className="text-sm text-slate-500 sm:text-base">
                     Kelola konten yang dijadwalkan untuk dipublikasikan
                 </p>
             </div>
-            <div className="flex gap-2">
-                <div className="relative">
+            
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+                <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <Input
                         placeholder="Cari jadwal..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8 w-64"
+                        className="pl-8 w-full sm:w-64"
                     />
                 </div>
-                <Button variant="outline" onClick={onRefresh}>
+                <Button variant="outline" onClick={onRefresh} className="w-full sm:w-auto">
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    Refresh
+                    <span>Refresh</span>
                 </Button>
             </div>
         </div>

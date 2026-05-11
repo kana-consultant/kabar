@@ -59,10 +59,6 @@ export default function HistoryHeader({
                         <SelectItem value="failed">Gagal</SelectItem>
                     </SelectContent>
                 </Select>
-                <Button variant="destructive" onClick={onClearAll}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Hapus Semua
-                </Button>
             </div>
         </div>
     );

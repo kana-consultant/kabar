@@ -24,51 +24,71 @@ export function ScheduleItem({
     onDelete,
 }: ScheduleItemProps) {
     return (
-        <div className="flex items-center justify-between rounded-lg border p-4 transition-all hover:shadow-md">
+        <div className="flex flex-col gap-4 rounded-lg border p-4 transition-all hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
-                <div className="flex items-center gap-3">
-                    <h3 className="font-semibold">{schedule.title}</h3>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <h3 className="font-semibold text-sm sm:text-base line-clamp-2">{schedule.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                            <Calendar className="h-3 w-3" />
+                            <span className="hidden sm:inline">Terjadwal</span>
+                        </span>
+                        {isDailySchedule(schedule.scheduled_for) && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                                <RefreshCw className="h-3 w-3" />
+                                <span className="hidden sm:inline">Harian</span>
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <p className="mt-1 text-xs sm:text-sm text-slate-500 line-clamp-2">
+                    {schedule.article.replace(/<[^>]*>/g, '').substring(0, 150)}...
+                </p>
+
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Terjadwal
+                        Jadwal: {getScheduleDisplay(schedule.scheduled_for)}
                     </span>
-                    {isDailySchedule(schedule.scheduledFor) && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900 dark:text-purple-300">
-                            <RefreshCw className="h-3 w-3" />
-                            Harian
+                    <span className="flex items-center gap-1">
+                        🎯 Target: {schedule.target_products?.length} produk
+                    </span>
+                    {schedule.has_image && (
+                        <span className="flex items-center gap-1">
+                            🖼️ <span className="hidden sm:inline">Ada gambar</span>
+                            <span className="sm:hidden">Gambar</span>
                         </span>
                     )}
                 </div>
-                <p className="mt-1 text-sm text-slate-500 line-clamp-2">
-                    {schedule.article.replace(/<[^>]*>/g, '').substring(0, 150)}...
-                </p>
-                <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
-                    <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        Jadwal: {getScheduleDisplay(schedule.scheduledFor)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                        🎯 Target: {schedule.targetProducts?.length} produk
-                    </span>
-                    {schedule.hasImage && <span>🖼️ Ada gambar</span>}
-                </div>
             </div>
-            <div className="flex gap-2">
+
+            {/* Action Buttons - Responsive Grid */}
+            <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:justify-end">
                 <Button variant="outline" size="sm" onClick={() => onView(schedule)}>
                     <Eye className="h-4 w-4" />
+                    <span className="hidden sm:inline">Lihat</span>
                 </Button>
+
                 <Button variant="outline" size="sm" onClick={() => onEdit(schedule)}>
                     <Edit className="h-4 w-4" />
+                    <span className="hidden sm:inline">Edit</span>
                 </Button>
+
                 <Button variant="outline" size="sm" onClick={() => onReschedule(schedule)}>
                     <RefreshCw className="h-4 w-4" />
+                    <span className="hidden "/>
                 </Button>
+
                 <Button variant="default" size="sm" onClick={() => onPublishNow(schedule)}>
                     <Send className="h-4 w-4" />
-                    Terbitkan Sekarang
+                    <span className="hidden sm:inline"></span>
+                    <span className="sm:hidden">Terbit</span>
                 </Button>
+
                 <Button variant="destructive" size="sm" onClick={() => onDelete(schedule)}>
                     <Trash2 className="h-4 w-4" />
+                    <span className="hidden sm:inline"/>
                 </Button>
             </div>
         </div>
