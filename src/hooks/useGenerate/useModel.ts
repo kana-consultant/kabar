@@ -60,8 +60,8 @@ export function useModels() {
         const data = await getAPIKeys();
         const availableModels = data as any;
         
-        const articleModel = availableModels.find((model: any) => model.service === 'text');
-        const imageModel = availableModels.find((model: any) => model.service === 'image');
+        const articleModel = availableModels?.find((model: any) => model.service === 'text');
+        const imageModel = availableModels?.find((model: any) => model.service === 'image');
         
         return { articleModel, imageModel, availableModels };
     }, [queryClient]);
@@ -100,17 +100,17 @@ export function useModels() {
 
     // Get text models only
     const getTextModels = useCallback(() => {
-        return models.filter((model: any) => model.service === 'text');
+        return models?.filter((model: any) => model.service === 'text');
     }, [models]);
 
     // Get image models only
     const getImageModels = useCallback(() => {
-        return models.filter((model: any) => model.service === 'image');
+        return models?.filter((model: any) => model.service === 'image');
     }, [models]);
 
     // Get active models
     const getActiveModels = useCallback(() => {
-        return models.filter((model: any) => model.isActive);
+        return models?.filter((model: any) => model.isActive);
     }, [models]);
 
     // Get model by ID
@@ -173,13 +173,13 @@ export function useModels() {
         textModels,
         imageModels,
         activeModels,
-        hasModels: models.length > 0,
-        hasTextModels: textModels.length > 0,
-        hasImageModels: imageModels.length > 0,
+        hasModels: models?.length > 0,
+        hasTextModels: textModels?.length > 0,
+        hasImageModels: imageModels?.length > 0,
         
         // Default models
-        defaultTextModel: textModels.find((m: any) => m.isDefault) || textModels[0],
-        defaultImageModel: imageModels.find((m: any) => m.isDefault) || imageModels[0],
+        defaultTextModel: textModels?.find((m: any) => m.isDefault) || textModels?[0]:[],
+        defaultImageModel: imageModels?.find((m: any) => m.isDefault) || imageModels?[0] : [],
     };
 }
 

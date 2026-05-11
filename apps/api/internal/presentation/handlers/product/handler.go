@@ -234,9 +234,10 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Router /products [get]
 func (h *ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	userCtx := helper.GetUserContext(r)
 
 	// Call application service (masih perlu implementasi di service)
-	products, _, err := h.service.GetAllProducts(ctx)
+	products, err := h.service.GetAllProducts(ctx, userCtx.GetTeamID())
 	if err != nil {
 		h.writeError(w, err)
 		return
