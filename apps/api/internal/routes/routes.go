@@ -139,6 +139,17 @@ func SetupRoutes(cfg *config.Config, container *container.Container) *chi.Mux {
 			r.Put("/{id}", container.TeamHandler.Update)
 			r.Delete("/{id}", container.TeamHandler.Delete)
 
+			r.Post("/teams/{teamId}/invites", container.TeamHandler.InviteMember)
+			// r.Get("/teams/{teamId}/invites", container.TeamHandler.GetTeamInvites)
+			// r.Delete("/teams/invites/{inviteId}", container.TeamHandler.CancelInvite)
+			// r.Post("/teams/invites/{inviteId}/resend", container.TeamHandler.ResendInvite)
+
+			// Team member routes
+			r.Post("/teams/{teamId}/members", container.TeamHandler.AddMember)
+			r.Delete("/teams/{teamId}/members/{userId}", container.TeamHandler.RemoveMember)
+			r.Put("/teams/{teamId}/members/{userId}/role", container.TeamHandler.UpdateMemberRole)
+			r.Get("/teams/{teamId}/members", container.TeamHandler.GetTeamMembers)
+
 			// Members
 			r.Get("/{id}/members", container.TeamHandler.GetTeamMembers)
 			r.Post("/{id}/members", container.TeamHandler.AddMember)

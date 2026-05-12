@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	// Read operations
 	GetByID(ctx context.Context, id string) (*models.User, error)
+	GetByEmail(ctx context.Context, email string) (*models.User, error) // ← Tambahan
 	GetAll(ctx context.Context, query string, args []interface{}) ([]models.User, error)
 
 	// Write operations

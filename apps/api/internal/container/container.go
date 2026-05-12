@@ -19,6 +19,7 @@ import (
 	teamApp "seo-backend/internal/application/team"
 	userApp "seo-backend/internal/application/user"
 	"seo-backend/internal/helper"
+	services "seo-backend/internal/service"
 
 	// Domain Interfaces
 	"seo-backend/internal/domain/adapter"
@@ -77,6 +78,7 @@ type Container struct {
 	teamRepo          team.Repository
 	teamMemberRepo    team.MemberRepository
 	model             model.Repository
+	invite            team.TeamInviteRepository
 
 	// Services
 	ProductService       product.ProductService
@@ -113,7 +115,8 @@ func NewContainer(db *sql.DB, httpClient *client.HTTPClient,
 	builder *builder.PromptBuilder,
 	requestBuilder *builder.RequestBuilder,
 	responseParser *parser.ResponseParser,
-	redisScheduler *scheduler.RedisScheduler) *Container {
+	redisScheduler *scheduler.RedisScheduler,
+	emailService *services.SMTPEmailService) *Container {
 	// Utilities
 	encryptor := crypto.NewAESEncryptor()
 
@@ -139,6 +142,7 @@ func NewContainer(db *sql.DB, httpClient *client.HTTPClient,
 	historyRepo := repositories.NewHistoryRepository(db)
 	draftRepo := repositories.NewDraftRepository(db)
 	modelRepo := repositories.ModelRepository(db)
+	invite := repositories.NewTeamInviteRepository(db)
 
 	// ========== TEAM REPOSITORIES ==========
 	teamRepository := repositories.NewTeamRepository(db)
@@ -183,6 +187,9 @@ func NewContainer(db *sql.DB, httpClient *client.HTTPClient,
 		teamQueryBuilder,
 		teamAuthorizer,
 		teamValidator,
+		invite,
+		userRepo,
+		*emailService,
 	)
 
 	// ========== EXISTING HANDLERS ==========

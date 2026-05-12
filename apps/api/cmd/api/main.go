@@ -19,6 +19,7 @@ import (
 	client "seo-backend/internal/infrastructure/http/client"
 	"seo-backend/internal/routes"
 	"seo-backend/internal/scheduler"
+	services "seo-backend/internal/service"
 )
 
 // @title SEO Backend API
@@ -70,6 +71,10 @@ func main() {
 	scheduler := scheduler.NewRedisScheduler(database.RedisClient, database.GetDB())
 	scheduler.Start()
 
+	smtpConfig := config.LoadSMTPConfig()
+
+	emailService := services.NewSMTPEmailService(smtpConfig)
+
 	defer scheduler.Stop()
 	promptBuilder := aiBuilder.NewPromptBuilder()
 	requestBuilder := aiBuilder.NewRequestBuilder()
@@ -80,7 +85,7 @@ func main() {
 	client := client.NewHTTPClient(timeOut)
 
 	// 6. INITIALIZE CONTAINER
-	appContainer = container.NewContainer(database.GetDB(), client, promptBuilder, requestBuilder, responseParser, scheduler)
+	appContainer = container.NewContainer(database.GetDB(), client, promptBuilder, requestBuilder, responseParser, scheduler, emailService)
 
 	// 7. SETUP ROUTES
 	router := routes.SetupRoutes(cfg, appContainer)
