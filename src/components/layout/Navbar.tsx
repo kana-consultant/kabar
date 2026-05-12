@@ -1,279 +1,244 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Menu, X, Rocket, LayoutDashboard, FileText, Package, History, Settings, ChevronLeft, ChevronRight, Sun, Moon, FileStack, Calendar, LogOut, User, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useLocation, useNavigate } from "@tanstack/react-router";
+import { Settings, LogOut, Shield, Sun, Moon, ChevronRight, Home } from "lucide-react";
 import { ThemeSwitch } from "@/components/switch";
 import { toast } from "sonner";
 import { removeAuthCookie } from "@/services/api";
+import { cn } from "@/lib/utils";
 
 const menuItems = [
-    { title: "Dashboard", href: "/", icon: LayoutDashboard },
-    { title: "Generate Konten", href: "/generate", icon: FileText },
-    { title: "Produk", href: "/products", icon: Package },
-    { title: "Draft", href: "/drafts", icon: FileStack },
-    { title: "Schedule", href: "/schedule", icon: Calendar },
-    { title: "History", href: "/history", icon: History },
-    { title: "Settings", href: "/settings", icon: Settings },
+    { title: "Dashboard", href: "/" },
+    { title: "Generate Konten", href: "/generate" },
+    { title: "Produk", href: "/products" },
+    { title: "Draft", href: "/drafts" },
+    { title: "Schedule", href: "/schedule" },
+    { title: "History", href: "/history" },
+    { title: "Settings", href: "/settings" },
 ];
 
-interface NavbarProps {
-    onToggleSidebar: () => void;
-    sidebarOpen: boolean;
+function getUserData() {
+    try {
+        const raw = localStorage.getItem("user") ||
+            document.cookie.match("user=([^;]+)")?.[1];
+        if (raw) return JSON.parse(decodeURIComponent(raw));
+    } catch {}
+    return null;
 }
 
-export function Navbar({ onToggleSidebar, sidebarOpen }: NavbarProps) {
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [isScrolled, setIsScrolled] = useState(false);
+function useThemeToggle() {
+    const [isDark, setIsDark] = useState(
+        () => document.documentElement.classList.contains("dark")
+    );
+
+    const toggle = () => {
+        const html = document.documentElement;
+        if (isDark) {
+            html.classList.remove("dark");
+            localStorage.setItem("theme", "light");
+        } else {
+            html.classList.add("dark");
+            localStorage.setItem("theme", "dark");
+        }
+        setIsDark(!isDark);
+    };
+
+    return { isDark, toggle };
+}
+
+export function Navbar() {
+    const [scrolled, setScrolled] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+   
     const location = useLocation();
     const navigate = useNavigate();
     const currentPath = location.pathname;
 
-    const currentTitle = menuItems.find((item) => item.href === currentPath)?.title || "Dashboard";
+    const currentPage = menuItems.find(i => i.href === currentPath);
+    const currentTitle = currentPage?.title ?? "Dashboard";
+    const segments = currentPath.split("/").filter(Boolean);
 
-    // Deteksi scroll
+    const user = getUserData();
+    const initial = user?.name?.charAt(0).toUpperCase() ?? "A";
+    const userName = (user?.name || user?.email || "Admin").split(" ")[0]; // first name only
+    const userEmail = user?.email || "admin@example.com";
+    const isAdmin = userEmail === "admin@example.com";
+
     useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 10);
-        };
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
+        const onScroll = () => setScrolled(window.scrollY > 10);
+        window.addEventListener("scroll", onScroll);
+        return () => window.removeEventListener("scroll", onScroll);
     }, []);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as HTMLElement;
-            if (!target.closest('.avatar-dropdown')) {
+        const handler = (e: MouseEvent) => {
+            if (!(e.target as HTMLElement).closest(".avatar-dropdown"))
                 setDropdownOpen(false);
-            }
         };
-        document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
+        document.addEventListener("click", handler);
+        return () => document.removeEventListener("click", handler);
     }, []);
 
     const handleLogout = () => {
         removeAuthCookie();
-        toast.success("Berhasil logout", {
-            description: "Anda telah keluar dari aplikasi",
-        });
+        toast.success("Berhasil logout");
         navigate({ to: "/login" });
     };
 
-    const handleSettings = () => {
-        setDropdownOpen(false);
-        navigate({ to: "/settings" });
-    };
-
-
-
-    // Get user info from cookie or localStorage
-    const getUserInitial = () => {
-        try {
-            const userStr = localStorage.getItem('user') || document.cookie.match('user=([^;]+)')?.[1];
-            if (userStr) {
-                const user = JSON.parse(decodeURIComponent(userStr));
-                return user.name ? user.name.charAt(0).toUpperCase() : 'A';
-            }
-        } catch (error) {
-            console.error('Failed to get user info:', error);
-        }
-        return 'A';
-    };
-
-    const getUserName = () => {
-        try {
-            const userStr = localStorage.getItem('user') || document.cookie.match('user=([^;]+)')?.[1];
-            if (userStr) {
-                const user = JSON.parse(decodeURIComponent(userStr));
-                return user.name || user.email || 'Admin';
-            }
-        } catch (error) {
-            console.error('Failed to get user name:', error);
-        }
-        return 'Admin';
-    };
-
-    const getUserEmail = () => {
-        try {
-            const userStr = localStorage.getItem('user') || document.cookie.match('user=([^;]+)')?.[1];
-            if (userStr) {
-                const user = JSON.parse(decodeURIComponent(userStr));
-                return user.email || 'admin@example.com';
-            }
-        } catch (error) {
-            console.error('Failed to get user email:', error);
-        }
-        return 'admin@example.com';
-    };
-
     return (
-        <>
-            <header
-                className={`sticky top-0 z-40 flex h-16 items-center gap-4 border-b px-4 ${
-                    isScrolled
-                        ? "bg-white/80 backdrop-blur-lg dark:bg-black/80"
-                        : "bg-white dark:bg-black"
-                } border-slate-200 dark:border-slate-800`}
-            >
-                {/* Tombol toggle sidebar (desktop) */}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hidden lg:flex shrink-0"
-                    onClick={onToggleSidebar}
-                >
-                    {sidebarOpen ? (
-                        <ChevronLeft className="h-5 w-5" />
-                    ) : (
-                        <ChevronRight className="h-5 w-5" />
-                    )}
-                </Button>
+        <header className={cn(
+            "sticky top-0 z-40 flex h-14 items-center gap-4 border-b px-5 transition-all duration-150",
+            scrolled
+                ? "bg-white/80 backdrop-blur-lg dark:bg-[#080612]/80"
+                : "bg-white dark:bg-[#080612]",
+            "border-slate-200/80 dark:border-white/[0.06]"
+        )}>
 
-                {/* Tombol menu mobile */}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="lg:hidden shrink-0"
-                    onClick={() => setMobileMenuOpen(true)}
-                >
-                    <Menu className="h-5 w-5" />
-                </Button>
-
-                <div className="flex flex-1 items-center justify-between">
-                    <h1 className="text-lg font-semibold truncate">{currentTitle}</h1>
-                    <div className="flex items-center gap-3">
-                        {/* Theme Toggle Switch */}
-                        <div className="flex items-center gap-2">
-                            <Sun className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                            <ThemeSwitch />
-                            <Moon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                        </div>
-                        
-                        {/* Avatar with Dropdown */}
-                        <div className="relative avatar-dropdown">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDropdownOpen(!dropdownOpen);
-                                }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-blue-500 text-sm font-medium text-white shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-                            >
-                                {getUserInitial()}
-                            </button>
-
-                            {/* Dropdown Menu */}
-                            {dropdownOpen && (
-                                <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-slate-800 dark:ring-slate-700 z-50">
-                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                                        <p className="text-sm font-medium text-slate-900 dark:text-white">
-                                            {getUserName()}
-                                        </p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                            {getUserEmail()}
-                                        </p>
-                                    </div>
-                                    <div className="py-1">
-                                        {/* <button
-                                            onClick={handleProfile}
-                                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
-                                        >
-                                            <User className="h-4 w-4" />
-                                            Profile
-                                        </button> */}
-                                        <button
-                                            onClick={handleSettings}
-                                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
-                                        >
-                                            <Settings className="h-4 w-4" />
-                                            Settings
-                                        </button>
-                                        {getUserEmail() === 'admin@example.com' && (
-                                            <button
-                                                className="flex w-full items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
-                                            >
-                                                <Shield className="h-4 w-4" />
-                                                Admin Panel
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="border-t border-slate-100 dark:border-slate-700 py-1">
-                                        <button
-                                            onClick={handleLogout}
-                                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950 transition-colors"
-                                        >
-                                            <LogOut className="h-4 w-4" />
-                                            Logout
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+            {/* ── Left: title + breadcrumb stacked ── */}
+            <div className="flex flex-col justify-center flex-1 min-w-0">
+                <span className="text-sm font-semibold text-slate-800 dark:text-white leading-tight">
+                    {currentTitle}
+                </span>
+                <div className="flex items-center gap-1 mt-0.5">
+                    <Home className="h-2.5 w-2.5 shrink-0 text-slate-400 dark:text-slate-600" />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-600">Home</span>
+                    {segments.map((seg, i) => (
+                        <span key={i} className="flex items-center gap-1">
+                            <ChevronRight className="h-2.5 w-2.5 text-slate-300 dark:text-slate-700 shrink-0" />
+                            <span className={cn(
+                                "text-[10px]",
+                                i === segments.length - 1
+                                    ? "text-slate-500 dark:text-slate-500 font-medium"
+                                    : "text-slate-400 dark:text-slate-600"
+                            )}>
+                                {menuItems.find(m => m.href === "/" + seg)?.title ?? seg}
+                            </span>
+                        </span>
+                    ))}
                 </div>
-            </header>
+            </div>
 
-            {/* Mobile sidebar */}
-            {mobileMenuOpen && (
-                <div className="fixed inset-0 z-50 lg:hidden">
-                    <div
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-                        onClick={() => setMobileMenuOpen(false)}
-                    />
-                    <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl dark:bg-slate-950">
-                        <div className="flex h-16 items-center justify-between border-b px-4 dark:border-slate-800">
-                            <div className="flex items-center gap-2">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
-                                    <Rocket className="h-4 w-4 text-white" />
-                                </div>
-                                <span className="font-bold text-slate-800 dark:text-white">SEO Multi-Post</span>
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="h-8 w-8"
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
+            {/* ── Right controls ── */}
+            <div className="flex items-center gap-2 shrink-0">
+
+                {/* Theme toggle — single icon button */}
+                <div className="flex items-center gap-1.5">
+    <Sun className="h-3.5 w-3.5 text-slate-400 dark:text-slate-600" />
+    <ThemeSwitch />
+    <Moon className="h-3.5 w-3.5 text-slate-400 dark:text-slate-600" />
+</div>
+
+                {/* Divider */}
+                <div className="h-5 w-px bg-slate-200 dark:bg-white/[0.08]" />
+
+                {/* Avatar pill */}
+                <div className="relative avatar-dropdown">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setDropdownOpen(v => !v);
+                        }}
+                        className={cn(
+                            "flex items-center gap-2 rounded-full border pl-1 pr-2.5 py-1 transition-all",
+                            "border-slate-200/80 bg-white hover:bg-slate-50",
+                            "dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]",
+                            dropdownOpen && "border-green-300/60 dark:border-purple-500/40"
+                        )}
+                    >
+                        {/* Mini avatar */}
+                        <div className={cn(
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white",
+                            "bg-gradient-to-br from-green-500 to-emerald-600",
+                            "dark:from-purple-500 dark:to-violet-600"
+                        )}>
+                            {initial}
                         </div>
-                        <nav className="space-y-1 p-4">
-                            {menuItems.map((item) => {
-                                const isActive = currentPath === item.href;
-                                return (
-                                    <Link
-                                        key={item.href}
-                                        to={item.href}
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-                                            isActive
-                                                ? "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
-                                                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-                                        }`}
-                                    >
-                                        <item.icon className="h-4 w-4" />
-                                        {item.title}
-                                    </Link>
-                                );
-                            })}
-                            
-                            {/* Mobile logout button */}
-                            <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-800">
+
+                        {/* Name */}
+                        <span className="text-xs font-medium text-slate-700 dark:text-slate-200 max-w-[80px] truncate">
+                            {userName}
+                        </span>
+
+                        {/* Chevron */}
+                        <ChevronRight className={cn(
+                            "h-3 w-3 text-slate-400 dark:text-slate-600 transition-transform duration-150",
+                            dropdownOpen ? "rotate-90" : "rotate-0"
+                        )} />
+                    </button>
+
+                    {/* Dropdown */}
+                    {dropdownOpen && (
+                        <div className={cn(
+                            "absolute right-0 top-full mt-2 w-56 rounded-xl border shadow-lg z-50 overflow-hidden",
+                            "bg-white border-slate-200/80",
+                            "dark:bg-[#0f0d1a] dark:border-white/[0.08]"
+                        )}>
+                            {/* User info header */}
+                            <div className={cn(
+                                "flex items-center gap-2.5 px-4 py-3 border-b",
+                                "border-slate-100 bg-slate-50/60",
+                                "dark:border-white/[0.05] dark:bg-white/[0.02]"
+                            )}>
+                                <div className={cn(
+                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
+                                    "bg-gradient-to-br from-green-500 to-emerald-600",
+                                    "dark:from-purple-500 dark:to-violet-600"
+                                )}>
+                                    {initial}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">
+                                        {user?.name || "Admin"}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 dark:text-slate-600 truncate">
+                                        {userEmail}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Menu */}
+                            <div className="p-1">
                                 <button
-                                    onClick={() => {
-                                        setMobileMenuOpen(false);
-                                        handleLogout();
-                                    }}
-                                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950 transition-colors"
+                                    onClick={() => { setDropdownOpen(false); navigate({ to: "/settings" }); }}
+                                    className={cn(
+                                        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                                        "text-slate-600 hover:bg-slate-100/80 hover:text-slate-800",
+                                        "dark:text-slate-400 dark:hover:bg-white/[0.05] dark:hover:text-slate-200"
+                                    )}
                                 >
-                                    <LogOut className="h-4 w-4" />
+                                    <Settings className="h-3.5 w-3.5" />
+                                    Settings
+                                </button>
+
+                                {isAdmin && (
+                                    <button className={cn(
+                                        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                                        "text-slate-600 hover:bg-slate-100/80 hover:text-slate-800",
+                                        "dark:text-slate-400 dark:hover:bg-white/[0.05] dark:hover:text-slate-200"
+                                    )}>
+                                        <Shield className="h-3.5 w-3.5" />
+                                        Admin Panel
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Logout */}
+                            <div className="border-t p-1 border-slate-100 dark:border-white/[0.05]">
+                                <button
+                                    onClick={handleLogout}
+                                    className={cn(
+                                        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                                        "text-red-500 hover:bg-red-50 hover:text-red-600",
+                                        "dark:text-red-400 dark:hover:bg-red-500/10"
+                                    )}
+                                >
+                                    <LogOut className="h-3.5 w-3.5" />
                                     Logout
                                 </button>
                             </div>
-                        </nav>
-                    </div>
+                        </div>
+                    )}
                 </div>
-            )}
-        </>
+            </div>
+        </header>
     );
 }

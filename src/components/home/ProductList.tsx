@@ -1,6 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Wifi, RefreshCw, Package as PackageIcon } from "lucide-react";
+import { Edit2, Trash2, CheckCircle2, AlertCircle, Package as PackageIcon } from "lucide-react";
 import type { Product } from "@/types/product";
 
 interface ProductListProps {
@@ -11,20 +10,18 @@ interface ProductListProps {
     onDelete: (product: Product) => void;
 }
 
-
-
 const getStatusBadge = (status: string) => {
     if (status === "connected") {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                <Wifi className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-violet-900/30 dark:text-violet-400">
+                <CheckCircle2 className="h-3 w-3" />
                 Terhubung
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-            <RefreshCw className="h-3 w-3" />
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            <AlertCircle className="h-3 w-3" />
             Menunggu
         </span>
     );
@@ -33,67 +30,65 @@ const getStatusBadge = (status: string) => {
 export function ProductList({ products, testingId, onTest, onEdit, onDelete }: ProductListProps) {
     if (products.length === 0) {
         return (
-            <Card>
-                <CardContent className="py-12 text-center">
-                    <PackageIcon className="mx-auto h-12 w-12 text-slate-300" />
-                    <p className="mt-2 text-slate-500">Belum ada produk</p>
-                </CardContent>
-            </Card>
+            <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-12 text-center">
+                <PackageIcon className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" />
+                <p className="mt-2 text-slate-500 dark:text-slate-400">Belum ada produk</p>
+            </div>
         );
     }
 
     return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => (
-                <Card key={product.id} className="overflow-hidden transition-all hover:shadow-md">
-                    <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <CardTitle className="text-base truncate" title={product.name}>
-                                    {product.name}
-                                </CardTitle>
-                            </div>
-                        </div>
-                        <CardDescription className="flex items-center gap-1 mt-1">
-                            {product.platform === "wordpress" && "WordPress"}
-                            {product.platform === "shopify" && "Shopify"}
-                            {product.platform === "custom" && "Custom API"}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div className="rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-900/50">
-                            <p className="font-mono truncate" title={product.apiEndpoint}>
-                                {product.apiEndpoint}
+                <div key={product.id} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                        <div>
+                            <h4 className="font-semibold text-slate-800 dark:text-white truncate" title={product.name}>
+                                {product.name}
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                {product.platform === "wordpress" && "WordPress"}
+                                {product.platform === "shopify" && "Shopify"}
+                                {product.platform === "custom" && "Custom API"}
                             </p>
                         </div>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-slate-500">Dibuat:</span>
-                            <span className="font-medium">
-                                {new Date(product.createdAt).toLocaleDateString("id-ID")}
-                            </span>
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 h-8"
-                                onClick={() => onEdit(product)}
-                            >
-                                <Edit2 className="mr-1 h-3 w-3" />
-                                Edit
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                className="flex-1 h-8"
-                                onClick={() => onDelete(product)}
-                            >
-                                <Trash2 className="mr-1 h-3 w-3" />
-                                Hapus
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                        {getStatusBadge(product.status)}
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2.5 mb-3">
+                        <p className="font-mono text-xs truncate text-slate-500 dark:text-slate-400" title={product.apiEndpoint}>
+                            {product.apiEndpoint}
+                        </p>
+                    </div>
+
+                    <div className="flex justify-between text-xs text-slate-500 mb-4">
+                        <span>Dibuat:</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                            {new Date(product.createdAt).toLocaleDateString("id-ID")}
+                        </span>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-8 rounded-xl border-slate-200 dark:border-white/10 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
+                            onClick={() => onEdit(product)}
+                        >
+                            <Edit2 className="mr-1 h-3 w-3" />
+                            Edit
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            className="flex-1 h-8 rounded-xl"
+                            onClick={() => onDelete(product)}
+                        >
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Hapus
+                        </Button>
+                    </div>
+                </div>
             ))}
         </div>
     );

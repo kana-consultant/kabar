@@ -1,6 +1,7 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { ImageIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImageIcon, FileText, Settings2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PreviewSectionProps {
     article: string;
@@ -16,89 +17,124 @@ interface PreviewSectionProps {
 }
 
 export function PreviewSection({
-    article,
-    imageUrl,
-    hasImage,
-    postMode,
-    dailySchedule,
-    dailyTime,
-    scheduleDate,
-    scheduleTime,
-    selectedProductsCount,
-    autoGenerateImage,
+    article, imageUrl, hasImage,
+    postMode, dailySchedule, dailyTime,
+    scheduleDate, scheduleTime,
+    selectedProductsCount, autoGenerateImage,
 }: PreviewSectionProps) {
     return (
         <Tabs defaultValue="article" className="w-full">
-            <TabsList>
-                <TabsTrigger value="article">Preview Artikel</TabsTrigger>
-                <TabsTrigger value="image">Preview Gambar</TabsTrigger>
-                <TabsTrigger value="config">Ringkasan Konfigurasi</TabsTrigger>
+            <TabsList className={cn(
+                "h-8 gap-0.5 rounded-lg border p-0.5",
+                "bg-slate-50 border-slate-200/80",
+                "dark:bg-white/[0.02] dark:border-white/[0.06]"
+            )}>
+                {[
+                    { value: "article", label: "Preview Artikel", icon: FileText },
+                    { value: "image", label: "Preview Gambar", icon: ImageIcon },
+                    { value: "config", label: "Ringkasan", icon: Settings2 },
+                ].map(({ value, label, icon: Icon }) => (
+                    <TabsTrigger
+                        key={value}
+                        value={value}
+                        className={cn(
+                            "h-7 gap-1.5 rounded-md px-3 text-xs data-[state=active]:shadow-sm",
+                            "data-[state=active]:bg-white data-[state=active]:text-slate-800",
+                            "dark:data-[state=active]:bg-white/[0.08] dark:data-[state=active]:text-white"
+                        )}
+                    >
+                        <Icon className="h-3 w-3" />
+                        {label}
+                    </TabsTrigger>
+                ))}
             </TabsList>
 
-            <TabsContent value="article">
-                <Card>
-                    <CardContent className="p-6">
-                        {article ? (
-                            <div 
-                                className="prose max-w-none prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:my-2 prose-ul:my-2 prose-li:my-1"
-                                dangerouslySetInnerHTML={{ __html: article }}
-                            />
-                        ) : (
-                            <p className="py-8 text-center text-slate-500">
-                                Belum ada artikel. Klik "Generate Artikel" dulu.
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
-            <TabsContent value="image">
-                <Card>
-                    <CardContent className="p-6">
-                        {imageUrl ? (
-                            <div className="space-y-4">
-                                <img
-                                    src={imageUrl}
-                                    alt="Preview"
-                                    className="w-full rounded-lg border object-cover max-h-[400px]"
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).src = "https://placehold.co/800x400?text=Image+Failed+to+Load";
-                                    }}
-                                />
-                                <p className="text-center text-sm text-slate-500">
-                                    Klik kanan pada gambar → Save Image As untuk menyimpan
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="flex min-h-[200px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
-                                <ImageIcon className="h-8 w-8 text-slate-400" />
-                                <p className="mt-2 text-slate-500">
-                                    {hasImage ? "Generate gambar terlebih dahulu" : "Belum ada gambar"}
-                                </p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
-            <TabsContent value="config">
-                <Card>
-                    <CardContent className="p-6 space-y-2">
-                        <h4 className="font-medium">Ringkasan Konfigurasi Posting</h4>
-                        <div className="text-sm space-y-1 text-slate-600">
-                            <p>📝 Mode: {
-                                postMode === "instant" ? "Langsung posting" :
-                                postMode === "scheduled" ? "Terjadwal" : "Simpan sebagai draft"
-                            }</p>
-                            {postMode === "scheduled" && (
-                                <p>📅 Jadwal: {dailySchedule ? `Setiap hari jam ${dailyTime}` : `${scheduleDate} jam ${scheduleTime}`}</p>
-                            )}
-                            <p>🎯 Target: {selectedProductsCount} produk</p>
-                            <p>🖼️ Auto gambar: {autoGenerateImage ? "Ya" : "Tidak"}</p>
-                            {imageUrl && <p>🖼️ Gambar: ✓ Ada</p>}
+            {/* Article */}
+            <TabsContent value="article" className="mt-3">
+                <div className={cn(
+                    "rounded-xl border p-5 min-h-[200px]",
+                    "bg-white border-slate-200/80",
+                    "dark:bg-[#0f0d1a] dark:border-white/[0.06]"
+                )}>
+                    {article ? (
+                        <div
+                            className="prose dark:prose-invert max-w-none prose-sm prose-headings:font-semibold prose-p:text-slate-600 dark:prose-p:text-slate-400"
+                            dangerouslySetInnerHTML={{ __html: article }}
+                        />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                            <FileText className="h-8 w-8 mb-2 opacity-30" />
+                            <p className="text-sm">Belum ada artikel. Klik "Generate Artikel" dulu.</p>
                         </div>
-                    </CardContent>
-                </Card>
+                    )}
+                </div>
+            </TabsContent>
+
+            {/* Image */}
+            <TabsContent value="image" className="mt-3">
+                <div className={cn(
+                    "rounded-xl border p-5 min-h-[200px]",
+                    "bg-white border-slate-200/80",
+                    "dark:bg-[#0f0d1a] dark:border-white/[0.06]"
+                )}>
+                    {imageUrl ? (
+                        <div className="space-y-3">
+                            <img
+                                src={imageUrl}
+                                alt="Preview"
+                                className="w-full rounded-lg border border-slate-200/80 object-cover max-h-[400px] dark:border-white/[0.06]"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "https://placehold.co/800x400?text=Image+Failed";
+                                }}
+                            />
+                            <p className="text-center text-xs text-slate-400">
+                                Klik kanan → Save Image As untuk menyimpan
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                            <ImageIcon className="h-8 w-8 mb-2 opacity-30" />
+                            <p className="text-sm">{hasImage ? "Generate gambar terlebih dahulu" : "Belum ada gambar"}</p>
+                        </div>
+                    )}
+                </div>
+            </TabsContent>
+
+            {/* Config summary */}
+            <TabsContent value="config" className="mt-3">
+                <div className={cn(
+                    "rounded-xl border p-5",
+                    "bg-white border-slate-200/80",
+                    "dark:bg-[#0f0d1a] dark:border-white/[0.06]"
+                )}>
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100 mb-3">
+                        Ringkasan Konfigurasi
+                    </p>
+                    <div className="space-y-2">
+                        {[
+                            {
+                                label: "Mode",
+                                value: postMode === "instant" ? "Langsung posting"
+                                    : postMode === "scheduled" ? "Terjadwal"
+                                    : "Simpan sebagai draft"
+                            },
+                            ...(postMode === "scheduled" ? [{
+                                label: "Jadwal",
+                                value: dailySchedule
+                                    ? `Setiap hari jam ${dailyTime}`
+                                    : `${scheduleDate} jam ${scheduleTime}`
+                            }] : []),
+                            { label: "Target", value: `${selectedProductsCount} produk` },
+                            { label: "Auto gambar", value: autoGenerateImage ? "Ya" : "Tidak" },
+                            ...(imageUrl ? [{ label: "Gambar", value: "Tersedia" }] : []),
+                        ].map(({ label, value }) => (
+                            <div key={label} className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-white/[0.04] last:border-0">
+                                <span className="text-xs text-slate-400 dark:text-slate-600">{label}</span>
+                                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{value}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </TabsContent>
         </Tabs>
     );

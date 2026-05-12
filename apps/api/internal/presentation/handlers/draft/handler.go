@@ -301,6 +301,20 @@ func (h *DraftHandler) CancelScheduledDraft(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+// GetSEOScore - get SEO score for a draft
+func (h *DraftHandler) GetSEOScore(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	score, err := h.draftService.GetSEOScore(r.Context(), id)
+	if err != nil {
+		http.Error(w, "Draft not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(score)
+}
+
 // Helper methods
 func (h *DraftHandler) writePublishResponse(w http.ResponseWriter, result *draft.PublishResult) {
 	response := map[string]interface{}{

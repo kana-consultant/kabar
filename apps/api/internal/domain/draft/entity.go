@@ -38,3 +38,9 @@ type PublishResult struct {
 	Status       string      `json:"status"`
 	ScheduledFor *time.Time  `json:"scheduled_for"`
 }
+
+type SEOScore struct {
+	Total       int            `json:"total"`
+	Details     map[string]int `json:"details"`
+	Suggestions []string       `json:"suggestions"`
+}

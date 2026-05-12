@@ -110,6 +110,8 @@ func SetupRoutes(cfg *config.Config, container *container.Container) *chi.Mux {
 			r.Post("/{id}/publish", container.DraftHandler.Publish)
 			r.Post("/publish", container.DraftHandler.PublishContent)
 
+			r.Get("/{id}/seo-score", container.DraftHandler.GetSEOScore)
+
 			r.Post("/schedule", container.DraftHandler.ScheduleDraft)
 			r.Post("/schedule/cancel", container.DraftHandler.CancelScheduledDraft)
 		})

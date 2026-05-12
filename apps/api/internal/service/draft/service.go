@@ -1,11 +1,11 @@
 package draft
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
 	"seo-backend/internal/helper"
-	"seo-backend/internal/models"
 	"seo-backend/internal/scheduler"
 )
 
@@ -35,12 +35,11 @@ func NewService(db *sql.DB, redisScheduler *scheduler.RedisScheduler) *Service {
 	}
 }
 
-// Public methods
-func (s *Service) CreateDraft(req models.CreateDraftRequest, userID, teamID string) (string, error) {
+func (s *Service) CreateDraft(ctx context.Context, req CreateDraftRequest, userID, teamID string) (string, error) {
 	return s.CreateDraftRecord(req, userID, teamID)
 }
 
-func (s *Service) UpdateDraft(id string, updates map[string]interface{}) error {
+func (s *Service) UpdateDraft(ctx context.Context, id string, updates map[string]interface{}) error {
 	data := prepareUpdateData(updates)
 	if len(data) == 0 {
 		return fmt.Errorf("no fields to update")
@@ -48,6 +47,27 @@ func (s *Service) UpdateDraft(id string, updates map[string]interface{}) error {
 	return s.UpdateDraftRecord(id, data)
 }
 
-func (s *Service) DeleteDraft(id string) error {
+func (s *Service) DeleteDraft(ctx context.Context, id string) error {
 	return s.DeleteDraftRecord(id)
+}
+
+func (s *Service) GetSEOScore(ctx context.Context, id string) (*SEOScore, error) {
+	draft, err := s.GetDraftByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("draft not found: %w", err)
+	}
+
+	score := CalculateSEOScore(draft.Title, draft.Article, draft.Excerpt, draft.Topic)
+	return &score, nil
+}
+
+// GetSEOScore implements draft.Service
+func (s *DraftServiceImpl) GetSEOScore(ctx context.Context, id string) (*draft.SEOScore, error) {
+	draftData, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("draft not found: %w", err)
+	}
+
+	score := calculateSEOScore(draftData.Title, draftData.Article, draftData.Topic, draftData.Topic)
+	return &score, nil
 }

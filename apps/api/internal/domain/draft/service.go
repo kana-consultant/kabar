@@ -21,4 +21,7 @@ type Service interface {
 	// Scheduling
 	ScheduleDraft(ctx context.Context, req ScheduleRequest, teamID, userID string) (string, error)
 	CancelSchedule(ctx context.Context, draftID string) error
+
+	// SEO
+	GetSEOScore(ctx context.Context, id string) (*SEOScore, error)
 }

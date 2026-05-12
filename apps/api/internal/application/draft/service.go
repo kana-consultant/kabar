@@ -353,6 +353,17 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 	}, nil
 }
 
+// GetSEOScore implements draft.Service
+func (s *DraftServiceImpl) GetSEOScore(ctx context.Context, id string) (*draft.SEOScore, error) {
+	draftData, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("draft not found: %w", err)
+	}
+
+	score := draft.CalculateSEOScore(draftData.Title, draftData.Article, draftData.Topic, draftData.Topic)
+	return &score, nil
+}
+
 // Helper functions
 func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
 
