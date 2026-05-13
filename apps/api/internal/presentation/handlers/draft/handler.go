@@ -315,6 +315,25 @@ func (h *DraftHandler) GetSEOScore(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(score)
 }
 
+// CheckSimilarity - check similarity of a draft with others
+func (h *DraftHandler) CheckSimilarity(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	teamID := auth.GetTeamID(r.Context())
+
+	results, err := h.draftService.CheckSimilarity(r.Context(), id, teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"draft_id":       id,
+		"similar_drafts": results,
+		"total":          len(results),
+	})
+}
+
 // Helper methods
 func (h *DraftHandler) writePublishResponse(w http.ResponseWriter, result *draft.PublishResult) {
 	response := map[string]interface{}{

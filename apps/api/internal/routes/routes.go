@@ -111,6 +111,7 @@ func SetupRoutes(cfg *config.Config, container *container.Container) *chi.Mux {
 			r.Post("/publish", container.DraftHandler.PublishContent)
 
 			r.Get("/{id}/seo-score", container.DraftHandler.GetSEOScore)
+			r.Get("/{id}/check-similarity", container.DraftHandler.CheckSimilarity)
 
 			r.Post("/schedule", container.DraftHandler.ScheduleDraft)
 			r.Post("/schedule/cancel", container.DraftHandler.CancelScheduledDraft)

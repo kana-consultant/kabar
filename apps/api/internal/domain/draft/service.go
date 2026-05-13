@@ -1,4 +1,3 @@
-// internal/domain/draft/service.go
 package draft
 
 import (
@@ -24,4 +23,7 @@ type Service interface {
 
 	// SEO
 	GetSEOScore(ctx context.Context, id string) (*SEOScore, error)
+
+	// Similarity
+	CheckSimilarity(ctx context.Context, id string, teamID string) ([]SimilarityResult, error)
 }

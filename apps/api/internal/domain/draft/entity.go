@@ -44,3 +44,9 @@ type SEOScore struct {
 	Details     map[string]int `json:"details"`
 	Suggestions []string       `json:"suggestions"`
 }
+
+type SimilarityResult struct {
+	DraftID    string  `json:"draft_id"`
+	Title      string  `json:"title"`
+	Similarity float64 `json:"similarity"`
+}
