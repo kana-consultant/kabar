@@ -14,9 +14,6 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-
-    /* Import Alias */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
