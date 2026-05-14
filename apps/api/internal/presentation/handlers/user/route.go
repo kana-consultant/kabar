@@ -14,7 +14,7 @@ type Route struct {
 	UserHandler UserHandler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
+func NewRoute(db *sql.DB, chi chi.Router) *Route {
 
 	userRepo := repositories.NewUserRepository(db)
 	userQueryBuilder := userApp.NewQueryBuilder()
@@ -32,9 +32,9 @@ func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 	}
 }
 
-func (h *Route) SetupRoutes() *chi.Mux {
-	r := chi.NewRouter()
-	r.Route("/api/users", func(r chi.Router) {
+func (h *Route) SetupRoutes() chi.Router {
+	r := h.baseRoutes.CHI
+	r.Route("/users", func(r chi.Router) {
 		r.Get("/", h.UserHandler.GetAll)
 		r.Get("/me", h.UserHandler.GetCurrentUser)
 		r.Post("/", h.UserHandler.Create)

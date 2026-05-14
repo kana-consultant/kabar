@@ -14,7 +14,7 @@ type Route struct {
 	DashboardHandler DashboardHandler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
+func NewRoute(db *sql.DB, chi chi.Router) *Route {
 	dashboardRepo := repositories.NewDashboardRepository(db)
 	dashboardService := dashboardApp.NewDashboardService(dashboardRepo)
 	dashboardHandler := NewDashboardHandler(dashboardService)
@@ -27,8 +27,8 @@ func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 	}
 }
 
-func (h *Route) SetupRoutes() *chi.Mux {
+func (h *Route) SetupRoutes() chi.Router {
 	r := h.baseroute.CHI
-	r.Get("/api/dashboard/stats", h.DashboardHandler.GetStats)
+	r.Get("/dashboard/stats", h.DashboardHandler.GetStats)
 	return r
 }

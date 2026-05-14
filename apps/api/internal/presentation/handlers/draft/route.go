@@ -17,7 +17,7 @@ type Route struct {
 	RedisScheduler *scheduler.RedisScheduler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux, redisScheduler *scheduler.RedisScheduler) *Route {
+func NewRoute(db *sql.DB, chi chi.Router, redisScheduler *scheduler.RedisScheduler) *Route {
 	postService := helper.NewPostService(db)
 	productRepo := repositories.NewProductRepository(db)
 	DraftRepo := repositories.NewDraftRepository(db)
@@ -33,9 +33,9 @@ func NewRoute(db *sql.DB, chi *chi.Mux, redisScheduler *scheduler.RedisScheduler
 	}
 }
 
-func (h *Route) SetupRoutes() *chi.Mux {
+func (h *Route) SetupRoutes() chi.Router {
 	r := h.baseRoute.CHI
-	r.Route("/api/drafts", func(r chi.Router) {
+	r.Route("/drafts", func(r chi.Router) {
 
 		r.Get("/", h.DraftHandler.GetAll)
 		r.Get("/scheduled", h.DraftHandler.GetAllScheduled)
@@ -49,6 +49,9 @@ func (h *Route) SetupRoutes() *chi.Mux {
 
 		r.Post("/schedule", h.DraftHandler.ScheduleDraft)
 		r.Post("/schedule/cancel", h.DraftHandler.CancelScheduledDraft)
+
+		r.Get("/{id}/seo-score", h.DraftHandler.GetSEOScore)
+		r.Get("/{id}/check-similarity", h.DraftHandler.CheckSimilarity)
 	})
 	return r
 }

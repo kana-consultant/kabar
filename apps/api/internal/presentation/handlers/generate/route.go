@@ -19,7 +19,7 @@ type Route struct {
 	GenerateHandler GenerateHandler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
+func NewRoute(db *sql.DB, chi chi.Router) *Route {
 
 	promptBuilder := aiBuilder.NewPromptBuilder()
 	requestBuilder := aiBuilder.NewRequestBuilder()
@@ -40,9 +40,9 @@ func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 	}
 }
 
-func (h *Route) SetupRoutes() *chi.Mux {
+func (h *Route) SetupRoutes() chi.Router {
 	r := h.baseroute.CHI
-	r.Route("/api/generate", func(r chi.Router) {
+	r.Route("/generate", func(r chi.Router) {
 		r.Post("/article", h.GenerateHandler.GenerateArticle)
 		r.Post("/image", h.GenerateHandler.GenerateImage)
 	})

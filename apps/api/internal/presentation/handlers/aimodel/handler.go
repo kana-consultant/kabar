@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	aimodel "seo-backend/internal/domain/model"
-	"seo-backend/internal/middleware/auth"
+	auth "seo-backend/internal/presentation/middleware"
 
 	"github.com/go-chi/chi/v5"
 )

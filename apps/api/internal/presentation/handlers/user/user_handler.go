@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"seo-backend/internal/domain/user"
-	"seo-backend/internal/middleware/auth"
 	"seo-backend/internal/models"
+	auth "seo-backend/internal/presentation/middleware"
 
 	"github.com/go-chi/chi/v5"
 )

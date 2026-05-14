@@ -14,7 +14,7 @@ type Route struct {
 	ProductHandler ProductHandler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
+func NewRoute(db *sql.DB, chi chi.Router) *Route {
 	productRepo := repositories.NewProductRepository(db)
 	adapterConfigRepo := repositories.NewAdapterConfigRepository(db)
 	productService := productApp.NewProductService(db, productRepo, adapterConfigRepo)
@@ -28,9 +28,9 @@ func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 	}
 }
 
-func (h *Route) SetupRoutes() *chi.Mux {
+func (h *Route) SetupRoutes() chi.Router {
 	r := h.baseroute.CHI
-	r.Route("/api/products", func(r chi.Router) {
+	r.Route("/products", func(r chi.Router) {
 		r.Get("/", h.ProductHandler.GetAll)
 		r.Post("/", h.ProductHandler.Create)
 		r.Get("/{id}", h.ProductHandler.GetByID)

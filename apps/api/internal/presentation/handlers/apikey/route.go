@@ -16,7 +16,7 @@ type Route struct {
 	APIKeyHandler APIKeyHandler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
+func NewRoute(db *sql.DB, chi chi.Router) *Route {
 	repoApi := repositories.NewAPIKeyRepository(db)
 	encrypt := crypto.NewAESEncryptor()
 	apiKeyService := apiKeyService.NewService(repoApi, encrypt)
@@ -30,9 +30,9 @@ func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 	}
 }
 
-func (h *Route) SetupRoutes() *chi.Mux {
+func (h *Route) SetupRoutes() chi.Router {
 	r := h.baseRoutes.CHI
-	r.Route("/api/api-keys", func(r chi.Router) {
+	r.Route("/api-keys", func(r chi.Router) {
 		r.Get("/", h.APIKeyHandler.GetAll)
 		r.Post("/", h.APIKeyHandler.Create)
 		r.Get("/{id}", h.APIKeyHandler.GetByID)

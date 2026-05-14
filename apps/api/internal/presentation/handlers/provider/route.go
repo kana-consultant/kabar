@@ -14,7 +14,7 @@ type Route struct {
 	ProviderHandler ProviderHandler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
+func NewRoute(db *sql.DB, chi chi.Router) *Route {
 	providerRepo := repositories.NewProviderRepository(db)
 	providerService := providerService.NewService(db, providerRepo)
 	ProviderHandler := NewProviderHandler(providerService)
@@ -27,9 +27,9 @@ func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 	}
 }
 
-func (h *Route) SetupRoutes() *chi.Mux {
+func (h *Route) SetupRoutes() chi.Router {
 	r := h.baseroute.CHI
-	r.Route("/api/providers", func(r chi.Router) {
+	r.Route("/providers", func(r chi.Router) {
 		r.Get("/", h.ProviderHandler.GetAll)
 		r.Post("/", h.ProviderHandler.Create)
 		r.Get("/{id}", h.ProviderHandler.GetByID)

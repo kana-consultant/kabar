@@ -15,7 +15,7 @@ type Route struct {
 	AuthHandler AuthHandler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux, tokenGen auth.TokenGenerator) *Route {
+func NewRoute(db *sql.DB, chi chi.Router, tokenGen auth.TokenGenerator) *Route {
 	AuthRepo := repositories.NewAuthRepository(db)
 	AuthService := AuthService.NewService(db, AuthRepo, tokenGen)
 	authHandler := NewAuthHandler(AuthService)
@@ -28,16 +28,13 @@ func NewRoute(db *sql.DB, chi *chi.Mux, tokenGen auth.TokenGenerator) *Route {
 	}
 }
 
-func (h *Route) SetupRoute() *chi.Mux {
+func (h *Route) SetupRoute() chi.Router {
 	r := h.baseRoute.CHI
 
-	r.Group(func(r chi.Router) {
-		// Auth endpoints - PUBLIC
-		r.Post("/api/auth/login", h.AuthHandler.Login)
-		r.Post("/api/auth/register", h.AuthHandler.Register)
-		r.Post("/api/auth/logout", h.AuthHandler.Logout)
-		r.Post("/api/auth/forgot-password", h.AuthHandler.ForgotPassword)
-	})
+	r.Post("/api/auth/login", h.AuthHandler.Login)
+	r.Post("/api/auth/register", h.AuthHandler.Register)
+	r.Post("/api/auth/logout", h.AuthHandler.Logout)
+	r.Post("/api/auth/forgot-password", h.AuthHandler.ForgotPassword)
 
 	return r
 }

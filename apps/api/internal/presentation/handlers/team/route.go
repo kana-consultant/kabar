@@ -15,7 +15,7 @@ type Route struct {
 	TeamHandler TeamHandler
 }
 
-func NewRoute(db *sql.DB, chi *chi.Mux, emailService *services.SMTPEmailService) *Route {
+func NewRoute(db *sql.DB, chi chi.Router, emailService *services.SMTPEmailService) *Route {
 	teamRepo := repositories.NewTeamRepository(db)
 	memberRepository := repositories.NewMemberRepository(db)
 	teamQueryBuilder := teamService.NewQueryBuilder()
@@ -46,10 +46,10 @@ func NewRoute(db *sql.DB, chi *chi.Mux, emailService *services.SMTPEmailService)
 	}
 }
 
-func (h *Route) SetupRoutes() *chi.Mux {
+func (h *Route) SetupRoutes() chi.Router {
 	r := h.baseRoutes.CHI
 
-	r.Route("/api/teams", func(r chi.Router) {
+	r.Route("/teams", func(r chi.Router) {
 
 		// CRUD Team
 		r.Get("/", h.TeamHandler.GetAll)

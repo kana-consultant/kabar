@@ -15,7 +15,7 @@ type Route struct {
 	HistoryHandler HistoryHandler
 }
 
-func NewHistoryRoute(db *sql.DB, chi *chi.Mux) *Route {
+func NewHistoryRoute(db *sql.DB, chi chi.Router) *Route {
 	repoHistory := repositories.NewHistoryRepository(db)
 	qb_history := historyBuilder.NewQueryBuilder()
 	HistoryRepo := historyService.NewService(repoHistory, *qb_history)
@@ -29,9 +29,9 @@ func NewHistoryRoute(db *sql.DB, chi *chi.Mux) *Route {
 	}
 }
 
-func (h *Route) SetupRoute() *chi.Mux {
+func (h *Route) SetupRoute() chi.Router {
 	r := h.baseroute.CHI
-	r.Route("/api/history", func(r chi.Router) {
+	r.Route("/history", func(r chi.Router) {
 		r.Get("/", h.HistoryHandler.GetAll)
 		r.Post("/", h.HistoryHandler.Create)
 		r.Get("/{id}", h.HistoryHandler.GetByID)
