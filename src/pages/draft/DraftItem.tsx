@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Eye, Edit, Calendar, Send, Trash2, Clock, FileText, CheckCircle, Package, ImageIcon } from "lucide-react";
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";
 
 interface DraftItemProps {
@@ -46,10 +46,10 @@ export function DraftItem({
     const cfg = statusConfig[draft.status as keyof typeof statusConfig] ?? statusConfig.draft;
     const StatusIcon = cfg.icon;
 
-    const scheduledLabel = draft.scheduledFor
-        ? draft.scheduledFor.startsWith("daily:")
-            ? `Setiap hari ${draft.scheduledFor.replace("daily:", "")} `
-            : draft.scheduledFor
+    const scheduledLabel = draft.scheduled_for
+        ? draft.scheduled_for.startsWith("daily:")
+            ? `Setiap hari ${draft.scheduled_for.replace("daily:", "")} `
+            : draft.scheduled_for
         : null;
 
     return (
@@ -99,13 +99,13 @@ export function DraftItem({
                 <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-400 dark:text-slate-600">
                     <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3 shrink-0" />
-                        {formatDate(draft.createdAt)}
+                        {formatDate(draft.created_at?draft.created_at:"")}
                     </span>
                     <span className="flex items-center gap-1">
                         <Package className="h-3 w-3 shrink-0" />
-                        {draft.targetProducts?.length} produk
+                        {draft.target_products?.length} produk
                     </span>
-                    {(draft.hasImage || draft.imageUrl) && (
+                    {(draft.has_image || draft.image_url) && (
                         <span className="flex items-center gap-1">
                             <ImageIcon className="h-3 w-3 shrink-0" />
                             Ada gambar

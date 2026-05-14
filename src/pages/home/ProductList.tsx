@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Edit2, Trash2, CheckCircle2, AlertCircle, Package as PackageIcon } from "lucide-react";
-import type { Product } from "@/types/product";
+import type { Product } from "@/services/product";
 
 interface ProductListProps {
     products: Product[];

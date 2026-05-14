@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
-import type { Product } from "@/types/product";
+import type { Product } from "@/services/product";
 import { cn } from "@/lib/utils";
 
 interface TargetProductsProps {

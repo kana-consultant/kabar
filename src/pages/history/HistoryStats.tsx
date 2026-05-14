@@ -1,5 +1,5 @@
 import { History, CheckCircle, XCircle } from "lucide-react";
-import type { HistoryItem } from "@/types/history";
+import type { HistoryItem } from "@/services/history";
 import { cn } from "@/lib/utils";
 
 interface HistoryStatsProps {

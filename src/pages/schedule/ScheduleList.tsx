@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Plus, SlidersHorizontal } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { ScheduleItem } from "./ScheduleItem";
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";
 
 interface ScheduleListProps {

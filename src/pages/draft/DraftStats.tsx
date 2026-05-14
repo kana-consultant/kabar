@@ -1,5 +1,5 @@
 import { FileText, Clock, Calendar, CheckCircle } from "lucide-react";
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";
 
 interface DraftStatsProps {

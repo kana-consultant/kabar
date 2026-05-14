@@ -1,5 +1,5 @@
 import { Calendar, Clock, RefreshCw } from "lucide-react";
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";
 
 interface ScheduleStatsProps {
@@ -36,8 +36,8 @@ const stats = [
 
 export function ScheduleStats({ schedules, isDailySchedule }: ScheduleStatsProps) {
     const total = schedules.length;
-    const oneTime = schedules.filter(s => !isDailySchedule(s.scheduledFor)).length;
-    const daily = schedules.filter(s => isDailySchedule(s.scheduledFor)).length;
+    const oneTime = schedules.filter(s => !isDailySchedule(s.scheduled_for)).length;
+    const daily = schedules.filter(s => isDailySchedule(s.scheduled_for)).length;
 
     const values = { total, oneTime, daily };
 

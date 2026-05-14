@@ -4,7 +4,7 @@ import {
     Eye, Edit, RefreshCw, Send, Trash2,
     Calendar, Package, ImageIcon, Clock
 } from "lucide-react";
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";
 
 interface ScheduleItemProps {

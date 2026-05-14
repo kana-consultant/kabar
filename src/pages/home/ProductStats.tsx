@@ -1,5 +1,5 @@
 import { Package, Wifi, Clock, Activity } from "lucide-react";
-import type { Product } from "@/types/product";
+import type { Product } from "@/services/product";
 import { cn } from "@/lib/utils";
 
 interface ProductStatsProps {

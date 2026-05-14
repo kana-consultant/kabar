@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Eye, Repeat, Trash2, CheckCircle, XCircle, Clock, Send, Calendar, FileText, Package } from "lucide-react";
-import type { HistoryItem as HistoryItemType } from "@/types/history";
+import type { HistoryItem as HistoryItemType } from "@/services/history";
 import { cn } from "@/lib/utils";
 
 interface HistoryItemProps {
@@ -54,11 +54,11 @@ export function HistoryItem({
             "group relative flex items-start gap-3 rounded-xl border p-3.5 transition-all duration-200",
             "bg-white border-slate-200/80 hover:shadow-[0_1px_8px_rgba(0,0,0,0.06)]",
             "dark:bg-[#0f0d1a] dark:border-white/[0.06]",
-            item.status === "published"
-    ? "hover:border-green-200/80 dark:hover:border-green-500/20"
-    : item.status === "failed"
-    ? "hover:border-red-200/80 dark:hover:border-red-500/20"
-    : "hover:border-amber-200/80 dark:hover:border-amber-500/20"
+            item.action === "published"
+                ? "hover:border-green-200/80 dark:hover:border-green-500/20"
+                : item.status === "failed"
+                    ? "hover:border-red-200/80 dark:hover:border-red-500/20"
+                    : "hover:border-amber-200/80 dark:hover:border-amber-500/20"
         )}>
             {/* Left accent */}
             <div className={cn(
@@ -104,7 +104,7 @@ export function HistoryItem({
                 <div className="mt-1.5 flex flex-wrap gap-3 text-[11px] text-slate-400 dark:text-slate-600">
                     <span className="flex items-center gap-1">
                         <Package className="h-3 w-3 shrink-0" />
-                        {item.targetProducts.join(", ")}
+                        {item.targetProducts?.join(", ")}
                     </span>
                     <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3 shrink-0" />

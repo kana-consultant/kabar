@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Plus } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { DraftItem } from "./DraftItem";
-import type { Draft } from "@/types/draft";
+import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";
 
 interface DraftListProps {

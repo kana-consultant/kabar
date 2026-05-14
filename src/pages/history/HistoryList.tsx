@@ -1,6 +1,6 @@
 import { HistoryItem } from "./HistoryItem";
 import { History } from "lucide-react";
-import type { HistoryItem as HistoryItemType } from "@/types/history";
+import type { HistoryItem as HistoryItemType } from "@/services/history";
 import { cn } from "@/lib/utils";
 
 interface HistoryListProps {
