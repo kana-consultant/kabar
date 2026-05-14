@@ -17,14 +17,14 @@ import { AuthLayout } from "@/pages/layout/AuthLayout"   // Untuk login/register
 
 // Import Pages
 import { Dashboard } from './routes';
-import { Generate } from './routes/generate';
-import Products from './routes/products';
+import Generate from './pages/generate/generate';
+import Products from './pages/home/Products';
 import ProductEdit from './routes/products.$id.edit';
 import ProductAdd from './routes/products.add';
-import History from './routes/history';
-import Settings from './routes/settings';
-import Drafts from './routes/Drafts'
-import Schedule from './routes/schedule';
+import History from './pages/history/History';
+import Settings from './pages/settings/Settings';
+import Drafts from './pages/draft/Drafts'
+import Schedule from './pages/schedule/Schedule';
 import Login from './pages/Login'
 import Register from './pages/Register'
 

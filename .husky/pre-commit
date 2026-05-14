@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+
+echo "Frontend checks..."
+cd apps/web || exit 1
+pnpm lint || exit 1
+pnpm build || exit 1
+
+echo "Backend checks..."
+cd ../api || exit 1
+go fmt ./... || exit 1
+go vet ./... || exit 1
+
+echo "All checks passed"
