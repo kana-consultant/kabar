@@ -29,7 +29,7 @@ func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 }
 
 func (h *Route) SetupRoutes() *chi.Mux {
-	r := chi.NewRouter()
+	r := h.baseroute.CHI
 	r.Route("/api/products", func(r chi.Router) {
 		r.Get("/", h.ProductHandler.GetAll)
 		r.Post("/", h.ProductHandler.Create)

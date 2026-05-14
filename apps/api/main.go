@@ -14,10 +14,6 @@ import (
 	"seo-backend/internal/config"
 	"seo-backend/internal/container"
 	"seo-backend/internal/database"
-	aiBuilder "seo-backend/internal/infrastructure/ai/builder"
-	aiParser "seo-backend/internal/infrastructure/ai/parser"
-	client "seo-backend/internal/infrastructure/http/client"
-	"seo-backend/internal/routes"
 	"seo-backend/internal/scheduler"
 	services "seo-backend/internal/service"
 )
@@ -76,24 +72,14 @@ func main() {
 	emailService := services.NewSMTPEmailService(smtpConfig)
 
 	defer scheduler.Stop()
-	promptBuilder := aiBuilder.NewPromptBuilder()
-	requestBuilder := aiBuilder.NewRequestBuilder()
-	responseParser := aiParser.NewResponseParser()
-
-	var timeOut time.Duration
-	timeOut = 30
-	client := client.NewHTTPClient(timeOut)
 
 	// 6. INITIALIZE CONTAINER
-	appContainer = container.NewContainer(database.GetDB(), client, promptBuilder, requestBuilder, responseParser, scheduler, emailService)
-
-	// 7. SETUP ROUTES
-	router := routes.SetupRoutes(cfg, appContainer)
+	appContainer = container.NewContainer(cfg, database.GetDB(), scheduler, emailService)
 
 	// 8. CREATE HTTP SERVER
 	server := &http.Server{
 		Addr:         ":" + cfg.ServerPort,
-		Handler:      router,
+		Handler:      appContainer.Router,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

@@ -34,7 +34,7 @@ func NewRoute(db *sql.DB, chi *chi.Mux, redisScheduler *scheduler.RedisScheduler
 }
 
 func (h *Route) SetupRoutes() *chi.Mux {
-	r := chi.NewRouter()
+	r := h.baseRoute.CHI
 	r.Route("/api/drafts", func(r chi.Router) {
 
 		r.Get("/", h.DraftHandler.GetAll)

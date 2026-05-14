@@ -30,7 +30,7 @@ func NewHistoryRoute(db *sql.DB, chi *chi.Mux) *Route {
 }
 
 func (h *Route) SetupRoute() *chi.Mux {
-	r := chi.NewRouter()
+	r := h.baseroute.CHI
 	r.Route("/api/history", func(r chi.Router) {
 		r.Get("/", h.HistoryHandler.GetAll)
 		r.Post("/", h.HistoryHandler.Create)

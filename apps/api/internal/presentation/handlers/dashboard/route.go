@@ -1,19 +1,23 @@
 package dashboard
 
 import (
-	dashboardHandler "seo-backend/internal/presentation/handlers/dashboard"
+	"database/sql"
 	dashboardApp "seo-backend/internal/application/dashboard"
+	baseRoutes "seo-backend/internal/domain/base"
 	"seo-backend/internal/infrastructure/db/repositories"
+
+	"github.com/go-chi/chi/v5"
 )
-type Route struct{
-	baseroute baseRoute.Route
+
+type Route struct {
+	baseroute        baseRoutes.Route
 	DashboardHandler DashboardHandler
 }
 
 func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 	dashboardRepo := repositories.NewDashboardRepository(db)
-	dashboardApp.NewDashboardService(dashboardRepo)
-	dashboardHandler.NewDashboardHandler(dashboardService)
+	dashboardService := dashboardApp.NewDashboardService(dashboardRepo)
+	dashboardHandler := NewDashboardHandler(dashboardService)
 	return &Route{
 		baseroute: baseRoutes.Route{
 			CHI: chi,
@@ -24,7 +28,7 @@ func NewRoute(db *sql.DB, chi *chi.Mux) *Route {
 }
 
 func (h *Route) SetupRoutes() *chi.Mux {
-	r := chi.NewRouter()
-	r.Get("/api/dashboard/stats", container.DashboardHandler.GetStats)
+	r := h.baseroute.CHI
+	r.Get("/api/dashboard/stats", h.DashboardHandler.GetStats)
 	return r
 }
