@@ -1,6 +1,5 @@
 // src/components/settings/ApiKeysTab.tsx
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,541 +8,432 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, Trash2, Plus, Key, CheckCircle, XCircle, Edit } from "lucide-react";
 import { getAPIKeys, createAPIKey, updateAPIKey, deleteAPIKey, type APIKey } from "@/services/apiKey";
 import { getModels, type AIModel } from "@/services/model";
 import { type APIProvider } from "@/services/modelProvider/types";
 import { getProviders } from "@/services/modelProvider/modelQueries";
+import { cn } from "@/lib/utils";
 
 export function ApiKeysTab() {
+    // ── state (unchanged) ──────────────────────────────────────
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
     const [models, setModels] = useState<AIModel[]>([]);
     const [providers, setProviders] = useState<APIProvider[]>([]);
-
-    // Dialog states
     const [showDialog, setShowDialog] = useState(false);
     const [editingKey, setEditingKey] = useState<APIKey | null>(null);
     const [dialogService, setDialogService] = useState<'text' | 'image'>('text');
     const [showApiKey, setShowApiKey] = useState(false);
-
-    // Form states
     const [formProviderId, setFormProviderId] = useState("");
     const [formModelId, setFormModelId] = useState("");
     const [formApiKey, setFormApiKey] = useState("");
     const [formSystemPrompt, setFormSystemPrompt] = useState("");
     const [formIsActive, setFormIsActive] = useState(true);
-
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [selectedDeleteKey, setSelectedDeleteKey] =
-        useState<APIKey | null>(null);
+    const [selectedDeleteKey, setSelectedDeleteKey] = useState<APIKey | null>(null);
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    useEffect(() => { loadData(); }, []);
 
+    // ── logic (unchanged) ──────────────────────────────────────
     const loadData = async () => {
         setLoading(true);
         try {
             const [keysData, modelsData, providersData] = await Promise.all([
-                getAPIKeys(),
-                getModels(),
-                getProviders()
+                getAPIKeys(), getModels(), getProviders()
             ]);
             setApiKeys(keysData || []);
             setModels(modelsData || []);
             setProviders(providersData || []);
-        } catch (error) {
-            console.error('Failed to load data:', error);
-            toast.error('Gagal memuat data');
-        } finally {
-            setLoading(false);
-        }
+        } catch { toast.error('Gagal memuat data'); }
+        finally { setLoading(false); }
     };
 
     const openAddDialog = (service: 'text' | 'image') => {
-        setDialogService(service);
-        setEditingKey(null);
-        setFormProviderId("");
-        setFormModelId("");
-        setFormApiKey("");
-        setFormSystemPrompt("");
-        setFormIsActive(true);
-        setShowApiKey(false);
+        setDialogService(service); setEditingKey(null);
+        setFormProviderId(""); setFormModelId("");
+        setFormApiKey(""); setFormSystemPrompt("");
+        setFormIsActive(true); setShowApiKey(false);
         setShowDialog(true);
     };
 
     const openEditDialog = (key: APIKey) => {
-        setEditingKey(key);
-        setDialogService(key.service as 'text' | 'image');
-        setFormProviderId(key.providerId || "");
-        setFormModelId(key.modelId || "");
-        setFormApiKey("");
-        setFormSystemPrompt(key.systemPrompt || "");
-        setFormIsActive(key.isActive);
-        setShowApiKey(false);
+        setEditingKey(key); setDialogService(key.service as 'text' | 'image');
+        setFormProviderId(key.providerId || ""); setFormModelId(key.modelId || "");
+        setFormApiKey(""); setFormSystemPrompt(key.systemPrompt || "");
+        setFormIsActive(key.isActive); setShowApiKey(false);
         setShowDialog(true);
     };
 
     const handleSave = async () => {
-        if (!formProviderId) {
-            toast.error('Pilih provider terlebih dahulu');
-            return;
-        }
-        if (!formModelId) {
-            toast.error('Pilih model terlebih dahulu');
-            return;
-        }
-        if (!formApiKey && !editingKey) {
-            toast.error('Masukkan API Key');
-            return;
-        }
-
+        if (!formProviderId) return toast.error('Pilih provider terlebih dahulu');
+        if (!formModelId) return toast.error('Pilih model terlebih dahulu');
+        if (!formApiKey && !editingKey) return toast.error('Masukkan API Key');
         setSaving(true);
         try {
             if (editingKey) {
-                const updateData: any = {
-                    providerId: formProviderId,
-                    modelId: formModelId,
-                    systemPrompt: formSystemPrompt || undefined,
-                    isActive: formIsActive,
-                };
-                if (formApiKey) {
-                    updateData.key = formApiKey;
-                }
+                const updateData: any = { providerId: formProviderId, modelId: formModelId, systemPrompt: formSystemPrompt || undefined, isActive: formIsActive };
+                if (formApiKey) updateData.key = formApiKey;
                 await updateAPIKey(editingKey.id, updateData);
                 toast.success('API Key updated');
             } else {
-                await createAPIKey({
-                    service: dialogService,
-                    providerId: formProviderId,
-                    modelId: formModelId,
-                    key: formApiKey,
-                    systemPrompt: formSystemPrompt,
-                });
+                await createAPIKey({ service: dialogService, providerId: formProviderId, modelId: formModelId, key: formApiKey, systemPrompt: formSystemPrompt });
                 toast.success('API Key created');
             }
             setShowDialog(false);
             await loadData();
-        } catch (error) {
-            toast.error('Failed to save API Key');
-        } finally {
-            setSaving(false);
-        }
+        } catch { toast.error('Failed to save API Key'); }
+        finally { setSaving(false); }
     };
 
-    const handleDelete = (key: APIKey) => {
-        setSelectedDeleteKey(key);
-        setDeleteDialogOpen(true);
-    };
+    const handleDelete = (key: APIKey) => { setSelectedDeleteKey(key); setDeleteDialogOpen(true); };
 
     const confirmDelete = async () => {
         if (!selectedDeleteKey) return;
-
         setDeleting(true);
-
         try {
-
-            await deleteAPIKey(
-                selectedDeleteKey.id
-            );
-
-            toast.success(
-                "API Key deleted"
-            );
-
-            setDeleteDialogOpen(false);
-            setSelectedDeleteKey(null);
-
+            await deleteAPIKey(selectedDeleteKey.id);
+            toast.success("API Key deleted");
+            setDeleteDialogOpen(false); setSelectedDeleteKey(null);
             await loadData();
-
-        } catch (error) {
-
-            toast.error(
-                "Failed to delete API Key"
-            );
-
-        } finally {
-
-            setDeleting(false);
-        }
+        } catch { toast.error("Failed to delete API Key"); }
+        finally { setDeleting(false); }
     };
 
-    const getProviderName = (providerId: string) => {
-        const provider = providers.find(p => p.id === providerId);
-        return provider?.displayName || provider?.name || providerId;
-    };
+    const getProviderName = (id: string) => providers.find(p => p.id === id)?.displayName || id;
+    const getModelName = (id: string) => models.find(m => m.id === id)?.displayName || id;
 
-    const getModelDisplayName = (modelId: string) => {
-        const model = models.find(m => m.id === modelId);
-        return model?.displayName || model?.name || modelId;
-    };
-
-    const getStatusBadge = (isActive: boolean) => {
-        if (isActive) {
-            return <Badge className="bg-green-100 text-green-700 hover:bg-green-100"><CheckCircle className="h-3 w-3 mr-1" /> Active</Badge>;
-        }
-        return <Badge variant="outline" className="text-red-500"><XCircle className="h-3 w-3 mr-1" /> Inactive</Badge>;
-    };
-
-    const getServiceBadge = (service: string) => {
-        if (service === 'text') {
-            return <Badge className="bg-blue-100 text-blue-700">Text Generation</Badge>;
-        }
-        return <Badge className="bg-purple-100 text-purple-700">Image Generation</Badge>;
-    };
-
-    if (loading) {
-        return (
-            <Card>
-                <CardContent className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                </CardContent>
-            </Card>
-        );
-    }
-
+    // ── helpers ────────────────────────────────────────────────
     const textKeys = apiKeys.filter(k => k.service === 'text');
     const imageKeys = apiKeys.filter(k => k.service === 'image');
 
+    const inputCls = cn(
+        "h-8 text-sm border-slate-200/80 bg-white placeholder:text-slate-400",
+        "dark:border-white/[0.08] dark:bg-white/[0.03] dark:placeholder:text-slate-600",
+        "focus-visible:ring-1 focus-visible:ring-green-500/40 focus-visible:border-green-400/60",
+        "dark:focus-visible:ring-purple-500/40 dark:focus-visible:border-purple-400/40"
+    );
+
+    if (loading) return (
+        <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+    );
+
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-lg font-semibold">API Keys Management</h2>
-                    <p className="text-sm text-slate-500">Kelola API Key untuk berbagai provider AI</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button onClick={() => openAddDialog('text')} size="sm">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Text Key
-                    </Button>
-                    <Button onClick={() => openAddDialog('image')} size="sm" variant="outline">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Image Key
-                    </Button>
-                </div>
-            </div>
-
-            {/* Info Cards */}
-            <div className="grid grid-cols-2 gap-4">
-                <Card>
-                    <CardContent className="pt-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-slate-500">Text Generation</p>
-                                <p className="text-2xl font-bold">{textKeys.length}</p>
-                            </div>
-                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <Key className="h-5 w-5 text-blue-600" />
-                            </div>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-2">
-                            {textKeys.filter(k => k.isActive).length} aktif
+        <div className="space-y-4">
+            {/* Main card */}
+            <div className={cn(
+                "overflow-hidden rounded-2xl border",
+                "bg-white border-slate-200/80",
+                "dark:bg-[#0f0d1a] dark:border-white/[0.06]"
+            )}>
+                {/* Header */}
+                <div className={cn(
+                    "flex items-center justify-between px-6 py-4 border-b",
+                    "border-slate-100 bg-slate-50/60",
+                    "dark:border-white/[0.05] dark:bg-white/[0.02]"
+                )}>
+                    <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                            API Keys Management
                         </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-slate-500">Image Generation</p>
-                                <p className="text-2xl font-bold">{imageKeys.length}</p>
-                            </div>
-                            <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                <Key className="h-5 w-5 text-purple-600" />
-                            </div>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-2">
-                            {imageKeys.filter(k => k.isActive).length} aktif
+                        <p className="text-xs text-slate-400 dark:text-slate-600 mt-0.5">
+                            Kelola API Key untuk berbagai provider AI
                         </p>
-                    </CardContent>
-                </Card>
-            </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            size="sm"
+                            className="h-8 gap-1.5 px-3 text-xs bg-green-600 hover:bg-green-700 text-white dark:bg-purple-600 dark:hover:bg-purple-700"
+                            onClick={() => openAddDialog('text')}
+                        >
+                            <Plus className="h-3.5 w-3.5" /> Add Text Key
+                        </Button>
+                        <Button
+                            variant="outline" size="sm"
+                            className="h-8 gap-1.5 px-3 text-xs border-slate-200/80 dark:border-white/[0.08]"
+                            onClick={() => openAddDialog('image')}
+                        >
+                            <Plus className="h-3.5 w-3.5" /> Add Image Key
+                        </Button>
+                    </div>
+                </div>
 
-            {/* API Keys Table */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Registered API Keys</CardTitle>
-                    <CardDescription>Semua API key yang telah didaftarkan</CardDescription>
-                </CardHeader>
-                <CardContent>
+                <div className="p-5 space-y-5">
+                    {/* Mini stats */}
+                    <div className="grid grid-cols-2 gap-3">
+                        {[
+                            { label: "Text Generation", count: textKeys.length, active: textKeys.filter(k => k.isActive).length, iconCls: "bg-blue-50 text-blue-600 ring-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20" },
+                            { label: "Image Generation", count: imageKeys.length, active: imageKeys.filter(k => k.isActive).length, iconCls: "bg-violet-50 text-violet-600 ring-violet-200/60 dark:bg-violet-500/10 dark:text-violet-400 dark:ring-violet-500/20" },
+                        ].map(({ label, count, active, iconCls }) => (
+                            <div key={label} className={cn(
+                                "flex items-center justify-between rounded-xl border p-4",
+                                "bg-slate-50/60 border-slate-200/60",
+                                "dark:bg-white/[0.02] dark:border-white/[0.05]"
+                            )}>
+                                <div>
+                                    <p className="text-xs text-slate-400 dark:text-slate-600">{label}</p>
+                                    <p className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white tabular-nums mt-1">
+                                        {count}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 dark:text-slate-600 mt-1.5 flex items-center gap-1">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+                                        {active} aktif
+                                    </p>
+                                </div>
+                                <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl ring-1", iconCls)}>
+                                    <Key className="h-4 w-4" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Table */}
                     {apiKeys.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500">
-                            <Key className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                            <p>Belum ada API Key yang didaftarkan</p>
-                            <p className="text-sm">Klik tombol "Add Text Key" atau "Add Image Key" untuk menambahkan</p>
+                        <div className="flex flex-col items-center py-12">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-white/[0.04] dark:text-slate-600">
+                                <Key className="h-5 w-5" />
+                            </div>
+                            <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                                Belum ada API Key
+                            </p>
+                            <p className="mt-1 text-xs text-slate-400 dark:text-slate-600">
+                                Klik "Add Text Key" atau "Add Image Key" untuk menambahkan
+                            </p>
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Service</TableHead>
-                                    <TableHead>Provider</TableHead>
-                                    <TableHead>Model</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>System Prompt</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {apiKeys.map((key) => (
-                                    <TableRow key={key.id}>
-                                        <TableCell>{getServiceBadge(key.service)}</TableCell>
-                                        <TableCell className="font-medium">{getProviderName(key.providerId)}</TableCell>
-                                        <TableCell>{getModelDisplayName(key.modelId)}</TableCell>
-                                        <TableCell>{getStatusBadge(key.isActive)}</TableCell>
-                                        <TableCell className="max-w-[200px] truncate">
-                                            {key.systemPrompt ? (
-                                                <span className="text-xs text-slate-500" title={key.systemPrompt}>
-                                                    {key.systemPrompt.substring(0, 50)}...
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-slate-400">-</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openEditDialog(key)}
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleDelete(key)}
-                                                    className="text-red-500 hover:text-red-700"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                        <div className="overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/[0.06]">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-slate-50/80 dark:bg-white/[0.02] hover:bg-slate-50/80">
+                                        {["Service", "Provider", "Model", "Status", "System Prompt", ""].map(h => (
+                                            <TableHead key={h} className={cn(
+                                                "text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-600 py-2.5",
+                                                h === "" && "text-right"
+                                            )}>
+                                                {h}
+                                            </TableHead>
+                                        ))}
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {apiKeys.map((key) => (
+                                        <TableRow key={key.id} className="border-slate-100 dark:border-white/[0.04] hover:bg-slate-50/50 dark:hover:bg-white/[0.01]">
+                                            <TableCell>
+                                                <span className={cn(
+                                                    "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
+                                                    key.service === 'text'
+                                                        ? "bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"
+                                                        : "bg-violet-50 text-violet-700 border-violet-200/60 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/20"
+                                                )}>
+                                                    {key.service === 'text' ? 'Text Gen' : 'Image Gen'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                                {getProviderName(key.providerId)}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-slate-500 dark:text-slate-500">
+                                                {getModelName(key.modelId)}
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className={cn(
+                                                    "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
+                                                    key.isActive
+                                                        ? "bg-green-50 text-green-700 border-green-200/60 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20"
+                                                        : "bg-red-50 text-red-700 border-red-200/60 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20"
+                                                )}>
+                                                    {key.isActive
+                                                        ? <><CheckCircle className="h-2.5 w-2.5" /> Active</>
+                                                        : <><XCircle className="h-2.5 w-2.5" /> Inactive</>
+                                                    }
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="max-w-[180px]">
+                                                {key.systemPrompt
+                                                    ? <span className="text-xs text-slate-400 truncate block" title={key.systemPrompt}>{key.systemPrompt.substring(0, 50)}…</span>
+                                                    : <span className="text-xs text-slate-300 dark:text-slate-700">—</span>
+                                                }
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    <Button variant="ghost" size="icon"
+                                                        className="h-7 w-7 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:text-purple-400 dark:hover:bg-purple-500/10"
+                                                        onClick={() => openEditDialog(key)}
+                                                    >
+                                                        <Edit className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon"
+                                                        className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                                        onClick={() => handleDelete(key)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             {/* Add/Edit Dialog */}
-            <Dialog open={showDialog} onOpenChange={setShowDialog} >
-                <DialogContent className="sm:max-w-3xl">
+            <Dialog open={showDialog} onOpenChange={setShowDialog}>
+                <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>
+                        <DialogTitle className="text-base">
                             {editingKey ? 'Edit API Key' : `Add ${dialogService === 'text' ? 'Text Generation' : 'Image Generation'} API Key`}
                         </DialogTitle>
-                        <DialogDescription>
+                        <DialogDescription className="text-xs">
                             Konfigurasi API key untuk {dialogService === 'text' ? 'generate artikel' : 'generate gambar'}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        {/* Provider */}
-                        <div>
-                            <Label>Provider *</Label>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">Provider *</Label>
                             <Select value={formProviderId} onValueChange={setFormProviderId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih Provider" />
-                                </SelectTrigger>
-
+                                <SelectTrigger className={inputCls}><SelectValue placeholder="Pilih Provider" /></SelectTrigger>
                                 <SelectContent>
-                                    {providers.map((p) => (
-                                        <SelectItem key={p.id} value={p.id}>
-                                            {p.displayName} ({p.name})
-                                        </SelectItem>
-                                    ))}
+                                    {providers.map(p => <SelectItem key={p.id} value={p.id}>{p.displayName} ({p.name})</SelectItem>)}
                                 </SelectContent>
-
-
                             </Select>
                         </div>
 
-                        {/* Model */}
                         {formProviderId && (
-                            <div>
-                                <Label>Model *</Label>
-
-                                <Select
-                                    value={formModelId}
-                                    onValueChange={setFormModelId}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Choose Model" />
-                                    </SelectTrigger>
-
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">Model *</Label>
+                                <Select value={formModelId} onValueChange={setFormModelId}>
+                                    <SelectTrigger className={inputCls}><SelectValue placeholder="Pilih Model" /></SelectTrigger>
                                     <SelectContent>
-                                        {models
-                                            .filter((m) => m.providerId === formProviderId)
-                                            .map((model) => (
-                                                <SelectItem
-                                                    key={model.id}
-                                                    value={model.id}
-                                                >
-                                                    {model.displayName} ({model.name})
-                                                </SelectItem>
-                                            ))}
+                                        {models.filter(m => m.providerId === formProviderId).map(m => (
+                                            <SelectItem key={m.id} value={m.id}>{m.displayName} ({m.name})</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
                         )}
 
-                        {/* API Key */}
-                        <div>
-                            <Label>API Key *</Label>
-                            <div className="relative mt-1">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">API Key *</Label>
+                            <div className="relative">
                                 <Input
                                     type={showApiKey ? "text" : "password"}
                                     placeholder="Masukkan API Key"
                                     value={formApiKey}
-                                    onChange={(e) => setFormApiKey(e.target.value)}
-                                    className="pr-10"
+                                    onChange={e => setFormApiKey(e.target.value)}
+                                    className={cn(inputCls, "pr-9")}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowApiKey(!showApiKey)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                                 >
-                                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                                 </button>
                             </div>
                             {editingKey && (
-                                <p className="mt-1 text-xs text-green-600">
-                                    <Key className="inline h-3 w-3 mr-1" />
+                                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                    <Key className="h-3 w-3" />
                                     Kosongkan jika tidak ingin mengubah key yang sudah ada
                                 </p>
                             )}
                         </div>
 
-                        {/* System Prompt */}
-                        <div>
-                            <Label>System Prompt (Optional)</Label>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">System Prompt (Opsional)</Label>
                             <Textarea
                                 placeholder="Custom system prompt untuk AI..."
                                 value={formSystemPrompt}
-                                onChange={(e) => setFormSystemPrompt(e.target.value)}
+                                onChange={e => setFormSystemPrompt(e.target.value)}
                                 rows={3}
+                                className={cn(inputCls, "h-auto py-2 resize-none")}
                             />
                         </div>
 
-                        {/* Active Switch */}
-                        <div className="flex items-center justify-between">
+                        <div className={cn(
+                            "flex items-center justify-between rounded-xl border p-4",
+                            "bg-slate-50/60 border-slate-200/60",
+                            "dark:bg-white/[0.02] dark:border-white/[0.05]"
+                        )}>
                             <div>
-                                <Label>Active</Label>
-                                <p className="text-xs text-slate-500">Nonaktifkan jika tidak ingin menggunakan key ini</p>
+                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Active</p>
+                                <p className="text-xs text-slate-400 dark:text-slate-600 mt-0.5">
+                                    Nonaktifkan jika tidak ingin menggunakan key ini
+                                </p>
                             </div>
-                            <Switch checked={formIsActive} onCheckedChange={setFormIsActive} />
+                            <Switch
+                                checked={formIsActive}
+                                onCheckedChange={setFormIsActive}
+                                className="data-[state=checked]:bg-green-600 dark:data-[state=checked]:bg-purple-600"
+                            />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-                        <Button onClick={handleSave} disabled={saving}>
-                            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button size="sm" className="h-8 text-xs bg-green-600 hover:bg-green-700 dark:bg-purple-600 dark:hover:bg-purple-700" onClick={handleSave} disabled={saving}>
+                            {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                             {editingKey ? 'Update' : 'Create'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            <Dialog
-                open={deleteDialogOpen}
-                onOpenChange={setDeleteDialogOpen}
-            >
-                <DialogContent className="sm:max-w-md">
-
+            {/* Delete Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-red-600">
-                            <Trash2 className="h-5 w-5" />
-                            Hapus API Key
+                        <DialogTitle className="flex items-center gap-2 text-sm text-red-600">
+                            <Trash2 className="h-4 w-4" /> Hapus API Key
                         </DialogTitle>
-
-                        <DialogDescription>
-                            Apakah yakin ingin menghapus API Key ini?
+                        <DialogDescription className="text-xs">
                             Tindakan ini tidak bisa dibatalkan.
                         </DialogDescription>
-
                     </DialogHeader>
-
-                    <div className="rounded-lg border p-4  space-y-2">
-                        <div>
-                            <p className="text-xs text-slate-500">
-                                Provider
-                            </p>
-
-                            <p className="font-medium">
-                                {
-                                    selectedDeleteKey &&
-                                    getProviderName(
-                                        selectedDeleteKey.providerId
-                                    )
-                                }
-                            </p>
-                        </div>
-
-                        <div>
-                            <p className="text-xs text-slate-500">
-                                Model
-                            </p>
-
-                            <p className="font-medium">
-                                {
-                                    selectedDeleteKey &&
-                                    getModelDisplayName(
-                                        selectedDeleteKey.modelId
-                                    )
-                                }
-                            </p>
-                        </div>
-
-                        <div>
-                            <p className="text-xs text-slate-500">
-                                Service
-                            </p>
-
-                            <div className="mt-1">
-                                {
-                                    selectedDeleteKey &&
-                                    getServiceBadge(
-                                        selectedDeleteKey.service
-                                    )
-                                }
+                    <div className={cn(
+                        "rounded-xl border p-4 space-y-3",
+                        "bg-slate-50/60 border-slate-200/60",
+                        "dark:bg-white/[0.02] dark:border-white/[0.05]"
+                    )}>
+                        {[
+                            { label: "Provider", value: selectedDeleteKey && getProviderName(selectedDeleteKey.providerId) },
+                            { label: "Model", value: selectedDeleteKey && getModelName(selectedDeleteKey.modelId) },
+                        ].map(({ label, value }) => (
+                            <div key={label}>
+                                <p className="text-[10px] uppercase tracking-wide text-slate-400">{label}</p>
+                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-0.5">{value}</p>
                             </div>
-
-                        </div>
+                        ))}
+                        {selectedDeleteKey && (
+                            <div>
+                                <p className="text-[10px] uppercase tracking-wide text-slate-400">Service</p>
+                                <span className={cn(
+                                    "mt-1 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
+                                    selectedDeleteKey.service === 'text'
+                                        ? "bg-blue-50 text-blue-700 border-blue-200/60"
+                                        : "bg-violet-50 text-violet-700 border-violet-200/60"
+                                )}>
+                                    {selectedDeleteKey.service === 'text' ? 'Text Gen' : 'Image Gen'}
+                                </span>
+                            </div>
+                        )}
                     </div>
-
                     <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setDeleteDialogOpen(false)
-                            }}
-                            disabled={deleting}
-                        >
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
                             Cancel
                         </Button>
-
-                        <Button
-                            variant="destructive"
-                            onClick={confirmDelete}
-                            disabled={deleting}
-                        >
-                            {deleting && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-
+                        <Button size="sm" className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white" onClick={confirmDelete} disabled={deleting}>
+                            {deleting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                             Hapus
                         </Button>
-
                     </DialogFooter>
-
                 </DialogContent>
             </Dialog>
         </div>

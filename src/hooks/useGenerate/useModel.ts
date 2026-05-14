@@ -36,11 +36,11 @@ export function useModels() {
         refetch: refetchModels,
     } = useQuery({
         queryKey: modelKeys.lists(),
-        queryFn: async () => {
-            const data = await getAPIKeys();
-            console.log("Models loaded:", data);
-            return data as APIKeyDetail[];
-        },
+        // Baris queryFn, tambah null guard:
+queryFn: async () => {
+    const data = await getAPIKeys();
+    return (data ?? []) as APIKeyDetail[];
+},
         staleTime: CACHE_CONFIG.staleTime,
         gcTime: CACHE_CONFIG.gcTime,
     });
@@ -137,9 +137,9 @@ export function useModels() {
     }, [refetchModels]);
 
     // Computed values
-    const textModels = getTextModels();
-    const imageModels = getImageModels();
-    const activeModels = getActiveModels();
+    const textModels = models?.filter((m: any) => m.service === 'text') ?? [];
+const imageModels = models?.filter((m: any) => m.service === 'image') ?? [];
+const activeModels = models?.filter((m: any) => m.isActive) ?? [];
 
     return {
         // Data

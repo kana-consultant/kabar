@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	"seo-backend/internal/domain/draft"
@@ -351,6 +352,67 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 		AllFailed:  allFailed,
 		Status:     "published",
 	}, nil
+}
+
+// GetSEOScore implements draft.Service
+func (s *DraftServiceImpl) GetSEOScore(ctx context.Context, id string) (*draft.SEOScore, error) {
+	draftData, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("draft not found: %w", err)
+	}
+
+	score := draft.CalculateSEOScore(draftData.Title, draftData.Article, draftData.Topic, draftData.Topic)
+	return &score, nil
+}
+
+// CheckSimilarity implements draft.Service
+func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, teamID string) ([]draft.SimilarityResult, error) {
+	target, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("draft not found: %w", err)
+	}
+
+	if teamID == "" {
+		return []draft.SimilarityResult{}, nil
+	}
+
+	allDrafts, err := s.repo.GetAll(ctx, teamID)
+	if err != nil || allDrafts == nil || len(*allDrafts) == 0 {
+		return []draft.SimilarityResult{}, nil
+	}
+
+	var others []draft.Draft
+	for _, d := range *allDrafts {
+		if d.ID != id {
+			others = append(others, d)
+		}
+	}
+
+	if len(others) == 0 {
+		return []draft.SimilarityResult{}, nil
+	}
+
+	docs := []string{target.Title + " " + target.Article}
+	for _, d := range others {
+		docs = append(docs, d.Title+" "+d.Article)
+	}
+
+	vectors := draft.ComputeTFIDF(docs)
+	targetVector := vectors[0]
+
+	var results []draft.SimilarityResult
+	for i, d := range others {
+		sim := draft.CosineSimilarity(targetVector, vectors[i+1])
+		if sim > 0.3 {
+			results = append(results, draft.SimilarityResult{
+				DraftID:    d.ID,
+				Title:      d.Title,
+				Similarity: math.Round(sim*100) / 100,
+			})
+		}
+	}
+
+	return results, nil
 }
 
 // Helper functions
