@@ -151,6 +151,30 @@ CREATE TABLE IF NOT EXISTS public.team_members (
     joined_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 2. CORE TABLES (lanjutan setelah team_members)
+
+CREATE TABLE IF NOT EXISTS public.team_invites (
+    id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    email character varying(255) NOT NULL,
+    team_id uuid NOT NULL,
+    role character varying(50) DEFAULT 'member',
+    token character varying(255) UNIQUE NOT NULL,
+    status character varying(50) DEFAULT 'pending',
+    invited_by uuid NOT NULL,
+    expires_at timestamp without time zone NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Constraints untuk validasi nilai
+    CONSTRAINT chk_team_invites_status CHECK (status IN ('pending', 'accepted', 'expired', 'cancelled')),
+    CONSTRAINT chk_team_invites_role CHECK (role IN ('admin', 'member', 'viewer', 'owner'))
+);
+
+-- 3. FOREIGN KEYS (tambahan setelah foreign keys yang ada)
+ALTER TABLE public.team_invites ADD CONSTRAINT fk_invite_team FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+ALTER TABLE public.team_invites ADD CONSTRAINT fk_invite_invited_by FOREIGN KEY (invited_by) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
 -- 3. FOREIGN KEYS (fk_tm_user di-comment dulu)
 ALTER TABLE public.team_members ADD CONSTRAINT fk_tm_team FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
 -- ALTER TABLE public.team_members ADD CONSTRAINT fk_tm_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
@@ -165,6 +189,15 @@ ALTER TABLE public.drafts ADD CONSTRAINT fk_draft_team FOREIGN KEY (team_id) REF
 CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
 CREATE INDEX IF NOT EXISTS idx_products_team ON public.products(team_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_team ON public.drafts(team_id);
+-- 4. INDEXES (tambahan setelah indexes yang ada)
+CREATE INDEX IF NOT EXISTS idx_team_invites_email ON public.team_invites(email);
+CREATE INDEX IF NOT EXISTS idx_team_invites_team_id ON public.team_invites(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_invites_token ON public.team_invites(token);
+CREATE INDEX IF NOT EXISTS idx_team_invites_status ON public.team_invites(status);
+CREATE INDEX IF NOT EXISTS idx_team_invites_expires_at ON public.team_invites(expires_at);
+CREATE INDEX IF NOT EXISTS idx_team_invites_email_status ON public.team_invites(email, status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_team_invites_email_team_pending ON public.team_invites(email, team_id) WHERE status = 'pending';
+
 
 -- 1. Insert User dengan password: password123
 INSERT INTO public.users (

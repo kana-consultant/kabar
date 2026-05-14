@@ -1,4 +1,3 @@
-// internal/domain/draft/service.go
 package draft
 
 import (
@@ -21,4 +20,10 @@ type Service interface {
 	// Scheduling
 	ScheduleDraft(ctx context.Context, req ScheduleRequest, teamID, userID string) (string, error)
 	CancelSchedule(ctx context.Context, draftID string) error
+
+	// SEO
+	GetSEOScore(ctx context.Context, id string) (*SEOScore, error)
+
+	// Similarity
+	CheckSimilarity(ctx context.Context, id string, teamID string) ([]SimilarityResult, error)
 }

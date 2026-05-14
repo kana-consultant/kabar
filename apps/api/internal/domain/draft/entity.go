@@ -38,3 +38,15 @@ type PublishResult struct {
 	Status       string      `json:"status"`
 	ScheduledFor *time.Time  `json:"scheduled_for"`
 }
+
+type SEOScore struct {
+	Total       int            `json:"total"`
+	Details     map[string]int `json:"details"`
+	Suggestions []string       `json:"suggestions"`
+}
+
+type SimilarityResult struct {
+	DraftID    string  `json:"draft_id"`
+	Title      string  `json:"title"`
+	Similarity float64 `json:"similarity"`
+}

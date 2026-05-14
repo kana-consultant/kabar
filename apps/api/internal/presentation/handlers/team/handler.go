@@ -332,3 +332,37 @@ func (h *TeamHandler) GetUserTeams(w http.ResponseWriter, r *http.Request) {
 
 	h.writeJSON(w, teams, http.StatusOK)
 }
+
+func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
+	var req team.InviteTeamMemberRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	teamID := chi.URLParam(r, "teamId")
+	userCtx := helper.GetUserContext(r)
+
+	invite, err := h.teamService.InviteMember(r.Context(), teamID, req, userCtx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(invite)
+}
+
+// Handler untuk accept invite
+func (h *TeamHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	userCtx := helper.GetUserContext(r)
+
+	team, err := h.teamService.AcceptInvite(r.Context(), token, userCtx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	json.NewEncoder(w).Encode(team)
+}

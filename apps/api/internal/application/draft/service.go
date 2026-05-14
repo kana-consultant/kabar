@@ -6,12 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
+	"strings"
 	"time"
 
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/scheduler"
+
+	"golang.org/x/net/html"
 )
 
 type DraftServiceImpl struct {
@@ -353,6 +357,67 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 	}, nil
 }
 
+// GetSEOScore implements draft.Service
+func (s *DraftServiceImpl) GetSEOScore(ctx context.Context, id string) (*draft.SEOScore, error) {
+	draftData, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("draft not found: %w", err)
+	}
+
+	score := draft.CalculateSEOScore(draftData.Title, draftData.Article, draftData.Topic, draftData.Topic)
+	return &score, nil
+}
+
+// CheckSimilarity implements draft.Service
+func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, teamID string) ([]draft.SimilarityResult, error) {
+	target, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("draft not found: %w", err)
+	}
+
+	if teamID == "" {
+		return []draft.SimilarityResult{}, nil
+	}
+
+	allDrafts, err := s.repo.GetAll(ctx, teamID)
+	if err != nil || allDrafts == nil || len(*allDrafts) == 0 {
+		return []draft.SimilarityResult{}, nil
+	}
+
+	var others []draft.Draft
+	for _, d := range *allDrafts {
+		if d.ID != id {
+			others = append(others, d)
+		}
+	}
+
+	if len(others) == 0 {
+		return []draft.SimilarityResult{}, nil
+	}
+
+	docs := []string{target.Title + " " + target.Article}
+	for _, d := range others {
+		docs = append(docs, d.Title+" "+d.Article)
+	}
+
+	vectors := draft.ComputeTFIDF(docs)
+	targetVector := vectors[0]
+
+	var results []draft.SimilarityResult
+	for i, d := range others {
+		sim := draft.CosineSimilarity(targetVector, vectors[i+1])
+		if sim > 0.3 {
+			results = append(results, draft.SimilarityResult{
+				DraftID:    d.ID,
+				Title:      d.Title,
+				Similarity: math.Round(sim*100) / 100,
+			})
+		}
+	}
+
+	return results, nil
+}
+
 // Helper functions
 func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
 
@@ -441,4 +506,106 @@ func validatePublishRequest(req draft.DraftDataPost) error {
 		return fmt.Errorf("title, article, and target_products are required")
 	}
 	return nil
+}
+
+func CalculateSEOScore(title, content, excerpt, topic string) draft.SEOScore {
+	details := map[string]int{}
+	suggestions := []string{}
+	total := 0
+
+	keyword := strings.ToLower(topic)
+	contentLower := strings.ToLower(content)
+	titleLower := strings.ToLower(title)
+
+	// 1. Keyword in title (20 pts)
+	if strings.Contains(titleLower, keyword) {
+		details["keyword_in_title"] = 20
+		total += 20
+	} else {
+		suggestions = append(suggestions, "Add the main keyword to the title")
+	}
+
+	// 2. H1 exists (15 pts)
+	if strings.Contains(content, "<h1") {
+		details["has_h1"] = 15
+		total += 15
+	} else {
+		suggestions = append(suggestions, "Add an H1 heading to the content")
+	}
+
+	// 3. H2 exists (10 pts)
+	if strings.Contains(content, "<h2") {
+		details["has_h2"] = 10
+		total += 10
+	} else {
+		suggestions = append(suggestions, "Add H2 subheadings to the content")
+	}
+
+	// 4. Keyword in first 100 words (15 pts)
+	words := strings.Fields(stripHTML(contentLower))
+	first100 := strings.Join(words[:min(100, len(words))], " ")
+	if strings.Contains(first100, keyword) {
+		details["keyword_in_intro"] = 15
+		total += 15
+	} else {
+		suggestions = append(suggestions, "Use the keyword in the first 100 words")
+	}
+
+	// 5. Meta description length 120-160 chars (15 pts)
+	excerptLen := len(excerpt)
+	if excerptLen >= 120 && excerptLen <= 160 {
+		details["meta_description"] = 15
+		total += 15
+	} else {
+		suggestions = append(suggestions, "Meta description should be 120-160 characters")
+	}
+
+	// 6. Content length > 600 words (15 pts)
+	wordCount := len(strings.Fields(stripHTML(contentLower)))
+	if wordCount >= 600 {
+		details["content_length"] = 15
+		total += 15
+	} else {
+		suggestions = append(suggestions, "Content should be at least 600 words")
+	}
+
+	// 7. Keyword in content (10 pts)
+	if strings.Count(contentLower, keyword) >= 2 {
+		details["keyword_density"] = 10
+		total += 10
+	} else {
+		suggestions = append(suggestions, "Use the keyword at least 2 times in the content")
+	}
+
+	return draft.SEOScore{
+		Total:       total,
+		Details:     details,
+		Suggestions: suggestions,
+	}
+}
+
+func stripHTML(content string) string {
+	doc, err := html.Parse(strings.NewReader(content))
+	if err != nil {
+		return content
+	}
+	var buf strings.Builder
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.TextNode {
+			buf.WriteString(n.Data)
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+	f(doc)
+	return buf.String()
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

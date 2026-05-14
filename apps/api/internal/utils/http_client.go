@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"seo-backend/internal/models"
+	"seo-backend/internal/domain/draft"
 	"strings"
 	"time"
 )
@@ -70,7 +70,7 @@ func (c *HTTPClient) Send(
 	return nil, lastErr
 }
 
-func BuildPayload(mapping map[string]interface{}, draft models.Draft) map[string]interface{} {
+func BuildPayload(mapping map[string]interface{}, draft draft.Draft) map[string]interface{} {
 
 	result := map[string]interface{}{}
 

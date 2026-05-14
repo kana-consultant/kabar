@@ -88,16 +88,13 @@ nx.json
 # =======================
 # Environment & Secrets
 # =======================
-.env
-./env.*
-!.env.example
-.env.local
+# API env
+apps/api/.env
+api/.env.*
 
-.env.development
-*.pem
-*.key
-*.crt
-*.p12
+# Web env
+apps/web/.env
+web/.env.*
 
 # =======================
 # IDE - Common
@@ -182,13 +179,14 @@ docker-compose.*.yml
 
 # =======================
 # Project specific (adjust paths as needed)
+Go/
 # =======================
 # For monorepo structure:
 # /seo-backend/go/...
 # /frontend/react/...
 
 # seo-backend specific
-**/seo-backend/*/main
+**/seo-backend/*/main                                                                                                   
 **/seo-backend/*/*.exe
 **/seo-backend/*/*.test
 **/seo-backend/tmp/

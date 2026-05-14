@@ -11,8 +11,8 @@ import (
 	app "seo-backend/internal/application/history"
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/helper"
-	"seo-backend/internal/middleware/auth"
 	"seo-backend/internal/models"
+	auth "seo-backend/internal/presentation/middleware"
 )
 
 // HistoryHandler handles HTTP requests for history

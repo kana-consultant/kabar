@@ -158,6 +158,38 @@ func (r *UserRepository) EmailExists(ctx context.Context, email string) (bool, e
 	return exists, nil
 }
 
+// GetByEmail - mendapatkan user berdasarkan email
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	query := `
+		SELECT id, email, name, password_hash, role, avatar, status, last_active, created_at, updated_at
+		FROM users
+		WHERE email = $1
+	`
+
+	var user models.User
+	err := r.db.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Name,
+		&user.PasswordHash,
+		&user.Role,
+		&user.Avatar,
+		&user.Status,
+		&user.LastActive,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil // User not found, return nil without error
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user by email: %w", err)
+	}
+
+	return &user, nil
+}
+
 // scanUsers helper function to scan multiple users
 func (r *UserRepository) scanUsers(rows *sql.Rows) ([]models.User, error) {
 	var users []models.User

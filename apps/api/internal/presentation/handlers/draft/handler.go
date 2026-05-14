@@ -14,7 +14,7 @@ import (
 
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/helper"
-	"seo-backend/internal/middleware/auth"
+	auth "seo-backend/internal/presentation/middleware"
 )
 
 type DraftHandler struct {
@@ -298,6 +298,39 @@ func (h *DraftHandler) CancelScheduledDraft(w http.ResponseWriter, r *http.Reque
 		"message":  "Schedule cancelled",
 		"draft_id": req.DraftID,
 		"status":   "draft",
+	})
+}
+
+// GetSEOScore - get SEO score for a draft
+func (h *DraftHandler) GetSEOScore(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	score, err := h.draftService.GetSEOScore(r.Context(), id)
+	if err != nil {
+		http.Error(w, "Draft not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(score)
+}
+
+// CheckSimilarity - check similarity of a draft with others
+func (h *DraftHandler) CheckSimilarity(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	teamID := auth.GetTeamID(r.Context())
+
+	results, err := h.draftService.CheckSimilarity(r.Context(), id, teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"draft_id":       id,
+		"similar_drafts": results,
+		"total":          len(results),
 	})
 }
 
