@@ -1,4 +1,4 @@
-// src/components/settings/ProvidersTab.tsx
+// src/pages/settings/ProvidersTab.tsx
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { getProviders, createProvider, updateProvider, deleteProvider, type APIProvider, type CreateProviderRequest } from '@/services/modelProviderService';
+import { getProviders, createProvider, updateProvider, deleteProvider } from '@/services/modelProvider/modelQueries';
+import {type APIProvider, type CreateProviderRequest} from '@/services/modelProvider/types'
 import { Loader2, Plus, Edit2, Trash2, Key, Globe, Code, Eye, EyeOff } from 'lucide-react';
 
 export function ProvidersTab() {
@@ -36,11 +37,25 @@ export function ProvidersTab() {
     const [formResponseTextPath, setFormResponseTextPath] = useState('');
     const [formResponseImagePath, setFormResponseImagePath] = useState('');
 
+    // Load providers - defined inside useEffect or useCallback
     useEffect(() => {
-        loadProviders();
-    }, []);
+        const loadProviders = async () => {
+            setLoading(true);
+            try {
+                const data = await getProviders();
+                setProviders(data);
+            } catch (error) {
+                toast.error('Gagal memuat providers');
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const loadProviders = async () => {
+        loadProviders();
+    }, []); // No dependencies
+
+    // Refresh function for manual reload
+    const refreshProviders = async () => {
         setLoading(true);
         try {
             const data = await getProviders();
@@ -127,7 +142,7 @@ export function ProvidersTab() {
                 await createProvider(data);
                 toast.success('Provider created');
             }
-            await loadProviders();
+            await refreshProviders(); // Use refresh function
             setShowDialog(false);
             resetForm();
         } catch (error) {
@@ -142,7 +157,7 @@ export function ProvidersTab() {
             try {
                 await deleteProvider(id);
                 toast.success('Provider deleted');
-                await loadProviders();
+                await refreshProviders(); // Use refresh function
             } catch (error) {
                 toast.error('Failed to delete provider');
             }
@@ -218,7 +233,7 @@ export function ProvidersTab() {
                 ))}
             </div>
 
-            {/* Add/Edit Provider Dialog */}
+            {/* Add/Edit Provider Dialog - same as before */}
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>

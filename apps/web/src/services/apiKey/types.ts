@@ -29,7 +29,7 @@ export interface APIKeyDetail {
 export interface CreateAPIKeyRequest {
     service: string;
     key: string;
-    modelId: String;
+    modelId: string;
     providerId: string;
     systemPrompt?: string;
     teamId?: string;

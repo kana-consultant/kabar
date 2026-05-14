@@ -1,4 +1,4 @@
-    import { toast } from "sonner";
+import { toast } from "sonner";
 import { addTeam, updateTeam, deleteTeam } from "@/services/user";
 import type { Team } from "@/services/user";
 

@@ -45,8 +45,8 @@ export interface CreateModelRequest {
     temperature?: number;
 }
 
-export interface UpdateProviderRequest extends Partial<CreateProviderRequest> {}
-export interface UpdaFteModelRequest extends Partial<CreateModelRequest> {}
+export type UpdateProviderRequest = Partial<CreateProviderRequest>;
+export type UpdateModelRequest = Partial<CreateModelRequest>;
 
 export interface CreateResponse {
     id: string;

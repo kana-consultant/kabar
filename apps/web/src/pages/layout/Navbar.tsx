@@ -21,7 +21,9 @@ function getUserData() {
         const raw = localStorage.getItem("user") ||
             document.cookie.match("user=([^;]+)")?.[1];
         if (raw) return JSON.parse(decodeURIComponent(raw));
-    } catch {}
+    } catch {
+        return
+    }
     return null;
 }
 

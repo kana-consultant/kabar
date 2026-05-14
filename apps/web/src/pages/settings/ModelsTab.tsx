@@ -1,5 +1,5 @@
-// src/components/settings/ModelsTab.tsx
-import { useState, useEffect } from 'react';
+// src/pages/settings/ModelsTab.tsx
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { type AIModel, type APIProvider } from '@/services/modelProvider/types';
-import {createModel, updateModel, deleteModel} from "@/services/model";
+import { createModel, updateModel, deleteModel, getModelsWithStatus } from "@/services/model";
 import { getProviders } from '@/services/modelProvider/modelQueries';
-import { Loader2, Plus, Edit2, Trash2, Star,  CheckCircle, XCircle,  } from 'lucide-react';
-import { getModelsWithStatus } from '@/services/model';
+import { Loader2, Plus, Edit2, Trash2, Star, CheckCircle, XCircle } from 'lucide-react';
 
 // Interface untuk model dengan status API key
 interface ModelWithStatus extends AIModel {
@@ -39,31 +38,45 @@ export function ModelsTab() {
     const [formIsDefault, setFormIsDefault] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        loadModels();
-        loadProviders();
-    }, []);
-
-    const loadModels = async () => {
-        setLoading(true);
+    // Fetch models function
+    const fetchModels = useCallback(async () => {
         try {
             const data = await getModelsWithStatus();
-            setModels(data as any);
+            setModels(data as ModelWithStatus[]);
         } catch (error) {
             toast.error('Gagal memuat models');
-        } finally {
-            setLoading(false);
+            throw error;
         }
-    };
+    }, []);
 
-    const loadProviders = async () => {
+    // Fetch providers function
+    const fetchProviders = useCallback(async () => {
         try {
             const data = await getProviders();
             setProviders(data);
         } catch (error) {
             console.error('Failed to load providers:', error);
+            toast.error('Gagal memuat providers');
+            throw error;
         }
-    };
+    }, []);
+
+    // Load all data
+    const loadAllData = useCallback(async () => {
+        setLoading(true);
+        try {
+            await Promise.all([fetchModels(), fetchProviders()]);
+        } catch (error) {
+            console.error('Failed to load data:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchModels, fetchProviders]);
+
+    // Initial load
+    useEffect(() => {
+        loadAllData();
+    }, [loadAllData]);
 
     const handleSave = async () => {
         if (!formName || !formProviderId || !formDisplayName) {
@@ -97,9 +110,10 @@ export function ModelsTab() {
                 toast.success('Model created');
             }
             resetForm();
-            await loadModels();
+            await fetchModels(); // Refresh models only
         } catch (error) {
             toast.error('Failed to save model');
+            console.error('Save error:', error);
         } finally {
             setSaving(false);
         }
@@ -134,9 +148,10 @@ export function ModelsTab() {
             try {
                 await deleteModel(id);
                 toast.success('Model deleted');
-                await loadModels();
+                await fetchModels(); // Refresh models only
             } catch (error) {
                 toast.error('Failed to delete model');
+                console.error('Delete error:', error);
             }
         }
     };
@@ -145,9 +160,10 @@ export function ModelsTab() {
         try {
             await updateModel(id, { isDefault: true });
             toast.success('Default model updated');
-            await loadModels();
+            await fetchModels(); // Refresh models only
         } catch (error) {
             toast.error('Failed to set default model');
+            console.error('Set default error:', error);
         }
     };
 
@@ -260,7 +276,10 @@ export function ModelsTab() {
             </div>
 
             {/* Add/Edit Dialog */}
-            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <Dialog open={showAddDialog} onOpenChange={(open) => {
+                if (!open) resetForm();
+                setShowAddDialog(open);
+            }}>
                 <DialogContent className="sm:max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>{editingModel ? 'Edit Model' : 'Add New Model'}</DialogTitle>
@@ -327,7 +346,7 @@ export function ModelsTab() {
                                 <Input
                                     type="number"
                                     value={formMaxTokens}
-                                    onChange={(e) => setFormMaxTokens(parseInt(e.target.value))}
+                                    onChange={(e) => setFormMaxTokens(parseInt(e.target.value) || 0)}
                                 />
                                 <p className="mt-1 text-xs text-slate-500">Maksimum token yang dihasilkan</p>
                             </div>
@@ -339,7 +358,7 @@ export function ModelsTab() {
                                     min="0"
                                     max="2"
                                     value={formTemperature}
-                                    onChange={(e) => setFormTemperature(parseFloat(e.target.value))}
+                                    onChange={(e) => setFormTemperature(parseFloat(e.target.value) || 0)}
                                 />
                                 <p className="mt-1 text-xs text-slate-500">Kreativitas (0 = konsisten, 1 = kreatif)</p>
                             </div>

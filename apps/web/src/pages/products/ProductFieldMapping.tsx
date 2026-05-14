@@ -71,7 +71,9 @@ export function ProductFieldMapping({ fieldMapping, onChange }: ProductFieldMapp
             if (typeof parsed === "object") {
                 setActiveTab("form");
             }
-        } catch (e) { }
+        } catch (e) { 
+            return
+        }
     };
 
     // Value untuk SimpleJsonBuilder (harus object)

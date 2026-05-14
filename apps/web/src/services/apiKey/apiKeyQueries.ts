@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { APIKey, APIKeyDetail } from './types';
+import type { APIKey } from './types';
 
 // Get all API keys
 export async function getAPIKeys(): Promise<APIKey[]> {

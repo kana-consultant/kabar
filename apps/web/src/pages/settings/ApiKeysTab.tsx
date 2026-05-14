@@ -35,10 +35,6 @@ export function ApiKeysTab() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [selectedDeleteKey, setSelectedDeleteKey] = useState<APIKey | null>(null);
-
-    useEffect(() => { loadData(); }, []);
-
-    // ── logic (unchanged) ──────────────────────────────────────
     const loadData = async () => {
         setLoading(true);
         try {
@@ -51,6 +47,9 @@ export function ApiKeysTab() {
         } catch { toast.error('Gagal memuat data'); }
         finally { setLoading(false); }
     };
+    useEffect(() => { loadData(); }, []);
+
+    
 
     const openAddDialog = (service: 'text' | 'image') => {
         setDialogService(service); setEditingKey(null);

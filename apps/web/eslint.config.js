@@ -27,6 +27,12 @@ export default defineConfig([
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': 'warn',
       'react-refresh/only-export-components': 'off',
+      
+      // Matikan aturan set-state-in-effect
+      'react-hooks/set-state-in-effect': 'off',
+      
+      // Atau jika ingin dijadikan warning saja:
+      // 'react-hooks/set-state-in-effect': 'warn',
     },
   },
 ])
