@@ -8,5 +8,5 @@ import (
 
 type Route struct {
 	DB  *sql.DB
-	CHI *chi.Mux
+	CHI chi.Router
 }

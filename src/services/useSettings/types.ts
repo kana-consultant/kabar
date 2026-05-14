@@ -1,4 +1,4 @@
-import type { User, Team, UserRole } from "@/services/user";
+import type {UserRole } from "@/services/user";
 
 export type UserRoleType = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
 

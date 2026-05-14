@@ -8,8 +8,8 @@ import (
 	// Infrastructure
 	"seo-backend/internal/config"
 	"seo-backend/internal/helper"
-	"seo-backend/internal/middleware/auth"
 	"seo-backend/internal/pkg/jwt"
+	auth "seo-backend/internal/presentation/middleware"
 	"seo-backend/internal/scheduler"
 	services "seo-backend/internal/service"
 
@@ -88,19 +88,20 @@ func NewContainer(
 	authHandler.NewRoute(db, r, jwtGenerator).SetupRoute()
 
 	// Protected routes
-	r.Use(auth.JWTMiddleware(cfg))
+	r.Route("/api/", func(protected chi.Router) {
+		protected.Use(auth.JWTMiddleware(cfg))
 
-	dashboardHandler.NewRoute(db, r).SetupRoutes()
-	draftHandler.NewRoute(db, r, redisScheduler).SetupRoutes()
-	generateHandler.NewRoute(db, r).SetupRoutes()
-	historyHandler.NewHistoryRoute(db, r).SetupRoute()
-	productHandler.NewRoute(db, r).SetupRoutes()
-	providerHandler.NewRoute(db, r).SetupRoutes()
-	teamHandler.NewRoute(db, r, emailService).SetupRoutes()
-	userHandler.NewRoute(db, r).SetupRoutes()
-	apikeyHandler.NewRoute(db, r).SetupRoutes()
-	aimodelHandler.NewRoute(db, r).SetupRoute()
-	providerHandler.NewRoute(db, r).SetupRoutes()
+		dashboardHandler.NewRoute(db, protected).SetupRoutes()
+		draftHandler.NewRoute(db, protected, redisScheduler).SetupRoutes()
+		generateHandler.NewRoute(db, protected).SetupRoutes()
+		historyHandler.NewHistoryRoute(db, protected).SetupRoute()
+		productHandler.NewRoute(db, protected).SetupRoutes()
+		providerHandler.NewRoute(db, protected).SetupRoutes()
+		teamHandler.NewRoute(db, protected, emailService).SetupRoutes()
+		userHandler.NewRoute(db, protected).SetupRoutes()
+		apikeyHandler.NewRoute(db, protected).SetupRoutes()
+		aimodelHandler.NewRoute(db, protected).SetupRoute()
+	})
 
 	return &Container{
 		Router: r,

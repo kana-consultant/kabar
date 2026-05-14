@@ -9,13 +9,13 @@ export interface Draft {
     image_prompt?: string;
     status?: DraftStatus;
     scheduled_for?: string;
-    target_products: string[];
+    target_products?: string[];
     has_image?: boolean;
     created_by?: string;
     team_id?: string;
     user_id?: string;
-    created_at: string;
-    updated_at: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface CreateDraftRequest {
