@@ -18,22 +18,24 @@ type TeamInviteRepository interface {
 }
 
 // team/models.go
+// models.go
 type TeamInvite struct {
-	ID        string    `db:"id" json:"id"`
-	Email     string    `db:"email" json:"email"`
-	TeamID    string    `db:"team_id" json:"team_id"`
-	Role      string    `db:"role" json:"role"`
-	Token     string    `db:"token" json:"token"`
-	Status    string    `db:"status" json:"status"`
-	InvitedBy string    `db:"invited_by" json:"invited_by"`
-	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	ID        string         `db:"id" json:"id"`
+	Email     string         `db:"email" json:"email"`
+	TeamID    string         `db:"team_id" json:"team_id"`
+	TeamName  string         `db:"team_name" json:"team_name"` // Tambah field ini
+	Role      TeamMemberRole `db:"role" json:"role"`
+	Token     string         `db:"token" json:"token"`
+	Status    string         `db:"status" json:"status"`
+	InvitedBy string         `db:"invited_by" json:"invited_by"`
+	ExpiresAt time.Time      `db:"expires_at" json:"expires_at"`
+	CreatedAt time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time      `db:"updated_at" json:"updated_at"`
 }
 
 type InviteTeamMemberRequest struct {
-	Email string `json:"email" validate:"required,email"`
-	Role  string `json:"role" validate:"required,oneof=admin member viewer"`
+	Email string         `json:"email" validate:"required,email"`
+	Role  TeamMemberRole `json:"role" validate:"required,oneof=admin member viewer"`
 }
 
 const (

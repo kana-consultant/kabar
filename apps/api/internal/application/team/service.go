@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"seo-backend/internal/domain/team"
@@ -13,6 +14,7 @@ import (
 	services "seo-backend/internal/service"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type ServiceImpl struct {
@@ -68,10 +70,7 @@ func (s *ServiceImpl) GetAll(ctx context.Context, userCtx models.UserContext, fi
 
 // GetByID implements team.Service
 func (s *ServiceImpl) GetByID(ctx context.Context, id string, userCtx models.UserContext) (*team.Team, error) {
-	if err := s.authorizer.ValidateTeamAccess(id, userCtx); err != nil {
-		return nil, err
-	}
-
+	log.Printf("ID : , %v", id)
 	teamData, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -203,10 +202,10 @@ func (s *ServiceImpl) InviteMember(ctx context.Context, teamID string, req team.
 	}
 
 	// Check for existing pending invite
-	existingInvite, err := s.inviteRepo.GetPendingByEmailAndTeam(ctx, req.Email, teamID)
-	if err == nil && existingInvite != nil {
-		return nil, fmt.Errorf("pending invitation already exists for this email")
-	}
+	// existingInvite, err := s.inviteRepo.GetPendingByEmailAndTeam(ctx, req.Email, teamID)
+	// if err == nil && existingInvite != nil {
+	// 	return nil, fmt.Errorf("pending invitation already exists for this email")
+	// }
 
 	// Generate unique token
 	token := generateToken()
@@ -241,8 +240,185 @@ func (s *ServiceImpl) InviteMember(ctx context.Context, teamID string, req team.
 	return invite, nil
 }
 
-// AcceptInvite - menerima undangan (auto-join)
-func (s *ServiceImpl) AcceptInvite(ctx context.Context, token string, userCtx models.UserContext) (*team.Team, error) {
+// AcceptInvite - menerima undangan dan langsung menambahkan user ke team
+func (s *ServiceImpl) AcceptInvite(
+	ctx context.Context,
+	token string,
+	userCtx models.UserContext,
+) (*team.Team, error) {
+
+	log.Println("========== ACCEPT INVITE ==========")
+	log.Printf("Incoming Token : %s\n", token)
+	log.Printf("Requester User : %s\n", userCtx.GetUserID())
+
+	// Get invite by token
+	invite, err := s.inviteRepo.GetByToken(ctx, token)
+	if err != nil {
+		log.Printf("FAILED GET INVITE BY TOKEN: %v\n", err)
+		return nil, fmt.Errorf("invalid or expired invitation")
+	}
+
+	log.Println("SUCCESS GET INVITE")
+	log.Printf("Invite ID       : %s\n", invite.ID)
+	log.Printf("Invite Email    : %s\n", invite.Email)
+	log.Printf("Invite Team ID  : %s\n", invite.TeamID)
+	log.Printf("Invite Role     : %s\n", invite.Role)
+	log.Printf("Invite Status   : %s\n", invite.Status)
+	log.Printf("Invite Expires  : %v\n", invite.ExpiresAt)
+
+	// Check if invite is still pending
+	if invite.Status != team.InviteStatusPending {
+		log.Printf("INVITE INVALID STATUS: %s\n", invite.Status)
+		return nil, fmt.Errorf("invitation is no longer valid")
+	}
+
+	// Check if invite has expired
+	if time.Now().After(invite.ExpiresAt) {
+
+		log.Println("INVITATION EXPIRED")
+		log.Println("UPDATING STATUS TO EXPIRED")
+
+		_ = s.inviteRepo.UpdateStatus(
+			ctx,
+			invite.ID,
+			team.InviteStatusExpired,
+		)
+
+		return nil, fmt.Errorf("invitation has expired")
+	}
+
+	// Get existing user
+	log.Printf("CHECKING USER BY EMAIL: %s\n", invite.Email)
+
+	user, err := s.userRepo.GetByEmail(ctx, invite.Email)
+
+	log.Printf("USER RESULT : %+v\n", user)
+	log.Printf("USER ERROR  : %v\n", err)
+
+	// User not found -> create new user
+	if err == nil {
+
+		log.Println("USER NOT FOUND, CREATING NEW USER")
+
+		user, err = s.createUserFromInvite(ctx, invite, userCtx)
+		if err != nil {
+
+			log.Printf("FAILED CREATE USER: %v\n", err)
+
+			return nil, fmt.Errorf(
+				"failed to create user: %w",
+				err,
+			)
+		}
+
+		log.Println("SUCCESS CREATE USER")
+		log.Printf("NEW USER ID : %s\n", user.ID)
+	}
+
+	// Check existing membership
+	log.Println("CHECKING MEMBER EXISTENCE")
+
+	exists, err := s.memberRepo.Exists(
+		ctx,
+		nil,
+		invite.TeamID,
+		user.ID,
+	)
+
+	if err != nil {
+
+		log.Printf("FAILED CHECK MEMBER EXISTENCE: %v\n", err)
+
+		return nil, fmt.Errorf(
+			"failed to check membership: %w",
+			err,
+		)
+	}
+
+	log.Printf("MEMBER EXISTS : %v\n", exists)
+
+	if exists {
+
+		log.Println("USER ALREADY MEMBER")
+		log.Println("UPDATING INVITE STATUS TO ACCEPTED")
+
+		_ = s.inviteRepo.UpdateStatus(
+			ctx,
+			invite.ID,
+			team.InviteStatusAccepted,
+		)
+
+		log.Println("FETCHING TEAM DETAIL")
+
+		return s.GetByID(ctx, invite.TeamID, userCtx)
+	}
+
+	// Add member
+	role := invite.Role
+
+	log.Println("ADDING MEMBER TO TEAM")
+	log.Printf("TEAM ID : %s\n", invite.TeamID)
+	log.Printf("USER ID : %s\n", user.ID)
+	log.Printf("ROLE    : %s\n", role)
+
+	err = s.memberRepo.Add(
+		ctx,
+		nil,
+		invite.TeamID,
+		user.ID,
+		role,
+	)
+
+	if err != nil {
+
+		log.Printf("FAILED ADD MEMBER: %v\n", err)
+
+		return nil, fmt.Errorf(
+			"failed to add member to team: %w",
+			err,
+		)
+	}
+
+	log.Println("SUCCESS ADD MEMBER")
+
+	// Update invite status
+	log.Println("UPDATING INVITE STATUS TO ACCEPTED")
+
+	err = s.inviteRepo.UpdateStatus(
+		ctx,
+		invite.ID,
+		team.InviteStatusAccepted,
+	)
+
+	if err != nil {
+
+		log.Printf(
+			"WARNING FAILED UPDATE INVITE STATUS: %v\n",
+			err,
+		)
+
+	} else {
+
+		log.Println("SUCCESS UPDATE INVITE STATUS")
+	}
+
+	log.Println("FETCHING FINAL TEAM DETAIL")
+
+	data, err := s.GetByID(ctx, invite.TeamID, userCtx)
+	if err != nil {
+
+		log.Printf("FAILED GET TEAM DETAIL: %v\n", err)
+
+		return nil, err
+	}
+
+	log.Println("========== ACCEPT INVITE SUCCESS ==========")
+
+	return data, nil
+}
+
+// VerificationInvite - hanya verifikasi token tanpa auto-join (untuk cek validitas)
+func (s *ServiceImpl) VerificationInvite(ctx context.Context, token string) (*team.TeamInvite, error) {
 	// Get invite by token
 	invite, err := s.inviteRepo.GetByToken(ctx, token)
 	if err != nil {
@@ -261,45 +437,92 @@ func (s *ServiceImpl) AcceptInvite(ctx context.Context, token string, userCtx mo
 		return nil, fmt.Errorf("invitation has expired")
 	}
 
-	// Get current user
-	user, err := s.userRepo.GetByID(ctx, userCtx.GetUserID())
-	if err != nil {
-		return nil, fmt.Errorf("user not found")
-	}
-
-	// Verify email matches (optional security check)
-	if user.Email != invite.Email {
-		return nil, fmt.Errorf("this invitation was sent to a different email address")
-	}
-
-	// Check if user is already a member
-	exists, err := s.memberRepo.Exists(ctx, nil, invite.TeamID, userCtx.GetUserID())
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return nil, fmt.Errorf("you are already a member of this team")
-	}
-
-	// Add user to team
-	if err := s.memberRepo.Add(ctx, nil, invite.TeamID, userCtx.GetUserID(), team.TeamMemberRole(invite.Role)); err != nil {
-		return nil, fmt.Errorf("failed to add member to team: %w", err)
-	}
-
-	// Update invite status to accepted
-	if err := s.inviteRepo.UpdateStatus(ctx, invite.ID, team.InviteStatusAccepted); err != nil {
-		// Log but don't fail, the member was already added
-		fmt.Printf("Failed to update invite status: %v\n", err)
-	}
-
-	// Get the team
-	team, err := s.GetByID(ctx, invite.TeamID, userCtx)
-	if err != nil {
-		return nil, err
-	}
-
-	return team, nil
+	return invite, nil
 }
+
+// Helper function to create user from invite
+func (s *ServiceImpl) createUserFromInvite(
+	ctx context.Context,
+	invite *team.TeamInvite,
+	userCtx models.UserContext,
+) (*models.User, error) {
+
+	log.Println("========== CREATE USER FROM INVITE ==========")
+	log.Printf("Invite Email      : %s\n", invite.Email)
+	log.Printf("Invite Team ID    : %s\n", invite.TeamID)
+	log.Printf("Invite Role       : %s\n", invite.Role)
+	log.Printf("Invite Token      : %s\n", invite.Token)
+	log.Printf("Triggered By User : %s\n", userCtx.GetUserID())
+
+	// Generate password
+	tempPassword := generateRandomPassword()
+
+	log.Printf("Generated Temp Password : %s\n", tempPassword)
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(tempPassword),
+		bcrypt.DefaultCost,
+	)
+
+	if err != nil {
+		log.Printf("FAILED HASH PASSWORD: %v\n", err)
+		return nil, err
+	}
+
+	log.Println("Password hashing success")
+
+	user := &user.CreateUserRequest{
+		Email:    invite.Email,
+		Password: tempPassword,
+		Name:     extractNameFromEmail(invite.Email),
+	}
+
+	log.Println("Prepared create user payload")
+	log.Printf("User Email : %s\n", user.Email)
+	log.Printf("User Name  : %s\n", user.Name)
+
+	data, err := s.userRepo.Create(ctx, *user, hashedPassword)
+	if err != nil {
+		log.Printf("FAILED CREATE USER: %v\n", err)
+		return nil, err
+	}
+
+	log.Println("SUCCESS CREATE USER")
+	log.Printf("Created User ID : %s\n", data.ID)
+
+	err = s.emailService.SendWelcomeEmail(
+		ctx,
+		invite.Email,
+		tempPassword,
+	)
+
+	if err != nil {
+		log.Printf("FAILED SEND WELCOME EMAIL: %v\n", err)
+	} else {
+		log.Println("SUCCESS SEND WELCOME EMAIL")
+	}
+
+	log.Println("========== FINISH CREATE USER FROM INVITE ==========")
+
+	return data, nil
+}
+
+// Helper functions
+func generateRandomPassword() string {
+	// Generate random 12 character password
+	const charset = "newmember"
+	return string(charset)
+}
+
+func extractNameFromEmail(email string) string {
+	parts := strings.Split(email, "@")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return ""
+}
+
+// AcceptInvite - menerima undangan (auto-join)
 
 // CancelInvite - membatalkan undangan
 func (s *ServiceImpl) CancelInvite(ctx context.Context, inviteID string, userCtx models.UserContext) error {

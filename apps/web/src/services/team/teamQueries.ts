@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { Team } from './types';
+import type { Team, TeamInvite, VerifyInviteResponse } from './types';
 
 // Get all teams
 export async function getTeams(): Promise<Team[]> {
@@ -10,3 +10,13 @@ export async function getTeams(): Promise<Team[]> {
 export async function getTeamById(id: string): Promise<Team> {
     return apiClient.get(`/teams/${id}`);
 }
+
+export async function acceptInvite(token: string): Promise<TeamInvite> {
+    const response = await apiClient.get(`/accept-invite/${token}`);
+    return response as TeamInvite;
+}
+// Verify invite token before showing form
+export const verifyInviteToken = async (token: string): Promise<VerifyInviteResponse> => {
+    const response =  await apiClient.get(`/verify-invite/${token}`);
+    return response as VerifyInviteResponse
+};

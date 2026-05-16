@@ -131,7 +131,7 @@ func (h *TeamHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	teamData, err := h.teamService.GetByID(ctx, id, userCtx)
 	if err != nil {
-		log.Printf("Failed to fetch team: %v", err)
+		log.Printf("Failed to fetch team=======================: %v", err)
 		if err.Error() == "access denied" {
 			h.writeError(w, "Forbidden", http.StatusForbidden)
 		} else {
@@ -354,15 +354,46 @@ func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handler untuk accept invite
-func (h *TeamHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
+func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
+
+	log.Printf("TOKEN ====== %v", token)
+
+	isTrue, err := h.teamService.VerificationInvite(r.Context(), token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	json.NewEncoder(w).Encode(isTrue)
+}
+
+// AcceptInvite - handler untuk menerima undangan (auto-join)
+func (h *TeamHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
+	// Ambil token dari query parameter (bukan dari URL param)
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		http.Error(w, "Token is required", http.StatusBadRequest)
+		return
+	}
+
+	// Ambil user context dari request (optional, bisa kosong untuk user baru)
 	userCtx := helper.GetUserContext(r)
 
+	// Proses accept invite
 	team, err := h.teamService.AcceptInvite(r.Context(), token, userCtx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	json.NewEncoder(w).Encode(team)
+	// Return response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Successfully joined team",
+		"teamId":  team.ID,
+		"team":    team,
+	})
 }
