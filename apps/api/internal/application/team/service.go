@@ -227,14 +227,15 @@ func (s *ServiceImpl) InviteMember(ctx context.Context, teamID string, req team.
 		UpdatedAt: time.Now(),
 	}
 
-	if err := s.inviteRepo.Create(ctx, invite); err != nil {
-		return nil, fmt.Errorf("failed to create invitation: %w", err)
-	}
-
 	// Send invitation email
 	if err := s.emailService.SendInvitation(ctx, req.Email, token, teamID); err != nil {
 		// Log error but don't fail the request
-		fmt.Printf("Failed to send invitation email: %v\n", err)
+		return nil, fmt.Errorf("Failed to send invitation email: %v\n", err)
+
+	}
+
+	if err := s.inviteRepo.Create(ctx, invite); err != nil {
+		return nil, fmt.Errorf("failed to create invitation: %w", err)
 	}
 
 	return invite, nil
@@ -243,16 +244,16 @@ func (s *ServiceImpl) InviteMember(ctx context.Context, teamID string, req team.
 // AcceptInvite - menerima undangan dan langsung menambahkan user ke team
 func (s *ServiceImpl) AcceptInvite(
 	ctx context.Context,
-	token string,
 	userCtx models.UserContext,
+	req team.UserInvitedCreate,
 ) (*team.Team, error) {
 
 	log.Println("========== ACCEPT INVITE ==========")
-	log.Printf("Incoming Token : %s\n", token)
+	log.Printf("Incoming Token : %s\n", req.Token)
 	log.Printf("Requester User : %s\n", userCtx.GetUserID())
 
 	// Get invite by token
-	invite, err := s.inviteRepo.GetByToken(ctx, token)
+	invite, err := s.inviteRepo.GetByToken(ctx, req.Token)
 	if err != nil {
 		log.Printf("FAILED GET INVITE BY TOKEN: %v\n", err)
 		return nil, fmt.Errorf("invalid or expired invitation")
@@ -300,7 +301,7 @@ func (s *ServiceImpl) AcceptInvite(
 
 		log.Println("USER NOT FOUND, CREATING NEW USER")
 
-		user, err = s.createUserFromInvite(ctx, invite, userCtx)
+		user, err = s.createUserFromInvite(ctx, invite, userCtx, req)
 		if err != nil {
 
 			log.Printf("FAILED CREATE USER: %v\n", err)
@@ -445,6 +446,7 @@ func (s *ServiceImpl) createUserFromInvite(
 	ctx context.Context,
 	invite *team.TeamInvite,
 	userCtx models.UserContext,
+	req team.UserInvitedCreate,
 ) (*models.User, error) {
 
 	log.Println("========== CREATE USER FROM INVITE ==========")
@@ -454,13 +456,8 @@ func (s *ServiceImpl) createUserFromInvite(
 	log.Printf("Invite Token      : %s\n", invite.Token)
 	log.Printf("Triggered By User : %s\n", userCtx.GetUserID())
 
-	// Generate password
-	tempPassword := generateRandomPassword()
-
-	log.Printf("Generated Temp Password : %s\n", tempPassword)
-
 	hashedPassword, err := bcrypt.GenerateFromPassword(
-		[]byte(tempPassword),
+		[]byte(req.Password),
 		bcrypt.DefaultCost,
 	)
 
@@ -473,7 +470,7 @@ func (s *ServiceImpl) createUserFromInvite(
 
 	user := &user.CreateUserRequest{
 		Email:    invite.Email,
-		Password: tempPassword,
+		Password: req.Password,
 		Name:     extractNameFromEmail(invite.Email),
 	}
 
@@ -493,7 +490,7 @@ func (s *ServiceImpl) createUserFromInvite(
 	err = s.emailService.SendWelcomeEmail(
 		ctx,
 		invite.Email,
-		tempPassword,
+		req.Password,
 	)
 
 	if err != nil {

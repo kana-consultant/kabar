@@ -371,17 +371,17 @@ func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request)
 // AcceptInvite - handler untuk menerima undangan (auto-join)
 func (h *TeamHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	// Ambil token dari query parameter (bukan dari URL param)
-	token := chi.URLParam(r, "token")
-	if token == "" {
-		http.Error(w, "Token is required", http.StatusBadRequest)
+
+	var req team.UserInvitedCreate
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeError(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-
 	// Ambil user context dari request (optional, bisa kosong untuk user baru)
 	userCtx := helper.GetUserContext(r)
 
 	// Proses accept invite
-	team, err := h.teamService.AcceptInvite(r.Context(), token, userCtx)
+	team, err := h.teamService.AcceptInvite(r.Context(), userCtx, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

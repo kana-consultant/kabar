@@ -45,7 +45,7 @@ export default function InvitePage() {
                 setShowPasswordForm(true);
             } else {
                 // User sudah login, langsung accept
-                await acceptInviteAndRedirect(token);
+                await acceptInviteAndRedirect(token, "newmember");
             }
         } catch (err: any) {
             setError(err?.message || "Failed to verify invitation");
@@ -56,12 +56,15 @@ export default function InvitePage() {
     };
 
     // Step 2: Accept invite and redirect
-    const acceptInviteAndRedirect = async (token: string) => {
+    const acceptInviteAndRedirect = async (token: string,password : string | null) => {
         setIsSubmitting(true);
         try {
-            const response = await acceptInvite(token);
-
-            setIsAccepted(true);
+            const response = await acceptInvite(fullName,token, password as string);
+            if(response){
+                setIsAccepted(true);
+                return true
+            }
+            
             // Redirect after 2 seconds
             setTimeout(() => {
                 navigate({
@@ -96,12 +99,13 @@ export default function InvitePage() {
             return;
         }
 
-        await acceptInviteAndRedirect(token);
+        await acceptInviteAndRedirect(token,password);
+       
     };
 
     // Handle langsung accept (untuk user yang sudah login)
     const handleAccept = async () => {
-        await acceptInviteAndRedirect(token);
+        await acceptInviteAndRedirect(token,"newmember");
     };
 
     useEffect(() => {

@@ -82,7 +82,7 @@ func (h *Route) SetupPublicRoutes() chi.Router {
 		public.Get("/api/verify-invite/{token}", h.TeamHandler.VerificationInvite)
 
 		// Endpoint untuk accept invite dari email (tanpa JWT)
-		public.Get("/api/accept-invite/{token}", h.TeamHandler.AcceptInvite)
+		public.Post("/api/accept-invite", h.TeamHandler.AcceptInvite)
 	})
 	return r
 }

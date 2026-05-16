@@ -24,7 +24,7 @@ type Service interface {
 	GetUserTeams(ctx context.Context, userID string) ([]Team, error)
 	InviteMember(ctx context.Context, teamID string, req InviteTeamMemberRequest, userCtx models.UserContext) (*TeamInvite, error)
 	VerificationInvite(ctx context.Context, token string) (*TeamInvite, error)
-	AcceptInvite(ctx context.Context, token string, userCtx models.UserContext) (*Team, error)
+	AcceptInvite(ctx context.Context, userCtx models.UserContext, req UserInvitedCreate) (*Team, error)
 }
 
 type Authorizer interface {
