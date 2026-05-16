@@ -41,9 +41,6 @@ interface UsersTabProps {
     currentUserId?: string;
     canManage: boolean;
     isAdmin: boolean;
-    roleOptions: { value: UserRoleType; label: string }[];
-    getAvailableRoles: () => UserRoleType[];
-    getRoleDisplayName: (role: UserRoleType) => string;
     onAddUser: () => void;
     onEditUser: (user: User) => void;
     onDeleteUser: (id: string, name: string) => void;
@@ -54,9 +51,6 @@ export function UsersTab({
     currentUserId, 
     canManage,
     isAdmin,
-    roleOptions,
-    getAvailableRoles,
-    getRoleDisplayName,
     onAddUser, 
     onEditUser, 
     onDeleteUser 

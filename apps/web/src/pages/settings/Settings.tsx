@@ -17,7 +17,6 @@ export default function Settings() {
         isAdmin,
         roleOptions,
         getAvailableRoles,
-        getRoleDisplayName,
         showAddUserDialog,
         setShowAddUserDialog,
         showEditUserDialog,
@@ -33,27 +32,6 @@ export default function Settings() {
         handleAddUser,
         handleUpdateUser,
         handleDeleteUser,
-        showAddTeamDialog,
-        setShowAddTeamDialog,
-        showEditTeamDialog,
-        setShowEditTeamDialog,
-        showAddMemberDialog,
-        setShowAddMemberDialog,
-        selectedTeam,
-        setSelectedTeam,
-        newTeamName,
-        setNewTeamName,
-        newTeamDesc,
-        setNewTeamDesc,
-        newMemberEmail,
-        setNewMemberEmail,
-        newMemberRole,
-        setNewMemberRole,
-        handleAddTeam,
-        handleUpdateTeam,
-        handleDeleteTeam,
-        handleAddMember,
-        handleRemoveMember,
         isAddingUser, 
     } = useSettings();
 
@@ -86,9 +64,6 @@ export default function Settings() {
                         currentUserId={currentUser?.id}
                         canManage={canManageUsers as any}
                         isAdmin={isAdmin}
-                        roleOptions={roleOptions}
-                        getAvailableRoles={getAvailableRoles}
-                        getRoleDisplayName={getRoleDisplayName}
                         onAddUser={() => setShowAddUserDialog(true)}
                         onEditUser={(user) => {
                             setSelectedUser(user);
