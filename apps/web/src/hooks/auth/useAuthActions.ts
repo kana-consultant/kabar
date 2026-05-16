@@ -40,8 +40,8 @@ export function useAuthActions({
             setUser(response.user);
             setRole(response.user.role);
             setTeamId(response.teamId || null);
-            setIsAdmin(response.user.role === 'admin' || response.user.role === 'super_admin');
-            setIsSuperAdmin(response.user.role === 'super_admin');
+            setIsAdmin(response.user.role === 'admin');
+            // setIsSuperAdmin(response.user.role === 'super_admin');
             
             toast.success('Login berhasil!', {
                 description: `Selamat datang, ${response.user.name}!`,

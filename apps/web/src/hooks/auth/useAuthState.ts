@@ -28,7 +28,7 @@ export function useAuthState() {
             ]);
             
             setUser(currentUser);
-            setToken(currentToken);
+            setToken(currentToken as string);
             setRole(currentRole);
             setTeamId(currentTeamId);
             setIsAdmin(isAdmin);
@@ -43,8 +43,7 @@ export function useAuthState() {
     const updateUserState = useCallback((updatedUser: User) => {
         setUser(updatedUser);
         setRole(updatedUser.role);
-        setIsAdmin(updatedUser.role === 'admin' || updatedUser.role === 'super_admin');
-        setIsSuperAdmin(updatedUser.role === 'super_admin');
+        setIsAdmin(updatedUser.role === 'admin')
     }, []);
 
     const clearUserState = useCallback(() => {
