@@ -1,8 +1,9 @@
+import { type UserRoleType } from "@/services/useSettings/types";
 export interface User {
     id: string;
     email: string;
     name: string;
-    role: 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
+    role: UserRoleType
     avatar?: string;
     status: 'active' | 'inactive' | 'suspended';
     emailVerified: boolean;

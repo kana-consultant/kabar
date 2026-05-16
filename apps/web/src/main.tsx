@@ -27,6 +27,7 @@ import Drafts from './pages/draft/Drafts'
 import Schedule from './pages/schedule/Schedule';
 import Login from './pages/Login'
 import Register from './pages/Register'
+import InvitePage from "./pages/Invite";
 
 import { Outlet } from '@tanstack/react-router';
 
@@ -54,6 +55,12 @@ const registerRoute = createRoute({
   component: Register,
 })
 
+const inviteRoute = createRoute({
+  getParentRoute: () => authLayoutRoute,
+  path: '/invite',
+  component: InvitePage,
+})
+
 // 3. Buat protected routes (pakai Layout dengan sidebar)
 const protectedLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -63,7 +70,7 @@ const protectedLayoutRoute = createRoute({
 
 const indexRoute = createRoute({
   getParentRoute: () => protectedLayoutRoute,
-  path: '/',
+  path: '/dashboard',
   component: Dashboard,
 })
 
@@ -115,6 +122,8 @@ const scheduleRoute = createRoute({
   component: Schedule,
 })
 
+
+
 // 4. Gabungkan semua route
 const routeTree = rootRoute.addChildren([
   authLayoutRoute.addChildren([loginRoute, registerRoute]),
@@ -128,6 +137,7 @@ const routeTree = rootRoute.addChildren([
     draftsRoute,
     settingsRoute,
     scheduleRoute,
+    inviteRoute
   ]),
 ])
 

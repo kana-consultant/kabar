@@ -88,7 +88,7 @@ func (s *SMTPEmailService) SendEmail(ctx context.Context, to, subject, body stri
 
 // SendInvitation - send team invitation email
 func (s *SMTPEmailService) SendInvitation(ctx context.Context, toEmail, token, teamID string) error {
-	inviteLink := fmt.Sprintf("%s/accept-invite?token=%s", getAppBaseURL(), token)
+	inviteLink := fmt.Sprintf("%s/invite/?token=%s", getAppBaseURL(), token)
 
 	subject := "Team Invitation"
 

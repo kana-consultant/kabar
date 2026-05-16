@@ -29,10 +29,10 @@ export function getUserRoleDisplayName(): string {
 }
 
 // Get team ID from cookie
-export function getTeamId(): string | null {
-    return Cookies.get('team_id') || null;
+export function getTeamId(): string {
+    const user = getUserFromCookie();
+    return user?.team_id || 'Viewer';
 }
-
 // Check if user is super admin
 export function isSuperAdmin(): boolean {
     const roleName = getUserRoleName();
