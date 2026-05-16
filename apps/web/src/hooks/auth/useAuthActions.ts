@@ -46,11 +46,66 @@ export function useAuthActions({
 
             toast.success('Login berhasil!', {
                 description: `Selamat datang, ${response.user.name}!`,
+                duration: 3000,
             });
+            
             return true;
         } catch (error: any) {
+            const status = error.response?.status;
             const message = error.response?.data?.message || error.message || 'Login gagal';
-            toast.error('Login gagal', { description: message });
+
+            // Handle berdasarkan status code
+            switch (status) {
+                case 400:
+                    toast.error('Login gagal', {
+                        description: 'Format email atau password tidak valid.',
+                        duration: 4500,
+                    });
+                    break;
+                case 403:
+                    toast.error('Login gagal', {
+                        description: 'Email atau password yang Anda masukkan tidak sesuai.',
+                        duration: 4500,
+                    });
+                    break;
+                case 401:
+                    toast.error('Akses ditolak', {
+                        description: message || 'Anda tidak memiliki akses untuk login.',
+                        duration: 4500,
+                    });
+                    break;
+                case 404:
+                    toast.error('Login gagal', {
+                        description: 'Akun tidak ditemukan.',
+                        duration: 4500,
+                    });
+                    break;
+                case 422:
+                    toast.error('Validasi gagal', {
+                        description: message || 'Silakan periksa kembali email dan password Anda.',
+                        duration: 4500,
+                    });
+                    break;
+                case 429:
+                    toast.error('Terlalu banyak percobaan', {
+                        description: 'Silakan coba lagi setelah beberapa saat.',
+                        duration: 5000,
+                    });
+                    break;
+                case 500:
+                    toast.error('Server error', {
+                        description: 'Terjadi kesalahan pada server. Silakan coba lagi nanti.',
+                        duration: 5000,
+                    });
+                    break;
+                default:
+                    toast.error('Login gagal', {
+                        description: message,
+                        duration: 4500,
+                    });
+                    break;
+            }
+
             return false;
         } finally {
             setIsLoading(false);
