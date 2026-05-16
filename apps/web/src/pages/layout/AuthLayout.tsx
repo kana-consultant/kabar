@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hasToken } from '@/services/auth';
 
 // Public routes yang bisa diakses tanpa login
-const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
+const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password','/invite'];
 
 export function AuthLayout() {
     const navigate = useNavigate();
@@ -20,7 +20,7 @@ export function AuthLayout() {
         const isPublicRoute = PUBLIC_ROUTES.some(route => currentPath.startsWith(route));
 
         // Jika tidak login dan bukan di public route, redirect ke login
-        if (!hasToken()) {
+        if (hasToken() && isPublicRoute) {
             navigate({
                 to: '/login',
                 replace: true,

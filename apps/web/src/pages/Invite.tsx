@@ -144,7 +144,7 @@ export default function InvitePage() {
                         </CardDescription>
                     </CardHeader>
                     <CardFooter className="flex justify-center">
-                        <Button onClick={() => navigate({ to: "/" })}>
+                        <Button onClick={() => navigate({ to: "/login" })}>
                             Go to Home
                         </Button>
                     </CardFooter>

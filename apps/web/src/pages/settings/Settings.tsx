@@ -57,10 +57,6 @@ export default function Settings() {
         isAddingUser, 
     } = useSettings();
 
-    
-
-   
-
     // Tampilkan loading
     if (loading) {
         return <LoadingSettings />;
