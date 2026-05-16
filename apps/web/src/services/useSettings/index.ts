@@ -4,11 +4,15 @@ import { useSettingsPermissions } from "./useSettingsPermissions";
 import { useSettingsUserActions } from "./useSettingsUserActions";
 import { useSettingsTeamActions } from "./useSettingsTeamActions";
 import { useSettingsMemberActions } from "./useSettingsMemberActions";
-import { 
-    getRoleDisplayName, 
-    roleOptions, 
-    getAvailableRoles, 
+import {
+    getRoleDisplayName,
+    roleOptions,
+    getAvailableRoles,
 } from "./useSettingsHelpers";
+import { addTeamMember } from "../team";
+import { getTeamId } from "../user";
+import { type AddTeamMemberRequest } from "../team";
+import { toast } from "sonner";
 
 export function useSettings() {
     const {
@@ -30,7 +34,9 @@ export function useSettings() {
         newTeamDesc, setNewTeamDesc,
         newMemberEmail, setNewMemberEmail,
         newMemberRole, setNewMemberRole,
+        isAddingUser, setIsAddingUser
     } = useSettingsState();
+  
 
     const { loadData } = useSettingsData(
         setUsers, setTeams, setCurrentUser, setLoading
@@ -39,7 +45,7 @@ export function useSettings() {
 
     const { canManageUsers, canManageTeams, isSuperAdmin, isAdmin } = useSettingsPermissions(currentUser);
 
-    const { handleAddUser, handleUpdateUser, handleDeleteUser } = useSettingsUserActions(
+    const { handleUpdateUser, handleDeleteUser } = useSettingsUserActions(
         loadData, currentUser, users, isSuperAdmin
     );
 
@@ -59,7 +65,7 @@ export function useSettings() {
         isSuperAdmin,
         isAdmin,
         roleOptions,
-        getAvailableRoles: () => getAvailableRoles(currentUser, isSuperAdmin, isAdmin),
+        getAvailableRoles: () => getAvailableRoles(currentUser, isAdmin),
         getRoleDisplayName,
         showAddUserDialog,
         setShowAddUserDialog,
@@ -89,10 +95,35 @@ export function useSettings() {
         setNewMemberEmail,
         newMemberRole,
         setNewMemberRole,
-        handleAddUser: () => handleAddUser(
-            newUserName, newUserEmail, newUserRole,
-            setShowAddUserDialog, setNewUserName, setNewUserEmail, setNewUserRole
-        ),
+        isAddingUser, 
+        setIsAddingUser,
+        handleAddUser: async () => {
+            try {
+                setIsAddingUser(true);
+
+                const userTeam: AddTeamMemberRequest = {
+                    Email: newUserEmail,
+                    role: newUserRole
+                };
+
+                await addTeamMember(getTeamId(), userTeam);
+
+                // Success toast
+                toast.success(`User ${newUserEmail} has been added as ${newUserRole}`);
+                setNewUserEmail("");
+                setNewUserRole("viewer");
+                setNewUserName("")
+                setIsAddingUser(false);
+
+            } catch (error: any) {
+                console.error("Error adding user:", error);
+
+                // Error toast
+                toast.error(error?.message || "Failed to add user to team. Please try again.")
+            }finally{
+                 setIsAddingUser(false);
+            }
+        },
         handleUpdateUser: () => handleUpdateUser(selectedUser, setShowEditUserDialog, setSelectedUser),
         handleDeleteUser,
         handleAddTeam: () => handleAddTeam(

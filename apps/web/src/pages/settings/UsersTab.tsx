@@ -2,30 +2,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus, Edit2, Trash2, Shield, UserCog, Eye, Pencil } from "lucide-react";
 import type { User } from "@/services/user";
-
-type UserRoleType = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
+import { type UserRoleType } from "@/services/useSettings/types";
 
 const roleLabels: Record<UserRoleType, string> = {
-    super_admin: "Super Admin",
     admin: "Administrator",
-    manager: "Manager",
-    editor: "Editor",
+    owner: "Manager",
+    member: "Editor",
     viewer: "Viewer",
 };
 
 const roleColors: Record<UserRoleType, string> = {
-    super_admin: "text-purple-600 bg-purple-50 dark:bg-purple-950",
     admin: "text-red-600 bg-red-50 dark:bg-red-950",
-    manager: "text-blue-600 bg-blue-50 dark:bg-blue-950",
-    editor: "text-green-600 bg-green-50 dark:bg-green-950",
+    owner: "text-blue-600 bg-blue-50 dark:bg-blue-950",
+    member: "text-green-600 bg-green-50 dark:bg-green-950",
     viewer: "text-gray-600 bg-gray-50 dark:bg-gray-950",
 };
 
 const roleIcons: Record<UserRoleType, React.ElementType> = {
-    super_admin: Shield,
     admin: Shield,
-    manager: UserCog,
-    editor: Pencil,
+    owner: UserCog,
+    member: Pencil,
     viewer: Eye,
 };
 
@@ -33,7 +29,6 @@ interface UsersTabProps {
     users: User[];
     currentUserId?: string;
     canManage: boolean;
-    isSuperAdmin: boolean;
     isAdmin: boolean;
     roleOptions: { value: UserRoleType; label: string }[];
     getAvailableRoles: () => UserRoleType[];
@@ -47,7 +42,6 @@ export function UsersTab({
     users, 
     currentUserId, 
     canManage,
-    isSuperAdmin,
     isAdmin,
     onAddUser, 
     onEditUser, 
@@ -56,12 +50,9 @@ export function UsersTab({
     
     // Filter users based on permission
     const getVisibleUsers = () => {
-        if (isSuperAdmin) {
-            return users;
-        }
         if (isAdmin) {
             // Admin can see all except super_admin
-            return users.filter(u => u.role !== 'super_admin');
+            return users.filter(u => u.role !== 'admin');
         }
         return users;
     };
@@ -71,16 +62,14 @@ export function UsersTab({
     // Check if user can be edited
     const canEditUser = (user: User) => {
         if (user.id === currentUserId) return true;
-        if (user.role === 'super_admin' && !isSuperAdmin) return false;
-        if (user.role === 'admin' && !isSuperAdmin && !isAdmin) return false;
+        if (user.role === 'admin' && !isAdmin) return false;
         return canManage;
     };
 
     // Check if user can be deleted
     const canDeleteUser = (user: User) => {
         if (user.id === currentUserId) return false;
-        if (user.role === 'super_admin' && !isSuperAdmin) return false;
-        if (user.role === 'admin' && !isSuperAdmin && !isAdmin) return false;
+        if (user.role === 'admin') return false;
         return canManage;
     };
 

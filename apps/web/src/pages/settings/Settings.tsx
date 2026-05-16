@@ -14,7 +14,6 @@ export default function Settings() {
         users,
         loading,
         canManageUsers,
-        isSuperAdmin,
         isAdmin,
         roleOptions,
         getAvailableRoles,
@@ -23,22 +22,25 @@ export default function Settings() {
         setShowAddUserDialog,
         showEditUserDialog,
         setShowEditUserDialog,
-        showAddTeamDialog,
-        setShowAddTeamDialog,
-        showEditTeamDialog,
-        setShowEditTeamDialog,
-        showAddMemberDialog,
-        setShowAddMemberDialog,
         selectedUser,
         setSelectedUser,
-        selectedTeam,
-        setSelectedTeam,
         newUserName,
         setNewUserName,
         newUserEmail,
         setNewUserEmail,
         newUserRole,
         setNewUserRole,
+        handleAddUser,
+        handleUpdateUser,
+        handleDeleteUser,
+        showAddTeamDialog,
+        setShowAddTeamDialog,
+        showEditTeamDialog,
+        setShowEditTeamDialog,
+        showAddMemberDialog,
+        setShowAddMemberDialog,
+        selectedTeam,
+        setSelectedTeam,
         newTeamName,
         setNewTeamName,
         newTeamDesc,
@@ -47,15 +49,17 @@ export default function Settings() {
         setNewMemberEmail,
         newMemberRole,
         setNewMemberRole,
-        handleAddUser,
-        handleUpdateUser,
-        handleDeleteUser,
         handleAddTeam,
         handleUpdateTeam,
         handleDeleteTeam,
         handleAddMember,
         handleRemoveMember,
+        isAddingUser, 
     } = useSettings();
+
+    
+
+   
 
     // Tampilkan loading
     if (loading) {
@@ -85,7 +89,6 @@ export default function Settings() {
                         users={users}
                         currentUserId={currentUser?.id}
                         canManage={canManageUsers as any}
-                        isSuperAdmin={isSuperAdmin}
                         isAdmin={isAdmin}
                         roleOptions={roleOptions}
                         getAvailableRoles={getAvailableRoles}
@@ -117,6 +120,8 @@ export default function Settings() {
                 roleOptions={roleOptions}
                 onAdd={handleAddUser}
                 isAdmin={isAdmin}
+                isLoading={isAddingUser}
+
             />
 
             <EditUserDialog

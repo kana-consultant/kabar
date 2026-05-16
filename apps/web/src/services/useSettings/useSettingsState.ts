@@ -7,7 +7,8 @@ export function useSettingsState() {
     const [users, setUsers] = useState<User[]>([]);
     const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
-    
+    const [isAddingUser, setIsAddingUser] = useState(false);
+
     // Dialog states
     const [showAddUserDialog, setShowAddUserDialog] = useState(false);
     const [showEditUserDialog, setShowEditUserDialog] = useState(false);
@@ -16,10 +17,10 @@ export function useSettingsState() {
     const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-    
+
     // Form states
     const [newUserName, setNewUserName] = useState("");
-    const [newUserEmail, setNewUserEmail] = useState("");
+    const [newUserEmail, setNewUserEmail] = useState<string>("");
     const [newUserRole, setNewUserRole] = useState<UserRoleType>("viewer");
     const [newTeamName, setNewTeamName] = useState("");
     const [newTeamDesc, setNewTeamDesc] = useState("");
@@ -45,5 +46,6 @@ export function useSettingsState() {
         newTeamDesc, setNewTeamDesc,
         newMemberEmail, setNewMemberEmail,
         newMemberRole, setNewMemberRole,
+        isAddingUser, setIsAddingUser
     };
 }

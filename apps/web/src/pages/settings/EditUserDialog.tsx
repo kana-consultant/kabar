@@ -4,8 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { User } from "@/services/user";
-
-type UserRoleType = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
+import { type UserRoleType } from "@/services/useSettings/types";
 
 interface EditUserDialogProps {
     open: boolean;
@@ -37,7 +36,7 @@ export function EditUserDialog({
     const isValid = user.name.trim() !== "" && isValidEmail;
 
     // Cek apakah user bisa diubah role nya (super_admin hanya bisa diubah oleh super_admin lain)
-    const canChangeRole = user.role !== 'super_admin' || availableRoles.includes('super_admin');
+    const canChangeRole = user.role !== 'admin' || availableRoles.includes('admin');
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

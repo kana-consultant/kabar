@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-type UserRoleType = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
+import { type UserRoleType } from "@/services/useSettings/types";
+import { Loader2 } from "lucide-react"; // tambahkan import ini
 
 interface AddUserDialogProps {
     open: boolean;
@@ -18,6 +18,7 @@ interface AddUserDialogProps {
     roleOptions: { value: UserRoleType; label: string }[];
     onAdd: () => void;
     isAdmin: boolean;
+    isLoading?: boolean; // tambahkan prop loading
 }
 
 export function AddUserDialog({
@@ -32,6 +33,7 @@ export function AddUserDialog({
     roleOptions,
     onAdd,
     isAdmin,
+    isLoading = false, // default false
 }: AddUserDialogProps) {
     const isValidEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     const isValid = name.trim() !== "" && isValidEmail;
@@ -50,6 +52,7 @@ export function AddUserDialog({
                             placeholder="John Doe"
                             value={name}
                             onChange={(e) => onNameChange(e.target.value)}
+                            disabled={isLoading}
                         />
                     </div>
                     <div>
@@ -59,6 +62,7 @@ export function AddUserDialog({
                             placeholder="email@example.com"
                             value={email}
                             onChange={(e) => onEmailChange(e.target.value)}
+                            disabled={isLoading}
                         />
                         {email && !isValidEmail && (
                             <p className="mt-1 text-xs text-red-500">
@@ -68,7 +72,11 @@ export function AddUserDialog({
                     </div>
                     <div>
                         <Label>Role</Label>
-                        <Select value={role} onValueChange={(v) => onRoleChange(v as UserRoleType)}>
+                        <Select
+                            value={role}
+                            onValueChange={(v) => onRoleChange(v as UserRoleType)}
+                            disabled={isLoading}
+                        >
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
@@ -91,11 +99,25 @@ export function AddUserDialog({
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                        disabled={isLoading}
+                    >
                         Batal
                     </Button>
-                    <Button onClick={onAdd} disabled={!isValid}>
-                        Tambah Pengguna
+                    <Button
+                        onClick={onAdd}
+                        disabled={!isValid || isLoading}
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Menambahkan...
+                            </>
+                        ) : (
+                            "Tambah Pengguna"
+                        )}
                     </Button>
                 </DialogFooter>
             </DialogContent>
