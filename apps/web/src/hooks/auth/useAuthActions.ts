@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
-import { 
-    login as loginService, 
+import {
+    login as loginService,
     logout as logoutService,
     clearAuthData,
-    updateLocalUser
+    updateLocalUser, changePasswordApi as changePasswordService
 } from '@/services/auth';
 import { toast } from 'sonner';
 import type { User } from '@/services/user';
@@ -29,20 +29,21 @@ export function useAuthActions({
     setIsSuperAdmin,
     setIsLoading,
     loadUser,
-    clearUserState
+    clearUserState,
+
 }: UseAuthActionsParams) {
     const login = useCallback(async (email: string, password: string): Promise<boolean> => {
         setIsLoading(true);
         try {
             const response = await loginService(email, password);
-            
+
             setToken(response.token);
             setUser(response.user);
             setRole(response.user.role);
             setTeamId(response.teamId || null);
             setIsAdmin(response.user.role === 'admin');
             // setIsSuperAdmin(response.user.role === 'super_admin');
-            
+
             toast.success('Login berhasil!', {
                 description: `Selamat datang, ${response.user.name}!`,
             });
@@ -83,11 +84,17 @@ export function useAuthActions({
         clearUserState();
     }, [clearUserState]);
 
+    const changePassword = useCallback(async (oldPassword: string, newPassword: string): Promise<void> => {
+        await changePasswordService(oldPassword, newPassword)
+        return
+    }, [changePasswordService])
+
     return {
         login,
         logout,
         refreshUser,
         updateUser,
-        clearAuth
+        clearAuth,
+        changePassword
     };
 }

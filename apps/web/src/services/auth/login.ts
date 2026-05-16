@@ -6,8 +6,6 @@ import type { LoginResponse } from './types';
 // Login - simpan ke localStorage dan cookie
 export async function login(email: string, password: string): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>('/auth/login', { email, password });
-
-    console.log(response.token)
     
     // Save to localStorage (for backward compatibility)
     localStorage.setItem('auth_token', response.token);

@@ -93,7 +93,7 @@ func NewContainer(
 	// Protected routes
 	r.Route("/api/", func(protected chi.Router) {
 		protected.Use(auth.JWTMiddleware(cfg))
-
+		authHandler.NewRoute(db, protected, jwtGenerator).AuthSettingRoute()
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
 		draftHandler.NewRoute(db, protected, redisScheduler).SetupRoutes()
 		generateHandler.NewRoute(db, protected).SetupRoutes()

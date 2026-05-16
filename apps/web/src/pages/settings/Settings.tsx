@@ -33,6 +33,7 @@ export default function Settings() {
         handleUpdateUser,
         handleDeleteUser,
         isAddingUser, 
+        HandleChangePassword
     } = useSettings();
 
     // Tampilkan loading
@@ -55,7 +56,9 @@ export default function Settings() {
                 </TabsList>
 
                 <TabsContent value="profile" className="space-y-4">
-                    <ProfileTab currentUser={currentUser} />
+                    <ProfileTab 
+                    currentUser={currentUser}
+                    onChangePassword = {HandleChangePassword} />
                 </TabsContent>
 
                 <TabsContent value="users" className="space-y-4">

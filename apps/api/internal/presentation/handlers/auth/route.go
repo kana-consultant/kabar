@@ -38,3 +38,12 @@ func (h *Route) SetupRoute() chi.Router {
 
 	return r
 }
+
+func (h *Route) AuthSettingRoute() chi.Router {
+	r := h.baseRoute.CHI
+
+	r.Post("/auth/logout", h.AuthHandler.Logout)
+	r.Post("/auth/change-password", h.AuthHandler.ChangePassword)
+
+	return r
+}

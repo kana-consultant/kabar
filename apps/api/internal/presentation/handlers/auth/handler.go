@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"seo-backend/internal/domain/auth"
+	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 )
 
@@ -45,7 +46,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Login failed: %v", err)
-		h.writeError(w, "Invalid credentials", http.StatusUnauthorized)
+		// Ubah dari 401 Unauthorized menjadi 403 Forbidden
+		h.writeError(w, "Invalid credentials", http.StatusForbidden)
 		return
 	}
 
@@ -124,11 +126,9 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("user_id").(string)
-	if !ok || userID == "" {
-		h.writeError(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userID := helper.GetUserContext(r).GetUserID()
+
+	log.Printf("============USER ID %v", userID)
 
 	err := h.service.ChangePassword(r.Context(), auth.ChangePasswordRequest{
 		UserID:      userID,

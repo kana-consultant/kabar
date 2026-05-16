@@ -11,6 +11,7 @@ import { addTeamMember } from "../team";
 import { getTeamId } from "../user";
 import { type AddTeamMemberRequest } from "../team";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/auth/useAuth";
 
 export function useSettings() {
     const {
@@ -26,6 +27,8 @@ export function useSettings() {
         newUserRole, setNewUserRole,
         isAddingUser, setIsAddingUser
     } = useSettingsState();
+
+    const {changePassword} = useAuth();
 
     const { loadData } = useSettingsData(
         setUsers, setTeams, setCurrentUser, setLoading
@@ -85,5 +88,6 @@ export function useSettings() {
         handleUpdateUser: () => handleUpdateUser(selectedUser, setShowEditUserDialog, setSelectedUser),
         handleDeleteUser,
         loadData,
+        HandleChangePassword : changePassword
     };
 }
