@@ -192,7 +192,7 @@ export function UsersTab({
                                                 </div>
                                             </div>
                                         </div>
-                                        {canManage && (
+                                        {canManage && user.role !== 'admin' && (
                                             <div className="flex gap-2">
                                                 <Button 
                                                     variant="outline" 

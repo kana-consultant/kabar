@@ -23,8 +23,6 @@ export function AuthLayout() {
         if (hasToken() && isPublicRoute) {
             navigate({
                 to: '/login',
-                replace: true,
-                state: { from: currentPath }
             });
             return;
         }
