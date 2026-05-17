@@ -81,10 +81,22 @@ func (r *TeamInviteRepository) GetByID(ctx context.Context, id string) (*team.Te
 // GetByToken - mendapatkan invite berdasarkan token
 func (r *TeamInviteRepository) GetByToken(ctx context.Context, token string) (*team.TeamInvite, error) {
 	query := `
-        SELECT id, email, team_id, role, token, status, invited_by, expires_at, created_at, updated_at
-        FROM team_invites
-        WHERE token = $1
-    `
+    SELECT 
+        ti.id, 
+        ti.email, 
+        ti.team_id, 
+        ti.role, 
+        ti.token, 
+        ti.status, 
+        ti.invited_by, 
+        ti.expires_at, 
+        ti.created_at, 
+        ti.updated_at,
+        COALESCE(t.name, '') as team_name
+    FROM team_invites ti
+    LEFT JOIN teams t ON t.id = ti.team_id
+    WHERE ti.token = $1
+`
 
 	var invite team.TeamInvite
 	err := r.db.QueryRowContext(ctx, query, token).Scan(
@@ -98,6 +110,7 @@ func (r *TeamInviteRepository) GetByToken(ctx context.Context, token string) (*t
 		&invite.ExpiresAt,
 		&invite.CreatedAt,
 		&invite.UpdatedAt,
+		&invite.TeamName,
 	)
 
 	if err == sql.ErrNoRows {

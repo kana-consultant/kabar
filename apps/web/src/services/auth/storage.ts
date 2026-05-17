@@ -3,15 +3,10 @@ import { COOKIE_OPTIONS } from './config';
 import type { User } from '@/services/user';
 
 // Get auth token - dari cookie atau localStorage
-export function getToken(): string | null {
+export function getToken(): string | undefined {
     // Try cookie first
     const tokenFromCookie = Cookies.get('auth_token');
-    if (tokenFromCookie) {
-        return tokenFromCookie;
-    }
-    
-    // Fallback to localStorage
-    return localStorage.getItem('auth_token');
+    return tokenFromCookie;
 }
 
 // Check if token exists

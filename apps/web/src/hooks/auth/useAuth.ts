@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useAuthState } from './useAuthState';
 import { useAuthActions } from './useAuthActions';
 import { useRoleCheck } from './useRoleCheck';
-import type { UseAuthReturn } from '@servicesauth';
+import type { UseAuthReturn } from '@/types/auth';
 
 export function useAuth(): UseAuthReturn {
     const { state, setters, actions } = useAuthState();

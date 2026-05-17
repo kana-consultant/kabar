@@ -14,6 +14,7 @@ import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InviteRouteImport } from './routes/invite'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as GenerateRouteImport } from './routes/generate'
 import { Route as DraftsRouteImport } from './routes/Drafts'
@@ -44,6 +45,11 @@ const ProductsRoute = ProductsRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteRoute = InviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoryRoute = HistoryRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/Drafts': typeof DraftsRoute
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
+  '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/products': typeof ProductsRouteWithChildren
   '/register': typeof RegisterRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/Drafts': typeof DraftsRoute
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
+  '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/products': typeof ProductsRouteWithChildren
   '/register': typeof RegisterRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/Drafts': typeof DraftsRoute
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
+  '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/products': typeof ProductsRouteWithChildren
   '/register': typeof RegisterRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/Drafts'
     | '/generate'
     | '/history'
+    | '/invite'
     | '/login'
     | '/products'
     | '/register'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/Drafts'
     | '/generate'
     | '/history'
+    | '/invite'
     | '/login'
     | '/products'
     | '/register'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/Drafts'
     | '/generate'
     | '/history'
+    | '/invite'
     | '/login'
     | '/products'
     | '/register'
@@ -164,6 +176,7 @@ export interface RootRouteChildren {
   DraftsRoute: typeof DraftsRoute
   GenerateRoute: typeof GenerateRoute
   HistoryRoute: typeof HistoryRoute
+  InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
   ProductsRoute: typeof ProductsRouteWithChildren
   RegisterRoute: typeof RegisterRoute
@@ -206,6 +219,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite': {
+      id: '/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof InviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/history': {
@@ -272,6 +292,7 @@ const rootRouteChildren: RootRouteChildren = {
   DraftsRoute: DraftsRoute,
   GenerateRoute: GenerateRoute,
   HistoryRoute: HistoryRoute,
+  InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,
   ProductsRoute: ProductsRouteWithChildren,
   RegisterRoute: RegisterRoute,

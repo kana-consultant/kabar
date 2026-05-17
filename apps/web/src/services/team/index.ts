@@ -7,7 +7,7 @@ export type {
 } from './types';
 
 // Queries (GET)
-export { getTeams, getTeamById } from './teamQueries';
+export { getTeams, getTeamById,acceptInvite,verifyInviteToken } from './teamQueries';
 
 // Mutations (POST, PUT, DELETE)
 export { 

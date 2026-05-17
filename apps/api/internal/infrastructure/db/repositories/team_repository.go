@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -22,15 +23,16 @@ func NewTeamRepository(db *sql.DB) team.Repository {
 
 func (r *TeamRepositoryImpl) GetByID(ctx context.Context, id string) (*team.Team, error) {
 	query := `
-		SELECT id, name, description,  status, max_members,
+		SELECT id, name, description,
 			created_by, created_at, updated_at
 		FROM teams WHERE id = $1
 	`
 
+	log.Printf("===============ID %v", id)
+
 	var t team.Team
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&t.ID, &t.Name, &t.Description, &t.Status,
-		&t.MaxMembers, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
+		&t.ID, &t.Name, &t.Description, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
 	)
 
 	if err != nil {

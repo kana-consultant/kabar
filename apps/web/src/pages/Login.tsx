@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
 import { useAuth } from '@/hooks/auth/useAuth';
 
 export default function Login() {
@@ -30,41 +29,14 @@ export default function Login() {
             setError('Email dan password wajib diisi');
             return;
         }
-
         setIsLoading(true);
-
         try {
-            const success = await login(email, password);
-
-            if (success) {
-                toast.success('Berhasil masuk!', {
-                    description: 'Selamat datang kembali di KABAR',
-                    duration: 3000,
-                });
-                navigate({ to: '/' });
+            const response = await login(email, password);
+            if (response) {
+                navigate({ to: "/dashboard" })
             }
         } catch (err: any) {
-            const status = err.response?.status;
-            let errorMessage = 'Login gagal';
 
-            if (status === 401) {
-                errorMessage = 'Email atau password salah';
-                toast.error('Login gagal', {
-                    description: 'Email atau password yang Anda masukkan tidak sesuai.',
-                    duration: 4500,
-                });
-            } else if (status === 403) {
-                errorMessage = 'Akses ditolak. Akun Anda mungkin belum aktif atau diblokir.';
-                toast.error('Akses Ditolak', { description: errorMessage });
-            } else {
-                errorMessage = err.response?.data?.message 
-                    || err.message 
-                    || 'Terjadi kesalahan saat login. Silakan coba lagi.';
-                toast.error('Login gagal', { description: errorMessage });
-            }
-
-            setError(errorMessage);
-            // JANGAN navigate di sini!
         } finally {
             setIsLoading(false);
         }
@@ -173,7 +145,7 @@ export default function Login() {
 
                     <CardFooter className="flex flex-col gap-4">
                         <Button
-                            type="submit"                     
+                            type="submit"
                             className="w-full bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-medium shadow-lg shadow-cyan-500/25"
                             disabled={isLoadingState}
                         >

@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setRole(currentUser.role);
                         setTeamId(getTeamId());
                         setIsAdminUser(currentUser.role === 'admin');
-                        setIsSuperAdminUser(currentUser.role === 'super_admin');
+                        // setIsSuperAdminUser(currentUser.role === 'super_admin');
                     }
                 }
             } catch (error) {
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setRole(response.user.role);
             setTeamId(localStorage.getItem('team_id'));
             setIsAdminUser(response.user.role === 'admin');
-            setIsSuperAdminUser(response.user.role === 'super_admin');
+            // setIsSuperAdminUser(response.user.role === 'super_admin');
 
             toast.success('Login berhasil', {
                 description: `Selamat datang, ${response.user.name}!`,
@@ -175,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(currentUser);
                 setRole(currentUser.role);
                 setIsAdminUser(currentUser.role === 'admin');
-                setIsSuperAdminUser(currentUser.role === 'super_admin');
+                // setIsSuperAdminUser(currentUser.role === 'super_admin');
             }
         } catch (error) {
             console.error('Failed to refresh user:', error);
@@ -187,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setRole(updatedUser.role);
         setIsAdminUser(updatedUser.role === 'admin');
-        setIsSuperAdminUser(updatedUser.role === 'super_admin');
+        // setIsSuperAdminUser(updatedUser.role === 'super_admin');
     }, []);
 
     const hasPermission = useCallback((requiredRoles: string[]): boolean => {

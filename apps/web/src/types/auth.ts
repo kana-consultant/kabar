@@ -17,6 +17,7 @@ export interface AuthActions {
     refreshUser: () => Promise<void>;
     updateUser: (user: User) => void;
     clearAuth: () => void;
+    changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
 }
 
 export interface RoleChecks {

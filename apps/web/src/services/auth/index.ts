@@ -7,44 +7,45 @@ export { COOKIE_OPTIONS } from './config';
 // Login/Logout
 export { login } from './login';
 export { logout } from './logout';
+export { changePasswordApi } from './changePassword'
 
 // Storage
-export { 
-    getToken, 
-    hasToken, 
-    clearAuthData, 
+export {
+    getToken,
+    hasToken,
+    clearAuthData,
     getTeamId,
     setAuthCookie,
     removeAuthCookie
 } from './storage';
 
 // User
-export { 
-    getCurrentUser, 
-    getUserRole, 
-    getUserName, 
-    getUserEmail, 
-    getUserAvatar, 
-    updateLocalUser 
+export {
+    getCurrentUser,
+    getUserRole,
+    getUserName,
+    getUserEmail,
+    getUserAvatar,
+    updateLocalUser
 } from './user';
 
 // Permissions
-export { 
-    hasRole, 
-    hasAnyRole, 
-    hasPermission, 
-    getRoleLevel, 
+export {
+    hasRole,
+    hasAnyRole,
+    hasPermission,
+    getRoleLevel,
     canAccessTeam,
     hasToken as hasTokenPermission
 } from './permissions';
 
 // Admin
-export { 
-    isAdmin, 
-    isSuperAdmin, 
-    isAnyAdmin, 
-    isManagerOrAbove, 
-    isEditorOrAbove 
+export {
+    isAdmin,
+    isSuperAdmin,
+    isAnyAdmin,
+    isManagerOrAbove,
+    isEditorOrAbove
 } from './admin';
 
 // Token

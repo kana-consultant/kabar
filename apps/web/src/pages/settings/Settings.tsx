@@ -14,47 +14,26 @@ export default function Settings() {
         users,
         loading,
         canManageUsers,
-        isSuperAdmin,
         isAdmin,
         roleOptions,
         getAvailableRoles,
-        getRoleDisplayName,
         showAddUserDialog,
         setShowAddUserDialog,
         showEditUserDialog,
         setShowEditUserDialog,
-        showAddTeamDialog,
-        setShowAddTeamDialog,
-        showEditTeamDialog,
-        setShowEditTeamDialog,
-        showAddMemberDialog,
-        setShowAddMemberDialog,
         selectedUser,
         setSelectedUser,
-        selectedTeam,
-        setSelectedTeam,
         newUserName,
         setNewUserName,
         newUserEmail,
         setNewUserEmail,
         newUserRole,
         setNewUserRole,
-        newTeamName,
-        setNewTeamName,
-        newTeamDesc,
-        setNewTeamDesc,
-        newMemberEmail,
-        setNewMemberEmail,
-        newMemberRole,
-        setNewMemberRole,
         handleAddUser,
         handleUpdateUser,
         handleDeleteUser,
-        handleAddTeam,
-        handleUpdateTeam,
-        handleDeleteTeam,
-        handleAddMember,
-        handleRemoveMember,
+        isAddingUser, 
+        HandleChangePassword
     } = useSettings();
 
     // Tampilkan loading
@@ -77,7 +56,9 @@ export default function Settings() {
                 </TabsList>
 
                 <TabsContent value="profile" className="space-y-4">
-                    <ProfileTab currentUser={currentUser} />
+                    <ProfileTab 
+                    currentUser={currentUser}
+                    onChangePassword = {HandleChangePassword} />
                 </TabsContent>
 
                 <TabsContent value="users" className="space-y-4">
@@ -85,11 +66,7 @@ export default function Settings() {
                         users={users}
                         currentUserId={currentUser?.id}
                         canManage={canManageUsers as any}
-                        isSuperAdmin={isSuperAdmin}
                         isAdmin={isAdmin}
-                        roleOptions={roleOptions}
-                        getAvailableRoles={getAvailableRoles}
-                        getRoleDisplayName={getRoleDisplayName}
                         onAddUser={() => setShowAddUserDialog(true)}
                         onEditUser={(user) => {
                             setSelectedUser(user);
@@ -117,6 +94,8 @@ export default function Settings() {
                 roleOptions={roleOptions}
                 onAdd={handleAddUser}
                 isAdmin={isAdmin}
+                isLoading={isAddingUser}
+
             />
 
             <EditUserDialog

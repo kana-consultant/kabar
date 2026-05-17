@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { User, Team } from "@/services/user";
-import type { UserRoleType } from "./types";
+import type { User } from "@/types/user";
+import type { Team } from "@/services/user";
+import { type UserRoleType } from "@/services/useSettings/types";
 
 export function useSettingsState() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -8,24 +9,19 @@ export function useSettingsState() {
     const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     
-    // Dialog states
+    // Dialog states (HANYA untuk User)
     const [showAddUserDialog, setShowAddUserDialog] = useState(false);
     const [showEditUserDialog, setShowEditUserDialog] = useState(false);
-    const [showAddTeamDialog, setShowAddTeamDialog] = useState(false);
-    const [showEditTeamDialog, setShowEditTeamDialog] = useState(false);
-    const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     
-    // Form states
+    // Selected items (HANYA untuk User)
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    
+    // User form states
     const [newUserName, setNewUserName] = useState("");
     const [newUserEmail, setNewUserEmail] = useState("");
     const [newUserRole, setNewUserRole] = useState<UserRoleType>("viewer");
-    const [newTeamName, setNewTeamName] = useState("");
-    const [newTeamDesc, setNewTeamDesc] = useState("");
-    const [newMemberEmail, setNewMemberEmail] = useState("");
-    const [newMemberRole, setNewMemberRole] = useState<UserRoleType>("viewer");
-
+    const [isAddingUser, setIsAddingUser] = useState(false);
+    
     return {
         currentUser, setCurrentUser,
         users, setUsers,
@@ -33,17 +29,10 @@ export function useSettingsState() {
         loading, setLoading,
         showAddUserDialog, setShowAddUserDialog,
         showEditUserDialog, setShowEditUserDialog,
-        showAddTeamDialog, setShowAddTeamDialog,
-        showEditTeamDialog, setShowEditTeamDialog,
-        showAddMemberDialog, setShowAddMemberDialog,
         selectedUser, setSelectedUser,
-        selectedTeam, setSelectedTeam,
         newUserName, setNewUserName,
         newUserEmail, setNewUserEmail,
         newUserRole, setNewUserRole,
-        newTeamName, setNewTeamName,
-        newTeamDesc, setNewTeamDesc,
-        newMemberEmail, setNewMemberEmail,
-        newMemberRole, setNewMemberRole,
+        isAddingUser, setIsAddingUser,
     };
 }

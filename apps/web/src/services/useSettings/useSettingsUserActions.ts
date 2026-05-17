@@ -7,7 +7,6 @@ export function useSettingsUserActions(
     loadData: () => Promise<void>,
     currentUser: User | null,
     users: User[],
-    isSuperAdmin: boolean
 ) {
     const handleAddUser = async (
         newUserName: string,
@@ -72,7 +71,7 @@ export function useSettingsUserActions(
         }
         
         const userToDelete = users.find(u => u.id === id);
-        if (userToDelete?.role === 'super_admin' && !isSuperAdmin) {
+        if (userToDelete?.role === 'admin') {
             toast.error("Tidak bisa menghapus Super Admin");
             return;
         }

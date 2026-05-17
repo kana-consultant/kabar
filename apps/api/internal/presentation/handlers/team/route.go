@@ -73,3 +73,16 @@ func (h *Route) SetupRoutes() chi.Router {
 
 	return r
 }
+
+// Public routes - tanpa auth
+func (h *Route) SetupPublicRoutes() chi.Router {
+	r := h.baseRoutes.CHI
+	r.Group(func(public chi.Router) {
+		// Endpoint untuk verifikasi invite token (tanpa JWT)
+		public.Get("/api/verify-invite/{token}", h.TeamHandler.VerificationInvite)
+
+		// Endpoint untuk accept invite dari email (tanpa JWT)
+		public.Post("/api/accept-invite", h.TeamHandler.AcceptInvite)
+	})
+	return r
+}

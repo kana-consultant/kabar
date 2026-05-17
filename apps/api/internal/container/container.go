@@ -85,12 +85,15 @@ func NewContainer(
 	jwtGenerator, _ := jwt.NewGenerator(jwtSecret, jwtExpiry)
 
 	// Public routes
+	// Public team routes untuk invite acceptance
+
 	authHandler.NewRoute(db, r, jwtGenerator).SetupRoute()
+	teamHandler.NewRoute(db, r, emailService).SetupPublicRoutes()
 
 	// Protected routes
 	r.Route("/api/", func(protected chi.Router) {
 		protected.Use(auth.JWTMiddleware(cfg))
-
+		authHandler.NewRoute(db, protected, jwtGenerator).AuthSettingRoute()
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
 		draftHandler.NewRoute(db, protected, redisScheduler).SetupRoutes()
 		generateHandler.NewRoute(db, protected).SetupRoutes()

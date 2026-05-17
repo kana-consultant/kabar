@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { Settings, LogOut, Shield, Sun, Moon, ChevronRight, Home } from "lucide-react";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { ThemeSwitch } from "@/components/switch";
-import { toast } from "sonner";
-import { removeAuthCookie } from "@/services/api";
 import { cn } from "@/lib/utils";
 
 const menuItems = [
@@ -48,9 +47,10 @@ function useThemeToggle() {
 }
 
 export function Navbar() {
+    const { logout } = useAuth()
     const [scrolled, setScrolled] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-   
+
     const location = useLocation();
     const navigate = useNavigate();
     const currentPath = location.pathname;
@@ -81,8 +81,7 @@ export function Navbar() {
     }, []);
 
     const handleLogout = () => {
-        removeAuthCookie();
-        toast.success("Berhasil logout");
+        logout();
         navigate({ to: "/login" });
     };
 
@@ -124,10 +123,10 @@ export function Navbar() {
 
                 {/* Theme toggle — single icon button */}
                 <div className="flex items-center gap-1.5">
-    <Sun className="h-3.5 w-3.5 text-slate-400 dark:text-slate-600" />
-    <ThemeSwitch />
-    <Moon className="h-3.5 w-3.5 text-slate-400 dark:text-slate-600" />
-</div>
+                    <Sun className="h-3.5 w-3.5 text-slate-400 dark:text-slate-600" />
+                    <ThemeSwitch />
+                    <Moon className="h-3.5 w-3.5 text-slate-400 dark:text-slate-600" />
+                </div>
 
                 {/* Divider */}
                 <div className="h-5 w-px bg-slate-200 dark:bg-white/[0.08]" />

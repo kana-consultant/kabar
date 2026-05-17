@@ -12,7 +12,7 @@ const menuGroups = [
     {
         label: "MENU",
         items: [
-            { title: "Dashboard", href: "/", icon: LayoutDashboard },
+            { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
             { title: "Generate Konten", href: "/generate", icon: FileText },
             { title: "Produk", href: "/products", icon: Package },
             { title: "Draft", href: "/drafts", icon: FileStack },

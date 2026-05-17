@@ -14,7 +14,7 @@ type UserService interface {
 	// =======================
 
 	// GetAll retrieves all users with filters
-	GetAll(ctx context.Context, userCtx models.UserContext, filters UserFilters) ([]models.User, error)
+	GetAll(ctx context.Context, userCtx models.UserContext) ([]models.User, error)
 
 	// GetByID retrieves a user by ID with access validation
 	GetByID(ctx context.Context, id string, userCtx models.UserContext) (*models.User, error)

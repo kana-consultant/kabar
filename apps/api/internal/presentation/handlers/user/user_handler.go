@@ -196,14 +196,7 @@ func (h *UserHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := h.getUserContext(r)
 
-	filters := user.UserFilters{
-		Role:   r.URL.Query().Get("role"),
-		Status: r.URL.Query().Get("status"),
-		Search: r.URL.Query().Get("search"),
-		TeamID: r.URL.Query().Get("team_id"),
-	}
-
-	users, err := h.service.GetAll(ctx, userCtx, filters)
+	users, err := h.service.GetAll(ctx, userCtx)
 	if err != nil {
 		log.Printf("Failed to fetch users: %v", err)
 		h.handleServiceError(w, err)
