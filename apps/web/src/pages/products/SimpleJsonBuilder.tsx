@@ -35,22 +35,33 @@ export function SimpleJsonBuilder({
     value,
     onChange,
 }: SimpleJsonBuilderProps) {
-    const [fields, setFields] = useState<Field[]>([]);
-    const [showPlaceholderSelect, setShowPlaceholderSelect] =
-        useState<string | null>(null);
+
+    const [fields, setFields] =
+        useState<Field[]>([]);
+
+    const [
+        showPlaceholderSelect,
+        setShowPlaceholderSelect,
+    ] = useState<string | null>(null);
 
     /*
-     Guard:
-     true = perubahan dari builder sendiri
-     false = perubahan dari parent/external
+      Guard:
+      true  = update dari builder sendiri
+      false = update external
     */
-    const [isInternalUpdate, setIsInternalUpdate] =
-        useState(false);
+    const [
+        isInternalUpdate,
+        setIsInternalUpdate,
+    ] = useState(false);
 
-    const parseValue = (val: any) => {
+    const parseValue = (
+        val: any
+    ) => {
         if (!val) return {};
 
-        if (typeof val === "string") {
+        if (
+            typeof val === "string"
+        ) {
             try {
                 return JSON.parse(val);
             } catch {
@@ -63,73 +74,129 @@ export function SimpleJsonBuilder({
 
     /*
       Sync external value ke builder
-      Tapi skip kalau update dari typing sendiri
+      Tapi jangan reset kalau data sama
     */
     useEffect(() => {
+
         if (isInternalUpdate) {
             setIsInternalUpdate(false);
             return;
         }
 
-        const parsed = parseValue(value);
+        const parsed =
+            parseValue(value);
 
         if (
             parsed &&
-            typeof parsed === "object"
+            typeof parsed ===
+                "object"
         ) {
-            setFields(jsonToFields(parsed));
+
+            const incoming =
+                JSON.stringify(parsed);
+
+            const current =
+                JSON.stringify(
+                    fieldsToJson(
+                        fields
+                    )
+                );
+
+            /*
+              Prevent unnecessary reset
+              yang bikin dropdown ketutup
+            */
+            if (
+                incoming !== current
+            ) {
+                setFields(
+                    jsonToFields(
+                        parsed
+                    )
+                );
+            }
         }
+
     }, [value]);
 
     /*
-     Debounce update ke parent
+      Debounce update ke parent
     */
     useEffect(() => {
+
         const t = setTimeout(() => {
-            setIsInternalUpdate(true);
+
+            setIsInternalUpdate(
+                true
+            );
 
             onChange(
-                fieldsToJson(fields)
+                fieldsToJson(
+                    fields
+                )
             );
+
         }, 250);
 
-        return () => clearTimeout(t);
+        return () =>
+            clearTimeout(t);
+
     }, [fields]);
 
     const updateTree = (
         items: Field[],
         id: string,
-        updater: (item: Field) => Field
+        updater: (
+            item: Field
+        ) => Field
     ): Field[] => {
-        return items.map((item) => {
-            if (item.id === id) {
-                return updater(item);
-            }
 
-            if (item.children?.length) {
-                return {
-                    ...item,
-                    children: updateTree(
-                        item.children,
-                        id,
-                        updater
-                    ),
-                };
-            }
+        return items.map(
+            (item) => {
 
-            return item;
-        });
+                if (
+                    item.id === id
+                ) {
+                    return updater(
+                        item
+                    );
+                }
+
+                if (
+                    item.children
+                        ?.length
+                ) {
+                    return {
+                        ...item,
+                        children:
+                            updateTree(
+                                item.children,
+                                id,
+                                updater
+                            ),
+                    };
+                }
+
+                return item;
+            }
+        );
     };
 
-    const addField = (parentId?: string) => {
-        const newField: Field = {
-            id: genId(),
-            key: `field${getNextFieldNumber(fields)}`,
-            value: "",
-            type: "field",
-            children: [],
-            expanded: true,
-        };
+    const addField = (
+        parentId?: string
+    ) => {
+
+        const newField: Field =
+            {
+                id: genId(),
+                key: `field${getNextFieldNumber(
+                    fields
+                )}`,
+                value: "",
+                type: "field",
+                children: [],
+                expanded: true,
+            };
 
         if (!parentId) {
             setFields((prev) => [
@@ -157,16 +224,18 @@ export function SimpleJsonBuilder({
     const addObject = (
         parentId?: string
     ) => {
-        const newObject: Field = {
-            id: genId(),
-            key: `object${getNextObjectNumber(
-                fields
-            )}`,
-            value: "",
-            type: "object",
-            children: [],
-            expanded: true,
-        };
+
+        const newObject: Field =
+            {
+                id: genId(),
+                key: `object${getNextObjectNumber(
+                    fields
+                )}`,
+                value: "",
+                type: "object",
+                children: [],
+                expanded: true,
+            };
 
         if (!parentId) {
             setFields((prev) => [
@@ -196,6 +265,7 @@ export function SimpleJsonBuilder({
         key: string,
         value: string
     ) => {
+
         setFields((prev) =>
             updateTree(
                 prev,
@@ -220,15 +290,17 @@ export function SimpleJsonBuilder({
             )
             .map((item) => ({
                 ...item,
-                children: deleteRecursive(
-                    item.children,
-                    id
-                ),
+                children:
+                    deleteRecursive(
+                        item.children,
+                        id
+                    ),
             }));
 
     const deleteField = (
         id: string
     ) => {
+
         setFields((prev) =>
             deleteRecursive(
                 prev,
@@ -240,6 +312,7 @@ export function SimpleJsonBuilder({
     const toggleExpand = (
         id: string
     ) => {
+
         setFields((prev) =>
             updateTree(
                 prev,
@@ -257,6 +330,7 @@ export function SimpleJsonBuilder({
         fieldId: string,
         placeholder: string
     ) => {
+
         setFields((prev) =>
             updateTree(
                 prev,
@@ -277,11 +351,13 @@ export function SimpleJsonBuilder({
         field: Field,
         level = 0
     ) => {
+
         const indent =
             level * 20;
 
         const isObject =
-            field.type === "object";
+            field.type ===
+            "object";
 
         const isPlaceholder =
             PLACEHOLDERS.some(
@@ -294,10 +370,12 @@ export function SimpleJsonBuilder({
             <div
                 key={field.id}
                 style={{
-                    marginLeft: indent,
+                    marginLeft:
+                        indent,
                 }}
                 className="mb-2"
             >
+
                 <div className="flex items-center gap-2 p-2 rounded-lg border bg-white dark:bg-slate-900">
 
                     <GripVertical className="w-4 h-4 text-slate-400" />
@@ -321,11 +399,16 @@ export function SimpleJsonBuilder({
                     )}
 
                     <Input
-                        value={field.key}
-                        onChange={(e) =>
+                        value={
+                            field.key
+                        }
+                        onChange={(
+                            e
+                        ) =>
                             updateField(
                                 field.id,
-                                e.target.value,
+                                e.target
+                                    .value,
                                 field.value
                             )
                         }
@@ -334,32 +417,44 @@ export function SimpleJsonBuilder({
 
                     {!isObject && (
                         <>
-                            <span>:</span>
+                            <span>
+                                :
+                            </span>
 
                             <div className="flex-1 relative">
 
                                 <div className="flex gap-1">
+
                                     <Input
                                         value={
                                             field.value
                                         }
-                                        onChange={(e) =>
+                                        onChange={(
+                                            e
+                                        ) =>
                                             updateField(
                                                 field.id,
                                                 field.key,
-                                                e.target
+                                                e
+                                                    .target
                                                     .value
                                             )
                                         }
-                                        className={`h-8 ${isPlaceholder
+                                        className={`h-8 ${
+                                            isPlaceholder
                                                 ? "font-mono text-blue-600"
                                                 : ""
-                                            }`}
+                                        }`}
                                     />
 
                                     <Button
                                         size="sm"
                                         variant="outline"
+                                        onMouseDown={(
+                                            e
+                                        ) =>
+                                            e.preventDefault()
+                                        }
                                         onClick={() =>
                                             setShowPlaceholderSelect(
                                                 showPlaceholderSelect ===
@@ -371,18 +466,29 @@ export function SimpleJsonBuilder({
                                     >
                                         📋
                                     </Button>
+
                                 </div>
 
                                 {showPlaceholderSelect ===
                                     field.id && (
-                                        <div className="absolute top-full mt-1 left-0 w-72 rounded-lg border bg-white shadow-lg z-50 dark:bg-slate-800">
+
+                                        <div
+                                            onMouseDown={(
+                                                e
+                                            ) =>
+                                                e.preventDefault()
+                                            }
+                                            className="absolute top-full mt-1 left-0 w-72 rounded-lg border bg-white shadow-lg z-[9999] dark:bg-slate-800"
+                                        >
 
                                             <div className="p-2 border-b text-xs font-medium">
                                                 Pilih Placeholder
                                             </div>
 
                                             {PLACEHOLDERS.map(
-                                                (p) => (
+                                                (
+                                                    p
+                                                ) => (
                                                     <button
                                                         key={
                                                             p.value
@@ -395,12 +501,17 @@ export function SimpleJsonBuilder({
                                                         }
                                                         className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
                                                     >
+
                                                         <div className="font-mono text-blue-600">
-                                                            {p.value}
+                                                            {
+                                                                p.value
+                                                            }
                                                         </div>
 
                                                         <div className="text-xs text-slate-500">
-                                                            {p.label}
+                                                            {
+                                                                p.label
+                                                            }
                                                         </div>
 
                                                     </button>
@@ -416,6 +527,7 @@ export function SimpleJsonBuilder({
 
                     {isObject && (
                         <div className="flex gap-1">
+
                             <Button
                                 size="sm"
                                 variant="outline"
@@ -441,6 +553,7 @@ export function SimpleJsonBuilder({
                                 <Plus className="w-3 h-3 mr-1" />
                                 Object
                             </Button>
+
                         </div>
                     )}
 
@@ -455,22 +568,30 @@ export function SimpleJsonBuilder({
                     >
                         <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
+
                 </div>
 
                 {isObject &&
                     field.expanded &&
-                    field.children.length >
-                    0 && (
+                    field.children
+                        .length > 0 && (
+
                         <div className="ml-4 pl-4 mt-1 border-l-2 border-blue-200">
+
                             {field.children.map(
-                                (child) =>
+                                (
+                                    child
+                                ) =>
                                     renderField(
                                         child,
-                                        level + 1
+                                        level +
+                                            1
                                     )
                             )}
+
                         </div>
                     )}
+
             </div>
         );
     };
@@ -479,6 +600,7 @@ export function SimpleJsonBuilder({
         <div className="space-y-4">
 
             <div className="flex gap-2">
+
                 <Button
                     size="sm"
                     onClick={() =>
@@ -499,30 +621,42 @@ export function SimpleJsonBuilder({
                     <Plus className="w-3 h-3 mr-1" />
                     Tambah Object
                 </Button>
+
             </div>
 
             <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950 text-xs">
+
                 <p className="font-medium mb-2">
                     Placeholder tersedia
                 </p>
 
                 <div className="grid grid-cols-2 gap-2">
+
                     {PLACEHOLDERS.map(
                         (p) => (
                             <div
-                                key={p.value}
+                                key={
+                                    p.value
+                                }
                                 className="font-mono text-blue-600"
                             >
-                                {p.value}
+                                {
+                                    p.value
+                                }
                             </div>
                         )
                     )}
+
                 </div>
+
             </div>
 
             {fields.length ? (
-                fields.map((field) =>
-                    renderField(field)
+                fields.map(
+                    (field) =>
+                        renderField(
+                            field
+                        )
                 )
             ) : (
                 <div className="text-center py-8 text-slate-500">

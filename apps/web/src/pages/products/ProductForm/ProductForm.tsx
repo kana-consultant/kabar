@@ -39,11 +39,11 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         updateProductInfo,
         updateAdapterConfig,
         updateFieldMapping,
+        updateMetaConfig,
+        updateSitemapConfig,
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
-
-
 
     // Modal test state
     const [showModal, setShowModal] = useState(false);
@@ -181,7 +181,25 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                             return {};
                         }
                     })()}
-                    onChange={updateFieldMapping}
+                    metaConfig={(() => {
+                        try {
+                            return JSON.parse(product.adapterConfig?.metaConfig || "{}");
+                        } catch (e) {
+                            return {};
+                        }
+                    })()}
+                    sitemapConfig={(() => {
+                        try {
+                            return JSON.parse(product.adapterConfig?.sitemapConfig || "{}");
+                        } catch (e) {
+                            return {};
+                        }
+                    })()}
+                    onChange={(fieldMapping, metaConfig, sitemapConfig) => {
+                        updateFieldMapping(fieldMapping);
+                        if (metaConfig) updateMetaConfig(metaConfig);
+                        if (sitemapConfig) updateSitemapConfig(sitemapConfig);
+                    }}
                 />
             </div>
 

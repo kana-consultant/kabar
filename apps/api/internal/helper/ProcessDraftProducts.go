@@ -23,6 +23,9 @@ type ProductConfig struct {
 	FullURL         string
 
 	FieldMappingStr  string
+	MetaConfigStr    string // TAMBAHAN: konfigurasi meta tags (JSON string)
+	SitemapConfigStr string // TAMBAHAN: konfigurasi sitemap (JSON string)
+	BaseURL          string // TAMBAHAN: base URL untuk sitemap (contoh: https://domainanda.com)
 	CustomHeadersStr string
 	CustomHeaders    map[string]string
 
@@ -342,43 +345,418 @@ func (s *PostService) buildRequestBody(
 		return nil, fmt.Errorf("draft article content is required")
 	}
 
-	// Replace placeholders
+	// Replace placeholders untuk field mapping
 	for key, value := range fieldMapping {
 
 		switch v := value.(type) {
 
 		case string:
-
-			v = strings.ReplaceAll(v, "{title}", draft.Title)
-			v = strings.ReplaceAll(v, "{topic}", draft.Topic)
-			v = strings.ReplaceAll(v, "{content}", draft.Article)
-
-			if draft.ImageURL != nil {
-				v = strings.ReplaceAll(v, "{image_url}", *draft.ImageURL)
-			}
-
+			v = replaceAllPlaceholders(v, draft)
 			requestBody[key] = v
+
+		case map[string]interface{}:
+			// Handle nested object
+			nestedResult := make(map[string]interface{})
+			for nestedKey, nestedValue := range v {
+				if strVal, ok := nestedValue.(string); ok {
+					nestedResult[nestedKey] = replaceAllPlaceholders(strVal, draft)
+				} else {
+					nestedResult[nestedKey] = nestedValue
+				}
+			}
+			requestBody[key] = nestedResult
 
 		default:
 			requestBody[key] = value
 		}
 	}
 
+	// ========== META CONFIG & SITEMAP CONFIG ==========
+
+	// Parse Meta Config
+	var metaConfig map[string]interface{}
+	if cfg.MetaConfigStr != "" && cfg.MetaConfigStr != "{}" {
+		rawMeta := strings.TrimSpace(cfg.MetaConfigStr)
+		if err := json.Unmarshal([]byte(rawMeta), &metaConfig); err != nil {
+			var nested string
+			if err2 := json.Unmarshal([]byte(rawMeta), &nested); err2 == nil {
+				json.Unmarshal([]byte(nested), &metaConfig)
+			}
+		}
+	}
+
+	// Parse Sitemap Config
+	var sitemapConfig map[string]interface{}
+	if cfg.SitemapConfigStr != "" && cfg.SitemapConfigStr != "{}" {
+		rawSitemap := strings.TrimSpace(cfg.SitemapConfigStr)
+		if err := json.Unmarshal([]byte(rawSitemap), &sitemapConfig); err != nil {
+			var nested string
+			if err2 := json.Unmarshal([]byte(rawSitemap), &nested); err2 == nil {
+				json.Unmarshal([]byte(nested), &sitemapConfig)
+			}
+		}
+	}
+
+	// ========== GENERATE META TAGS ==========
+	// Parameter: metaConfig, draft, baseURL, sitemapConfig
+	metaTags := generateMetaTags(metaConfig, draft, cfg.BaseURL, sitemapConfig)
+	if len(metaTags) > 0 {
+		requestBody["meta_tags"] = metaTags
+	}
+
+	// ========== GENERATE SITEMAP INFO ==========
+	sitemapInfo := generateSitemapInfo(sitemapConfig, draft, cfg.BaseURL)
+	if sitemapInfo != nil {
+		requestBody["sitemap_info"] = sitemapInfo
+	}
+
+	// Simpan raw config (opsional)
+	if metaConfig != nil {
+		requestBody["meta_config"] = metaConfig
+	}
+	if sitemapConfig != nil {
+		requestBody["sitemap_config"] = sitemapConfig
+	}
+
 	// Default request body if field mapping empty
 	if len(requestBody) == 0 {
-
 		requestBody = map[string]interface{}{
 			"title":   draft.Title,
 			"content": draft.Article,
 			"topic":   draft.Topic,
 		}
-
 		if draft.ImageURL != nil {
 			requestBody["image_url"] = *draft.ImageURL
 		}
 	}
 
 	return requestBody, nil
+}
+
+func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
+	// Basic placeholders
+	text = strings.ReplaceAll(text, "{title}", draft.Title)
+	text = strings.ReplaceAll(text, "{topic}", draft.Topic)
+	text = strings.ReplaceAll(text, "{content}", draft.Article)
+
+	// Excerpt
+	excerpt := draft.Article
+	if len(excerpt) > 160 {
+		excerpt = excerpt[:160] + "..."
+	}
+	text = strings.ReplaceAll(text, "{excerpt}", excerpt)
+
+	// Image URL
+	if draft.ImageURL != nil {
+		text = strings.ReplaceAll(text, "{image_url}", *draft.ImageURL)
+	} else {
+		text = strings.ReplaceAll(text, "{image_url}", "")
+	}
+
+	// Meta placeholders
+	text = strings.ReplaceAll(text, "{meta_title}", draft.Title)
+	text = strings.ReplaceAll(text, "{meta_description}", excerpt)
+	text = strings.ReplaceAll(text, "{meta_keywords}", draft.Topic)
+
+	// OG placeholders
+	text = strings.ReplaceAll(text, "{og_title}", draft.Title)
+	text = strings.ReplaceAll(text, "{og_description}", excerpt)
+	if draft.ImageURL != nil {
+		text = strings.ReplaceAll(text, "{og_image}", *draft.ImageURL)
+	} else {
+		text = strings.ReplaceAll(text, "{og_image}", "")
+	}
+
+	// Twitter placeholders
+	text = strings.ReplaceAll(text, "{twitter_title}", draft.Title)
+	text = strings.ReplaceAll(text, "{twitter_description}", excerpt)
+	if draft.ImageURL != nil {
+		text = strings.ReplaceAll(text, "{twitter_image}", *draft.ImageURL)
+	} else {
+		text = strings.ReplaceAll(text, "{twitter_image}", "")
+	}
+
+	// Sitemap placeholders
+	text = strings.ReplaceAll(text, "{sitemap_priority}", "0.7")
+	text = strings.ReplaceAll(text, "{sitemap_changefreq}", "weekly")
+
+	// Timestamp
+	text = strings.ReplaceAll(text, "{timestamp}", time.Now().Format(time.RFC3339))
+
+	return text
+}
+
+// ========== GET VALUE FROM DRAFT (dengan atau tanpa placeholder) ==========
+func getValueFromDraftWithPlaceholder(draft draft.DraftDataPost, source string) string {
+	// Jika source adalah placeholder {xxx}
+	if strings.HasPrefix(source, "{") && strings.HasSuffix(source, "}") {
+		return replaceAllPlaceholders(source, draft)
+	}
+
+	// Jika source tanpa {}, anggap sebagai key langsung
+	switch source {
+	case "title":
+		return draft.Title
+	case "topic":
+		return draft.Topic
+	case "content", "article":
+		return draft.Article
+	case "excerpt":
+		excerpt := draft.Article
+		if len(excerpt) > 160 {
+			excerpt = excerpt[:160] + "..."
+		}
+		return excerpt
+	case "image_url":
+		if draft.ImageURL != nil {
+			return *draft.ImageURL
+		}
+		return ""
+	case "meta_title", "og_title", "twitter_title":
+		return draft.Title
+	case "meta_description", "og_description", "twitter_description":
+		excerpt := draft.Article
+		if len(excerpt) > 160 {
+			excerpt = excerpt[:160] + "..."
+		}
+		return excerpt
+	case "og_image", "twitter_image":
+		if draft.ImageURL != nil {
+			return *draft.ImageURL
+		}
+		return ""
+	case "sitemap_priority":
+		return "0.7"
+	case "sitemap_changefreq":
+		return "weekly"
+	case "updated_at", "created_at":
+		return time.Now().Format(time.RFC3339)
+	default:
+		// Bisa jadi custom key, coba cari di draft.CustomFields kalau ada
+		return ""
+	}
+}
+
+// ========== GENERATE META TAGS ==========
+func generateMetaTags(metaConfig map[string]interface{}, draft draft.DraftDataPost, baseURL string, sitemapConfig map[string]interface{}) map[string]string {
+	result := make(map[string]string)
+
+	if metaConfig == nil {
+		return result
+	}
+
+	// Cek enabled
+	if enabled, ok := metaConfig["enabled"].(bool); !ok || !enabled {
+		return result
+	}
+
+	// Ambil default tags
+	if defaultTags, ok := metaConfig["defaultTags"].(map[string]interface{}); ok {
+		if charset, ok := defaultTags["charset"].(string); ok {
+			result["charset"] = charset
+		}
+		if viewport, ok := defaultTags["viewport"].(string); ok {
+			result["viewport"] = viewport
+		}
+		if robots, ok := defaultTags["robots"].(string); ok {
+			result["robots"] = robots
+		}
+		if generator, ok := defaultTags["generator"].(string); ok {
+			result["generator"] = generator
+		}
+	}
+
+	// Ambil dynamic tags
+	dynamicTags, ok := metaConfig["dynamicTags"].(map[string]interface{})
+	if !ok {
+		return result
+	}
+
+	// Get sources
+	titleSource := getStringValue(dynamicTags, "titleSource", "{title}")
+	descSource := getStringValue(dynamicTags, "descriptionSource", "{excerpt}")
+	imageSource := getStringValue(dynamicTags, "imageSource", "{image_url}")
+
+	// Get values
+	title := getValueFromDraftWithPlaceholder(draft, titleSource)
+	description := getValueFromDraftWithPlaceholder(draft, descSource)
+	imageURL := getValueFromDraftWithPlaceholder(draft, imageSource)
+
+	// ========== BASIC META TAGS ==========
+	if title != "" {
+		result["title"] = title
+	}
+	if description != "" {
+		result["description"] = description
+	}
+
+	// ========== OPEN GRAPH ==========
+	if title != "" {
+		result["og:title"] = title
+	}
+	if description != "" {
+		result["og:description"] = description
+	}
+	if imageURL != "" {
+		result["og:image"] = imageURL
+	}
+	result["og:type"] = "article"
+	result["og:site_name"] = getStringValue(dynamicTags, "siteName", "AI Content Generator")
+
+	// ========== TWITTER CARD ==========
+	if title != "" {
+		result["twitter:title"] = title
+	}
+	if description != "" {
+		result["twitter:description"] = description
+	}
+	if imageURL != "" {
+		result["twitter:image"] = imageURL
+	}
+	result["twitter:card"] = "summary_large_image"
+
+	// ========== CANONICAL URL (generate dari sitemap config) ==========
+	canonicalURL := getCanonicalURL(draft, baseURL, sitemapConfig)
+	if canonicalURL != "" {
+		result["canonical"] = canonicalURL
+		result["og:url"] = canonicalURL
+	}
+
+	// ========== LINKEDIN ==========
+	if title != "" {
+		result["linkedin:title"] = title
+	}
+	if description != "" {
+		result["linkedin:description"] = description
+	}
+	if imageURL != "" {
+		result["linkedin:image"] = imageURL
+	}
+
+	// ========== PINTEREST ==========
+	if imageURL != "" {
+		result["pinterest:image"] = imageURL
+	}
+	if description != "" {
+		result["pinterest:description"] = description
+	}
+
+	// ========== CUSTOM TAGS ==========
+	if customTags, ok := dynamicTags["customTags"].(map[string]interface{}); ok {
+		for key, value := range customTags {
+			if strValue, ok := value.(string); ok {
+				replacedValue := replaceAllPlaceholders(strValue, draft)
+				if replacedValue != "" {
+					result[key] = replacedValue
+				}
+			}
+		}
+	}
+
+	// ========== CLEANUP ==========
+	for key, value := range result {
+		if value == "" {
+			delete(result, key)
+		}
+	}
+
+	return result
+}
+
+// ========== GENERATE CANONICAL URL ==========
+func getCanonicalURL(draft draft.DraftDataPost, baseURL string, sitemapConfig map[string]interface{}) string {
+	// 1. Coba dari sitemap config (urlPattern)
+	if sitemapConfig != nil {
+		if dynamicConfig, ok := sitemapConfig["dynamicConfig"].(map[string]interface{}); ok {
+			if urlPattern, ok := dynamicConfig["urlPattern"].(string); ok {
+				canonical := replaceAllPlaceholders(urlPattern, draft)
+				if canonical != "" {
+					return baseURL + canonical
+				}
+			}
+		}
+	}
+
+	// 4. Default fallback
+	return baseURL + "/p/" + time.Now().Format("20060102150405")
+}
+
+// ========== GENERATE SITEMAP INFO ==========
+func generateSitemapInfo(sitemapConfig map[string]interface{}, draft draft.DraftDataPost, baseURL string) map[string]interface{} {
+	if sitemapConfig == nil {
+		return nil
+	}
+
+	// Cek enabled
+	if enabled, ok := sitemapConfig["enabled"].(bool); !ok || !enabled {
+		return nil
+	}
+
+	// Ambil dynamic config
+	dynamicConfig, ok := sitemapConfig["dynamicConfig"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	// URL Pattern
+	urlPattern := getStringValue(dynamicConfig, "urlPattern", "/p/{id}")
+	urlPath := replaceAllPlaceholders(urlPattern, draft)
+	fullURL := baseURL + urlPath
+
+	// Priority
+	prioritySource := getStringValue(dynamicConfig, "prioritySource", "0.7")
+	priority := getValueFromDraftWithPlaceholder(draft, prioritySource)
+	if priority == "" {
+		priority = "0.7"
+	}
+
+	// Changefreq
+	changefreqSource := getStringValue(dynamicConfig, "changefreqSource", "weekly")
+	changefreq := getValueFromDraftWithPlaceholder(draft, changefreqSource)
+	if changefreq == "" {
+		changefreq = "weekly"
+	}
+
+	// Image
+	imageSource := getStringValue(dynamicConfig, "imageSource", "image_url")
+	imageURL := getValueFromDraftWithPlaceholder(draft, imageSource)
+
+	// Lastmod
+	lastmodSource := getStringValue(dynamicConfig, "lastmodSource", "updated_at")
+	lastmod := getValueFromDraftWithPlaceholder(draft, lastmodSource)
+	if lastmod == "" {
+		lastmod = time.Now().Format(time.RFC3339)
+	}
+
+	sitemapInfo := map[string]interface{}{
+		"loc":        fullURL,
+		"lastmod":    lastmod,
+		"changefreq": changefreq,
+		"priority":   priority,
+	}
+
+	if imageURL != "" {
+		sitemapInfo["image"] = map[string]string{
+			"loc": imageURL,
+		}
+	}
+
+	// Static URLs
+	if staticUrls, ok := sitemapConfig["staticUrls"].([]interface{}); ok {
+		sitemapInfo["static_urls"] = staticUrls
+	}
+
+	return sitemapInfo
+}
+
+// ========== FUNGSI BANTUAN ==========
+func getStringValue(m map[string]interface{}, key string, defaultValue string) string {
+	if val, ok := m[key]; ok {
+		if strVal, ok := val.(string); ok && strVal != "" {
+			return strVal
+		}
+	}
+	return defaultValue
 }
 
 func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interface{}) ([]byte, error) {

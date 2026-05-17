@@ -92,13 +92,14 @@ type AdapterConfig struct {
 	EndpointPath   string    `json:"endpointPath"`
 	HTTPMethod     string    `json:"httpMethod"`
 	CustomHeaders  string    `json:"customHeaders"`
-	FieldMapping   string    `json:"fieldMapping"` // ✅ FIX
+	FieldMapping   string    `json:"fieldMapping"`  // ✅ JSON template untuk konten
+	MetaConfig     string    `json:"metaConfig"`    // ✅ NEW: Meta tags configuration
+	SitemapConfig  string    `json:"sitemapConfig"` // ✅ NEW: Sitemap configuration
 	TimeoutSeconds int       `json:"timeoutSeconds"`
 	RetryCount     int       `json:"retryCount"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
-
 type CreateProductRequest struct {
 	Name          string                      `json:"name"`
 	Platform      string                      `json:"platform"`
@@ -113,6 +114,8 @@ type CreateAdapterConfigRequest struct {
 	HTTPMethod     string `json:"httpMethod"`
 	CustomHeaders  string `json:"customHeaders"`
 	FieldMapping   string `json:"fieldMapping"`
+	MetaConfig     string `json:"metaConfig"`    // ✅ TAMBAH INI
+	SitemapConfig  string `json:"sitemapConfig"` // ✅ TAMBAH INI
 	TimeoutSeconds int    `json:"timeoutSeconds,omitempty"`
 	RetryCount     int    `json:"retryCount,omitempty"`
 }

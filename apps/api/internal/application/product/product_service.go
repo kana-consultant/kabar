@@ -94,6 +94,8 @@ func (s *ProductService) CreateProduct(
 			HTTPMethod:     req.AdapterConfig.HTTPMethod,
 			CustomHeaders:  req.AdapterConfig.CustomHeaders,
 			FieldMapping:   req.AdapterConfig.FieldMapping,
+			MetaConfig:     req.AdapterConfig.MetaConfig,    // ✅ ADDED
+			SitemapConfig:  req.AdapterConfig.SitemapConfig, // ✅ ADDED
 			TimeoutSeconds: req.AdapterConfig.TimeoutSeconds,
 			RetryCount:     req.AdapterConfig.RetryCount,
 		}
@@ -139,7 +141,6 @@ func (s *ProductService) setDefaultAdapterConfigValues(config *product.AdapterCo
 	if config.RetryCount == 0 {
 		config.RetryCount = 3
 	}
-
 }
 
 // UpdateProduct - Application mengelola transaction
@@ -176,13 +177,11 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id string, updates m
 	}
 
 	// UPDATE PRODUCT VIA REPOSITORY
-
 	if err := s.productRepo.UpdateProductWithTx(ctx, tx, id, updates); err != nil {
 		return fmt.Errorf("failed to update product: %w", err)
 	}
 
 	// UPDATE ADAPTER CONFIG IF PROVIDED IN PAYLOAD
-
 	if adapterUpdates, ok := updates["adapterConfig"]; ok {
 		if adapterUpdatesMap, ok := adapterUpdates.(map[string]interface{}); ok && len(adapterUpdatesMap) > 0 {
 			if err := s.adapterConfigRepo.UpdateWithTx(ctx, tx, id, adapterUpdatesMap); err != nil {
@@ -200,7 +199,6 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id string, updates m
 }
 
 // DeleteProduct - Application mengelola transaction
-// DeleteProduct - Standard pattern (mirip Create)
 func (s *ProductService) DeleteProduct(ctx context.Context, id string) error {
 	// Business validation
 	if id == "" {
@@ -228,7 +226,7 @@ func (s *ProductService) DeleteProduct(ctx context.Context, id string) error {
 	// Delete adapter config first (if exists)
 	if err := s.adapterConfigRepo.DeleteWithTx(ctx, tx, id); err != nil {
 		// Log but don't fail - config might not exist
-		// Continue with product deletion
+		log.Printf("Warning: failed to delete adapter config: %v\n", err)
 	}
 
 	// Delete product
@@ -262,6 +260,7 @@ func (s *ProductService) GetByID(ctx context.Context, id string) (*product.Produ
 	if err != nil {
 		return nil, err
 	}
+
 	// 3. inject ke product
 	product.AdapterConfig = adapterConfig
 

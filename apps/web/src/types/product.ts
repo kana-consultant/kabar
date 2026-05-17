@@ -24,6 +24,8 @@ export interface AdapterConfig {
     httpMethod: 'POST' | 'PUT' | 'PATCH';
     customHeaders: string;
     fieldMapping: string;
+    metaConfig?: string;        // JSON string untuk konfigurasi meta tag
+    sitemapConfig?: string;     // JSON string untuk konfigurasi sitemap
     timeoutSeconds?: number;
     retryCount?: number;
     createdAt?: string;
