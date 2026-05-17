@@ -48,6 +48,11 @@ type CreateTeamRequest struct {
 	Description string `json:"description"`
 }
 
+type UserInvitedCreate struct {
+	Password string `json:"password"`
+	Token    string `json:"token"`
+}
+
 type AddTeamMemberRequest struct {
 	UserID string         `json:"user_id"`
 	Role   TeamMemberRole `json:"role"`

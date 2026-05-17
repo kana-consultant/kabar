@@ -1,0 +1,45 @@
+import type { UserRoleType } from "./types";
+import { USER_ROLES } from "./types";
+
+// Helper function untuk mendapatkan UserRole display name
+export const getRoleDisplayName = (roleType: UserRoleType): string => {
+    return USER_ROLES[roleType]?.displayName || roleType;
+};
+
+// Role options untuk dropdown
+export const roleOptions: { value: UserRoleType; label: string }[] = [
+    { value: 'admin', label: 'Admin' },
+    { value: 'member', label: 'Member' },
+    { value: 'viewer', label: 'Viewer' },
+    { value: 'owner', label: 'Owner' },
+];
+
+// Filter role options berdasarkan permission current user
+export const getAvailableRoles = (currentUser: any, isAdmin: boolean): UserRoleType[] => {
+    if (isAdmin) {
+        return ['admin', 'member', 'viewer', 'owner'];
+    }
+    if (currentUser?.role === 'owner') {
+        return ['member', 'viewer'];
+    }
+    if (currentUser?.role === 'admin') {
+        return ['member', 'viewer'];
+    }
+    return ['viewer'];
+};
+
+// Atau jika ingin hierarchy berdasarkan level:
+export const getAvailableRolesByLevel = (currentUserRole: UserRoleType): UserRoleType[] => {
+    const roleLevel: Record<UserRoleType, number> = {
+        owner: 100,
+        admin: 80,
+        member: 50,
+        viewer: 20
+    };
+
+    const currentLevel = roleLevel[currentUserRole];
+    
+    return roleOptions
+        .filter(option => roleLevel[option.value] <= currentLevel)
+        .map(option => option.value);
+};

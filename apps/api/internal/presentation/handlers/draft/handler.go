@@ -14,7 +14,7 @@ import (
 
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/helper"
-	"seo-backend/internal/middleware/auth"
+	auth "seo-backend/internal/presentation/middleware"
 )
 
 type DraftHandler struct {

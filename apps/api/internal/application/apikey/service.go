@@ -2,7 +2,6 @@ package apikey
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -15,13 +14,11 @@ import (
 type Service struct {
 	repo      apikey.Repository
 	encryptor crypto.Encryptor
-	db        *sql.DB
 }
 
 // NewService - constructor
-func NewService(db *sql.DB, repo apikey.Repository, encryptor crypto.Encryptor) apikey.Service {
+func NewService(repo apikey.Repository, encryptor crypto.Encryptor) apikey.Service {
 	return &Service{
-		db:        db,
 		repo:      repo,
 		encryptor: encryptor,
 	}

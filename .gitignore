@@ -88,16 +88,13 @@ nx.json
 # =======================
 # Environment & Secrets
 # =======================
-.env
-./env.*
-!.env.example
-.env.local
+# API env
+apps/api/.env
+api/.env.*
 
-.env.development
-*.pem
-*.key
-*.crt
-*.p12
+# Web env
+apps/web/.env
+web/.env.*
 
 # =======================
 # IDE - Common

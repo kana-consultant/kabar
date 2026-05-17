@@ -101,31 +101,11 @@ func (r *APIKeyRepository) GetAll(ctx context.Context, teamID *string, userID st
 		FROM api_keys ak
 		LEFT JOIN api_providers p ON ak.provider_id = p.id
 		LEFT JOIN ai_models m ON ak.model_id = m.id
-		WHERE 1=1
+		WHERE ak.team_id = $1
 	`
 
 	args := []interface{}{}
-	argIndex := 1
-
-	// Apply role-based filtering
-	switch userRole {
-	case "admin":
-		if teamID != nil && *teamID != "" {
-			query += fmt.Sprintf(" AND ak.team_id = $%d", argIndex)
-			args = append(args, *teamID)
-			argIndex++
-		} else {
-			query += fmt.Sprintf(" AND ak.created_by = $%d", argIndex)
-			args = append(args, userID)
-			argIndex++
-		}
-	default:
-		query += fmt.Sprintf(" AND ak.created_by = $%d", argIndex)
-		args = append(args, userID)
-		argIndex++
-	}
-
-	query += " ORDER BY ak.created_at DESC"
+	args = append(args, *teamID)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {

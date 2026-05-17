@@ -187,8 +187,8 @@ func (r *AuthRepository) AddUserToTeam(ctx context.Context, tx *sql.Tx, teamID, 
 	}
 
 	_, err := tx.ExecContext(ctx, `
-		INSERT INTO team_members (id, team_id, user_id, role, joined_at)
-		VALUES (gen_random_uuid(), $1, $2, 'manager', NOW())
+		INSERT INTO team_members (team_id, user_id, role, joined_at)
+		VALUES ($1, $2, 'manager', NOW())
 	`, teamID, userID)
 
 	if err != nil {

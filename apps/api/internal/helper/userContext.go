@@ -2,8 +2,8 @@ package helper
 
 import (
 	"net/http"
-	"seo-backend/internal/middleware/auth"
 	"seo-backend/internal/models"
+	auth "seo-backend/internal/presentation/middleware"
 )
 
 func GetUserContext(r *http.Request) models.UserContext {

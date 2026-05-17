@@ -46,9 +46,9 @@ func NewService(
 // =======================
 
 // GetAll retrieves all users with filters
-func (s *Service) GetAll(ctx context.Context, userCtx models.UserContext, filters user.UserFilters) ([]models.User, error) {
+func (s *Service) GetAll(ctx context.Context, userCtx models.UserContext) ([]models.User, error) {
 	// Build query based on user context and filters
-	query, args := s.queryBuilder.BuildListQuery(userCtx, filters)
+	query, args := s.queryBuilder.BuildListQuery(userCtx)
 
 	users, err := s.repo.GetAll(ctx, query, args)
 	if err != nil {

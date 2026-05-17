@@ -93,7 +93,7 @@ func (s *Service) Register(ctx context.Context, req auth.RegisterRequest) (*mode
 	defer tx.Rollback()
 
 	// Create user
-	user, err := s.repo.CreateUser(ctx, tx, req.Email, req.Name, passwordHash, models.RoleAdmin)
+	user, err := s.repo.CreateUser(ctx, tx, req.Email, req.Name, passwordHash, models.RoleManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
