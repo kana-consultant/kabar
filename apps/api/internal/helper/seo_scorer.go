@@ -1,4 +1,4 @@
-package generate
+package helper
 
 import (
 	"math"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func calculateSEOScoreSimple(title, content, excerpt, topic string) int {
+func CalculateSEOScoreSimple(title, content, excerpt, topic string) int {
 	total := 0
 	keyword := strings.ToLower(topic)
 	contentLower := strings.ToLower(content)

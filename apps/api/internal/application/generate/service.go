@@ -98,6 +98,12 @@ func (s *GenereteServiceImpl) GenerateArticle(ctx context.Context, params genera
 	}
 	log.Printf("[INFO] Response parsed successfully")
 
+	// Hitung SEO score otomatis
+	result.SeoScore = helper.CalculateSEOScoreSimple(result.Title, result.Content, result.Excerpt, params.Topic)
+
+	log.Printf("SUCCESS title=%s words=%d seo_score=%d", result.Title, result.WordCount, result.SeoScore)
+	return result, nil
+
 	log.Printf("[SUCCESS] Article generated - Title: %s, Word count: %d, SEO Score: %d",
 		result.Title, result.WordCount, result.SeoScore)
 	return result, nil

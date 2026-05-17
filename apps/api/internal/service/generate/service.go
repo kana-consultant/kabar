@@ -49,10 +49,10 @@ func (s *Service) GenerateArticle(params ArticleGenerationParams) (*ArticleResul
 	}
 
 	// Hitung SEO score otomatis
-result.SeoScore = calculateSEOScoreSimple(result.Title, result.Content, result.Excerpt, params.Topic)
+	result.SeoScore = calculateSEOScoreSimple(result.Title, result.Content, result.Excerpt, params.Topic)
 
-log.Printf("SUCCESS title=%s words=%d seo_score=%d", result.Title, result.WordCount, result.SeoScore)
-return result, nil
+	log.Printf("SUCCESS title=%s words=%d seo_score=%d", result.Title, result.WordCount, result.SeoScore)
+	return result, nil
 }
 
 func (s *Service) GenerateImage(params ImageGenerationParams) (*ImageResult, error) {
