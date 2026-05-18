@@ -50,6 +50,8 @@ type ModelConfig struct {
 	AuthHeader        string
 	AuthPrefix        string
 	Endpoint          string
+	SystemPrompt      string
+	EncryptedKey      string
 }
 
 type GenerationHistory struct {

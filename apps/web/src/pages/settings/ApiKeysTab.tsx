@@ -49,7 +49,7 @@ export function ApiKeysTab() {
     };
     useEffect(() => { loadData(); }, []);
 
-    
+
 
     const openAddDialog = (service: 'text' | 'image') => {
         setDialogService(service); setEditingKey(null);
@@ -306,15 +306,38 @@ export function ApiKeysTab() {
 
                         {formProviderId && (
                             <div className="space-y-1.5">
-                                <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">Model *</Label>
-                                <Select value={formModelId} onValueChange={setFormModelId}>
-                                    <SelectTrigger className={inputCls}><SelectValue placeholder="Pilih Model" /></SelectTrigger>
+                                <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    Model *
+                                </Label>
+
+                                <Select
+                                    value={formModelId}
+                                    onValueChange={setFormModelId}
+                                    required
+                                >
+                                    <SelectTrigger
+                                        className={`${inputCls} ${!formModelId ? "border-red-500" : ""
+                                            }`}
+                                    >
+                                        <SelectValue placeholder="Pilih Model" />
+                                    </SelectTrigger>
+
                                     <SelectContent>
-                                        {models.filter(m => m.providerId === formProviderId).map(m => (
-                                            <SelectItem key={m.id} value={m.id}>{m.displayName} ({m.name})</SelectItem>
-                                        ))}
+                                        {models
+                                            .filter((m) => m.providerId === formProviderId)
+                                            .map((m) => (
+                                                <SelectItem key={m.id} value={m.id}>
+                                                    {m.displayName} ({m.name})
+                                                </SelectItem>
+                                            ))}
                                     </SelectContent>
                                 </Select>
+
+                                {!formModelId && (
+                                    <p className="text-xs text-red-500">
+                                        Model wajib dipilih
+                                    </p>
+                                )}
                             </div>
                         )}
 
@@ -351,7 +374,11 @@ export function ApiKeysTab() {
                                 value={formSystemPrompt}
                                 onChange={e => setFormSystemPrompt(e.target.value)}
                                 rows={3}
-                                className={cn(inputCls, "h-auto py-2 resize-none")}
+                                className={cn(
+                                    inputCls,
+                                    "h-auto py-2 resize-none",
+                                    "max-h-[150px] overflow-y-auto"
+                                )}
                             />
                         </div>
 

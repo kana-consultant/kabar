@@ -160,11 +160,6 @@ export function ModelSelector({
                                                 </span>
                                             )}
                                         </div>
-                                        {model.systemPrompt && (
-                                            <p className="mt-1 text-[10px] text-slate-400 truncate max-w-[400px]">
-                                                System: {model.systemPrompt.substring(0, 60)}...
-                                            </p>
-                                        )}
                                     </SelectItem>
                                 ))}
                             </SelectContent>

@@ -1,6 +1,6 @@
 import { toast } from "sonner";
-import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant, type Draft } from "@//services/draft";
-import type { ScheduleRequest } from "@servicesschedule";
+import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant, type Draft, type CreateDraftRequest } from "@//services/draft";
+import type { ScheduleRequest } from "@/types/schedule";
 
 export async function saveAsDraft(
     article: string,
@@ -187,7 +187,7 @@ export async function postInstant(
     setPublishing(true);
 
     try {
-        const draftData: Draft = {
+        const draftData: CreateDraftRequest = {
             title: topic,
             topic: topic,
             article: article,

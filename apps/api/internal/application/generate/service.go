@@ -68,7 +68,12 @@ func (s *GenereteServiceImpl) GenerateArticle(ctx context.Context, params genera
 
 	// Build prompt
 	log.Println("[INFO] Building article prompt...")
-	prompt := s.promptBuilder.BuildArticlePrompt(params)
+
+	log.Printf("PROMPT SYSTEM ====== %v", config.SystemPrompt)
+
+	prompt := config.SystemPrompt
+	prompt += s.promptBuilder.BuildArticlePrompt(params)
+
 	log.Printf("[INFO] Prompt built successfully (length: %d characters)", len(prompt))
 
 	// Build request body
@@ -103,10 +108,6 @@ func (s *GenereteServiceImpl) GenerateArticle(ctx context.Context, params genera
 
 	log.Printf("SUCCESS title=%s words=%d seo_score=%d", result.Title, result.WordCount, result.SeoScore)
 	return result, nil
-
-	log.Printf("[SUCCESS] Article generated - Title: %s, Word count: %d, SEO Score: %d",
-		result.Title, result.WordCount, result.SeoScore)
-	return result, nil
 }
 
 func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate.ImageGenerationParams) (*generate.ImageResult, error) {
@@ -124,8 +125,9 @@ func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate
 		return nil, fmt.Errorf("failed to get model config: %w", err)
 	}
 
+	SystemPrompt := config.SystemPrompt + "Tentang" + params.Prompt
 	// Build request body
-	requestBody, err := s.requestBuilder.BuildImageRequestBody(config, params.Prompt)
+	requestBody, err := s.requestBuilder.BuildImageRequestBody(config, SystemPrompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
