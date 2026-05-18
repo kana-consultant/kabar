@@ -1,0 +1,15 @@
+FROM golang:1.25-alpine
+
+WORKDIR /app
+
+# copy dependency dulu (biar cache aman)
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+# baru copy source code
+COPY . .
+
+EXPOSE 8080
+
+CMD ["go", "run", "main.go"]
