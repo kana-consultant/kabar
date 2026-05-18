@@ -26,7 +26,7 @@ func NewAdapterConfigRepository(db *sql.DB) adapter.AdapterConfigRepository {
 func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *product.Product) error {
 	query := `
 		SELECT id, product_id, endpoint_path, http_method,
-			custom_headers, field_mapping, timeout_seconds,
+			custom_headers, field_mapping, meta_config, sitemap_config, timeout_seconds,
 			retry_count, created_at, updated_at
 		FROM adapter_configs WHERE product_id = $1
 	`
@@ -34,10 +34,13 @@ func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *prod
 	var config product.AdapterConfig
 	var customHeadersJSON []byte
 	var fieldMappingJSON []byte
+	var metaConfigJSON []byte
+	var sitemapConfigJSON []byte
 
 	err := r.db.QueryRowContext(ctx, query, data.ID).Scan(
 		&config.ID, &config.ProductID, &config.EndpointPath,
 		&config.HTTPMethod, &customHeadersJSON, &fieldMappingJSON,
+		&metaConfigJSON, &sitemapConfigJSON,
 		&config.TimeoutSeconds, &config.RetryCount,
 		&config.CreatedAt, &config.UpdatedAt,
 	)
@@ -62,6 +65,18 @@ func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *prod
 		}
 	}
 
+	if len(metaConfigJSON) > 0 {
+		if err := json.Unmarshal(metaConfigJSON, &config.MetaConfig); err != nil {
+			return fmt.Errorf("failed to unmarshal meta config: %w", err)
+		}
+	}
+
+	if len(sitemapConfigJSON) > 0 {
+		if err := json.Unmarshal(sitemapConfigJSON, &config.SitemapConfig); err != nil {
+			return fmt.Errorf("failed to unmarshal sitemap config: %w", err)
+		}
+	}
+
 	data.AdapterConfig = &config
 	return nil
 }
@@ -74,6 +89,8 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 		RetryCount:     1,
 		CustomHeaders:  "",
 		FieldMapping:   "",
+		MetaConfig:     "",
+		SitemapConfig:  "",
 	}
 
 	query := `
@@ -82,6 +99,8 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 			COALESCE(http_method, 'GET'),
 			COALESCE(custom_headers, '{}'),
 			COALESCE(field_mapping, '{}'),
+			COALESCE(meta_config, '{}'),
+			COALESCE(sitemap_config, '{}'),
 			COALESCE(timeout_seconds, 10),
 			COALESCE(retry_count, 1)
 		FROM adapter_configs 
@@ -90,12 +109,16 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 
 	var customHeadersJSON []byte
 	var fieldMappingJSON []byte
+	var metaConfigJSON []byte
+	var sitemapConfigJSON []byte
 
 	err := r.db.QueryRowContext(ctx, query, productID).Scan(
 		&config.EndpointPath,
 		&config.HTTPMethod,
 		&customHeadersJSON,
 		&fieldMappingJSON,
+		&metaConfigJSON,
+		&sitemapConfigJSON,
 		&config.TimeoutSeconds,
 		&config.RetryCount,
 	)
@@ -111,6 +134,12 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 		if len(fieldMappingJSON) > 0 {
 			json.Unmarshal(fieldMappingJSON, &config.FieldMapping)
 		}
+		if len(metaConfigJSON) > 0 {
+			json.Unmarshal(metaConfigJSON, &config.MetaConfig)
+		}
+		if len(sitemapConfigJSON) > 0 {
+			json.Unmarshal(sitemapConfigJSON, &config.SitemapConfig)
+		}
 	}
 
 	return config, nil
@@ -120,7 +149,7 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID string) (*product.AdapterConfig, error) {
 	query := `
 		SELECT id, product_id, endpoint_path, http_method,
-			custom_headers, field_mapping, timeout_seconds,
+			custom_headers, field_mapping, meta_config, sitemap_config, timeout_seconds,
 			retry_count, created_at, updated_at
 		FROM adapter_configs WHERE product_id = $1
 	`
@@ -128,10 +157,13 @@ func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID 
 	var config product.AdapterConfig
 	var customHeadersJSON []byte
 	var fieldMappingJSON []byte
+	var metaConfigJSON []byte
+	var sitemapConfigJSON []byte
 
 	err := r.db.QueryRowContext(ctx, query, productID).Scan(
 		&config.ID, &config.ProductID, &config.EndpointPath,
 		&config.HTTPMethod, &customHeadersJSON, &fieldMappingJSON,
+		&metaConfigJSON, &sitemapConfigJSON,
 		&config.TimeoutSeconds, &config.RetryCount,
 		&config.CreatedAt, &config.UpdatedAt,
 	)
@@ -150,6 +182,12 @@ func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID 
 	if len(fieldMappingJSON) > 0 {
 		json.Unmarshal(fieldMappingJSON, &config.FieldMapping)
 	}
+	if len(metaConfigJSON) > 0 {
+		json.Unmarshal(metaConfigJSON, &config.MetaConfig)
+	}
+	if len(sitemapConfigJSON) > 0 {
+		json.Unmarshal(sitemapConfigJSON, &config.SitemapConfig)
+	}
 
 	return &config, nil
 }
@@ -162,6 +200,8 @@ func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, 
 
 	customHeadersJSON, _ := json.Marshal(config.CustomHeaders)
 	fieldMappingJSON, _ := json.Marshal(config.FieldMapping)
+	metaConfigJSON, _ := json.Marshal(config.MetaConfig)
+	sitemapConfigJSON, _ := json.Marshal(config.SitemapConfig)
 
 	timeoutSeconds := config.TimeoutSeconds
 	if timeoutSeconds == 0 {
@@ -175,14 +215,15 @@ func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, 
 	query := `
 		INSERT INTO adapter_configs (
 			product_id, endpoint_path, http_method,
-			custom_headers, field_mapping, timeout_seconds, retry_count,
+			custom_headers, field_mapping, meta_config, sitemap_config, timeout_seconds, retry_count,
 			created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 	`
 
 	_, err := tx.ExecContext(ctx, query,
 		productID, config.EndpointPath, config.HTTPMethod,
-		customHeadersJSON, fieldMappingJSON, timeoutSeconds, retryCount,
+		customHeadersJSON, fieldMappingJSON, metaConfigJSON, sitemapConfigJSON,
+		timeoutSeconds, retryCount,
 	)
 
 	if err != nil {
@@ -211,6 +252,8 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 		"httpMethod":     "http_method",
 		"customHeaders":  "custom_headers",
 		"fieldMapping":   "field_mapping",
+		"metaConfig":     "meta_config",    // ✅ TAMBAH INI
+		"sitemapConfig":  "sitemap_config", // ✅ TAMBAH INI
 		"timeoutSeconds": "timeout_seconds",
 		"retryCount":     "retry_count",
 	}
@@ -230,6 +273,22 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 				jsonValue, err := json.Marshal(value)
 				if err != nil {
 					return fmt.Errorf("failed to marshal field mapping: %w", err)
+				}
+				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
+				args = append(args, jsonValue)
+
+			case "metaConfig":
+				jsonValue, err := json.Marshal(value)
+				if err != nil {
+					return fmt.Errorf("failed to marshal meta config: %w", err)
+				}
+				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
+				args = append(args, jsonValue)
+
+			case "sitemapConfig":
+				jsonValue, err := json.Marshal(value)
+				if err != nil {
+					return fmt.Errorf("failed to marshal sitemap config: %w", err)
 				}
 				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
 				args = append(args, jsonValue)
@@ -273,8 +332,6 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 	return nil
 }
 
-// internal/repositories/adapter_config_repository.go
-
 // DeleteWithTx - delete adapter config by product ID with transaction
 func (r *AdapterConfigRepository) DeleteWithTx(ctx context.Context, tx *sql.Tx, productID string) error {
 	if tx == nil {
@@ -293,9 +350,8 @@ func (r *AdapterConfigRepository) DeleteWithTx(ctx context.Context, tx *sql.Tx, 
 		return fmt.Errorf("failed to check rows affected: %w", err)
 	}
 
-	// Return nil even if no rows deleted (config might not exist)
 	if rowsAffected == 0 {
-		return nil // No config found, not an error
+		return nil
 	}
 
 	return nil

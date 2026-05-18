@@ -33,6 +33,7 @@ export default function Login() {
         try {
             const response = await login(email, password);
             if (response) {
+                console.log(response)
                 navigate({ to: "/dashboard" })
             }
         } catch (err: any) {

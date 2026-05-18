@@ -1,7 +1,7 @@
 export type DraftStatus = 'draft' | 'scheduled' | 'published';
 
 export interface Draft {
-    id: string;
+    id?: string;
     title: string;
     topic: string;
     article: string;

@@ -198,7 +198,7 @@ func (r *ProductRepository) GetProductBasicInfo(ctx context.Context, id string) 
 
 func (r *ProductRepository) GetProductBasicInfoWithTx(ctx context.Context, tx *sql.Tx, id string) (*product.ProductBasicInfo, error) {
 	query := `
-		SELECT id, name,custom_headers, platform, api_endpoint, COALESCE(api_key_encrypted, '')
+		SELECT id, name, custom_headers, platform, api_endpoint, COALESCE(api_key_encrypted, '')
 		FROM products WHERE id = $1
 	`
 
@@ -308,12 +308,14 @@ func (r *ProductRepository) UpdateProductWithTx(ctx context.Context, tx *sql.Tx,
 
 	// Field mapping: application field -> database column
 	fieldMap := map[string]string{
-		"name":        "name",
-		"platform":    "platform",
-		"apiEndpoint": "api_endpoint",
-		"status":      "status",
-		"syncStatus":  "sync_status",
-		"apiKey":      "api_key_encrypted",
+		"name":          "name",
+		"platform":      "platform",
+		"apiEndpoint":   "api_endpoint",
+		"status":        "status",
+		"syncStatus":    "sync_status",
+		"apiKey":        "api_key_encrypted",
+		"metaConfig":    "meta_config",    // ✅ TAMBAH INI
+		"sitemapConfig": "sitemap_config", // ✅ TAMBAH INI
 	}
 
 	for key, value := range updates {

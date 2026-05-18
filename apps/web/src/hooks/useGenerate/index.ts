@@ -1,4 +1,5 @@
 import { useLocation } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useGenerateState } from "./useGenerateState";
 import { useGenerateData } from "./useGenerateData";
 import { useLoadDraft } from "./useLoadDraft";
@@ -8,10 +9,11 @@ import { saveAsDraft, saveAsSchedule, postInstant } from "./usePublishActions";
 import { handleAddKeyword, handleRemoveKeyword, handleProductToggle, handleSelectAll, resetForm } from "./useFormManagement";
 import { quickGenerate } from "./useQuickGenerate";
 import { closeResultDialog } from "./useDialogState";
-import { toast } from "sonner"; 
+import { toast } from "sonner";
 
 export function useGenerate() {
     const location = useLocation();
+    const navigate = useNavigate()
     const searchParams = new URLSearchParams(location.search);
     const editId = searchParams.get("edit") || undefined;
     const TopicId = searchParams.get("topic") || undefined;
@@ -64,7 +66,7 @@ export function useGenerate() {
     );
 
     const generateArticle = () => generateArticleContent(
-        topic, selectedModelId, tone, articleLength , language, 
+        topic, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
         setSeoScore, setReadabilityScore, setWordCount
     );
@@ -118,6 +120,9 @@ export function useGenerate() {
                 await handlePostInstant();
             }
         } finally {
+            navigate({
+                to: "/history",
+            })
             setIsPosting(false);
         }
     };

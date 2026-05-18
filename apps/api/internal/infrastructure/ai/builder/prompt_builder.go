@@ -14,65 +14,57 @@ func NewPromptBuilder() *PromptBuilder {
 }
 
 func (b *PromptBuilder) BuildArticlePrompt(params generate.ArticleGenerationParams) string {
-	language := params.Language
-	if language == "" {
-		language = "English"
-	}
-
-	tone := params.Tone
-	if tone == "" {
-		tone = "professional"
-	}
-
-	length := params.Length
-	if length == "" {
-		length = "medium (800-1200 words)"
-	}
-
 	return fmt.Sprintf(`
-You are an expert SEO content writer with deep expertise and authority in your field.
+TOPIC:
+"%s"
 
-Write a high-quality SEO-friendly article in %s about "%s".
+CORE RULES:
+- Write naturally like a human writer
+- Ensure the article is informative, structured, and readable
+- Avoid repetitive sentences and generic AI phrases
+- Do not use placeholders or dummy text
+- Keep explanations relevant to the topic
+- Use a clear logical flow between sections
+- Maintain factual consistency
 
-Requirements:
-- Tone: %s
-- Length: %s
-- Content must be valid HTML
+CONTENT REQUIREMENTS:
+- Use valid HTML only
+- Use proper heading hierarchy:
+  <h1>, <h2>, <h3>
+- Include:
+  - Introduction
+  - Main discussion sections
+  - Conclusion
+- Use paragraphs, lists, and tables when relevant
+- Do not include markdown
+- Do not wrap output with backticks
 
-EEAT Guidelines (strictly follow):
-- Experience: Write as someone with firsthand experience on the topic
-- Expertise: Use accurate, in-depth information with proper terminology
-- Authoritativeness: Reference credible concepts and best practices
-- Trustworthiness: Be factual, balanced, and cite reasoning clearly
+SEO REQUIREMENTS:
+- Include the main topic naturally in:
+  - Title
+  - Introduction
+  - At least one subheading
+- Use semantic and related keywords naturally
+- Optimize readability
+- Avoid keyword stuffing
 
-SEO & Keyword Rules:
-- Place the primary keyword in the H1 title
-- Use the keyword naturally in the first 100 words
-- Include keyword in at least one H2 heading
-- Use semantic/related keywords throughout the content
-- Add proper meta description in excerpt
+OUTPUT RULES:
+- Return ONLY valid JSON
+- No explanation
+- No additional text outside JSON
+- Ensure JSON is parseable
 
-Content Structure:
-- Use proper HTML heading hierarchy (H1 > H2 > H3)
-- Include an introduction, body sections, and conclusion
-- Add internal linking suggestions as HTML comments
-
-IMPORTANT: Return ONLY valid JSON, no markdown, no backticks, no explanation.
-
+RESPONSE FORMAT:
 {
   "title": "string",
+  "slug": "string",
+  "excerpt": "string",
   "content": "<h1>...</h1>",
-  "excerpt": "string (150-160 chars for meta description)",
-  "keywords": ["keyword1", "keyword2"],
-  "imagePrompt": "string (prompt for featured image generation)",
-  "seoScore": number,
-  "readabilityScore": number,
+  "keywords": ["string"],
+  "imagePrompt": "string",
   "wordCount": number
 }
 `,
-		language,
 		params.Topic,
-		tone,
-		length,
 	)
 }

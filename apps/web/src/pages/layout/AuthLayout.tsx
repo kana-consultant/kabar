@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hasToken } from '@/services/auth';
 
 // Public routes yang bisa diakses tanpa login
-const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password','/invite'];
+const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/invite'];
 
 export function AuthLayout() {
     const navigate = useNavigate();
@@ -18,26 +18,33 @@ export function AuthLayout() {
 
         const currentPath = location.pathname;
         const isPublicRoute = PUBLIC_ROUTES.some(route => currentPath.startsWith(route));
+        const isLoggedIn = isAuthenticated && hasToken();
 
-        // Jika tidak login dan bukan di public route, redirect ke login
-        if (hasToken() && isPublicRoute) {
+        // CASE 1: User sudah login dan mencoba akses public route (login/register/etc)
+        if (isLoggedIn && isPublicRoute) {
+            // Redirect ke dashboard
             navigate({
-                to: '/login',
-            });
-            return;
-        }
-
-        // Jika sudah login dan mencoba akses halaman auth (login/register)
-        if (hasToken()) {
-            // Redirect ke dashboard atau intended destination
-            const from = (location.state as any)?.from || '/dashboard';
-            navigate({
-                to: from,
+                to: '/dashboard',
                 replace: true
             });
             return;
         }
-    }, [isAuthenticated, isLoading, location.pathname, location.state, navigate]);
+
+        // CASE 2: User belum login dan mencoba akses protected route
+        if (!isLoggedIn && !isPublicRoute) {
+            // Redirect ke login, simpan intended destination
+            navigate({
+                to: '/login',
+                replace: true,
+                state: { from: currentPath }
+            });
+            return;
+        }
+
+        // CASE 3: User sudah login di protected route -> allow access
+        // CASE 4: User belum login di public route -> allow access
+        
+    }, [isAuthenticated, isLoading, location.pathname, navigate]);
 
     // Show loading spinner while checking auth
     if (isLoading) {

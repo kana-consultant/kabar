@@ -17,6 +17,8 @@ export function useProductForm(isEdit: boolean, productId?: string, initialData?
         updateProductInfo,
         updateAdapterConfig,
         updateFieldMapping,
+        updateMetaConfig,
+        updateSitemapConfig
     } = useProductFormActions(setProduct);
 
     const {
@@ -38,5 +40,7 @@ export function useProductForm(isEdit: boolean, productId?: string, initialData?
         handleTestConnection,
         handleSave,
         handleCancel,
+        updateMetaConfig,
+        updateSitemapConfig
     };
 }
