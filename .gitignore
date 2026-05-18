@@ -2,7 +2,8 @@
 # ENV / SECRETS
 # =========================
 .env
-.env.*
+.env.production
+
 
 # =========================
 # NODE (React / Vite)
