@@ -4,7 +4,7 @@
 
 ---
 
-## 🚀 Overview
+##  Overview
 
 Managing content across multiple platforms manually is time-consuming, inefficient, and error-prone. Kabar serves as a unified solution that brings the entire content workflow into one integrated system.
 
@@ -27,7 +27,7 @@ Managing content across multiple platforms manually is time-consuming, inefficie
 
 ---
 
-## 🎯 Problem Statement
+##  Problem Statement
 
 | No | Problem | Impact |
 |----|---------|--------|
@@ -38,7 +38,7 @@ Managing content across multiple platforms manually is time-consuming, inefficie
 
 ---
 
-## 💡 Solution
+##  Solution
 
 > *"From a single dashboard, users can generate articles and images, then publish them to multiple products simultaneously with just one click."*
 
@@ -53,7 +53,7 @@ Kabar unifies the entire content management ecosystem into one platform:
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ### Layered Architecture
 
@@ -78,7 +78,7 @@ Kabar unifies the entire content management ecosystem into one platform:
 
 Kabar is built with a clean layered architecture that separates each component's responsibility clearly. The Presentation Layer handles the user interface, the API Layer serves as the entry point for frontend requests, the Application Layer orchestrates business logic, the Domain Layer defines core entities and rules, and the Infrastructure Layer manages connections to the database, cache, email, and external services.
 
-### 🛠️ Tech Stack
+###  Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -95,9 +95,9 @@ Kabar is built with a clean layered architecture that separates each component's
 
 ---
 
-## ✨ Core Features
+##  Core Features
 
-### 1. 🤖 AI Content Generation — *Produce Publish-Ready Content with AI*
+### 1.  AI Content Generation — *Produce Publish-Ready Content with AI*
 
 This feature allows users to create a complete, structured article simply by providing a topic or keyword. The AI automatically composes content that is informative, well-structured, and SEO-friendly — ready to publish without heavy manual editing.
 
@@ -112,7 +112,7 @@ This feature allows users to create a complete, structured article simply by pro
 
 ---
 
-### 2. 🌐 Multi-Platform Publishing — *Publish to Every Platform at Once*
+### 2.  Multi-Platform Publishing — *Publish to Every Platform at Once*
 
 Kabar is built on an **Adapter Pattern** architecture that allows a single piece of content to be published to multiple platforms simultaneously, with each platform receiving it in the correct format automatically.
 
@@ -302,7 +302,7 @@ deployments/
 
 ---
 
-## ⚙️ Environment Configuration
+##  Environment Configuration
 
 ### Backend `.env`
 
@@ -364,7 +364,7 @@ SMTP_TLS=true
 
 ---
 
-## 🐳 Docker Development
+##  Docker Development
 
 **Run the development stack:**
 ```bash
@@ -403,7 +403,7 @@ npm run dev
 
 ---
 
-## 📖 API Documentation & Testing
+##  API Documentation & Testing
 
 Swagger documentation is available at:
 ```
