@@ -99,6 +99,8 @@ CREATE TABLE IF NOT EXISTS public.adapter_configs (
     endpoint_path character varying(500) NOT NULL,
     http_method character varying(10) DEFAULT 'POST',
     custom_headers jsonb DEFAULT '{}'::jsonb,
+    meta_config text,
+    sitemap_config text,
     field_mapping text NOT NULL,
     timeout_seconds integer DEFAULT 30,
     retry_count integer DEFAULT 3,

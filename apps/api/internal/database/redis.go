@@ -5,14 +5,15 @@ import (
 	"context"
 	"log"
 	"os"
+	"seo-backend/internal/config"
 
 	"github.com/go-redis/redis/v8"
 )
 
 var RedisClient *redis.Client
 
-func InitRedis() error {
-	redisAddr := os.Getenv("REDIS_ADDR")
+func InitRedis(cfg *config.Config) error {
+	redisAddr := cfg.RedisHost + ":" + cfg.RedisPort
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}

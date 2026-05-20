@@ -21,7 +21,7 @@ export function useDraftsActions({
 
     const handleDelete = useCallback(async (draft: Draft) => {
         try {
-            await deleteDraft(draft.id);
+            await deleteDraft(draft.id as string);
             toast.success("Draft dihapus", {
                 description: `"${draft.title}" telah dihapus`,
             });
@@ -78,11 +78,11 @@ export function useDraftsActions({
         scheduledFor?: string,
         scheduleConfig?: ScheduleConfig
     ) => {
-        setPublishingId(draft.id);
+        setPublishingId(draft.id as string);
        
 
         try {
-            const response = await publishDraft(draft.id, draft);
+            const response = await publishDraft(draft.id as string, draft);
             const isScheduled = !!scheduledFor;
 
             const success = processPublishResponse(response, draft, isScheduled, scheduleConfig);
