@@ -58,7 +58,7 @@ func main() {
 	defer database.Close()
 
 	// 4. INITIALIZE REDIS
-	if err := database.InitRedis(); err != nil {
+	if err := database.InitRedis(cfg); err != nil {
 		log.Fatal("Failed to connect to Redis:", err)
 	}
 	defer database.CloseRedis()

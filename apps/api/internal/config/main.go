@@ -34,7 +34,7 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		ServerPort: getEnv("PORT", "8080"),
+		ServerPort: getEnv("SERVER_PORT", "8080"),
 
 		// Database
 		DBHost:     getEnv("DB_HOST", "localhost"),
