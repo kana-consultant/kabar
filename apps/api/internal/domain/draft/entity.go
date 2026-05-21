@@ -21,14 +21,23 @@ type Draft struct {
 	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
+type Keywords struct {
+	ID        string    `json:"id"`
+	IDDraft   string    `json:"id_draft"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type DraftData struct {
-	ID             string   `json:"id"`
-	Title          string   `json:"title"`
-	Topic          string   `json:"topic"`
-	Article        string   `json:"article"`
-	ImageURL       *string  `json:"image_url"`
-	ImagePrompt    string   `json:"image_prompt"`
-	TargetProducts []string `json:"target_products"`
+	ID             string     `json:"id"`
+	Title          string     `json:"title"`
+	Topic          string     `json:"topic"`
+	Article        string     `json:"article"`
+	ImageURL       *string    `json:"image_url"`
+	ImagePrompt    string     `json:"image_prompt"`
+	TargetProducts []string   `json:"target_products"`
+	Keywords       []Keywords `json:"keywords,omitempty"` // Tambahkan ini
 }
 
 type PublishResult struct {

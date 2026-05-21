@@ -10,13 +10,12 @@ import (
 )
 
 type ProductConfig struct {
-	ProductID       string
-	APIEndpoint     string
-	APIKey          string
-	AdapterEndpoint string
-	HTTPMethod      string
-	FullURL         string
-
+	ProductID        string
+	APIEndpoint      string
+	APIKey           string
+	AdapterEndpoint  string
+	HTTPMethod       string
+	FullURL          string
 	FieldMappingStr  string
 	MetaConfigStr    string
 	SitemapConfigStr string

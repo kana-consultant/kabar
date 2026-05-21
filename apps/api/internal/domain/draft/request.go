@@ -2,23 +2,28 @@
 package draft
 
 type CreateDraftRequest struct {
-	Title          string   `json:"title"`
-	Topic          string   `json:"topic"`
-	Article        string   `json:"article"`
-	ImageURL       *string  `json:"image_url"`
-	ImagePrompt    string   `json:"image_prompt"`
-	TargetProducts []string `json:"target_products"`
-	HasImage       bool     `json:"has_image"`
-	ScheduledFor   string   `json:"scheduled_for"`
+	Title          string     `json:"title"`
+	Topic          string     `json:"topic"`
+	Article        string     `json:"article"`
+	ImageURL       *string    `json:"image_url"`
+	ImagePrompt    string     `json:"image_prompt"`
+	TargetProducts []string   `json:"target_products"`
+	HasImage       bool       `json:"has_image"`
+	ScheduledFor   string     `json:"scheduled_for"`
+	Slug           string     `json:"slug"`
+	Keywords       []Keywords `json:"keywords"`
 }
 
 type DraftDataPost struct {
+	Id             string   `json:"id"`
 	Title          string   `json:"title"`
 	Topic          string   `json:"topic"`
 	Article        string   `json:"article"`
 	ImageURL       *string  `json:"ImageURL"`
 	ImagePrompt    string   `json:"ImagePrompt"`
 	TargetProducts []string `json:"scheduled_for"`
+	Slug           string   `json:"slug"`
+	Keywords       string   `json:"keywords"`
 }
 
 type ScheduleRequest struct {
@@ -33,6 +38,7 @@ type ScheduleRequest struct {
 }
 
 type PublishHistoryRequest struct {
+	Id             string
 	Title          string
 	Topic          string
 	Article        string
