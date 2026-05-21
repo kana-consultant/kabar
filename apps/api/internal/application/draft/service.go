@@ -308,6 +308,7 @@ func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForSt
 
 func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.DraftData, id, teamID, userID string) (*draft.PublishResult, error) {
 	draftPost := draft.DraftDataPost{
+		Id:             id,
 		Title:          draftData.Title,
 		Topic:          draftData.Topic,
 		Article:        draftData.Article,

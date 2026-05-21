@@ -23,7 +23,12 @@ import {
 } from "@/utils/SimpleJsonBuilder";
 
 const PLACEHOLDERS = [
+    { value: "{id}", label: "unique id" },
     { value: "{title}", label: "Judul Artikel" },
+    { value: "{slug}", label: "isi slug" },
+    { value: "{tags}", label: "Judul Artikel" },
+    { value: "{topic}", label: "Topik Artikel" },
+    { value: "{timestamp}", label: "Topik Artikel" },
     { value: "{topic}", label: "Topik Artikel" },
     { value: "{content}", label: "Isi Artikel (HTML)" },
     { value: "{excerpt}", label: "Ringkasan" },
@@ -89,7 +94,7 @@ export function SimpleJsonBuilder({
         if (
             parsed &&
             typeof parsed ===
-                "object"
+            "object"
         ) {
 
             const incoming =
@@ -187,16 +192,16 @@ export function SimpleJsonBuilder({
     ) => {
 
         const newField: Field =
-            {
-                id: genId(),
-                key: `field${getNextFieldNumber(
-                    fields
-                )}`,
-                value: "",
-                type: "field",
-                children: [],
-                expanded: true,
-            };
+        {
+            id: genId(),
+            key: `field${getNextFieldNumber(
+                fields
+            )}`,
+            value: "",
+            type: "field",
+            children: [],
+            expanded: true,
+        };
 
         if (!parentId) {
             setFields((prev) => [
@@ -226,16 +231,16 @@ export function SimpleJsonBuilder({
     ) => {
 
         const newObject: Field =
-            {
-                id: genId(),
-                key: `object${getNextObjectNumber(
-                    fields
-                )}`,
-                value: "",
-                type: "object",
-                children: [],
-                expanded: true,
-            };
+        {
+            id: genId(),
+            key: `object${getNextObjectNumber(
+                fields
+            )}`,
+            value: "",
+            type: "object",
+            children: [],
+            expanded: true,
+        };
 
         if (!parentId) {
             setFields((prev) => [
@@ -440,11 +445,10 @@ export function SimpleJsonBuilder({
                                                     .value
                                             )
                                         }
-                                        className={`h-8 ${
-                                            isPlaceholder
+                                        className={`h-8 ${isPlaceholder
                                                 ? "font-mono text-blue-600"
                                                 : ""
-                                        }`}
+                                            }`}
                                     />
 
                                     <Button
@@ -585,7 +589,7 @@ export function SimpleJsonBuilder({
                                     renderField(
                                         child,
                                         level +
-                                            1
+                                        1
                                     )
                             )}
 

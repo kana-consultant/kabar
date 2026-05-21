@@ -7,4 +7,6 @@ export interface ScheduleRequest {
 	scheduled_for: string
 	target_products: string[]
 	has_image?: boolean
+	keywords: string[] | null
+	slug : string
 }

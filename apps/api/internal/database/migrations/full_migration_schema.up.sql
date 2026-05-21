@@ -119,12 +119,28 @@ CREATE TABLE IF NOT EXISTS public.drafts (
     scheduled_for timestamp without time zone,
     target_products jsonb DEFAULT '[]'::jsonb,
     has_image boolean DEFAULT false,
+    slug text,  
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     created_by uuid,
     team_id uuid,
     user_id uuid,
     published_at timestamp without time zone
+);
+
+-- Tabel keywords
+CREATE TABLE keywords (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_draft UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Foreign key ke tabel drafts
+    CONSTRAINT fk_keywords_draft 
+        FOREIGN KEY (id_draft) 
+        REFERENCES drafts(id) 
+        ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS public.histories (

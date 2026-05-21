@@ -20,6 +20,7 @@ export interface GenerateArticleResponse {
     wordCount: number;
     readabilityScore: number;
     seoScore: number;
+    slug: string;
 }
 
 export interface GenerateImageRequest {

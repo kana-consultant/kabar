@@ -16,6 +16,8 @@ export interface Draft {
     user_id?: string;
     created_at?: string;
     updated_at?: string;
+    slug : string;
+    keywords : string[] | null;
 }
 
 export interface CreateDraftRequest {
@@ -26,6 +28,8 @@ export interface CreateDraftRequest {
     image_prompt?: string;
     target_products: string[];
     team_id?: string;
+    slug : string;
+    keywords : string[] | null
 }
 
 export interface UpdateDraftRequest {
