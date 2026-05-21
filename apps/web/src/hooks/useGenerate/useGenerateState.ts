@@ -7,6 +7,8 @@ export function useGenerateState() {
     const [imageUrl, setImageUrl] = useState("");
     const [loadingArticle, setLoadingArticle] = useState(false);
     const [loadingImage, setLoadingImage] = useState(false);
+    const [slug, setSlug] = useState<String | null>(null);
+    const [tags, SetTags] = useState<String[] | null>([]);
     const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
     const [postMode, setPostMode] = useState<"instant" | "scheduled" | "draft">("instant");
     const [scheduleTime, setScheduleTime] = useState("09:00");
@@ -75,5 +77,7 @@ export function useGenerateState() {
         productsLoading, setProductsLoading,
         productsError, setProductsError,
         isPosting, setIsPosting,
+        slug, setSlug,
+        tags, SetTags
     };
 }

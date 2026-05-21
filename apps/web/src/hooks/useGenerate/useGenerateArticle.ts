@@ -13,6 +13,8 @@ export async function generateArticleContent(
     setSeoScore: (val: number | null) => void,
     setReadabilityScore: (val: number | null) => void,
     setWordCount: (val: number | null) => void,
+    setSlug : (val : string | null) => void,
+    setKeywords : (val : string[]  ) => void
 ) {
     if (!topic) {
         toast.error("Masukkan topik terlebih dahulu");
@@ -39,6 +41,9 @@ export async function generateArticleContent(
         setSeoScore(response.seoScore);
         setReadabilityScore(response.readabilityScore);
         setWordCount(response.wordCount);
+        setSlug(response.slug)
+        setKeywords(response.keywords)
+        console.log(response.slug)
 
         toast.success("Artikel berhasil di-generate!", {
             description: `Topik: ${response.title} | ${response.wordCount} kata`,

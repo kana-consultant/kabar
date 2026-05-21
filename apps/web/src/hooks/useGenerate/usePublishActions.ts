@@ -8,7 +8,9 @@ export async function saveAsDraft(
     imageUrl: string,
     selectedProducts: string[],
     currentDraftId: string | null,
-    setCurrentDraftId: (id: string | null) => void
+    setCurrentDraftId: (id: string | null) => void,
+    slug : string,
+    tags : string[] | null,
 ) {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
@@ -23,6 +25,8 @@ export async function saveAsDraft(
         image_prompt: topic,
         target_products: selectedProducts,
         has_image: !!imageUrl,
+        slug : slug,
+        keywords : tags as string[]
     };
 
     try {
@@ -54,7 +58,9 @@ export async function saveAsSchedule(
     setPublishing: (val: boolean) => void,
     setPublishResults: (val: any) => void,
     setShowResultDialog: (val: boolean) => void,
-    resetForm: () => void
+    resetForm: () => void,
+    slug : string, 
+    tags : string[] | null,
 ) {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
@@ -92,6 +98,8 @@ export async function saveAsSchedule(
             target_products: selectedProducts,
             scheduled_for: scheduledFor,
             has_image: !!imageUrl,
+            keywords : tags as string[],
+            slug : slug as string
         };
 
         if (currentDraftId) {
@@ -107,6 +115,8 @@ export async function saveAsSchedule(
                 target_products: selectedProducts,
                 scheduled_for: scheduledFor,
                 has_image: !!imageUrl,
+                 slug : slug,
+                keywords : tags as string[]
             };
 
             response = await draftSchedule(ScheduleDraft);
@@ -172,7 +182,9 @@ export async function postInstant(
     setPublishing: (val: boolean) => void,
     setPublishResults: (val: any) => void,
     setShowResultDialog: (val: boolean) => void,
-    resetForm: () => void
+    resetForm: () => void,
+    slug : string,
+    tags : string[]
 ) {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
@@ -194,6 +206,8 @@ export async function postInstant(
             image_url: imageUrl || undefined,
             image_prompt: topic,
             target_products: selectedProducts,
+            slug : slug,
+            keywords : tags as string[]
         };
         let response: any;
         if (currentDraftId) {

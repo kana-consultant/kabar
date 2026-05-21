@@ -6,7 +6,7 @@ export async function generateImageManually(
     topic: string,
     selectedModelId: string,
     setLoadingImage: (val: boolean) => void,
-    setImageUrl: (val: string) => void
+    setImageUrl: (val: string) => void,
 ) {
     if (!articleResponse?.imagePrompt && !topic) {
         toast.error("Generate artikel terlebih dahulu");
