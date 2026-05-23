@@ -29,6 +29,7 @@ type ArticleResult struct {
 	WordCount        int      `json:"wordCount"`
 	ReadabilityScore int      `json:"readabilityScore"`
 	SeoScore         int      `json:"seoScore"`
+	Slug             string   `json:"slug"`
 }
 
 type ImageResult struct {
@@ -52,6 +53,7 @@ type ModelConfig struct {
 	Endpoint          string
 	SystemPrompt      string
 	EncryptedKey      string
+	Slug              string
 }
 
 type GenerationHistory struct {

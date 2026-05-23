@@ -53,6 +53,7 @@ export function useGenerate() {
         productsLoading, setProductsLoading,
         productsError, setProductsError,
         isPosting, setIsPosting,
+        slug, setSlug,
     } = useGenerateState();
 
     useGenerateData(
@@ -62,13 +63,14 @@ export function useGenerate() {
 
     useLoadDraft(
         editId, TopicId,
-        setTopic, setArticle, setImageUrl, setSelectedProducts, setCurrentDraftId
+        setTopic, setArticle, setImageUrl, setSelectedProducts, setCurrentDraftId,
+        setSlug, setKeywords,
     );
 
     const generateArticle = () => generateArticleContent(
         topic, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
-        setSeoScore, setReadabilityScore, setWordCount
+        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords
     );
 
     const generateImage = () => generateImageManually(
@@ -76,7 +78,8 @@ export function useGenerate() {
     );
 
     const handleSaveAsDraft = () => saveAsDraft(
-        article, topic, imageUrl, selectedProducts, currentDraftId, setCurrentDraftId
+        article, topic, imageUrl, selectedProducts, currentDraftId, setCurrentDraftId,
+        slug as string, keywords as string[]
     );
 
     const handleSaveAsSchedule = () => saveAsSchedule(
@@ -87,7 +90,7 @@ export function useGenerate() {
             setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
             setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
             setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage
-        )
+        ), slug as string, keywords as string[]
     );
 
     const handlePostInstant = () => postInstant(
@@ -97,7 +100,7 @@ export function useGenerate() {
             setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
             setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
             setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage
-        )
+        ), slug as string, keywords as string[]
     );
 
     const handlePost = async () => {

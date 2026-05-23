@@ -4,59 +4,70 @@ import (
 	"seo-backend/internal/domain/draft"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 	plainContent := stripHTML(draft.Article)
-
-	// Basic placeholders
-	text = strings.ReplaceAll(text, "{title}", draft.Title)
-	text = strings.ReplaceAll(text, "{topic}", draft.Topic)
-	text = strings.ReplaceAll(text, "{content}", draft.Article)
 
 	// Excerpt
 	excerpt := plainContent
 	if len(excerpt) > 160 {
 		excerpt = excerpt[:160] + "..."
 	}
-	text = strings.ReplaceAll(text, "{excerpt}", excerpt)
 
 	// Image URL
+	imageURL := ""
 	if draft.ImageURL != nil {
-		text = strings.ReplaceAll(text, "{image_url}", *draft.ImageURL)
-	} else {
-		text = strings.ReplaceAll(text, "{image_url}", "")
+		imageURL = *draft.ImageURL
 	}
 
-	// Meta placeholders
-	text = strings.ReplaceAll(text, "{meta_title}", draft.Title)
-	text = strings.ReplaceAll(text, "{meta_description}", excerpt)
-	text = strings.ReplaceAll(text, "{meta_keywords}", draft.Topic)
-
-	// OG placeholders
-	text = strings.ReplaceAll(text, "{og_title}", draft.Title)
-	text = strings.ReplaceAll(text, "{og_description}", excerpt)
-	if draft.ImageURL != nil {
-		text = strings.ReplaceAll(text, "{og_image}", *draft.ImageURL)
-	} else {
-		text = strings.ReplaceAll(text, "{og_image}", "")
+	// Use existing ID or generate new UUID
+	generatedID := draft.Id
+	if generatedID == "" {
+		generatedID = uuid.New().String()
 	}
 
-	// Twitter placeholders
-	text = strings.ReplaceAll(text, "{twitter_title}", draft.Title)
-	text = strings.ReplaceAll(text, "{twitter_description}", excerpt)
-	if draft.ImageURL != nil {
-		text = strings.ReplaceAll(text, "{twitter_image}", *draft.ImageURL)
-	} else {
-		text = strings.ReplaceAll(text, "{twitter_image}", "")
+	// All placeholders
+	placeholders := map[string]string{
+		"{title}":     draft.Title,
+		"{topic}":     draft.Topic,
+		"{content}":   draft.Article,
+		"{slug}":      draft.Slug,
+		"{tags}":      draft.Keywords,
+		"{excerpt}":   excerpt,
+		"{image_url}": imageURL,
+
+		// Meta
+		"{meta_title}":       draft.Title,
+		"{meta_description}": excerpt,
+		"{meta_keywords}":    draft.Keywords,
+
+		// OG
+		"{og_title}":       draft.Title,
+		"{og_description}": excerpt,
+		"{og_image}":       imageURL,
+
+		// Twitter
+		"{twitter_title}":       draft.Title,
+		"{twitter_description}": excerpt,
+		"{twitter_image}":       imageURL,
+
+		// Sitemap
+		"{sitemap_priority}":   "0.7",
+		"{sitemap_changefreq}": "weekly",
+
+		// Timestamp
+		"{timestamp}": time.Now().Format(time.RFC3339),
+
+		// ID
+		"{id}": generatedID,
 	}
 
-	// Sitemap placeholders
-	text = strings.ReplaceAll(text, "{sitemap_priority}", "0.7")
-	text = strings.ReplaceAll(text, "{sitemap_changefreq}", "weekly")
-
-	// Timestamp
-	text = strings.ReplaceAll(text, "{timestamp}", time.Now().Format(time.RFC3339))
+	for key, value := range placeholders {
+		text = strings.ReplaceAll(text, key, value)
+	}
 
 	return text
 }

@@ -10,7 +10,9 @@ export function useLoadDraft(
     setArticle: (val: string) => void,
     setImageUrl: (val: string) => void,
     setSelectedProducts: (val: string[]) => void,
-    setCurrentDraftId: (val: string | null) => void
+    setCurrentDraftId: (val: string | null) => void,
+    setSlug : (val : string) => void,
+    setKeywords : (val : string[]) => void
 ) {
     useEffect(() => {
         const LoadDraft = async () => {
@@ -22,7 +24,10 @@ export function useLoadDraft(
                         setArticle(draft.article);
                         setImageUrl(draft.image_url || "");
                         setSelectedProducts(draft.target_products || []);
-                        setCurrentDraftId(draft.id);
+                        setCurrentDraftId(draft.id as string);
+                        setSlug(draft.slug)
+                        setKeywords(draft.keywords as string[])
+
                         toast.info("Memuat draft", {
                             description: `"${draft.title}" siap diedit`,
                         });

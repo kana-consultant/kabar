@@ -64,6 +64,7 @@ func (h *DraftHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	draftData, err := h.draftService.GetDraftByID(ctx, id)
+
 	if err != nil {
 		http.Error(w, "Draft not found", http.StatusNotFound)
 		return
