@@ -28,6 +28,7 @@ import Schedule from './pages/schedule/Schedule';
 import Login from './pages/Login'
 import Register from './pages/Register'
 import InvitePage from "./pages/Invite";
+import Landing from './pages/Landing'
 
 import { Outlet } from '@tanstack/react-router';
 
@@ -122,10 +123,17 @@ const scheduleRoute = createRoute({
   component: Schedule,
 })
 
+const landingRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/',
+    component: Landing,
+})
+
 
 
 // 4. Gabungkan semua route
 const routeTree = rootRoute.addChildren([
+  landingRoute,
   authLayoutRoute.addChildren([loginRoute, registerRoute]),
   protectedLayoutRoute.addChildren([
     indexRoute,
