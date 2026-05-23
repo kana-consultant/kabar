@@ -14,6 +14,7 @@ import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LandingRouteImport } from './routes/landing'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as GenerateRouteImport } from './routes/generate'
@@ -45,6 +46,11 @@ const ProductsRoute = ProductsRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandingRoute = LandingRouteImport.update({
+  id: '/landing',
+  path: '/landing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InviteRoute = InviteRouteImport.update({
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
   '/invite': typeof InviteRoute
+  '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
   '/products': typeof ProductsRouteWithChildren
   '/register': typeof RegisterRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
   '/invite': typeof InviteRoute
+  '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
   '/products': typeof ProductsRouteWithChildren
   '/register': typeof RegisterRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
   '/invite': typeof InviteRoute
+  '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
   '/products': typeof ProductsRouteWithChildren
   '/register': typeof RegisterRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/generate'
     | '/history'
     | '/invite'
+    | '/landing'
     | '/login'
     | '/products'
     | '/register'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/generate'
     | '/history'
     | '/invite'
+    | '/landing'
     | '/login'
     | '/products'
     | '/register'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/generate'
     | '/history'
     | '/invite'
+    | '/landing'
     | '/login'
     | '/products'
     | '/register'
@@ -177,6 +189,7 @@ export interface RootRouteChildren {
   GenerateRoute: typeof GenerateRoute
   HistoryRoute: typeof HistoryRoute
   InviteRoute: typeof InviteRoute
+  LandingRoute: typeof LandingRoute
   LoginRoute: typeof LoginRoute
   ProductsRoute: typeof ProductsRouteWithChildren
   RegisterRoute: typeof RegisterRoute
@@ -219,6 +232,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landing': {
+      id: '/landing'
+      path: '/landing'
+      fullPath: '/landing'
+      preLoaderRoute: typeof LandingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invite': {
@@ -293,6 +313,7 @@ const rootRouteChildren: RootRouteChildren = {
   GenerateRoute: GenerateRoute,
   HistoryRoute: HistoryRoute,
   InviteRoute: InviteRoute,
+  LandingRoute: LandingRoute,
   LoginRoute: LoginRoute,
   ProductsRoute: ProductsRouteWithChildren,
   RegisterRoute: RegisterRoute,

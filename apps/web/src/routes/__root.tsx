@@ -1,10 +1,16 @@
 import { Layout } from "@/pages/layout/Layout"
-import { createRootRoute, } from '@tanstack/react-router'
+import { createRootRoute, Outlet } from '@tanstack/react-router'
 
 export const Route = createRootRoute({
-    component: () => (
-        <>
-            <Layout />
-        </>
-    ),
+    component: Root,
 })
+
+function Root() {
+    const isLanding = window.location.pathname === '/landing'
+    
+    if (isLanding) {
+        return <Outlet />
+    }
+    
+    return <Layout />
+}

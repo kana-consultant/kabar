@@ -24,11 +24,14 @@ func NewDraftRepository(db *sql.DB) draft.Repository {
 	return &RepositoryImpl{db: db}
 }
 
-func (r *RepositoryImpl) GetByID(ctx context.Context, id string) (*draft.DraftData, error) {
+func (r *RepositoryImpl) GetByID(
+	ctx context.Context,
+	id string,
+) (*draft.DraftData, error) {
+
 	var d draft.DraftData
 	var targetProductsJSON []byte
 
-	// Query untuk mendapatkan data draft
 	query := `
 	SELECT 
 		id, 
@@ -43,46 +46,75 @@ func (r *RepositoryImpl) GetByID(ctx context.Context, id string) (*draft.DraftDa
 	`
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&d.ID, &d.Title, &d.Topic, &d.Article,
-		&d.ImageURL, &d.ImagePrompt, &targetProductsJSON,
+		&d.ID,
+		&d.Title,
+		&d.Topic,
+		&d.Article,
+		&d.ImageURL,
+		&d.ImagePrompt,
+		&targetProductsJSON,
 	)
+
 	if err != nil {
 		log.Printf("Error getting draft by ID %s: %v", id, err)
 		return nil, err
 	}
 
+	log.Printf("DRAFT DATA => %+v", d)
+
 	// Parse target_products JSON
 	if len(targetProductsJSON) > 0 {
-		if err := json.Unmarshal(targetProductsJSON, &d.TargetProducts); err != nil {
-			log.Printf("Error unmarshaling target_products: %v", err)
-			// Tidak return error, hanya log, karena ini field opsional
+
+		if err := json.Unmarshal(
+			targetProductsJSON,
+			&d.TargetProducts,
+		); err != nil {
+
+			log.Printf(
+				"Error unmarshaling target_products: %v",
+				err,
+			)
 		}
 	}
 
-	// Get keywords based on id_draft
-	keywords, err := r.getKeywordsByDraftID(ctx, id)
-	if err != nil {
-		log.Printf("Error getting keywords for draft %s: %v", id, err)
+	log.Printf("TARGET PRODUCTS => %+v", d.TargetProducts)
 
-		// tetap lanjut dengan keywords kosong
-		d.Keywords = []draft.Keywords{} // ← Ini benar
+	// Get keywords
+	keywords, err := r.getKeywordsByDraftID(ctx, id)
+
+	if err != nil {
+
+		log.Printf(
+			"Error getting keywords for draft %s: %v",
+			id,
+			err,
+		)
+
+		// fallback empty array
+		d.Keywords = []string{}
+
 	} else {
+
 		d.Keywords = keywords
 	}
+
+	log.Printf("KEYWORDS => %+v", d.Keywords)
+
+	log.Printf("FINAL DRAFT RESPONSE => %+v", d)
 
 	return &d, nil
 }
 
-func (r *RepositoryImpl) getKeywordsByDraftID(ctx context.Context, idDraft string) ([]draft.Keywords, error) {
-	var keywords []draft.Keywords // ← Harus slice, BUKAN struct biasa
+func (r *RepositoryImpl) getKeywordsByDraftID(
+	ctx context.Context,
+	idDraft string,
+) ([]string, error) {
+
+	var keywords []string
 
 	query := `
 	SELECT 
-		id, 
-		id_draft, 
-		name, 
-		COALESCE(created_at, NOW()) as created_at,
-		COALESCE(updated_at, NOW()) as updated_at
+		name 
 	FROM keywords 
 	WHERE id_draft = $1
 	ORDER BY created_at ASC
@@ -96,27 +128,41 @@ func (r *RepositoryImpl) getKeywordsByDraftID(ctx context.Context, idDraft strin
 	defer rows.Close()
 
 	for rows.Next() {
-		var kw draft.Keywords // ← Ini struct untuk satu keyword
-		err := rows.Scan(
-			&kw.ID,
-			&kw.IDDraft,
-			&kw.Name,
-			&kw.CreatedAt,
-			&kw.UpdatedAt,
-		)
+
+		var kw string
+
+		err := rows.Scan(&kw)
 		if err != nil {
-			log.Printf("Error scanning keyword row: %v", err)
+
+			log.Printf(
+				"Error scanning keyword row: %v",
+				err,
+			)
+
 			continue
 		}
-		keywords = append(keywords, kw) // ← Sekarang bisa append karena keywords adalah slice
+
+		keywords = append(keywords, kw)
 	}
 
 	if err = rows.Err(); err != nil {
-		log.Printf("Error iterating keyword rows: %v", err)
+
+		log.Printf(
+			"Error iterating keyword rows: %v",
+			err,
+		)
+
 		return nil, err
 	}
 
-	log.Printf("Found %d keywords for draft ID: %s", len(keywords), idDraft)
+	log.Printf(
+		"Found %d keywords for draft ID: %s",
+		len(keywords),
+		idDraft,
+	)
+
+	log.Printf("KEYWORDS => %+v", keywords)
+
 	return keywords, nil
 }
 
@@ -273,14 +319,37 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 
 	// Insert keywords with duplicate checking
 	if len(req.Keywords) > 0 {
-		// Remove duplicate keywords
+
+		log.Printf("RAW KEYWORDS => %+v", req.Keywords)
+
 		uniqueKeywords := r.uniqueKeywords(req.Keywords)
 
-		err = r.insertKeywordsWithDuplicateCheck(ctx, tx, draftID, uniqueKeywords)
+		log.Printf("UNIQUE KEYWORDS => %+v", uniqueKeywords)
+
+		var keywordEntities []draft.Keywords
+
+		now := time.Now()
+
+		for _, keyword := range uniqueKeywords {
+
+			keywordEntities = append(keywordEntities, draft.Keywords{
+				ID:        uuid.NewString(),
+				IDDraft:   draftID,
+				Name:      keyword,
+				CreatedAt: now,
+				UpdatedAt: now,
+			})
+		}
+
+		log.Printf("KEYWORD ENTITIES => %+v", keywordEntities)
+
+		err = r.insertKeywordsWithDuplicateCheck(ctx, tx, draftID, keywordEntities)
 		if err != nil {
-			log.Printf("Error inserting keywords: %v", err)
+			log.Printf("FAILED INSERT KEYWORDS => %v", err)
 			return "", fmt.Errorf("failed to insert keywords: %w", err)
 		}
+
+		log.Println("INSERT KEYWORDS SUCCESS")
 	}
 
 	// Commit transaction
@@ -293,8 +362,7 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 
 func (r *RepositoryImpl) insertKeywordsWithDuplicateCheck(ctx context.Context, tx *sql.Tx, draftID string, keywords []draft.Keywords) error {
 	query := `INSERT INTO keywords (id, id_draft, name, created_at, updated_at) 
-	          VALUES ($1, $2, $3, NOW(), NOW())
-	          ON CONFLICT (id_draft, name) DO NOTHING`
+	          VALUES ($1, $2, $3, NOW(), NOW())`
 
 	stmt, err := tx.PrepareContext(ctx, query)
 	if err != nil {
@@ -324,13 +392,18 @@ func (r *RepositoryImpl) insertKeywordsWithDuplicateCheck(ctx context.Context, t
 	return nil
 }
 
-func (r *RepositoryImpl) uniqueKeywords(keywords []draft.Keywords) []draft.Keywords {
+func (r *RepositoryImpl) uniqueKeywords(keywords []string) []string {
+
 	seen := make(map[string]bool)
-	var result []draft.Keywords
+
+	var result []string
 
 	for _, kw := range keywords {
-		if !seen[kw.Name] {
-			seen[kw.Name] = true
+
+		if !seen[kw] {
+
+			seen[kw] = true
+
 			result = append(result, kw)
 		}
 	}
