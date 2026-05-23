@@ -104,6 +104,15 @@ func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{},
 
 		switch v := value.(type) {
 		case string:
+			// Cek dulu apakah value adalah array placeholder
+			arrayPlaceholders := getArrayPlaceholders(draft)
+			if arr, ok := arrayPlaceholders[v]; ok {
+				fmt.Printf("ARRAY FIELD => %s : %v\n", key, arr)
+				requestBody[key] = arr
+				break
+			}
+
+			// Bukan array placeholder, lanjut replace string biasa
 			replaced := replaceAllPlaceholders(v, draft)
 			if isSensitiveField(key) {
 				fmt.Printf("STRING FIELD (sensitive) => %s : [REDACTED]\n", key)
@@ -112,12 +121,31 @@ func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{},
 			}
 			requestBody[key] = replaced
 
+		case []interface{}:
+			fmt.Printf("ARRAY FIELD => %s\n", key)
+			result := make([]string, 0, len(v))
+			for _, item := range v {
+				if strVal, ok := item.(string); ok {
+					replaced := replaceAllPlaceholders(strVal, draft)
+					result = append(result, replaced)
+				}
+			}
+			requestBody[key] = result
+
 		case map[string]interface{}:
 			fmt.Printf("NESTED FIELD => %s\n", key)
 			nestedResult := make(map[string]interface{})
 
 			for nestedKey, nestedValue := range v {
 				if strVal, ok := nestedValue.(string); ok {
+					// Cek array placeholder di nested juga
+					arrayPlaceholders := getArrayPlaceholders(draft)
+					if arr, ok := arrayPlaceholders[strVal]; ok {
+						fmt.Printf("NESTED ARRAY => %s.%s : %v\n", key, nestedKey, arr)
+						nestedResult[nestedKey] = arr
+						continue
+					}
+
 					replaced := replaceAllPlaceholders(strVal, draft)
 					if isSensitiveField(nestedKey) {
 						fmt.Printf("NESTED STRING (sensitive) => %s.%s : [REDACTED]\n", key, nestedKey)

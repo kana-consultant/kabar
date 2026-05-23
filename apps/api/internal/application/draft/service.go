@@ -116,11 +116,19 @@ func (s *DraftServiceImpl) PublishDraft(
 		targetProducts = req.TargetProducts
 	}
 
+	log.Printf("KEYWORDS== %v", req.Keywords)
+
+	keywords := draftData.Keywords
+	if req.Keywords != nil {
+		keywords = req.Keywords
+	}
+
 	draftData.Title = title
 	draftData.Topic = topic
 	draftData.Article = article
 	draftData.ImageURL = imageURL
 	draftData.TargetProducts = targetProducts
+	draftData.Keywords = keywords
 
 	log.Printf(
 		"[PublishDraft] PAYLOAD title=%s topic=%s target_products=%v",
@@ -190,11 +198,12 @@ func (s *DraftServiceImpl) PublishContent(
 	log.Printf("REQUEST TEAM_ID=%s USER_ID=%s", teamID, userID)
 
 	log.Printf(
-		"REQUEST DATA => Title=%s Topic=%s ImageURL=%s TargetProducts=%v",
+		"REQUEST DATA => Title=%s Topic=%s ImageURL=%s TargetProducts=%v keywords=%v",
 		req.Title,
 		req.Topic,
 		req.ImageURL,
 		req.TargetProducts,
+		req.Keywords,
 	)
 
 	if err := validatePublishRequest(req); err != nil {
@@ -210,6 +219,7 @@ func (s *DraftServiceImpl) PublishContent(
 		Article:        req.Article,
 		ImageURL:       req.ImageURL,
 		TargetProducts: req.TargetProducts,
+		Keywords:       req.Keywords,
 	}
 
 	log.Printf("HISTORY REQUEST => %+v", historyReq)

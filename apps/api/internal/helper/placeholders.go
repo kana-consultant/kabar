@@ -31,9 +31,9 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 	}
 
 	keywordNames := make([]string, len(draft.Keywords))
+	copy(keywordNames, draft.Keywords)
 
 	keywordsJSON, _ := json.Marshal(keywordNames)
-	keywordsStr := strings.Join(keywordNames, ", ") // ✅ convert ke string dulu
 
 	slug := draft.Slug
 	if slug == "" {
@@ -45,11 +45,11 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 	}
 
 	placeholders := map[string]string{
-		"{title}":     draft.Title,
-		"{topic}":     draft.Topic,
-		"{content}":   draft.Article,
-		"{slug}":      slug,
-		"{tags}":      keywordsStr, // ✅ sudah string
+		"{title}":   draft.Title,
+		"{topic}":   draft.Topic,
+		"{content}": draft.Article,
+		"{slug}":    slug,
+		// {tags} dan {keywords} dihapus dari sini — handle sebagai array di buildFromFieldMapping
 		"{excerpt}":   excerpt,
 		"{image_url}": imageURL,
 
@@ -86,6 +86,16 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 	return text
 }
 
+func getArrayPlaceholders(draft draft.DraftDataPost) map[string][]string {
+	keywordNames := make([]string, len(draft.Keywords))
+	copy(keywordNames, draft.Keywords)
+
+	return map[string][]string{
+		"{tags}":     keywordNames,
+		"{keywords}": keywordNames,
+	}
+}
+
 func slugify(s string) string {
 	s = strings.ToLower(s)
 	s = strings.TrimSpace(s)
@@ -115,13 +125,13 @@ func getValueFromDraftWithPlaceholder(draft draft.DraftDataPost, source string) 
 
 	switch source {
 	case "title":
-		return draft.Title
+		return stripHTML(draft.Title)
 	case "topic":
-		return draft.Topic
+		return stripHTML(draft.Topic)
 	case "content", "article":
 		return draft.Article
 	case "excerpt":
-		excerpt := draft.Article
+		excerpt := stripHTML(draft.Article)
 		if len(excerpt) > 160 {
 			excerpt = excerpt[:160] + "..."
 		}
@@ -132,9 +142,9 @@ func getValueFromDraftWithPlaceholder(draft draft.DraftDataPost, source string) 
 		}
 		return ""
 	case "meta_title", "og_title", "twitter_title":
-		return draft.Title
+		return stripHTML(draft.Title)
 	case "meta_description", "og_description", "twitter_description":
-		excerpt := draft.Article
+		excerpt := stripHTML(draft.Article)
 		if len(excerpt) > 160 {
 			excerpt = excerpt[:160] + "..."
 		}
