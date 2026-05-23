@@ -46,6 +46,7 @@ export function useLoadDraft(
                         setArticle(draft.content);
                         setImageUrl(draft.imageUrl || "");
                         setSelectedProducts(draft.targetProducts || []);
+                         setKeywords(draft.keywords as string[])
                         toast.info("Memuat draft", {
                             description: `"${draft.title}" siap diedit`,
                         });

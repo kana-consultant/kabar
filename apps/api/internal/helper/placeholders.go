@@ -35,11 +35,20 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 	keywordsJSON, _ := json.Marshal(keywordNames)
 	keywordsStr := strings.Join(keywordNames, ", ") // ✅ convert ke string dulu
 
+	slug := draft.Slug
+	if slug == "" {
+		base := draft.Title
+		if base == "" {
+			base = draft.Topic
+		}
+		slug = slugify(base)
+	}
+
 	placeholders := map[string]string{
 		"{title}":     draft.Title,
 		"{topic}":     draft.Topic,
 		"{content}":   draft.Article,
-		"{slug}":      draft.Slug,
+		"{slug}":      slug,
 		"{tags}":      keywordsStr, // ✅ sudah string
 		"{excerpt}":   excerpt,
 		"{image_url}": imageURL,
@@ -75,6 +84,28 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 	}
 
 	return text
+}
+
+func slugify(s string) string {
+	s = strings.ToLower(s)
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, " ", "-")
+
+	// Hapus karakter selain huruf, angka, dan tanda hubung
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			b.WriteRune(r)
+		}
+	}
+
+	// Hilangkan tanda hubung ganda
+	result := b.String()
+	for strings.Contains(result, "--") {
+		result = strings.ReplaceAll(result, "--", "-")
+	}
+
+	return strings.Trim(result, "-")
 }
 
 func getValueFromDraftWithPlaceholder(draft draft.DraftDataPost, source string) string {

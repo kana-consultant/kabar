@@ -44,4 +44,5 @@ type PublishHistoryRequest struct {
 	Article        string
 	ImageURL       *string
 	TargetProducts []string
+	Keywords       []string
 }

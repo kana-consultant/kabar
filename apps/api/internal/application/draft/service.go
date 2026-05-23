@@ -90,38 +90,32 @@ func (s *DraftServiceImpl) PublishDraft(
 
 	log.Printf("[PublishDraft] SUCCESS GetByID id=%s", id)
 
-	// fallback ke draftData jika req kosong
+	// Fallback ke draftData jika req kosong
 	title := draftData.Title
 	if req.Title != "" {
-		log.Printf("[PublishDraft] get by req -> title")
 		title = req.Title
 	}
 
 	topic := draftData.Topic
 	if req.Topic != "" {
-		log.Printf("[PublishDraft] get by req -> topic")
 		topic = req.Topic
 	}
 
 	article := draftData.Article
 	if req.Article != "" {
-		log.Printf("[PublishDraft] get by req -> article")
 		article = req.Article
 	}
 
 	imageURL := draftData.ImageURL
 	if req.ImageURL != nil {
-		log.Printf("[PublishDraft] get by req -> image_url")
 		imageURL = req.ImageURL
 	}
 
 	targetProducts := draftData.TargetProducts
 	if len(req.TargetProducts) > 0 {
-		log.Printf("[PublishDraft] get by req -> target_products")
 		targetProducts = req.TargetProducts
 	}
 
-	// replace draftData juga
 	draftData.Title = title
 	draftData.Topic = topic
 	draftData.Article = article
@@ -130,9 +124,7 @@ func (s *DraftServiceImpl) PublishDraft(
 
 	log.Printf(
 		"[PublishDraft] PAYLOAD title=%s topic=%s target_products=%v",
-		title,
-		topic,
-		targetProducts,
+		title, topic, targetProducts,
 	)
 
 	historyReq := draft.PublishHistoryRequest{
@@ -141,18 +133,12 @@ func (s *DraftServiceImpl) PublishDraft(
 		Article:        article,
 		ImageURL:       imageURL,
 		TargetProducts: targetProducts,
+		Keywords:       draftData.Keywords,
 	}
 
-	log.Printf("[PublishDraft] Draft fetched successfully id=%s", id)
-
-	// jika ada schedule
+	// Jika ada schedule
 	if req.ScheduledFor != "" {
-
-		log.Printf(
-			"[PublishDraft] SCHEDULE MODE id=%s scheduledFor=%s",
-			id,
-			req.ScheduledFor,
-		)
+		log.Printf("[PublishDraft] SCHEDULE MODE id=%s scheduledFor=%s", id, req.ScheduledFor)
 
 		result, err := s.scheduleDraft(ctx, id, req.ScheduledFor, draftData, teamID, userID)
 		if err != nil {
@@ -161,7 +147,6 @@ func (s *DraftServiceImpl) PublishDraft(
 		}
 
 		log.Printf("[PublishDraft] SUCCESS scheduleDraft id=%s", id)
-
 		return result, nil
 	}
 
@@ -169,20 +154,25 @@ func (s *DraftServiceImpl) PublishDraft(
 
 	result, err := s.processPublish(ctx, draftData, id, teamID, userID)
 
-	log.Printf("[PublishDraft] processPublish result=%+v", result)
-	log.Printf("[PublishDraft] processPublish err=%v", err)
-
 	if err != nil {
-		log.Printf("[PublishDraft] INSERT HISTORY FAILED STATUS id=%s", id)
-
-		s.repo.InsertHistory(ctx, historyReq, userID, teamID, "failed")
-
 		log.Printf("[PublishDraft] ERROR processPublish id=%s err=%v", id, err)
+
+		if histErr := s.repo.InsertHistory(ctx, historyReq, userID, teamID, "failed"); histErr != nil {
+			log.Printf("[PublishDraft] ERROR InsertHistory(failed) id=%s err=%v", id, histErr)
+		} else {
+			log.Printf("[PublishDraft] SUCCESS InsertHistory(failed) id=%s", id)
+		}
 
 		return nil, err
 	}
 
-	log.Printf("[PublishDraft] SUCCESS processPublish id=%s", id)
+	log.Printf("[PublishDraft] SUCCESS processPublish id=%s result=%+v", id, result)
+
+	if histErr := s.repo.InsertHistory(ctx, historyReq, userID, teamID, "published"); histErr != nil {
+		log.Printf("[PublishDraft] ERROR InsertHistory(published) id=%s err=%v", id, histErr)
+	} else {
+		log.Printf("[PublishDraft] SUCCESS InsertHistory(published) id=%s", id)
+	}
 
 	return result, nil
 }
