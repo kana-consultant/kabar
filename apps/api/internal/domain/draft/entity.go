@@ -30,14 +30,14 @@ type Keywords struct {
 }
 
 type DraftData struct {
-	ID             string     `json:"id"`
-	Title          string     `json:"title"`
-	Topic          string     `json:"topic"`
-	Article        string     `json:"article"`
-	ImageURL       *string    `json:"image_url"`
-	ImagePrompt    string     `json:"image_prompt"`
-	TargetProducts []string   `json:"target_products"`
-	Keywords       []Keywords `json:"keywords,omitempty"` // Tambahkan ini
+	ID             string   `json:"id"`
+	Title          string   `json:"title"`
+	Topic          string   `json:"topic"`
+	Article        string   `json:"article"`
+	ImageURL       *string  `json:"image_url"`
+	ImagePrompt    string   `json:"image_prompt"`
+	TargetProducts []string `json:"target_products"`
+	Keywords       []string `json:"keywords,omitempty"` // Tambahkan ini
 }
 
 type PublishResult struct {

@@ -188,10 +188,31 @@ func (s *DraftServiceImpl) PublishDraft(
 }
 
 // PublishContent implements draft.Service
-func (s *DraftServiceImpl) PublishContent(ctx context.Context, req draft.DraftDataPost, teamID, userID string) (*draft.PublishResult, error) {
+func (s *DraftServiceImpl) PublishContent(
+	ctx context.Context,
+	req draft.DraftDataPost,
+	teamID,
+	userID string,
+) (*draft.PublishResult, error) {
+
+	log.Println("========== START PublishContent ==========")
+
+	log.Printf("REQUEST TEAM_ID=%s USER_ID=%s", teamID, userID)
+
+	log.Printf(
+		"REQUEST DATA => Title=%s Topic=%s ImageURL=%s TargetProducts=%v",
+		req.Title,
+		req.Topic,
+		req.ImageURL,
+		req.TargetProducts,
+	)
+
 	if err := validatePublishRequest(req); err != nil {
+		log.Printf("VALIDATION ERROR => %v", err)
 		return nil, err
 	}
+
+	log.Println("VALIDATION SUCCESS")
 
 	historyReq := draft.PublishHistoryRequest{
 		Title:          req.Title,
@@ -201,26 +222,66 @@ func (s *DraftServiceImpl) PublishContent(ctx context.Context, req draft.DraftDa
 		TargetProducts: req.TargetProducts,
 	}
 
+	log.Printf("HISTORY REQUEST => %+v", historyReq)
+
+	log.Println("CALLING ProcessDraftProducts...")
+
 	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(req)
-	log.Printf("========== ERROR %v", err)
+
+	log.Printf("PROCESS RESULT => %+v", result)
+	log.Printf("PROCESS FLAGS => someFailed=%v allFailed=%v", someFailed, allFailed)
+
 	if err != nil {
-		s.repo.InsertHistory(ctx, historyReq, userID, teamID, "failed")
+
+		log.Printf("PROCESS ERROR => %v", err)
+
+		log.Println("INSERT HISTORY STATUS=failed")
+
+		historyErr := s.repo.InsertHistory(
+			ctx,
+			historyReq,
+			userID,
+			teamID,
+			"failed",
+		)
+
+		if historyErr != nil {
+			log.Printf("FAILED INSERT HISTORY => %v", historyErr)
+		}
+
 		return nil, fmt.Errorf("failed to process products: %w", err)
-	} else {
-		err = s.repo.InsertHistory(ctx, historyReq, userID, teamID, "published")
-
 	}
+
+	log.Println("PROCESS SUCCESS")
+
+	log.Println("INSERT HISTORY STATUS=published")
+
+	err = s.repo.InsertHistory(
+		ctx,
+		historyReq,
+		userID,
+		teamID,
+		"published",
+	)
 
 	if err != nil {
-		log.Printf("Failed to insert history: %v", err)
+		log.Printf("FAILED INSERT HISTORY => %v", err)
+	} else {
+		log.Println("INSERT HISTORY SUCCESS")
 	}
 
-	return &draft.PublishResult{
+	finalResult := &draft.PublishResult{
 		Results:    result,
 		SomeFailed: someFailed,
 		AllFailed:  allFailed,
 		Status:     "published",
-	}, nil
+	}
+
+	log.Printf("FINAL RESPONSE => %+v", finalResult)
+
+	log.Println("========== END PublishContent ==========")
+
+	return finalResult, nil
 }
 
 // ScheduleDraft implements draft.Service

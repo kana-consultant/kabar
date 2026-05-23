@@ -123,9 +123,9 @@ export function useGenerate() {
                 await handlePostInstant();
             }
         } finally {
-            navigate({
-                to: "/history",
-            })
+            // navigate({
+            //     to: "/history",
+            // })
             setIsPosting(false);
         }
     };

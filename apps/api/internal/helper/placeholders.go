@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"encoding/json"
 	"seo-backend/internal/domain/draft"
 	"strings"
 	"time"
@@ -29,20 +30,24 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 		generatedID = uuid.New().String()
 	}
 
-	// All placeholders
+	keywordNames := make([]string, len(draft.Keywords))
+
+	keywordsJSON, _ := json.Marshal(keywordNames)
+	keywordsStr := strings.Join(keywordNames, ", ") // ✅ convert ke string dulu
+
 	placeholders := map[string]string{
 		"{title}":     draft.Title,
 		"{topic}":     draft.Topic,
 		"{content}":   draft.Article,
 		"{slug}":      draft.Slug,
-		"{tags}":      draft.Keywords,
+		"{tags}":      keywordsStr, // ✅ sudah string
 		"{excerpt}":   excerpt,
 		"{image_url}": imageURL,
 
 		// Meta
 		"{meta_title}":       draft.Title,
 		"{meta_description}": excerpt,
-		"{meta_keywords}":    draft.Keywords,
+		"{meta_keywords}":    string(keywordsJSON),
 
 		// OG
 		"{og_title}":       draft.Title,

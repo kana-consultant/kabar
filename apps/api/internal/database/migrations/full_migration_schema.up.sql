@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS public.drafts (
 CREATE TABLE keywords (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_draft UUID NOT NULL,
+    id_history UUID,
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

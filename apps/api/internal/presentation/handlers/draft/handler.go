@@ -76,34 +76,93 @@ func (h *DraftHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 // Create - create new draft
 func (h *DraftHandler) Create(w http.ResponseWriter, r *http.Request) {
+
+	log.Println("========== START CREATE DRAFT HANDLER ==========")
+
 	ctx := r.Context()
+
 	userID := auth.GetUserID(ctx)
 	teamID := auth.GetTeamID(ctx)
 
+	log.Printf("REQUEST METHOD => %s", r.Method)
+	log.Printf("REQUEST URL => %s", r.URL.String())
+	log.Printf("USER_ID => %s", userID)
+	log.Printf("TEAM_ID => %s", teamID)
+
+	// Read raw body for debugging
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("FAILED READ BODY => %v", err)
+
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("RAW BODY => %s", string(bodyBytes))
+
+	// Restore body after reading
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
 	var req draft.CreateDraftRequest
+
+	log.Println("DECODING JSON BODY...")
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+
+		log.Printf("JSON DECODE ERROR => %v", err)
+
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
+	log.Println("JSON DECODE SUCCESS")
+
+	log.Printf("REQUEST STRUCT => %+v", req)
+
+	jsonReq, _ := json.MarshalIndent(req, "", "  ")
+	log.Printf("REQUEST JSON FORMAT => %s", string(jsonReq))
+
+	log.Println("VALIDATING REQUEST...")
+
 	if err := validateCreateRequest(req); err != nil {
+
+		log.Printf("VALIDATION ERROR => %v", err)
+
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	log.Println("VALIDATION SUCCESS")
+
+	log.Println("CALLING SERVICE CreateDraft...")
+
 	draftID, err := h.draftService.CreateDraft(ctx, req, userID, teamID)
+
 	if err != nil {
-		log.Printf("Failed to create draft: %v", err)
+
+		log.Printf("SERVICE ERROR => %v", err)
+
 		http.Error(w, "Failed to create draft", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
+	log.Printf("CREATE DRAFT SUCCESS => draftID=%s", draftID)
+
+	response := map[string]string{
 		"id":      draftID,
 		"message": "Draft created successfully",
-	})
+	}
+
+	log.Printf("RESPONSE => %+v", response)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("FAILED ENCODE RESPONSE => %v", err)
+	}
+
+	log.Println("========== END CREATE DRAFT HANDLER ==========")
 }
 
 // Update - update existing draft
@@ -197,6 +256,7 @@ func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	var req draft.DraftDataPost
+	log.Printf("req == %v", req)
 
 	log.Println("Decoding request body...")
 
