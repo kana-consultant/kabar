@@ -38,6 +38,7 @@ type History struct {
 	CreatedBy      *string       `json:"createdBy,omitempty"`
 	TeamID         *string       `json:"teamId,omitempty"`
 	CreatedAt      time.Time     `json:"createdAt"`
+	Keywords       []string      `json:"keywords"`
 }
 
 type HistoryFilter struct {

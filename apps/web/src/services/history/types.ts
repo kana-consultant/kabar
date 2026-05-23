@@ -13,4 +13,5 @@ export interface HistoryItem {
     createdBy?: string;
     teamId?: string;
     createdAt: string;
+    keywords : string[];
 }

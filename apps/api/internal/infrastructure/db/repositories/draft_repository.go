@@ -12,6 +12,7 @@ import (
 
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/helper"
+	"seo-backend/internal/helper/keywords"
 
 	"github.com/google/uuid"
 )
@@ -80,7 +81,7 @@ func (r *RepositoryImpl) GetByID(
 	log.Printf("TARGET PRODUCTS => %+v", d.TargetProducts)
 
 	// Get keywords
-	keywords, err := r.getKeywordsByDraftID(ctx, id)
+	keywords, err := keywords.GetKeywords(ctx, r.db, keywords.DraftSource{DraftID: id})
 
 	if err != nil {
 
@@ -103,67 +104,6 @@ func (r *RepositoryImpl) GetByID(
 	log.Printf("FINAL DRAFT RESPONSE => %+v", d)
 
 	return &d, nil
-}
-
-func (r *RepositoryImpl) getKeywordsByDraftID(
-	ctx context.Context,
-	idDraft string,
-) ([]string, error) {
-
-	var keywords []string
-
-	query := `
-	SELECT 
-		name 
-	FROM keywords 
-	WHERE id_draft = $1
-	ORDER BY created_at ASC
-	`
-
-	rows, err := r.db.QueryContext(ctx, query, idDraft)
-	if err != nil {
-		log.Printf("Error querying keywords: %v", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-
-		var kw string
-
-		err := rows.Scan(&kw)
-		if err != nil {
-
-			log.Printf(
-				"Error scanning keyword row: %v",
-				err,
-			)
-
-			continue
-		}
-
-		keywords = append(keywords, kw)
-	}
-
-	if err = rows.Err(); err != nil {
-
-		log.Printf(
-			"Error iterating keyword rows: %v",
-			err,
-		)
-
-		return nil, err
-	}
-
-	log.Printf(
-		"Found %d keywords for draft ID: %s",
-		len(keywords),
-		idDraft,
-	)
-
-	log.Printf("KEYWORDS => %+v", keywords)
-
-	return keywords, nil
 }
 
 func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string) (*[]draft.Draft, error) {
@@ -322,7 +262,7 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 
 		log.Printf("RAW KEYWORDS => %+v", req.Keywords)
 
-		uniqueKeywords := r.uniqueKeywords(req.Keywords)
+		uniqueKeywords := keywords.UniqueStrings(req.Keywords)
 
 		log.Printf("UNIQUE KEYWORDS => %+v", uniqueKeywords)
 
@@ -343,7 +283,7 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 
 		log.Printf("KEYWORD ENTITIES => %+v", keywordEntities)
 
-		err = r.insertKeywordsWithDuplicateCheck(ctx, tx, draftID, keywordEntities)
+		err = keywords.InsertKeywordsWithDuplicateCheck(ctx, tx, draftID, keywordEntities)
 		if err != nil {
 			log.Printf("FAILED INSERT KEYWORDS => %v", err)
 			return "", fmt.Errorf("failed to insert keywords: %w", err)
@@ -358,57 +298,6 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 	}
 
 	return draftID, nil
-}
-
-func (r *RepositoryImpl) insertKeywordsWithDuplicateCheck(ctx context.Context, tx *sql.Tx, draftID string, keywords []draft.Keywords) error {
-	query := `INSERT INTO keywords (id, id_draft, name, created_at, updated_at) 
-	          VALUES ($1, $2, $3, NOW(), NOW())`
-
-	stmt, err := tx.PrepareContext(ctx, query)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	inserted := 0
-	for _, kw := range keywords {
-		if kw.ID == "" {
-			kw.ID = uuid.New().String()
-		}
-
-		result, err := stmt.ExecContext(ctx, kw.ID, draftID, kw.Name)
-		if err != nil {
-			log.Printf("Warning: failed to insert keyword %s: %v", kw.Name, err)
-			continue
-		}
-
-		rowsAffected, _ := result.RowsAffected()
-		if rowsAffected > 0 {
-			inserted++
-		}
-	}
-
-	log.Printf("Inserted %d out of %d keywords for draft %s", inserted, len(keywords), draftID)
-	return nil
-}
-
-func (r *RepositoryImpl) uniqueKeywords(keywords []string) []string {
-
-	seen := make(map[string]bool)
-
-	var result []string
-
-	for _, kw := range keywords {
-
-		if !seen[kw] {
-
-			seen[kw] = true
-
-			result = append(result, kw)
-		}
-	}
-
-	return result
 }
 
 func (r *RepositoryImpl) Update(ctx context.Context, id string, data map[string]interface{}) error {
@@ -437,8 +326,8 @@ func (r *RepositoryImpl) Update(ctx context.Context, id string, data map[string]
 	}
 
 	// Handle keywords update if present in data
-	if keywords, ok := data["keywords"]; ok {
-		if err := r.updateKeywords(ctx, tx, id, keywords); err != nil {
+	if kw, ok := data["keywords"]; ok {
+		if err := keywords.UpdateKeywords(ctx, tx, keywords.DraftSource{DraftID: id}, kw); err != nil {
 			return fmt.Errorf("failed to update keywords: %w", err)
 		}
 	}
@@ -452,11 +341,11 @@ func (r *RepositoryImpl) Update(ctx context.Context, id string, data map[string]
 }
 
 // updateKeywords handles keywords update strategies
-func (r *RepositoryImpl) updateKeywords(ctx context.Context, tx *sql.Tx, draftID string, keywords interface{}) error {
-	switch kw := keywords.(type) {
+func (r *RepositoryImpl) updateKeywords(ctx context.Context, tx *sql.Tx, draftID string, kw interface{}) error {
+	switch kw := kw.(type) {
 	case []string:
 		// Jika keywords berupa slice of strings
-		return r.replaceKeywords(ctx, tx, draftID, kw)
+		return keywords.ReplaceKeywords(ctx, tx, keywords.DraftSource{DraftID: draftID}, kw)
 
 	case []draft.Keywords:
 		// Jika keywords berupa slice of Keyword struct
@@ -464,64 +353,11 @@ func (r *RepositoryImpl) updateKeywords(ctx context.Context, tx *sql.Tx, draftID
 		for i, k := range kw {
 			names[i] = k.Name
 		}
-		return r.replaceKeywords(ctx, tx, draftID, names)
+		return keywords.ReplaceKeywords(ctx, tx, keywords.DraftSource{DraftID: draftID}, names)
 
 	default:
-		return fmt.Errorf("unsupported keywords type: %T", keywords)
+		return fmt.Errorf("unsupported keywords type: %T", kw)
 	}
-}
-
-// replaceKeywords replaces all existing keywords with new ones
-func (r *RepositoryImpl) replaceKeywords(ctx context.Context, tx *sql.Tx, draftID string, keywordNames []string) error {
-	// Delete all existing keywords
-	deleteQuery := `DELETE FROM keywords WHERE id_draft = $1`
-	_, err := tx.ExecContext(ctx, deleteQuery, draftID)
-	if err != nil {
-		return fmt.Errorf("failed to delete existing keywords: %w", err)
-	}
-
-	// Insert new keywords
-	if len(keywordNames) == 0 {
-		return nil
-	}
-
-	// Remove duplicates
-	uniqueNames := r.uniqueStrings(keywordNames)
-
-	// Batch insert new keywords
-	insertQuery := `INSERT INTO keywords (id, id_draft, name, created_at, updated_at) 
-	                VALUES ($1, $2, $3, NOW(), NOW())`
-
-	stmt, err := tx.PrepareContext(ctx, insertQuery)
-	if err != nil {
-		return fmt.Errorf("failed to prepare insert statement: %w", err)
-	}
-	defer stmt.Close()
-
-	for _, name := range uniqueNames {
-		keywordID := uuid.New().String()
-		_, err = stmt.ExecContext(ctx, keywordID, draftID, name)
-		if err != nil {
-			return fmt.Errorf("failed to insert keyword %s: %w", name, err)
-		}
-	}
-
-	log.Printf("Updated keywords for draft %s: replaced with %d keywords", draftID, len(uniqueNames))
-	return nil
-}
-
-func (r *RepositoryImpl) uniqueStrings(strs []string) []string {
-	seen := make(map[string]bool)
-	var result []string
-
-	for _, s := range strs {
-		if s != "" && !seen[s] {
-			seen[s] = true
-			result = append(result, s)
-		}
-	}
-
-	return result
 }
 
 func (r *RepositoryImpl) UpdateStatus(ctx context.Context, id string, status string, scheduledFor *time.Time) error {
@@ -569,26 +405,44 @@ func (r *RepositoryImpl) InsertScheduledDraft(ctx context.Context, req draft.Sch
 }
 
 func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHistoryRequest, userID, teamID, action string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
 
-	var status string
-	status = "published"
-
+	status := "published"
 	if action == "failed" {
 		status = "failed"
 	}
 
-	query := `INSERT INTO histories (
-		title, topic, content, image_url, target_products,
-		status, action, published_at, created_by, team_id, created_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+	query := `
+		INSERT INTO histories (
+			title, topic, content, image_url, target_products,
+			status, action, published_at, created_by, team_id, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id
+	`
 
-	_, err := r.db.ExecContext(ctx, query,
+	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
+
+	var historyID string
+	err = tx.QueryRowContext(ctx, query,
 		req.Title, req.Topic, req.Article, req.ImageURL,
-		targetProductsJSON, status, action, helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
-		userID, teamID, helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
-	)
-	return err
+		targetProductsJSON, status, action, now,
+		userID, teamID, now,
+	).Scan(&historyID)
+	if err != nil {
+		return fmt.Errorf("failed to insert history: %w", err)
+	}
+
+	if err := keywords.UpdateKeywords(ctx, tx, keywords.HistorySource{HistoryID: historyID}, req.Keywords); err != nil {
+		return fmt.Errorf("failed to update keywords: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 // Helper methods

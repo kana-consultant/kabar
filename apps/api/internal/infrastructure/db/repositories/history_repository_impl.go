@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/helper"
+	"seo-backend/internal/helper/keywords"
 	"seo-backend/internal/models"
 )
 
@@ -23,6 +25,7 @@ func NewHistoryRepository(db *sql.DB) history.HistoryRepository {
 
 // Create inserts a new history record
 func (r *HistoryRepository) Create(ctx context.Context, data *history.History) (string, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
 	targetProductsJSON, _ := json.Marshal(data.TargetProducts)
 
 	query := `
@@ -35,11 +38,15 @@ func (r *HistoryRepository) Create(ctx context.Context, data *history.History) (
 	`
 
 	var id string
-	err := r.db.QueryRowContext(ctx, query,
+	err = r.db.QueryRowContext(ctx, query,
 		data.ID, data.Title, data.Topic, data.Content, data.ImageURL, targetProductsJSON,
 		data.Status, data.Action, data.ErrorMessage, data.PublishedAt, data.ScheduledFor,
 		data.CreatedBy, data.TeamID,
 	).Scan(&id)
+
+	if err := keywords.UpdateKeywords(ctx, tx, keywords.HistorySource{HistoryID: id}, data.Keywords); err != nil {
+		return "", fmt.Errorf("failed to update keywords: %w", err)
+	}
 
 	if err != nil {
 		return "", fmt.Errorf("failed to create history: %w", err)
@@ -88,6 +95,24 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 	}
 	if teamID.Valid {
 		h.TeamID = &teamID.String
+	}
+
+	keywords, err := keywords.GetKeywords(ctx, r.db, keywords.HistorySource{HistoryID: id})
+
+	if err != nil {
+
+		log.Printf(
+			"Error getting keywords for draft %s: %v",
+			id,
+			err,
+		)
+
+		// fallback empty array
+		h.Keywords = []string{}
+
+	} else {
+
+		h.Keywords = keywords
 	}
 
 	return &h, nil
