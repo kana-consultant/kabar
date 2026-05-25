@@ -1,20 +1,14 @@
 // src/pages/settings/ProvidersTab.tsx
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
+import { Card, CardContent, Button, Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Tabs, TabsContent, TabsList, TabsTrigger, Badge } from '@kana-consultant/ui-kit';
+import { useToast } from '@/hooks/use-toast'; //   Import useToast
 import { getProviders, createProvider, updateProvider, deleteProvider } from '@/services/modelProvider/modelQueries';
-import {type APIProvider, type CreateProviderRequest} from '@/services/modelProvider/types'
+import { type APIProvider, type CreateProviderRequest } from '@/services/modelProvider/types';
 import { Loader2, Plus, Edit2, Trash2, Key, Globe, Code, Eye, EyeOff } from 'lucide-react';
 
 export function ProvidersTab() {
+    const toast = useToast(); //   Gunakan hook toast
+    
     const [providers, setProviders] = useState<APIProvider[]>([]);
     const [loading, setLoading] = useState(true);
     const [showDialog, setShowDialog] = useState(false);
@@ -37,7 +31,7 @@ export function ProvidersTab() {
     const [formResponseTextPath, setFormResponseTextPath] = useState('');
     const [formResponseImagePath, setFormResponseImagePath] = useState('');
 
-    // Load providers - defined inside useEffect or useCallback
+    // Load providers
     useEffect(() => {
         const loadProviders = async () => {
             setLoading(true);
@@ -45,14 +39,14 @@ export function ProvidersTab() {
                 const data = await getProviders();
                 setProviders(data);
             } catch (error) {
-                toast.error('Gagal memuat providers');
+                toast.error('Gagal memuat providers'); //   Ganti toast.error dengan toast.error
             } finally {
                 setLoading(false);
             }
         };
 
         loadProviders();
-    }, []); // No dependencies
+    }, [toast]); //   Tambahkan toast ke dependencies
 
     // Refresh function for manual reload
     const refreshProviders = async () => {
@@ -61,7 +55,7 @@ export function ProvidersTab() {
             const data = await getProviders();
             setProviders(data);
         } catch (error) {
-            toast.error('Gagal memuat providers');
+            toast.error('Gagal memuat providers'); //   Ganti toast.error dengan toast.error
         } finally {
             setLoading(false);
         }
@@ -104,7 +98,7 @@ export function ProvidersTab() {
 
     const handleSave = async () => {
         if (!formName || !formDisplayName || !formBaseUrl || !formTextEndpoint || !formResponseTextPath) {
-            toast.error('Isi semua field yang diperlukan');
+            toast.error('Isi semua field yang diperlukan'); //   Ganti toast.error dengan toast.error
             return;
         }
 
@@ -113,7 +107,7 @@ export function ProvidersTab() {
             JSON.parse(formDefaultHeaders);
             JSON.parse(formRequestTemplate);
         } catch (e) {
-            toast.error('Format JSON tidak valid');
+            toast.error('Format JSON tidak valid'); //   Ganti toast.error dengan toast.error
             return;
         }
 
@@ -137,16 +131,17 @@ export function ProvidersTab() {
 
             if (editingProvider) {
                 await updateProvider(editingProvider.id, data);
-                toast.success('Provider updated');
+                toast.success('Provider updated'); //   Ganti toast.success dengan toast.success
             } else {
                 await createProvider(data);
-                toast.success('Provider created');
+                toast.success('Provider created'); //   Ganti toast.success dengan toast.success
             }
-            await refreshProviders(); // Use refresh function
+            await refreshProviders();
             setShowDialog(false);
             resetForm();
         } catch (error) {
-            toast.error('Failed to save provider');
+            console.error('Save error:', error);
+            toast.error('Failed to save provider'); //   Ganti toast.error dengan toast.error
         } finally {
             setSaving(false);
         }
@@ -156,10 +151,11 @@ export function ProvidersTab() {
         if (confirm(`Hapus provider "${name}"?`)) {
             try {
                 await deleteProvider(id);
-                toast.success('Provider deleted');
-                await refreshProviders(); // Use refresh function
+                toast.success('Provider deleted'); //   Ganti toast.success dengan toast.success
+                await refreshProviders();
             } catch (error) {
-                toast.error('Failed to delete provider');
+                console.error('Delete error:', error);
+                toast.error('Failed to delete provider'); //   Ganti toast.error dengan toast.error
             }
         }
     };
@@ -195,8 +191,8 @@ export function ProvidersTab() {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                         <h3 className="font-semibold">{provider.displayName}</h3>
-                                        <Badge variant="outline">{provider.name}</Badge>
-                                        {!provider.isActive && <Badge variant="destructive">Inactive</Badge>}
+                                        <Badge className="outline">{provider.name}</Badge>
+                                        {!provider.isActive && <Badge tone="warning">Inactive</Badge>}
                                     </div>
                                     <p className="text-sm text-slate-500 mt-1">{provider.description}</p>
                                     <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-slate-400">
@@ -257,7 +253,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="gemini, openai, anthropic"
                                     value={formName}
-                                    onChange={(e) => setFormName(e.target.value)}
+                                    onChange={(e : any) => setFormName(e.target.value)}
                                 />
                                 <p className="text-xs text-slate-500 mt-1">Unique identifier (used in API calls)</p>
                             </div>
@@ -266,7 +262,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="Google Gemini, OpenAI GPT"
                                     value={formDisplayName}
-                                    onChange={(e) => setFormDisplayName(e.target.value)}
+                                    onChange={(e : any) => setFormDisplayName(e.target.value)}
                                 />
                             </div>
                             <div>
@@ -274,7 +270,7 @@ export function ProvidersTab() {
                                 <Textarea
                                     placeholder="Description of this provider"
                                     value={formDescription}
-                                    onChange={(e) => setFormDescription(e.target.value)}
+                                    onChange={(e : any) => setFormDescription(e.target.value)}
                                     rows={2}
                                 />
                             </div>
@@ -283,7 +279,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="https://generativelanguage.googleapis.com/v1"
                                     value={formBaseUrl}
-                                    onChange={(e) => setFormBaseUrl(e.target.value)}
+                                    onChange={(e : any) => setFormBaseUrl(e.target.value)}
                                 />
                             </div>
                         </TabsContent>
@@ -307,7 +303,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="Authorization"
                                     value={formAuthHeader}
-                                    onChange={(e) => setFormAuthHeader(e.target.value)}
+                                    onChange={(e : any) => setFormAuthHeader(e.target.value)}
                                 />
                             </div>
                             <div>
@@ -315,7 +311,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="Bearer"
                                     value={formAuthPrefix}
-                                    onChange={(e) => setFormAuthPrefix(e.target.value)}
+                                    onChange={(e : any) => setFormAuthPrefix(e.target.value)}
                                 />
                             </div>
                         </TabsContent>
@@ -326,7 +322,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="/models/{model}:generateContent"
                                     value={formTextEndpoint}
-                                    onChange={(e) => setFormTextEndpoint(e.target.value)}
+                                    onChange={(e : any) => setFormTextEndpoint(e.target.value)}
                                 />
                                 <p className="text-xs text-slate-500 mt-1">Use {'{model}'} as placeholder for model name</p>
                             </div>
@@ -335,7 +331,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="/models/{model}:generateContent"
                                     value={formImageEndpoint}
-                                    onChange={(e) => setFormImageEndpoint(e.target.value)}
+                                    onChange={(e : any) => setFormImageEndpoint(e.target.value)}
                                 />
                             </div>
                             <div>
@@ -343,7 +339,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="$.candidates[0].content.parts[0].text"
                                     value={formResponseTextPath}
-                                    onChange={(e) => setFormResponseTextPath(e.target.value)}
+                                    onChange={(e : any) => setFormResponseTextPath(e.target.value)}
                                 />
                                 <p className="text-xs text-slate-500 mt-1">JSON path to extract text from response</p>
                             </div>
@@ -352,7 +348,7 @@ export function ProvidersTab() {
                                 <Input
                                     placeholder="$.candidates[0].content.parts[0].inlineData.data"
                                     value={formResponseImagePath}
-                                    onChange={(e) => setFormResponseImagePath(e.target.value)}
+                                    onChange={(e : any) => setFormResponseImagePath(e.target.value)}
                                 />
                             </div>
                         </TabsContent>
@@ -363,7 +359,7 @@ export function ProvidersTab() {
                                 <div className="relative">
                                     <Textarea
                                         value={formDefaultHeaders}
-                                        onChange={(e) => setFormDefaultHeaders(e.target.value)}
+                                        onChange={(e : any) => setFormDefaultHeaders(e.target.value)}
                                         rows={4}
                                         className="font-mono text-sm"
                                     />
@@ -381,7 +377,7 @@ export function ProvidersTab() {
                                 <Label>Request Template * (JSON)</Label>
                                 <Textarea
                                     value={formRequestTemplate}
-                                    onChange={(e) => setFormRequestTemplate(e.target.value)}
+                                    onChange={(e : any) => setFormRequestTemplate(e.target.value)}
                                     rows={8}
                                     className="font-mono text-sm"
                                 />

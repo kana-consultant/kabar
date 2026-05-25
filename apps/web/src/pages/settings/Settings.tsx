@@ -1,4 +1,4 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kana-consultant/ui-kit";
 import { SettingsHeader } from "./SettingsHeader";
 import { ProfileTab } from "./ProfileTab";
 import { UsersTab } from "./UsersTab";
