@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
 import { Plus, Trash2, GripVertical, ChevronRight, ChevronDown } from "lucide-react";
 import { type Field, type SimpleJsonBuilderProps } from "@/types/JsonBuilder";
 import { genId, jsonToFields, fieldsToJson, getNextFieldNumber, getNextObjectNumber } from "@/utils/SimpleJsonBuilder";
@@ -226,7 +226,7 @@ export function SimpleJsonBuilder({ value, onChange }: SimpleJsonBuilderProps) {
                     <Input
                         placeholder="nama field"
                         value={field.key}
-                        onChange={(e) => updateField(field.id, e.target.value, field.value)}
+                        onChange={(e : any) => updateField(field.id, e.target.value, field.value)}
                         className="w-48 h-8 text-sm"
                     />
 
@@ -236,7 +236,7 @@ export function SimpleJsonBuilder({ value, onChange }: SimpleJsonBuilderProps) {
                             <Input
                                 placeholder="nilai"
                                 value={field.value}
-                                onChange={(e) => updateField(field.id, field.key, e.target.value)}
+                                onChange={(e : any) => updateField(field.id, field.key, e.target.value)}
                                 className="flex-1 h-8 text-sm"
                             />
                         </>

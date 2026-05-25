@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { Plus } from "lucide-react";
 import { type Field } from "./types";
 

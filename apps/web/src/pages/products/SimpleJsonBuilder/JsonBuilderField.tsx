@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
 import { Plus, Trash2, GripVertical, ChevronRight, ChevronDown } from "lucide-react";
 import { type Field } from "./types";
 
@@ -48,7 +48,7 @@ export function JsonBuilderField({
                 <Input
                     placeholder="nama field"
                     value={field.key}
-                    onChange={(e) => onUpdate(field.id, e.target.value, field.value)}
+                    onChange={(e : any) => onUpdate(field.id, e.target.value, field.value)}
                     className="w-48 h-8 text-sm"
                 />
 
@@ -59,7 +59,7 @@ export function JsonBuilderField({
                         <Input
                             placeholder="nilai"
                             value={field.value}
-                            onChange={(e) => onUpdate(field.id, field.key, e.target.value)}
+                            onChange={(e : any) => onUpdate(field.id, field.key, e.target.value)}
                             className="flex-1 h-8 text-sm"
                         />
                     </>
