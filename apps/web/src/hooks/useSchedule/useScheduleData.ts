@@ -1,9 +1,10 @@
-import { toast } from "sonner";
+import { type ToastContextType } from "../use-toast";
 import { getScheduled } from "@//services/draft";
 
 export async function loadSchedulesData(
     setSchedules: (data: any[]) => void,
-    setLoading: (val: boolean) => void
+    setLoading: (val: boolean) => void,
+    toast : ToastContextType
 ) {
     setLoading(true);
     try {

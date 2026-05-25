@@ -1,6 +1,6 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
 import { Calendar } from "lucide-react";
 import type { Draft } from "@/services/draft";
 
@@ -42,7 +42,7 @@ export function RescheduleDialog({
                         <Input
                             type="date"
                             value={newDate}
-                            onChange={(e) => onDateChange(e.target.value)}
+                            onChange={(e : any) => onDateChange(e.target.value)}
                             className="mt-1"
                         />
                     </div>
@@ -51,7 +51,7 @@ export function RescheduleDialog({
                         <Input
                             type="time"
                             value={newTime}
-                            onChange={(e) => onTimeChange(e.target.value)}
+                            onChange={(e : any) => onTimeChange(e.target.value)}
                             className="mt-1"
                         />
                     </div>

@@ -1,5 +1,5 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@kana-consultant/ui-kit";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kana-consultant/ui-kit";
 import type { Draft } from "@/services/draft";
 
 interface ScheduleDetailDialogProps {

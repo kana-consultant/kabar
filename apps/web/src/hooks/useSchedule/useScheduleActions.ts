@@ -1,6 +1,7 @@
-import { toast } from "sonner";
+
 import { publishDraft, deleteDraft, updateDraft } from "@/services/draft";
 import { loadSchedulesData } from "./useScheduleData";
+import type { ToastContextType } from "../use-toast";
 
 export function useScheduleActions(
     setSchedules: (data: any[]) => void,
@@ -9,7 +10,8 @@ export function useScheduleActions(
     setSelectedSchedule: (val: any) => void,
     setShowRescheduleDialog: (val: boolean) => void,
     setNewScheduleDate: (val: string) => void,
-    setNewScheduleTime: (val: string) => void
+    setNewScheduleTime: (val: string) => void,
+    toast : ToastContextType
 ) {
     const handlePublishNow = async (schedule: any) => {
         try {
@@ -17,7 +19,7 @@ export function useScheduleActions(
             toast.success("Konten dipublikasikan!", {
                 description: `"${schedule.title}" telah dipublikasikan`,
             });
-            await loadSchedulesData(setSchedules, setLoading);
+            await loadSchedulesData(setSchedules, setLoading, toast);
         } catch (error) {
             toast.error("Gagal mempublikasikan");
         }
@@ -30,7 +32,7 @@ export function useScheduleActions(
                 toast.success("Jadwal dihapus", {
                     description: `"${selectedSchedule.title}" telah dihapus dari jadwal`,
                 });
-                await loadSchedulesData(setSchedules, setLoading);
+                await loadSchedulesData(setSchedules, setLoading, toast);
                 setShowDeleteDialog(false);
                 setSelectedSchedule(null);
             } catch (error) {
@@ -51,7 +53,7 @@ export function useScheduleActions(
                 toast.success("Jadwal diperbarui", {
                     description: `"${selectedSchedule.title}" dijadwalkan ulang pada ${newScheduleDate} jam ${newScheduleTime}`,
                 });
-                await loadSchedulesData(setSchedules, setLoading);
+                await loadSchedulesData(setSchedules, setLoading, toast);
                 setShowRescheduleDialog(false);
                 setSelectedSchedule(null);
                 setNewScheduleDate("");
