@@ -1,6 +1,6 @@
 
 import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { useToast } from "../use-toast";
 import { addProduct, updateProduct, testConnection } from "@/services/product";
 import type { Product } from "@/services/product";
 
@@ -15,6 +15,7 @@ export function useProductFormHandlers(
     setProduct: (updater: any) => void
 ) {
     const navigate = useNavigate();
+    const toast = useToast()
 
     const handleTestConnection = async () => {
         if (!product.apiEndpoint) {

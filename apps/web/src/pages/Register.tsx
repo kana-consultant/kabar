@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Rocket, Mail, Lock, User, Eye, EyeOff, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { Button, Input, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Label } from '@kana-consultant/ui-kit';
+// Hapus import Toast langsung
+// import { Toast } from "@kana-consultant/ui-kit";
+import { useToast } from '@/hooks/use-toast'; //   Import useToast
 import { register } from '@/services/user';
 
 export default function Register() {
+    const toast = useToast(); //   Gunakan hook toast
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -58,13 +58,13 @@ export default function Register() {
         setIsLoading(true);
         try {
             await register({ email, name, password });
-            toast.success('Registrasi berhasil!', {
+            toast.success('Registrasi berhasil!', { //   Ganti toast.success dengan toast.success
                 description: 'Silakan login dengan akun Anda',
             });
             navigate({ to: '/login' });
         } catch (err: any) {
             const message = err.response?.data?.message || err.message || 'Registrasi gagal';
-            toast.error('Registrasi gagal', { description: message });
+            toast.error('Registrasi gagal', { description: message }); //   Ganti toast.error dengan toast.error
             if (message.toLowerCase().includes('already exists')) {
                 setErrors({ email: 'Email sudah terdaftar' });
             }
@@ -72,6 +72,7 @@ export default function Register() {
             setIsLoading(false);
         }
     };
+
 
     const goToLogin = () => {
         navigate({ to: '/login' });
@@ -104,7 +105,7 @@ export default function Register() {
                                     type="text"
                                     placeholder="John Doe"
                                     value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    onChange={(e : any) => setName(e.target.value)}
                                     className={`pl-9 ${errors.name ? 'border-red-500' : ''}`}
                                     disabled={isLoading}
                                 />
@@ -124,7 +125,7 @@ export default function Register() {
                                     type="email"
                                     placeholder="user@example.com"
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(e : any) => setEmail(e.target.value)}
                                     className={`pl-9 ${errors.email ? 'border-red-500' : ''}`}
                                     disabled={isLoading}
                                 />
@@ -144,7 +145,7 @@ export default function Register() {
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="••••••••"
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e : any) => setPassword(e.target.value)}
                                     className={`pl-9 pr-9 ${errors.password ? 'border-red-500' : ''}`}
                                     disabled={isLoading}
                                 />
@@ -177,7 +178,7 @@ export default function Register() {
                                     type={showConfirmPassword ? 'text' : 'password'}
                                     placeholder="••••••••"
                                     value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    onChange={(e : any) => setConfirmPassword(e.target.value)}
                                     className={`pl-9 pr-9 ${errors.confirmPassword ? 'border-red-500' : ''}`}
                                     disabled={isLoading}
                                 />

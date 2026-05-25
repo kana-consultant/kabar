@@ -6,10 +6,11 @@ import { ViewHistoryDialog } from "./ViewHistoryDialog";
 import { DeleteHistoryDialog } from "./DeleteHistoryDialog";
 import { LoadingHistory } from "./LoadingHistory";
 import { useHistory } from "@/hooks/useHistory";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 export default function History() {
     const navigate = useNavigate();
+    const toast = useToast()
     const {
         history,
         filteredHistory,

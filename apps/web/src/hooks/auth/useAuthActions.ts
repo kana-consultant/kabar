@@ -5,7 +5,7 @@ import {
     clearAuthData,
     updateLocalUser, changePasswordApi as changePasswordService
 } from '@/services/auth';
-import { toast } from 'sonner';
+import { Toast } from "@kana-consultant/ui-kit";
 import type { User } from '@/services/user';
 
 interface UseAuthActionsParams {
