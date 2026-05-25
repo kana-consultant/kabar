@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
 
 interface RawJsonMappingProps {
     value: any; // bisa array atau string
@@ -55,7 +55,7 @@ export function RawJsonMapping({ value, onChange }: RawJsonMappingProps) {
                 </label>
                 <textarea
                     value={jsonText}
-                    onChange={(e) => setJsonText(e.target.value)}
+                    onChange={(e : any) => setJsonText(e.target.value)}
                     className="w-full h-96 rounded border p-3 font-mono text-sm dark:bg-slate-900"
                     placeholder="Input JSON bebas sesuai kebutuhan API Anda"
                 />

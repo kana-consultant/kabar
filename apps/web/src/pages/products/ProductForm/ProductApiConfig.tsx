@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Input } from "@kana-consultant/ui-kit";
+import { Label } from "@kana-consultant/ui-kit";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
+} from "@kana-consultant/ui-kit";
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 import type { AdapterConfig } from "@/services/product";
@@ -155,7 +155,7 @@ export function ProductApiConfig({
                     <Label>Endpoint Path</Label>
                     <Input
                         value={config.endpointPath || ""}
-                        onChange={(e) => onUpdate({ endpointPath: e.target.value })}
+                        onChange={(e : any) => onUpdate({ endpointPath: e.target.value })}
                         placeholder="/api/v1/products"
                     />
                 </div>
@@ -165,7 +165,7 @@ export function ProductApiConfig({
                     <Label>HTTP Method</Label>
                     <Select
                         value={config.httpMethod || "POST"}
-                        onValueChange={(v) => onUpdate({ httpMethod: v as any })}
+                        onValueChange={(v : any) => onUpdate({ httpMethod: v as any })}
                     >
                         <SelectTrigger>
                             <SelectValue />
@@ -185,7 +185,7 @@ export function ProductApiConfig({
 
                     <RadioGroup
                         value={authType}
-                        onValueChange={(value) => updateAuthType(value as AuthType)}
+                        onValueChange={(v : any) => updateAuthType(v as AuthType)}
                         className="flex flex-col space-y-1"
                     >
                         <div className="flex items-center space-x-2">
@@ -226,7 +226,7 @@ export function ProductApiConfig({
                                 <Input
                                     placeholder="Header Key"
                                     value={header.key}
-                                    onChange={(e) => {
+                                    onChange={(e : any) => {
                                         const updated = [...headers];
                                         updated[index].key = e.target.value;
                                         updateHeaders(updated);
@@ -236,7 +236,7 @@ export function ProductApiConfig({
                                 <Input
                                     placeholder="Header Value"
                                     value={header.value}
-                                    onChange={(e) => {
+                                    onChange={(e : any) => {
                                         const updated = [...headers];
                                         updated[index].value = e.target.value;
                                         updateHeaders(updated);

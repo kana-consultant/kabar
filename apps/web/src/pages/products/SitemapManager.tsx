@@ -1,8 +1,8 @@
 // components/SitemapManager.tsx
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kana-consultant/ui-kit";
 import { MapPin, Download, Copy, Check } from "lucide-react";
 
 interface SitemapManagerProps {
@@ -159,7 +159,7 @@ ${dynamicXml}
                             <input
                                 type="checkbox"
                                 checked={config.enabled}
-                                onChange={(e) => updateConfig({ enabled: e.target.checked })}
+                                onChange={(e : any) => updateConfig({ enabled: e.target.checked })}
                                 className="w-4 h-4"
                             />
                             <span className="text-sm">Aktifkan Sitemap</span>
@@ -178,7 +178,7 @@ ${dynamicXml}
                                 <div key={idx} className="flex gap-2 items-center text-xs">
                                     <Input
                                         value={url.loc}
-                                        onChange={(e) => updateStaticUrl(idx, "loc", e.target.value)}
+                                        onChange={(e : any) => updateStaticUrl(idx, "loc", e.target.value)}
                                         className="h-7 flex-1"
                                         placeholder="/path"
                                     />
@@ -186,12 +186,12 @@ ${dynamicXml}
                                         type="number"
                                         step="0.1"
                                         value={url.priority}
-                                        onChange={(e) => updateStaticUrl(idx, "priority", parseFloat(e.target.value))}
+                                        onChange={(e : any) => updateStaticUrl(idx, "priority", parseFloat(e.target.value))}
                                         className="h-7 w-16"
                                     />
                                     <select
                                         value={url.changefreq}
-                                        onChange={(e) => updateStaticUrl(idx, "changefreq", e.target.value)}
+                                        onChange={(e : any) => updateStaticUrl(idx, "changefreq", e.target.value)}
                                         className="h-7 rounded border px-1 text-xs"
                                     >
                                         <option value="always">always</option>
@@ -217,7 +217,7 @@ ${dynamicXml}
                                 <label className="text-xs text-slate-500">URL Pattern</label>
                                 <Input
                                     value={config.dynamicConfig.urlPattern}
-                                    onChange={(e) => updateConfig({
+                                    onChange={(e : any) => updateConfig({
                                         dynamicConfig: { ...config.dynamicConfig, urlPattern: e.target.value },
                                     })}
                                     className="h-8 text-xs"
@@ -232,7 +232,7 @@ ${dynamicXml}
                                     <label className="text-xs text-slate-500">Priority Source</label>
                                     <select
                                         value={config.dynamicConfig.prioritySource}
-                                        onChange={(e) => updateConfig({
+                                        onChange={(e : any) => updateConfig({
                                             dynamicConfig: { ...config.dynamicConfig, prioritySource: e.target.value },
                                         })}
                                         className="w-full h-8 rounded border px-2 text-xs"
@@ -247,7 +247,7 @@ ${dynamicXml}
                                     <label className="text-xs text-slate-500">Changefreq Source</label>
                                     <select
                                         value={config.dynamicConfig.changefreqSource}
-                                        onChange={(e) => updateConfig({
+                                        onChange={(e : any) => updateConfig({
                                             dynamicConfig: { ...config.dynamicConfig, changefreqSource: e.target.value },
                                         })}
                                         className="w-full h-8 rounded border px-2 text-xs"
@@ -262,7 +262,7 @@ ${dynamicXml}
                                     <label className="text-xs text-slate-500">Image Source</label>
                                     <select
                                         value={config.dynamicConfig.imageSource}
-                                        onChange={(e) => updateConfig({
+                                        onChange={(e : any) => updateConfig({
                                             dynamicConfig: { ...config.dynamicConfig, imageSource: e.target.value },
                                         })}
                                         className="w-full h-8 rounded border px-2 text-xs"
@@ -277,7 +277,7 @@ ${dynamicXml}
                                     <label className="text-xs text-slate-500">Lastmod Source</label>
                                     <select
                                         value={config.dynamicConfig.lastmodSource}
-                                        onChange={(e) => updateConfig({
+                                        onChange={(e : any) => updateConfig({
                                             dynamicConfig: { ...config.dynamicConfig, lastmodSource: e.target.value },
                                         })}
                                         className="w-full h-8 rounded border px-2 text-xs"

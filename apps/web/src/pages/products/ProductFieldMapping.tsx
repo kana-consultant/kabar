@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
+import { Textarea } from "@kana-consultant/ui-kit";
+import { Label } from "@kana-consultant/ui-kit";
+import { Switch } from "@kana-consultant/ui-kit";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
+} from "@kana-consultant/ui-kit";
 import {
     Dialog,
     DialogContent,
@@ -20,7 +20,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@kana-consultant/ui-kit";
 import { SimpleJsonBuilder } from "./SimpleJsonBuilder";
 import { Eye, Send, Copy, Plus, Trash2, Check } from "lucide-react";
 
@@ -285,7 +285,7 @@ function MetaTagManager({
                     {/* Enable */}
                     <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                         <div className="flex items-center gap-2">
-                            <Switch checked={config.enabled} onCheckedChange={(v) => updateConfig({ enabled: v })} />
+                            <Switch checked={config.enabled} onCheckedChange={(v : any) => updateConfig({ enabled: v })} />
                             <Label>Aktifkan Meta Tags</Label>
                         </div>
                     </div>
@@ -299,7 +299,7 @@ function MetaTagManager({
                                     <Label className="text-xs capitalize">{key}</Label>
                                     <Input 
                                         value={val} 
-                                        onChange={(e) => updateConfig({ defaultTags: { ...config.defaultTags, [key]: e.target.value } })} 
+                                        onChange={(e : any) => updateConfig({ defaultTags: { ...config.defaultTags, [key]: e.target.value } })} 
                                     />
                                 </div>
                             ))}
@@ -318,7 +318,7 @@ function MetaTagManager({
                             return (
                                 <div key={field}>
                                     <Label className="text-xs mb-1 block">{field.replace("Source", "")} Source</Label>
-                                    <Select value={selectValue as string} onValueChange={(v) => handleDynamicTagChange(field, v)}>
+                                    <Select value={selectValue as string} onValueChange={(v : any) => handleDynamicTagChange(field, v)}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Pilih placeholder..." />
                                         </SelectTrigger>
@@ -352,14 +352,14 @@ function MetaTagManager({
                                     <div className="space-y-4 py-4">
                                         <div>
                                             <Label>Nama Tag</Label>
-                                            <Input placeholder="author" value={newTagKey} onChange={(e) => setNewTagKey(e.target.value)} />
+                                            <Input placeholder="author" value={newTagKey} onChange={(e : any) => setNewTagKey(e.target.value)} />
                                         </div>
                                         <div>
                                             <Label>Nilai</Label>
                                             <Input 
                                                 placeholder="{title} - John Doe" 
                                                 value={newTagValue} 
-                                                onChange={(e) => setNewTagValue(e.target.value)} 
+                                                onChange={(e : any) => setNewTagValue(e.target.value)} 
                                             />
                                             <p className="text-xs text-muted-foreground mt-1">
                                                 Gunakan {'{title}'}, {'{excerpt}'}, dll untuk placeholder
@@ -384,13 +384,13 @@ function MetaTagManager({
                                     <>
                                         <Input 
                                             value={editingCustomTag.key} 
-                                            onChange={(e) => setEditingCustomTag({ ...editingCustomTag, key: e.target.value })} 
+                                            onChange={(e : any) => setEditingCustomTag({ ...editingCustomTag, key: e.target.value })} 
                                             className="w-48" 
                                             autoFocus
                                         />
                                         <Input 
                                             value={editingCustomTag.value} 
-                                            onChange={(e) => setEditingCustomTag({ ...editingCustomTag, value: e.target.value })} 
+                                            onChange={(e : any) => setEditingCustomTag({ ...editingCustomTag, value: e.target.value })} 
                                             className="flex-1" 
                                         />
                                         <Button size="sm" onClick={saveEditCustomTag}>💾</Button>
@@ -529,7 +529,7 @@ function SitemapManager({
                     {/* Enable Switch */}
                     <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                         <div className="flex items-center gap-2">
-                            <Switch checked={config.enabled} onCheckedChange={(v) => updateConfig({ enabled: v })} />
+                            <Switch checked={config.enabled} onCheckedChange={(v : any) => updateConfig({ enabled: v })} />
                             <Label>Aktifkan Sitemap</Label>
                         </div>
                     </div>
@@ -548,7 +548,7 @@ function SitemapManager({
                                     </DialogHeader>
                                     <div className="py-4">
                                         <Label>URL Path</Label>
-                                        <Input placeholder="/about" value={newStaticUrl} onChange={(e) => setNewStaticUrl(e.target.value)} />
+                                        <Input placeholder="/about" value={newStaticUrl} onChange={(e : any) => setNewStaticUrl(e.target.value)} />
                                     </div>
                                     <DialogFooter>
                                         <Button variant="outline" onClick={() => setStaticDialogOpen(false)}>Batal</Button>
@@ -561,9 +561,9 @@ function SitemapManager({
                         <div className="space-y-2">
                             {config.staticUrls.map((url, idx) => (
                                 <div key={idx} className="flex gap-2 items-center">
-                                    <Input value={url.loc} onChange={(e) => updateStaticUrl(idx, "loc", e.target.value)} className="flex-1" />
-                                    <Input type="number" step="0.1" value={url.priority} onChange={(e) => updateStaticUrl(idx, "priority", parseFloat(e.target.value))} className="w-24" />
-                                    <Select value={url.changefreq} onValueChange={(v) => updateStaticUrl(idx, "changefreq", v)}>
+                                    <Input value={url.loc} onChange={(e : any) => updateStaticUrl(idx, "loc", e.target.value)} className="flex-1" />
+                                    <Input type="number" step="0.1" value={url.priority} onChange={(e : any) => updateStaticUrl(idx, "priority", parseFloat(e.target.value))} className="w-24" />
+                                    <Select value={url.changefreq} onValueChange={(v : any) => updateStaticUrl(idx, "changefreq", v)}>
                                         <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
@@ -580,7 +580,7 @@ function SitemapManager({
                         <h4 className="font-medium">Dynamic URLs</h4>
                         <div>
                             <Label>URL Pattern</Label>
-                            <Input value={config.dynamicConfig.urlPattern} onChange={(e) => updateConfig({ dynamicConfig: { ...config.dynamicConfig, urlPattern: e.target.value } })} placeholder="/p/{id}" />
+                            <Input value={config.dynamicConfig.urlPattern} onChange={(e : any) => updateConfig({ dynamicConfig: { ...config.dynamicConfig, urlPattern: e.target.value } })} placeholder="/p/{id}" />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             {(["prioritySource", "changefreqSource", "imageSource", "lastmodSource"] as const).map((key) => (
@@ -588,7 +588,7 @@ function SitemapManager({
                                     <Label className="text-xs">{key.replace("Source", "")}</Label>
                                     <Select
                                         value={config.dynamicConfig[key]}
-                                        onValueChange={(v) => updateConfig({ dynamicConfig: { ...config.dynamicConfig, [key]: v } })}
+                                        onValueChange={(v : any) => updateConfig({ dynamicConfig: { ...config.dynamicConfig, [key]: v } })}
                                     >
                                         <SelectTrigger>
                                             <SelectValue />
@@ -669,7 +669,7 @@ export function ProductFieldMapping({
 
     return (
         <div className="border rounded-xl p-5 space-y-6">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <Tabs value={activeTab} onValueChange={(v : any) => setActiveTab(v as any)}>
                 <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="form">📝 Drag & Drop</TabsTrigger>
                     <TabsTrigger value="raw">📄 Raw JSON</TabsTrigger>
@@ -683,7 +683,7 @@ export function ProductFieldMapping({
                 </TabsContent>
 
                 <TabsContent value="raw" className="pt-4 space-y-3">
-                    <Textarea value={rawJson} onChange={(e) => setRawJson(e.target.value)} className="h-96 font-mono text-sm" />
+                    <Textarea value={rawJson} onChange={(e : any) => setRawJson(e.target.value)} className="h-96 font-mono text-sm" />
                     <Button onClick={saveRawJson} className="w-full">💾 Simpan JSON</Button>
                 </TabsContent>
 

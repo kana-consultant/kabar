@@ -1,13 +1,14 @@
 import { useCallback } from "react";
-import { toast } from "sonner";
 import { getProducts } from "@/services/product";
+import type { ToastContextType } from "../use-toast";
 
 export function useProductsData(
     setProducts: (data: any[]) => void,
     setProductNames: (names: string[]) => void,
     setProductsLoading: (val: boolean) => void,
     setProductsError: (val: string | null) => void,
-    setLoading: (val : boolean) => void
+    setLoading: (val : boolean) => void,
+    toast : ToastContextType
 ) {
     const fetchProducts = useCallback(async () => {
         setProductsLoading(true);

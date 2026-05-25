@@ -3,8 +3,10 @@ import { useProductsState } from "./useProductsState";
 import { useProductsData } from "./useProductsData";
 import { useProductsFilter } from "./useProductsFilter";
 import { useProductsActions } from "./useProductsActions";
+import { useToast } from "../use-toast";
 
 export function useProducts() {
+    const toast = useToast()
     const {
         filteredProducts, setFilteredProducts,
         searchQuery, setSearchQuery,
@@ -21,7 +23,7 @@ export function useProducts() {
     } = useProductsState();
 
     const { fetchProducts, loadProducts } = useProductsData(
-        setProducts, setProductNames, setProductsLoading, setProductsError,setLoading
+        setProducts, setProductNames, setProductsLoading, setProductsError,setLoading,toast
     );
 
     // Load products on mount
@@ -38,7 +40,7 @@ export function useProducts() {
 
     const { handleDelete, handleTestConnection, handleSync } = useProductsActions(
         loadProducts, fetchProducts, setShowDeleteDialog, setSelectedProduct,
-        setTestingId, setSyncingId
+        setTestingId, setSyncingId,toast
     );
 
     return {

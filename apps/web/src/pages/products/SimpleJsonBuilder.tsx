@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
 import {
     Plus,
     Trash2,

@@ -1,5 +1,5 @@
-import { toast } from "sonner";
 import { deleteProduct, testConnection, syncProduct } from "@/services/product";
+import { type ToastContextType } from "../use-toast";
 
 export function useProductsActions(
     loadProducts: () => Promise<void>,
@@ -7,8 +7,10 @@ export function useProductsActions(
     setShowDeleteDialog: (val: boolean) => void,
     setSelectedProduct: (val: any) => void,
     setTestingId: (val: string | null) => void,
-    setSyncingId: (val: string | null) => void
+    setSyncingId: (val: string | null) => void,
+    toast : ToastContextType
 ) {
+    
     const handleDelete = async (id: string, name: string) => {
         try {
             await deleteProduct(id);

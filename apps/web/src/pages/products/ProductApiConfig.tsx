@@ -1,13 +1,13 @@
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Input } from "@kana-consultant/ui-kit";
+import { Label } from "@kana-consultant/ui-kit";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+} from "@kana-consultant/ui-kit";
+import { Card, CardContent, CardHeader, CardTitle } from "@kana-consultant/ui-kit";
 import type { AdapterConfig } from "@/services/product";
 
 interface ProductApiConfigProps {
@@ -26,7 +26,7 @@ export function ProductApiConfig({ config, onChange }: ProductApiConfigProps) {
                     <Label>Endpoint Path</Label>
                     <Input
                         value={config.endpointPath}
-                        onChange={(e) => onChange({ endpointPath: e.target.value })}
+                        onChange={(e : any) => onChange({ endpointPath: e.target.value })}
                         placeholder="/wp-json/wp/v2/posts"
                     />
                 </div>
@@ -34,7 +34,7 @@ export function ProductApiConfig({ config, onChange }: ProductApiConfigProps) {
                     <Label>HTTP Method</Label>
                     <Select
                         value={config.httpMethod}
-                        onValueChange={(v) => onChange({ customHeaders: v as any })}
+                        onValueChange={(v : any) => onChange({ customHeaders: v as any })}
                     >
                         <SelectTrigger>
                             <SelectValue />
@@ -51,7 +51,7 @@ export function ProductApiConfig({ config, onChange }: ProductApiConfigProps) {
                     <Label>Custom Headers</Label>
                     <textarea
                         value={JSON.stringify(config.customHeaders, null, 2)}
-                        onChange={(e) => {
+                        onChange={(e : any) => {
                             try {
                                 const customHeaders = JSON.parse(e.target.value);
                                 onChange({ customHeaders });
