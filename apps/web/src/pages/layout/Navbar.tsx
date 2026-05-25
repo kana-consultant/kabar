@@ -142,7 +142,7 @@ export function Navbar() {
                             "flex items-center gap-2 rounded-full border pl-1 pr-2.5 py-1 transition-all",
                             "border-slate-200/80 bg-white hover:bg-slate-50",
                             "dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]",
-                            dropdownOpen && "border-green-300/60 dark:border-purple-500/40"
+                            dropdownOpen ? "border-green-300/60 dark:border-purple-500/40" : ""
                         )}
                     >
                         {/* Mini avatar */}

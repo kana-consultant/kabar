@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { Edit2, Trash2, Wifi, RefreshCw, Package as PackageIcon, CheckCircle2, AlertCircle } from "lucide-react";
 import type { Product } from "@/services/product";
 

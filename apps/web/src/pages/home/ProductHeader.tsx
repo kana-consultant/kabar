@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
 import { Search, Plus } from "lucide-react";
 
 export function ProductHeader({ searchQuery, setSearchQuery }: any) {
@@ -21,7 +21,7 @@ export function ProductHeader({ searchQuery, setSearchQuery }: any) {
                     <Input
                         placeholder="Cari produk..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e : any) => setSearchQuery(e.target.value)}
                         className="pl-9 w-64 rounded-xl border-slate-200 dark:border-white/10"
                     />
                 </div>
