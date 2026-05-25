@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { Eye, Repeat, Trash2, CheckCircle, XCircle, Clock, Send, Calendar, FileText, Package } from "lucide-react";
 import type { HistoryItem as HistoryItemType } from "@/services/history";
 import { cn } from "@/lib/utils";

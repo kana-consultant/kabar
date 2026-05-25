@@ -1,13 +1,12 @@
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@kana-consultant/ui-kit";
 import type { HistoryItem } from "@/services/history";
 
 interface DeleteHistoryDialogProps {
@@ -21,22 +20,29 @@ export function DeleteHistoryDialog({ item, open, onOpenChange, onConfirm }: Del
     if (!item) return null;
 
     return (
-        <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Hapus Riwayat?</AlertDialogTitle>
-                    <AlertDialogDescription>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Hapus Riwayat?</DialogTitle>
+                    <DialogDescription>
                         Apakah Anda yakin ingin menghapus riwayat "{item.title}"?
                         Tindakan ini tidak dapat dibatalkan.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                    <AlertDialogAction onClick={onConfirm} className="bg-red-600 hover:bg-red-700">
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <button className="px-4 py-2 text-sm font-medium rounded-md border bg-background hover:bg-muted">
+                            Batal
+                        </button>
+                    </DialogClose>
+                    <button 
+                        onClick={onConfirm} 
+                        className="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700"
+                    >
                         Hapus
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+                    </button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

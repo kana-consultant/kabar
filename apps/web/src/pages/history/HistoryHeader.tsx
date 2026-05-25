@@ -1,9 +1,9 @@
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
 import {
     Select, SelectContent, SelectItem,
     SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@kana-consultant/ui-kit";
 import { Search, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +41,7 @@ export default function HistoryHeader({
                     <Input
                         placeholder="Cari riwayat..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e : any) => setSearchQuery(e.target.value)}
                         className={cn(
                             "h-8 pl-8 text-sm",
                             "border-slate-200/80 bg-white placeholder:text-slate-400",
@@ -53,7 +53,7 @@ export default function HistoryHeader({
                 </div>
 
                 {/* Status filter */}
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <Select value={statusFilter} onValueChange={(v : any) => setStatusFilter(v as any)}>
                     <SelectTrigger className={cn(
                         "h-8 w-[148px] text-xs",
                         "border-slate-200/80 bg-white text-slate-600",
@@ -70,7 +70,7 @@ export default function HistoryHeader({
                 </Select>
 
                 {/* Action filter */}
-                <Select value={actionFilter} onValueChange={(v) => setActionFilter(v as any)}>
+                <Select value={actionFilter} onValueChange={(v : any) => setActionFilter(v as any)}>
                     <SelectTrigger className={cn(
                         "h-8 w-[148px] text-xs",
                         "border-slate-200/80 bg-white text-slate-600",

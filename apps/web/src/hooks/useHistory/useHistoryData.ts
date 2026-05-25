@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { Toast } from  "@kana-consultant/ui-kit";
 import { getHistory } from "@/services/history";
 
 export async function loadHistoryData(
