@@ -1,6 +1,6 @@
 // src/components/ui/LoadingCard.tsx
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@kana-consultant/ui-kit";
+import { Card, CardContent, CardHeader } from "@kana-consultant/ui-kit";
 import { Loader2 } from "lucide-react";
 
 interface LoadingCardProps {

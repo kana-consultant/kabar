@@ -1,5 +1,6 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { 
     login as loginService, 
     logout as logoutService, 
@@ -10,7 +11,7 @@ import {
     isSuperAdmin as checkIsSuperAdmin
 } from '@/services/auth';
 import type { User } from '@/services/user';
-import { toast } from 'sonner';
+
 
 interface AuthContextType {
     // User data
@@ -88,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const [isAdminUser, setIsAdminUser] = useState(false);
     const [isSuperAdminUser, setIsSuperAdminUser] = useState(false);
+
+    const toast = useToast()
 
     // Load user from localStorage on mount
     useEffect(() => {

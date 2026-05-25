@@ -1,8 +1,10 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+
+@import 'tailwindcss';
+@import '@kana-consultant/ui-kit/styles';
 @plugin "@tailwindcss/typography";
+/* Wajib untuk komponen portal (Dialog, Dropdown, Tooltip, Select) */
+@source '../node_modules/@kana-consultant/ui-kit/dist/*.js';
+@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
 @custom-variant dark (&:where(.dark, .dark *));
