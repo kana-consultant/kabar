@@ -1,8 +1,4 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from  "@kana-consultant/ui-kit";
 import type { User } from "@/services/user";
 import { type UserRoleType } from "@/services/useSettings/types";
 
@@ -50,7 +46,7 @@ export function EditUserDialog({
                         <Label>Nama Lengkap</Label>
                         <Input
                             value={user.name}
-                            onChange={(e) => onUserChange({ ...user, name: e.target.value })}
+                            onChange={(e : any) => onUserChange({ ...user, name: e.target.value })}
                             placeholder="Nama lengkap"
                         />
                     </div>
@@ -59,7 +55,7 @@ export function EditUserDialog({
                         <Input
                             type="email"
                             value={user.email}
-                            onChange={(e) => onUserChange({ ...user, email: e.target.value })}
+                            onChange={(e : any) => onUserChange({ ...user, email: e.target.value })}
                             placeholder="email@example.com"
                         />
                         {user.email && !isValidEmail && (
@@ -72,7 +68,7 @@ export function EditUserDialog({
                         <Label>Role</Label>
                         <Select
                             value={user.role}
-                            onValueChange={(v) => onUserChange({ ...user, role: v as UserRoleType })}
+                            onValueChange={(v : any) => onUserChange({ ...user, role: v as UserRoleType })}
                             disabled={!canChangeRole}
                         >
                             <SelectTrigger>
@@ -104,7 +100,7 @@ export function EditUserDialog({
                         <Label>Status</Label>
                         <Select
                             value={user.status}
-                            onValueChange={(v) => onUserChange({ ...user, status: v as 'active' | 'inactive' | 'suspended' })}
+                            onValueChange={(v : any) => onUserChange({ ...user, status: v as 'active' | 'inactive' | 'suspended' })}
                         >
                             <SelectTrigger>
                                 <SelectValue />

@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { Toast } from  "@kana-consultant/ui-kit";
 import { addTeamMember, removeTeamMember } from "@/services/user";
 import type { User, Team } from "@/services/user";
 import type { UserRoleType } from "./types";

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { Toast } from  "@kana-consultant/ui-kit";
 import { getUsers, getTeams, getCurrentUser } from "@/services/user";
 import type { User, Team } from "@/services/user";
 

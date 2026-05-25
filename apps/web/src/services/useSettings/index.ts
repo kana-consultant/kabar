@@ -10,7 +10,7 @@ import {
 import { addTeamMember } from "../team";
 import { getTeamId } from "../user";
 import { type AddTeamMemberRequest } from "../team";
-import { toast } from "sonner";
+import { Toast } from  "@kana-consultant/ui-kit";
 import { useAuth } from "@/hooks/auth/useAuth";
 
 export function useSettings() {

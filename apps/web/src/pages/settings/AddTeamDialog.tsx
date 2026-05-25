@@ -1,7 +1,4 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input, Label } from  "@kana-consultant/ui-kit";
 
 interface AddTeamDialogProps {
     open: boolean;
@@ -32,11 +29,11 @@ export function AddTeamDialog({
                 <div className="space-y-4">
                     <div>
                         <Label>Team Name</Label>
-                        <Input value={name} onChange={(e) => onNameChange(e.target.value)} />
+                        <Input value={name} onChange={(e : any) => onNameChange(e.target.value)} />
                     </div>
                     <div>
                         <Label>Description</Label>
-                        <Input value={description} onChange={(e) => onDescriptionChange(e.target.value)} />
+                        <Input value={description} onChange={(e : any) => onDescriptionChange(e.target.value)} />
                     </div>
                 </div>
                 <DialogFooter>

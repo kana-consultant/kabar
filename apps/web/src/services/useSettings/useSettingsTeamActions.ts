@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { Toast } from  "@kana-consultant/ui-kit";
 import { addTeam, updateTeam, deleteTeam } from "@/services/user";
 import type { Team } from "@/services/user";
 
