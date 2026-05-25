@@ -1,4 +1,4 @@
-import { Toast } from  "@kana-consultant/ui-kit";
+import { type ToastContextType } from "@/hooks/use-toast";
 import { addTeam, updateTeam, deleteTeam } from "@/services/user";
 import type { Team } from "@/services/user";
 
@@ -8,7 +8,8 @@ export function useSettingsTeamActions(loadData: () => Promise<void>) {
         newTeamDesc: string,
         setShowAddTeamDialog: (val: boolean) => void,
         setNewTeamName: (val: string) => void,
-        setNewTeamDesc: (val: string) => void
+        setNewTeamDesc: (val: string) => void,
+        toast : ToastContextType
     ) => {
         if (!newTeamName) {
             toast.error("Isi nama tim");
@@ -33,7 +34,8 @@ export function useSettingsTeamActions(loadData: () => Promise<void>) {
     const handleUpdateTeam = async (
         selectedTeam: Team | null,
         setShowEditTeamDialog: (val: boolean) => void,
-        setSelectedTeam: (val: Team | null) => void
+        setSelectedTeam: (val: Team | null) => void,
+        toast : ToastContextType
     ) => {
         if (selectedTeam) {
             try {
@@ -51,7 +53,7 @@ export function useSettingsTeamActions(loadData: () => Promise<void>) {
         }
     };
 
-    const handleDeleteTeam = async (id: string, name: string) => {
+    const handleDeleteTeam = async (id: string, name: string, toast : ToastContextType) => {
         try {
             await deleteTeam(id);
             toast.success("Tim dihapus", { description: name });

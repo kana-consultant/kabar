@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { ProductForm } from "@/pages/products/ProductForm/ProductForm";
 import { getProductById } from "@/services/product";
-import { Toast } from  "@kana-consultant/ui-kit";
+import { useToast } from "@/hooks/use-toast";
 
 export const Route = createFileRoute("/products/$id/edit")({
     component: ProductEditWrapper,
@@ -12,6 +12,7 @@ export default function ProductEditWrapper() {
     const { id } = Route.useParams();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+    const toast = useToast()
 
     useEffect(() => {
         const loadProduct = async () => {

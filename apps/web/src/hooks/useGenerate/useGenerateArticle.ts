@@ -1,5 +1,4 @@
 // Hapus import Toast langsung
-// import { Toast } from "@kana-consultant/ui-kit";
 import type { ToastContextType } from "@/hooks/use-toast"; // Import type untuk typing
 import { generateArticle, type GenerateArticleRequest } from "@/services/generate";
 

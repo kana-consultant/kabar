@@ -4,8 +4,9 @@ import { loadHistoryData } from "./useHistoryData";
 import { useHistoryFilter } from "./useHistoryFilter";
 import { handleDeleteHistory, handleClearAllHistory, addToHistory } from "./useHistoryActions";
 import { formatDate, getStatusData, getActionData } from "./useHistoryHelpers";
-
+import { useToast } from "../use-toast";
 export function useHistory() {
+    const toast = useToast()
     const {
         history, setHistory,
         filteredHistory, setFilteredHistory,
@@ -20,17 +21,17 @@ export function useHistory() {
 
     // Load history on mount
     useEffect(() => {
-        loadHistoryData(setHistory, setLoading);
+        loadHistoryData(setHistory, setLoading,toast);
     }, []);
 
     // Filter logic
     useHistoryFilter(history, searchQuery, statusFilter, actionFilter, setFilteredHistory);
 
     const handleDelete = () => handleDeleteHistory(
-        selectedHistory, setSelectedHistory, setShowDeleteDialog, setHistory, setLoading
+        selectedHistory, setSelectedHistory, setShowDeleteDialog, setHistory, setLoading,toast
     );
 
-    const handleClearAll = () => handleClearAllHistory(setHistory, setLoading);
+    const handleClearAll = () => handleClearAllHistory(setHistory, setLoading,toast);
 
     const addToHistoryWrapper = async (data: {
         title: string;
@@ -42,8 +43,9 @@ export function useHistory() {
         action: 'published' | 'scheduled' | 'draft_saved';
         errorMessage?: string;
         scheduledFor?: string;
+        keywords : string[]
     }) => {
-        return addToHistory(data, setHistory, setLoading);
+        return addToHistory(data, setHistory, setLoading, toast);
     };
 
     return {
@@ -71,6 +73,6 @@ export function useHistory() {
         // Data helpers (bukan JSX!)
         getStatusData,
         getActionData,
-        loadHistory: () => loadHistoryData(setHistory, setLoading),
+        loadHistory: () => loadHistoryData(setHistory, setLoading,toast),
     };
 }

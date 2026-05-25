@@ -1,9 +1,11 @@
-import { Toast } from  "@kana-consultant/ui-kit";
+
 import { getHistory } from "@/services/history";
+import type { ToastContextType } from "../use-toast";
 
 export async function loadHistoryData(
     setHistory: (data: any[]) => void,
-    setLoading: (val: boolean) => void
+    setLoading: (val: boolean) => void,
+    toast : ToastContextType
 ) {
     setLoading(true);
     try {

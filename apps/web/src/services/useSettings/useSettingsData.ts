@@ -1,13 +1,14 @@
 import { useEffect } from "react";
-import { Toast } from  "@kana-consultant/ui-kit";
 import { getUsers, getTeams, getCurrentUser } from "@/services/user";
 import type { User, Team } from "@/services/user";
+import type { ToastContextType } from "@/hooks/use-toast";
 
 export function useSettingsData(
     setUsers: (data: User[]) => void,
     setTeams: (data: Team[]) => void,
     setCurrentUser: (user: User | null) => void,
-    setLoading: (val: boolean) => void
+    setLoading: (val: boolean) => void,
+    toast : ToastContextType
 ) {
     const loadData = async () => {
         setLoading(true);

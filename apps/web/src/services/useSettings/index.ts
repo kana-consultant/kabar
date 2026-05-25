@@ -10,10 +10,11 @@ import {
 import { addTeamMember } from "../team";
 import { getTeamId } from "../user";
 import { type AddTeamMemberRequest } from "../team";
-import { Toast } from  "@kana-consultant/ui-kit";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 export function useSettings() {
+    const toast = useToast()
     const {
         currentUser, setCurrentUser,
         users, setUsers,
@@ -31,13 +32,13 @@ export function useSettings() {
     const {changePassword} = useAuth();
 
     const { loadData } = useSettingsData(
-        setUsers, setTeams, setCurrentUser, setLoading
+        setUsers, setTeams, setCurrentUser, setLoading,toast
     );
 
     const { canManageUsers, canManageTeams, isAdmin } = useSettingsPermissions(currentUser);
 
     const { handleUpdateUser, handleDeleteUser } = useSettingsUserActions(
-        loadData, currentUser, users
+        loadData, currentUser, users,toast
     );
 
     return {

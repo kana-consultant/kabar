@@ -5,7 +5,8 @@ import {
   ToastTitle, 
   ToastDescription,
   ToastClose,
-  ToastProvider
+  ToastProvider,
+  ToastViewport  
 } from "@kana-consultant/ui-kit"
 
 interface ToastMessage {
@@ -75,6 +76,7 @@ export function ToastProviderWrapper({ children }: { children: ReactNode }) {
             <ToastClose />
           </Toast>
         ))}
+        <ToastViewport className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-[360px]" />
       </ToastProvider>
     </ToastContext.Provider>
   )
