@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { Eye, Edit, RefreshCw, Send, Trash2, Calendar } from "lucide-react";
 import type { Draft } from "@/services/draft";
 
@@ -80,15 +80,14 @@ export function ScheduleItem({
                     <span className="hidden "/>
                 </Button>
 
-                <Button variant="default" size="sm" onClick={() => onPublishNow(schedule)}>
-                    <Send className="h-4 w-4" />
-                    <span className="hidden sm:inline"></span>
-                    <span className="sm:hidden">Terbit</span>
+                <Button variant="primary" size="sm" onClick={() => onPublishNow(schedule)}>
+                    <Send className="h-4 " />
+                  
                 </Button>
 
                 <Button variant="destructive" size="sm" onClick={() => onDelete(schedule)}>
-                    <Trash2 className="h-4 w-4" />
-                    <span className="hidden sm:inline"/>
+                    <Trash2 className="h-4 " />
+                   
                 </Button>
             </div>
         </div>

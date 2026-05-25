@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { Calendar, Plus, SlidersHorizontal } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { ScheduleItem } from "./ScheduleItem";
