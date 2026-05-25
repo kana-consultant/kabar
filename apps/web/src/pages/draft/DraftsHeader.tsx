@@ -1,11 +1,11 @@
-import { Input } from "@/components/ui/input";
+import { Input } from "@kana-consultant/ui-kit";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
+} from "@kana-consultant/ui-kit";
 import { Search, FileText, Calendar, CheckCircle } from "lucide-react";
 
 interface DraftsHeaderProps {
@@ -36,7 +36,7 @@ export function DraftsHeader({
                     <Input
                         placeholder="Cari draft..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e : any) => setSearchQuery(e.target.value)}
                         className="pl-8 w-full sm:w-64"
                     />
                 </div>

@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
+import { Label } from "@kana-consultant/ui-kit";
+import { Switch } from "@kana-consultant/ui-kit";
 import {
     Dialog,
     DialogContent,
@@ -9,7 +9,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
+} from "@kana-consultant/ui-kit";
 import { Calendar } from "lucide-react";
 import type { Draft } from "@//services/draft";
 
@@ -65,7 +65,7 @@ export function ScheduleDialog({
                             <Input
                                 type="time"
                                 value={dailyTime}
-                                onChange={(e) => setDailyTime(e.target.value)}
+                                onChange={(e : any) => setDailyTime(e.target.value)}
                                 className="mt-1"
                             />
                             <p className="mt-1 text-xs text-slate-500">
@@ -79,7 +79,7 @@ export function ScheduleDialog({
                                 <Input
                                     type="date"
                                     value={scheduleDate}
-                                    onChange={(e) => setScheduleDate(e.target.value)}
+                                    onChange={(e : any) => setScheduleDate(e.target.value)}
                                     className="mt-1"
                                 />
                             </div>
@@ -88,7 +88,7 @@ export function ScheduleDialog({
                                 <Input
                                     type="time"
                                     value={scheduleTime}
-                                    onChange={(e) => setScheduleTime(e.target.value)}
+                                    onChange={(e : any) => setScheduleTime(e.target.value)}
                                     className="mt-1"
                                 />
                             </div>

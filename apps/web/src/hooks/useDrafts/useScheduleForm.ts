@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast"; //   Import useToast dari context
 import type { ScheduleConfig } from "./types";
 
 interface UseScheduleFormParams {
@@ -15,17 +15,18 @@ export function useScheduleForm({
     onSchedule,
     selectedDraftTitle,
 }: UseScheduleFormParams) {
+    const toast = useToast(); //   Gunakan hook toast
     const { date, time, dailySchedule, dailyTime } = scheduleConfig;
 
     const validateAndSchedule = useCallback(async () => {
         if (!dailySchedule && !date) {
-            toast.error("Pilih tanggal jadwal");
+            toast.error("Pilih tanggal jadwal"); // 
             return false;
         }
         
         await onSchedule();
         return true;
-    }, [dailySchedule, date, onSchedule]);
+    }, [dailySchedule, date, onSchedule, toast]); // 
 
     const toggleScheduleMode = useCallback((isDaily: boolean) => {
         setScheduleConfig({ dailySchedule: isDaily });

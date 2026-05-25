@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { FileText, Plus } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { DraftItem } from "./DraftItem";
