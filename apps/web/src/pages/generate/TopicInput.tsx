@@ -1,5 +1,5 @@
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
 import { Loader2, Sparkles, Image as ImageIcon, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +55,7 @@ export function TopicInput({
                     <Input
                         placeholder="Contoh: Cara Memilih Sepatu Lari yang Tepat"
                         value={topic}
-                        onChange={(e) => setTopic(e.target.value)}
+                        onChange={(e : any) => setTopic(e.target.value)}
                         className={cn(
                             "h-8 text-sm rounded-lg",
                             "border-slate-200/80 bg-white placeholder:text-slate-400",

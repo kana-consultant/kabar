@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import {
     LayoutDashboard, FileText, Settings, History,
     Package, FileStack, Calendar, Menu, X,
@@ -46,7 +46,6 @@ function NavItems({
         <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
             {menuGroups.map((group) => (
                 <div key={group.label}>
-                    {/* Group label */}
                     <div className={cn(
                         "overflow-hidden transition-all duration-200",
                         expanded ? "max-h-6 opacity-100 mb-1" : "max-h-0 opacity-0 mb-0"
@@ -71,17 +70,10 @@ function NavItems({
                                             ? "gap-2.5 px-2.5 py-1.5"
                                             : "justify-center w-9 h-9 mx-auto",
                                         isActive
-                                            ? [
-                                                "bg-green-50 text-green-700",
-                                                "dark:bg-purple-500/[0.12] dark:text-purple-300",
-                                            ]
-                                            : [
-                                                "text-slate-500 hover:text-slate-800 hover:bg-slate-100/80",
-                                                "dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-white/[0.05]",
-                                            ]
+                                            ? "bg-green-50 text-green-700 dark:bg-purple-500/[0.12] dark:text-purple-300"
+                                            : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-white/[0.05]"
                                     )}
                                 >
-                                    {/* Active indicator */}
                                     {isActive && expanded && (
                                         <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-green-600 dark:bg-purple-500" />
                                     )}
@@ -94,7 +86,6 @@ function NavItems({
                                             : "text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
                                     )} />
 
-                                    {/* Label */}
                                     <span className={cn(
                                         "whitespace-nowrap overflow-hidden transition-all duration-200 leading-none",
                                         expanded ? "max-w-[160px] opacity-100" : "max-w-0 opacity-0 w-0"
@@ -131,13 +122,11 @@ export function Sidebar({ expanded, onExpandedChange }: SidebarProps) {
                 "dark:bg-[#0a0812] dark:border-white/[0.06]",
                 expanded ? "w-56" : "w-[60px]"
             )}>
-                {/* Logo + collapse toggle in same row */}
                 <div className={cn(
                     "flex h-14 shrink-0 items-center border-b px-3",
                     "border-slate-100 dark:border-white/[0.05]",
                     expanded ? "justify-between" : "justify-center"
                 )}>
-                    {/* Logo */}
                     <div className={cn(
                         "flex items-center gap-2 overflow-hidden transition-all duration-200",
                         expanded ? "max-w-[120px] opacity-100" : "max-w-0 opacity-0 w-0"
@@ -151,7 +140,6 @@ export function Sidebar({ expanded, onExpandedChange }: SidebarProps) {
                         </span>
                     </div>
 
-                    {/* Collapsed: just the rocket icon */}
                     {!expanded && (
                         <div className="relative shrink-0">
                             <Rocket className="h-5 w-5 text-green-600 dark:text-purple-400" />
@@ -159,7 +147,6 @@ export function Sidebar({ expanded, onExpandedChange }: SidebarProps) {
                         </div>
                     )}
 
-                    {/* Toggle button */}
                     <button
                         onClick={() => onExpandedChange(!expanded)}
                         title={expanded ? "Collapse" : "Expand"}
@@ -167,14 +154,13 @@ export function Sidebar({ expanded, onExpandedChange }: SidebarProps) {
                             "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
                             "text-slate-400 hover:text-slate-700 hover:bg-slate-100",
                             "dark:text-slate-600 dark:hover:text-slate-300 dark:hover:bg-white/[0.06]",
-                            !expanded && "absolute opacity-0 pointer-events-none"
+                            !expanded ? "absolute opacity-0 pointer-events-none" : ""
                         )}
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
                 </div>
 
-                {/* Expand button when collapsed — shown below logo */}
                 {!expanded && (
                     <div className="flex justify-center pt-2 px-2">
                         <button
@@ -191,7 +177,6 @@ export function Sidebar({ expanded, onExpandedChange }: SidebarProps) {
                     </div>
                 )}
 
-                {/* Nav */}
                 <NavItems expanded={expanded} currentPath={currentPath} />
             </aside>
 

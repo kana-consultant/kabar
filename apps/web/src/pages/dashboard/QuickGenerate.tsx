@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
 import { Loader2, Sparkles, Zap } from "lucide-react";
 import { useGenerate } from "@/hooks/useGenerate";
 import { useNavigate } from "@tanstack/react-router";
@@ -66,7 +66,7 @@ export function QuickGenerate() {
                         id="topic"
                         value={topic}
                         placeholder="Contoh: Cara Memilih Sepatu Gunung untuk Pemula"
-                        onChange={(e) => setTopic(e.target.value)}
+                        onChange={(e : any) => setTopic(e.target.value)}
                         className={cn(
                             "h-8 text-sm rounded-lg",
                             "border-slate-200/80 bg-white placeholder:text-slate-400",
@@ -83,7 +83,7 @@ export function QuickGenerate() {
                     </label>
                     <select
                         value={selectedProducts[0] || ""}
-                        onChange={(e) => setSelectedProducts([e.target.value])}
+                        onChange={(e : any) => setSelectedProducts([e.target.value])}
                         className={cn(
                             "w-full h-8 rounded-lg border px-2.5 text-sm appearance-none",
                             "border-slate-200/80 bg-white text-slate-700",
