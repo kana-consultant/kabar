@@ -1,5 +1,7 @@
-import { toast } from "sonner";
-import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant, type Draft, type CreateDraftRequest } from "@//services/draft";
+// Hapus import Toast langsung
+// import { Toast } from "@kana-consultant/ui-kit";
+import type { ToastContextType } from "@/hooks/use-toast"; // Import type untuk typing
+import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant, type Draft, type CreateDraftRequest } from "@/services/draft";
 import type { ScheduleRequest } from "@/types/schedule";
 
 export async function saveAsDraft(
@@ -9,8 +11,9 @@ export async function saveAsDraft(
     selectedProducts: string[],
     currentDraftId: string | null,
     setCurrentDraftId: (id: string | null) => void,
-    slug : string,
-    tags : string[] | null,
+    slug: string,
+    tags: string[] | null,
+    toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
@@ -25,8 +28,8 @@ export async function saveAsDraft(
         image_prompt: topic,
         target_products: selectedProducts,
         has_image: !!imageUrl,
-        slug : slug,
-        keywords : tags as string[]
+        slug: slug,
+        keywords: tags as string[]
     };
 
     try {
@@ -40,6 +43,7 @@ export async function saveAsDraft(
         }
         return true;
     } catch (error) {
+        console.error("Failed to save draft:", error);
         toast.error("Gagal menyimpan draft");
         return false;
     }
@@ -59,8 +63,9 @@ export async function saveAsSchedule(
     setPublishResults: (val: any) => void,
     setShowResultDialog: (val: boolean) => void,
     resetForm: () => void,
-    slug : string, 
-    tags : string[] | null,
+    slug: string,
+    tags: string[] | null,
+    toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
@@ -98,14 +103,13 @@ export async function saveAsSchedule(
             target_products: selectedProducts,
             scheduled_for: scheduledFor,
             has_image: !!imageUrl,
-            keywords : tags as string[],
-            slug : slug as string
+            keywords: tags as string[],
+            slug: slug as string
         };
 
         if (currentDraftId) {
             response = await publishDraft(currentDraftId, draftData);
         } else {
-
             const ScheduleDraft: ScheduleRequest = {
                 title: topic,
                 topic: topic,
@@ -115,8 +119,8 @@ export async function saveAsSchedule(
                 target_products: selectedProducts,
                 scheduled_for: scheduledFor,
                 has_image: !!imageUrl,
-                 slug : slug,
-                keywords : tags as string[]
+                slug: slug,
+                keywords: tags as string[]
             };
 
             response = await draftSchedule(ScheduleDraft);
@@ -131,9 +135,7 @@ export async function saveAsSchedule(
             toast.error("Publikasi sebagian gagal", {
                 description: "Beberapa produk tidak dapat dijangkau. Lihat detail untuk info lebih lanjut."
             });
-
         } else {
-
             toast.success("Berhasil dijadwalkan!", {
                 description: dailySchedule
                     ? `"${topic}" akan diposting setiap hari jam ${dailyTime}`
@@ -144,30 +146,23 @@ export async function saveAsSchedule(
         }
 
         return true;
-
     } catch (error: any) {
-
         console.error("Failed to save schedule:", error);
 
         if (error?.results) {
-
             setPublishResults({
                 message: error.message || "Publikasi gagal",
                 results: error.results,
                 status: "failed"
             });
-
             setShowResultDialog(true);
-
         } else {
-
             toast.error("Gagal menjadwalkan", {
                 description: error?.message || "Terjadi kesalahan pada server",
             });
         }
 
         return false;
-
     } finally {
         setPublishing(false);
     }
@@ -183,8 +178,9 @@ export async function postInstant(
     setPublishResults: (val: any) => void,
     setShowResultDialog: (val: boolean) => void,
     resetForm: () => void,
-    slug : string,
-    tags : string[]
+    slug: string,
+    tags: string[],
+    toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
@@ -206,9 +202,10 @@ export async function postInstant(
             image_url: imageUrl || undefined,
             image_prompt: topic,
             target_products: selectedProducts,
-            slug : slug,
-            keywords : tags as string[]
+            slug: slug,
+            keywords: tags as string[]
         };
+        
         let response: any;
         if (currentDraftId) {
             response = await publishDraft(currentDraftId, draftData);
@@ -219,16 +216,13 @@ export async function postInstant(
         const hasErrors = response.results?.some((r: any) => !r.success);
 
         if (hasErrors) {
-
             setPublishResults(response);
             setShowResultDialog(true);
 
             toast.error("Publikasi sebagian gagal", {
                 description: "Beberapa produk tidak dapat dijangkau. Lihat detail untuk info lebih lanjut."
             });
-
         } else {
-
             toast.success("Berhasil diposting!", {
                 description: `"${topic}" telah diposting ke ${selectedProducts.length} produk`,
             });
@@ -237,30 +231,23 @@ export async function postInstant(
         }
 
         return true;
-
     } catch (error: any) {
-
         console.error("Failed to post:", error);
 
         if (error?.results) {
-
             setPublishResults({
                 message: error.message || "Publikasi gagal",
                 results: error.results,
                 status: "failed"
             });
-
             setShowResultDialog(true);
-
         } else {
-
             toast.error("Gagal memposting", {
                 description: error?.message || "Terjadi kesalahan pada server",
             });
         }
 
         return false;
-
     } finally {
         setPublishing(false);
     }

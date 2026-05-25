@@ -1,5 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@kana-consultant/ui-kit";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kana-consultant/ui-kit";
 import { ImageIcon, FileText, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

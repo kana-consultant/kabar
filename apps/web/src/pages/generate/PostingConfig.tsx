@@ -1,6 +1,6 @@
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Input } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
+import { Switch } from "@kana-consultant/ui-kit";
 import { Send, Calendar, FileText, Settings2, Clock, Loader2, AlertTriangle } from "lucide-react";
 import { TargetProducts } from "./TargetProducts";
 import type { Product } from "@/services/product";
@@ -97,11 +97,9 @@ export function PostingConfig({
                                 className={cn(
                                     "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all",
                                     postMode === value
-                                        ? [
-                                            "bg-white text-slate-800 shadow-sm border border-slate-200/80",
-                                            "dark:bg-white/[0.08] dark:text-white dark:border-white/[0.10]"
-                                        ]
+                                        ? "bg-white text-slate-800 shadow-sm border border-slate-200/80 dark:bg-white/[0.08] dark:text-white dark:border-white/[0.10]"
                                         : "text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+
                                 )}
                             >
                                 <Icon className="h-3 w-3" />
@@ -140,7 +138,7 @@ export function PostingConfig({
                                 <Input
                                     type="time"
                                     value={dailyTime}
-                                    onChange={(e) => setDailyTime(e.target.value)}
+                                    onChange={(e: any) => setDailyTime(e.target.value)}
                                     className="h-8 text-sm rounded-lg border-slate-200/80 dark:border-white/[0.08]"
                                 />
                                 <p className="text-[10px] text-slate-400">
@@ -156,7 +154,7 @@ export function PostingConfig({
                                     <Input
                                         type="date"
                                         value={scheduleDate}
-                                        onChange={(e) => setScheduleDate(e.target.value)}
+                                        onChange={(e: any) => setScheduleDate(e.target.value)}
                                         className="h-8 text-sm rounded-lg border-slate-200/80 dark:border-white/[0.08]"
                                     />
                                 </div>
@@ -167,7 +165,7 @@ export function PostingConfig({
                                     <Input
                                         type="time"
                                         value={scheduleTime}
-                                        onChange={(e) => setScheduleTime(e.target.value)}
+                                        onChange={(e: any) => setScheduleTime(e.target.value)}
                                         className="h-8 text-sm rounded-lg border-slate-200/80 dark:border-white/[0.08]"
                                     />
                                 </div>

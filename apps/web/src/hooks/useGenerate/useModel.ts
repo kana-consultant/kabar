@@ -1,7 +1,9 @@
 // src/hooks/useGenerate/useModels.ts
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+// Hapus import Toast langsung
+// import { Toast } from "@kana-consultant/ui-kit";
+import { useToast } from "@/hooks/use-toast"; //   Import useToast
 import { getAPIKeys } from "@/services/apiKey";
 import { useState } from "react";
 import type { APIKeyDetail } from "@/services/apiKey";
@@ -23,9 +25,10 @@ const CACHE_CONFIG = {
 };
 
 export function useModels() {
+    const toast = useToast(); //   Gunakan hook toast
     const queryClient = useQueryClient();
     
-   const [selectedModelId, setSelectedModelId] = useState("");
+    const [selectedModelId, setSelectedModelId] = useState("");
 
     // Query untuk mendapatkan models dari API keys
     const {
@@ -36,11 +39,10 @@ export function useModels() {
         refetch: refetchModels,
     } = useQuery({
         queryKey: modelKeys.lists(),
-        // Baris queryFn, tambah null guard:
-queryFn: async () => {
-    const data = await getAPIKeys();
-    return (data ?? []) as APIKeyDetail[];
-},
+        queryFn: async () => {
+            const data = await getAPIKeys();
+            return (data ?? []) as APIKeyDetail[];
+        },
         staleTime: CACHE_CONFIG.staleTime,
         gcTime: CACHE_CONFIG.gcTime,
     });
@@ -127,19 +129,19 @@ queryFn: async () => {
     const reloadModels = useCallback(async () => {
         try {
             await refetchModels();
-            toast.success("Models refreshed", {
+            toast.success("Models refreshed", { //   Ganti toast.success dengan toast.success
                 description: "AI models have been reloaded",
             });
         } catch (error) {
             console.error("Failed to reload models:", error);
-            toast.error("Failed to reload models");
+            toast.error("Failed to reload models"); //   Ganti toast.error dengan toast.error
         }
-    }, [refetchModels]);
+    }, [refetchModels, toast]); //   Tambahkan toast ke dependencies
 
     // Computed values
     const textModels = models?.filter((m: any) => m.service === 'text') ?? [];
-const imageModels = models?.filter((m: any) => m.service === 'image') ?? [];
-const activeModels = models?.filter((m: any) => m.isActive) ?? [];
+    const imageModels = models?.filter((m: any) => m.service === 'image') ?? [];
+    const activeModels = models?.filter((m: any) => m.isActive) ?? [];
 
     return {
         // Data
@@ -178,8 +180,8 @@ const activeModels = models?.filter((m: any) => m.isActive) ?? [];
         hasImageModels: imageModels?.length > 0,
         
         // Default models
-        defaultTextModel: textModels?.find((m: any) => m.isDefault) || textModels?[0]:[],
-        defaultImageModel: imageModels?.find((m: any) => m.isDefault) || imageModels?[0] : [],
+        defaultTextModel: textModels?.find((m: any) => m.isDefault) || textModels?.[0],
+        defaultImageModel: imageModels?.find((m: any) => m.isDefault) || imageModels?.[0],
     };
 }
 

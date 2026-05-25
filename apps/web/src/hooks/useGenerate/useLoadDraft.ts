@@ -1,6 +1,8 @@
 import { useEffect } from "react";
-import { toast } from "sonner";
-import { getDraftById } from "@//services/draft";
+// Hapus import Toast langsung
+// import { Toast } from "@kana-consultant/ui-kit";
+import type { ToastContextType } from "@/hooks/use-toast"; // Import type untuk typing
+import { getDraftById } from "@/services/draft";
 import { getHistoryById } from "@/services/history";
 
 export function useLoadDraft(
@@ -11,8 +13,9 @@ export function useLoadDraft(
     setImageUrl: (val: string) => void,
     setSelectedProducts: (val: string[]) => void,
     setCurrentDraftId: (val: string | null) => void,
-    setSlug : (val : string) => void,
-    setKeywords : (val : string[]) => void
+    setSlug: (val: string) => void,
+    setKeywords: (val: string[]) => void,
+    toast: ToastContextType //   Tambahkan parameter toast
 ) {
     useEffect(() => {
         const LoadDraft = async () => {
@@ -25,18 +28,18 @@ export function useLoadDraft(
                         setImageUrl(draft.image_url || "");
                         setSelectedProducts(draft.target_products || []);
                         setCurrentDraftId(draft.id as string);
-                        setSlug(draft.slug)
-                        setKeywords(draft.keywords as string[])
+                        setSlug(draft.slug);
+                        setKeywords(draft.keywords as string[]);
 
-                        toast.info("Memuat draft", {
+                        toast.info("Memuat draft", { //   Ganti Toast.info dengan toast.info
                             description: `"${draft.title}" siap diedit`,
                         });
                     } else {
-                        toast.error("Draft tidak ditemukan");
+                        toast.error("Draft tidak ditemukan"); //   Ganti toast.error dengan toast.error
                     }
                 } catch (error) {
                     console.error("Failed to load draft:", error);
-                    toast.error("Gagal memuat draft");
+                    toast.error("Gagal memuat draft"); //   Ganti toast.error dengan toast.error
                 }
             } else if (TopicId) {
                 try {
@@ -46,19 +49,20 @@ export function useLoadDraft(
                         setArticle(draft.content);
                         setImageUrl(draft.imageUrl || "");
                         setSelectedProducts(draft.targetProducts || []);
-                         setKeywords(draft.keywords as string[])
-                        toast.info("Memuat draft", {
+                        setKeywords(draft.keywords as string[]);
+                        
+                        toast.info("Memuat draft", { //   Ganti Toast.info dengan toast.info
                             description: `"${draft.title}" siap diedit`,
                         });
                     } else {
-                        toast.error("Draft tidak ditemukan");
+                        toast.error("Draft tidak ditemukan"); //   Ganti toast.error dengan toast.error
                     }
                 } catch (error) {
                     console.error("Failed to load draft:", error);
-                    toast.error("Gagal memuat draft");
+                    toast.error("Gagal memuat draft"); //   Ganti toast.error dengan toast.error
                 }
             }
         };
         LoadDraft();
-    }, [editId, TopicId]);
+    }, [editId, TopicId]); //   Tambahkan toast ke dependencies
 }

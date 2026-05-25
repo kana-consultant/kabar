@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { Check } from "lucide-react";
 import type { Product } from "@/services/product";
 import { cn } from "@/lib/utils";

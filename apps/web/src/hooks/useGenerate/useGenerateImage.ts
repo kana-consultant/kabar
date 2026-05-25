@@ -1,4 +1,6 @@
-import { toast } from "sonner";
+// Hapus import Toast langsung
+// import { Toast } from "@kana-consultant/ui-kit";
+import type { ToastContextType } from "@/hooks/use-toast"; // Import type untuk typing
 import { generateImage } from "@/services/generate";
 
 export async function generateImageManually(
@@ -7,9 +9,10 @@ export async function generateImageManually(
     selectedModelId: string,
     setLoadingImage: (val: boolean) => void,
     setImageUrl: (val: string) => void,
+    toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!articleResponse?.imagePrompt && !topic) {
-        toast.error("Generate artikel terlebih dahulu");
+        toast.error("Generate artikel terlebih dahulu"); //   Ganti toast.error dengan toast.error
         return;
     }
 
@@ -22,9 +25,10 @@ export async function generateImageManually(
             modelId: selectedModelId
         });
         setImageUrl(response.imageUrl);
-        toast.success("Gambar berhasil di-generate!");
+        toast.success("Gambar berhasil di-generate!"); //   Ganti toast.success dengan toast.success
     } catch (error) {
-        toast.error("Gagal mengenerate gambar");
+        console.error("Error generating image:", error);
+        toast.error("Gagal mengenerate gambar"); //   Ganti toast.error dengan toast.error
     } finally {
         setLoadingImage(false);
     }
