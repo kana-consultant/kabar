@@ -20,10 +20,12 @@
     "@tanstack/react-query-devtools": "^5.99.2",
     "@tanstack/react-router": "^1.168.23",
     "axios": "^1.15.2",
+    "chart.js": "^4.5.1",
     "js-cookie": "^3.0.5",
     "jwt-decode": "^4.0.0",
     "lucide-react": "0.546.0",
     "react": "^18.3.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.3.0"
   },
   "devDependencies": {
