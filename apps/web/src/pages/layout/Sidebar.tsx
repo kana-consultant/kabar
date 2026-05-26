@@ -14,13 +14,14 @@ const menuGroups = [
         items: [
             { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
             { title: "Generate Konten", href: "/generate", icon: FileText },
-            { title: "Produk", href: "/products", icon: Package },
-            { title: "Draft", href: "/drafts", icon: FileStack },
+
         ],
     },
     {
         label: "MANAJEMEN",
         items: [
+            { title: "Produk", href: "/products", icon: Package },
+            { title: "Draft", href: "/drafts", icon: FileStack },
             { title: "Schedule", href: "/schedule", icon: Calendar },
             { title: "History", href: "/history", icon: History },
         ],
