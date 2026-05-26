@@ -59,3 +59,18 @@ type SimilarityResult struct {
 	Title      string  `json:"title"`
 	Similarity float64 `json:"similarity"`
 }
+
+type DraftStats struct {
+	TotalDraft        int             `json:"total_draft"`
+	TotalWithImage    int             `json:"total_with_image"`
+	TotalWithoutImage int             `json:"total_without_image"`
+	TotalScheduled    int             `json:"total_scheduled"`
+	DailyActivity     []DailyActivity `json:"daily_activity"`
+	ProductCoverage   map[string]int  `json:"product_coverage"` // name -> count
+	ProductStatus     map[string]int  `json:"product_status"`   // active/pending/inactive
+}
+
+type DailyActivity struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}

@@ -1,6 +1,7 @@
 // Types
 export type { 
     Draft, 
+    DraftStats,
     DraftStatus, 
     CreateDraftRequest, 
     UpdateDraftRequest, 

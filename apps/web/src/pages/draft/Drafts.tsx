@@ -37,7 +37,12 @@ export default function Drafts() {
         openDeleteDialog,
         closeDialogs,
         formatDate,
-        setSelectedDraft
+        setSelectedDraft,
+        currentPage,
+        totalPages,
+        totalItems,
+        loadDrafts,
+        stats,
     } = useDrafts();
 
     const handleEdit = (draft: Draft) => {
@@ -50,14 +55,21 @@ export default function Drafts() {
 
     return (
         <div className="space-y-6">
+            <DraftStats
+                totalDraft={stats?.total_draft ?? 0}
+                totalWithImage={stats?.total_with_image ?? 0}
+                totalWithoutImage={stats?.total_without_image ?? 0}
+                totalScheduled={stats?.total_scheduled ?? 0}
+                productCoverage={stats?.product_coverage ?? {}}
+                dailyActivity={stats?.daily_activity ?? []}
+            />
+
             <DraftsHeader
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 statusFilter={statusFilter}
                 setStatusFilter={setStatusFilter}
             />
-
-            <DraftStats drafts={drafts} />
 
             <DraftList
                 drafts={filteredDrafts}
@@ -67,6 +79,10 @@ export default function Drafts() {
                 onPublishNow={handlePublishNow}
                 onDelete={openDeleteDialog}
                 formatDate={formatDate}
+                currentPage={currentPage}
+                onPageChange={(page) => loadDrafts(page)}
+                totalPages={totalPages}
+                totalItems={totalItems}
             />
 
             <ViewDraftDialog

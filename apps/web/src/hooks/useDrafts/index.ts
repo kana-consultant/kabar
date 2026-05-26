@@ -15,7 +15,10 @@ export function useDrafts() {
         statusFilter,
         setStatusFilter,
         loadDrafts,
-        
+        currentPage, setCurrentPage,
+        totalPages, 
+        totalItems,
+        stats
     } = useDraftsData();
 
     // UI state
@@ -44,7 +47,7 @@ export function useDrafts() {
         handlePublishNow,
         handleSchedule,
     } = useDraftsActions({
-        loadDrafts,
+        loadDrafts: ()=>loadDrafts(currentPage),
         setPublishingId,
         setPublishResults,
         setShowResultDialog,
@@ -113,7 +116,11 @@ export function useDrafts() {
         openDeleteDialog,
         closeDialogs,
         formatDate,
-        setSelectedDraft
+        setSelectedDraft,
+        currentPage, setCurrentPage,
+        totalPages, 
+        totalItems,
+        stats
     };
 }
 
