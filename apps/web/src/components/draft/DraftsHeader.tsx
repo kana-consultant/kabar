@@ -1,4 +1,4 @@
-import { Input } from "@/components/ui/input";
+import { Input } from "@kana-consultant/ui-kit";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +38,7 @@ export function DraftsHeader({
                     <Input
                         placeholder="Cari draft..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e : any) => setSearchQuery(e.target.value)}
                         className={cn(
                             "h-8 pl-8 w-48 text-sm rounded-lg",
                             "border-slate-200/80 bg-white placeholder:text-slate-400",

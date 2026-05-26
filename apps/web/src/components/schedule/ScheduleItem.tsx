@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@kana-consultant/ui-kit";
+import { Badge } from "@kana-consultant/ui-kit";
 import {
     Eye, Edit, RefreshCw, Send, Trash2,
     Calendar, Package, ImageIcon, Clock

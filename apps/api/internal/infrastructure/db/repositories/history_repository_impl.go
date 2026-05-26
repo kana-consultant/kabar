@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 
 	"seo-backend/internal/domain/history"
+	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/helper/keywords"
 	"seo-backend/internal/models"
@@ -118,17 +120,59 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 	return &h, nil
 }
 
-// GetAll retrieves all history based on user context
-func (r *HistoryRepository) GetAll(ctx context.Context, userCtx *models.UserContext) ([]history.History, error) {
+func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserContext, params history.HistoryFilter) (*paginate.PaginatedResult[history.History], error) {
+	// Count total + per status dalam satu query
+	var totalItems, totalSuccess, totalFailed int
+	countQuery := `
+		SELECT
+			COUNT(*) AS total,
+			COUNT(*) FILTER (WHERE status = 'published') AS total_success,
+			COUNT(*) FILTER (WHERE status = 'failed')  AS total_failed
+		FROM histories
+		WHERE team_id = $1
+	`
+	if err := r.db.QueryRowContext(ctx, countQuery, userCtx.GetTeamID()).
+		Scan(&totalItems, &totalSuccess, &totalFailed); err != nil {
+		return nil, fmt.Errorf("failed to count histories: %w", err)
+	}
+
+	totalPages := int(math.Ceil(float64(totalItems) / float64(params.Limit)))
+	currentPage := (params.Offset / params.Limit) + 1
+
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
 			created_by, team_id, created_at
 		FROM histories
+		WHERE team_id = $1
 		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
 	`
+	rows, err := r.db.QueryContext(ctx, query, userCtx.GetTeamID(), params.Limit, params.Offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query history: %w", err)
+	}
+	defer rows.Close()
 
-	return r.queryHistory(ctx, query)
+	historyData, err := r.scanHistory(rows)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan history: %w", err)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return &paginate.PaginatedResult[history.History]{
+		Data:         historyData,
+		TotalItems:   totalItems,
+		TotalSuccess: totalSuccess,
+		TotalFailed:  totalFailed,
+		TotalPages:   totalPages,
+		CurrentPage:  currentPage,
+		Limit:        params.Limit,
+		Offset:       params.Offset,
+	}, nil
 }
 
 // GetAllWithQuery retrieves history with custom query

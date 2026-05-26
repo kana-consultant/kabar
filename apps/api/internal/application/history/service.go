@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"seo-backend/internal/domain/history"
+	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
 	historyBuilder "seo-backend/internal/infrastructure/db/query_builder"
 	"seo-backend/internal/models"
@@ -86,8 +87,9 @@ func (s *Service) validateCreateRequest(req history.CreateHistoryRequest) error 
 // =======================
 
 // GetAll retrieves all history records based on user context
-func (s *Service) GetAll(ctx context.Context, userCtx *models.UserContext) ([]history.History, error) {
-	return s.repo.GetAll(ctx, userCtx)
+func (s *Service) GetAll(ctx context.Context, userCtx *models.UserContext, filters history.HistoryFilter) (*paginate.PaginatedResult[history.History], error) {
+
+	return s.repo.GetAll(ctx, *userCtx, filters)
 }
 
 // GetByID retrieves a history record by ID

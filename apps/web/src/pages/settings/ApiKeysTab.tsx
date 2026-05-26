@@ -1,14 +1,8 @@
-// src/components/settings/ApiKeysTab.tsx
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { Button, Input, Label, Textarea, Switch, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@kana-consultant/ui-kit";
+// Hapus import Toast langsung
+// import { Toast } from "@kana-consultant/ui-kit";
+import { useToast } from "@/hooks/use-toast"; //   Import useToast
 import { Loader2, Eye, EyeOff, Trash2, Plus, Key, CheckCircle, XCircle, Edit } from "lucide-react";
 import { getAPIKeys, createAPIKey, updateAPIKey, deleteAPIKey, type APIKey } from "@/services/apiKey";
 import { getModels, type AIModel } from "@/services/model";
@@ -17,7 +11,9 @@ import { getProviders } from "@/services/modelProvider/modelQueries";
 import { cn } from "@/lib/utils";
 
 export function ApiKeysTab() {
-    // ── state (unchanged) ──────────────────────────────────────
+    const toast = useToast(); //   Gunakan hook toast
+    
+    // ── state ──────────────────────────────────────────────────
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
@@ -35,6 +31,7 @@ export function ApiKeysTab() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [selectedDeleteKey, setSelectedDeleteKey] = useState<APIKey | null>(null);
+    
     const loadData = async () => {
         setLoading(true);
         try {
@@ -44,12 +41,14 @@ export function ApiKeysTab() {
             setApiKeys(keysData || []);
             setModels(modelsData || []);
             setProviders(providersData || []);
-        } catch { toast.error('Gagal memuat data'); }
-        finally { setLoading(false); }
+        } catch { 
+            toast.error('Gagal memuat data'); //   Ganti toast.error dengan toast.error
+        } finally { 
+            setLoading(false); 
+        }
     };
+    
     useEffect(() => { loadData(); }, []);
-
-
 
     const openAddDialog = (service: 'text' | 'image') => {
         setDialogService(service); setEditingKey(null);
@@ -68,38 +67,69 @@ export function ApiKeysTab() {
     };
 
     const handleSave = async () => {
-        if (!formProviderId) return toast.error('Pilih provider terlebih dahulu');
-        if (!formModelId) return toast.error('Pilih model terlebih dahulu');
-        if (!formApiKey && !editingKey) return toast.error('Masukkan API Key');
+        if (!formProviderId) {
+            toast.error('Pilih provider terlebih dahulu'); //   Ganti toast.error dengan toast.error
+            return;
+        }
+        if (!formModelId) {
+            toast.error('Pilih model terlebih dahulu'); //   Ganti toast.error dengan toast.error
+            return;
+        }
+        if (!formApiKey && !editingKey) {
+            toast.error('Masukkan API Key'); //   Ganti toast.error dengan toast.error
+            return;
+        }
+        
         setSaving(true);
         try {
             if (editingKey) {
-                const updateData: any = { providerId: formProviderId, modelId: formModelId, systemPrompt: formSystemPrompt || undefined, isActive: formIsActive };
+                const updateData: any = { 
+                    providerId: formProviderId, 
+                    modelId: formModelId, 
+                    systemPrompt: formSystemPrompt || undefined, 
+                    isActive: formIsActive 
+                };
                 if (formApiKey) updateData.key = formApiKey;
                 await updateAPIKey(editingKey.id, updateData);
-                toast.success('API Key updated');
+                toast.success('API Key updated'); //   Ganti toast.success dengan toast.success
             } else {
-                await createAPIKey({ service: dialogService, providerId: formProviderId, modelId: formModelId, key: formApiKey, systemPrompt: formSystemPrompt });
-                toast.success('API Key created');
+                await createAPIKey({ 
+                    service: dialogService, 
+                    providerId: formProviderId, 
+                    modelId: formModelId, 
+                    key: formApiKey, 
+                    systemPrompt: formSystemPrompt 
+                });
+                toast.success('API Key created'); //   Ganti toast.success dengan toast.success
             }
             setShowDialog(false);
             await loadData();
-        } catch { toast.error('Failed to save API Key'); }
-        finally { setSaving(false); }
+        } catch { 
+            toast.error('Failed to save API Key'); //   Ganti toast.error dengan toast.error
+        } finally { 
+            setSaving(false); 
+        }
     };
 
-    const handleDelete = (key: APIKey) => { setSelectedDeleteKey(key); setDeleteDialogOpen(true); };
+    const handleDelete = (key: APIKey) => { 
+        setSelectedDeleteKey(key); 
+        setDeleteDialogOpen(true); 
+    };
 
     const confirmDelete = async () => {
         if (!selectedDeleteKey) return;
         setDeleting(true);
         try {
             await deleteAPIKey(selectedDeleteKey.id);
-            toast.success("API Key deleted");
-            setDeleteDialogOpen(false); setSelectedDeleteKey(null);
+            toast.success("API Key deleted"); //   Ganti toast.success dengan toast.success
+            setDeleteDialogOpen(false); 
+            setSelectedDeleteKey(null);
             await loadData();
-        } catch { toast.error("Failed to delete API Key"); }
-        finally { setDeleting(false); }
+        } catch { 
+            toast.error("Failed to delete API Key"); //   Ganti toast.error dengan toast.error
+        } finally { 
+            setDeleting(false); 
+        }
     };
 
     const getProviderName = (id: string) => providers.find(p => p.id === id)?.displayName || id;
@@ -212,7 +242,7 @@ export function ApiKeysTab() {
                                         {["Service", "Provider", "Model", "Status", "System Prompt", ""].map(h => (
                                             <TableHead key={h} className={cn(
                                                 "text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-600 py-2.5",
-                                                h === "" && "text-right"
+                                                h === "" ? "text-right" : ""
                                             )}>
                                                 {h}
                                             </TableHead>
@@ -348,7 +378,7 @@ export function ApiKeysTab() {
                                     type={showApiKey ? "text" : "password"}
                                     placeholder="Masukkan API Key"
                                     value={formApiKey}
-                                    onChange={e => setFormApiKey(e.target.value)}
+                                    onChange={(e: any) => setFormApiKey(e.target.value)}
                                     className={cn(inputCls, "pr-9")}
                                 />
                                 <button
@@ -372,7 +402,7 @@ export function ApiKeysTab() {
                             <Textarea
                                 placeholder="Custom system prompt untuk AI..."
                                 value={formSystemPrompt}
-                                onChange={e => setFormSystemPrompt(e.target.value)}
+                                onChange={(e: any) => setFormSystemPrompt(e.target.value)}
                                 rows={3}
                                 className={cn(
                                     inputCls,

@@ -1,15 +1,19 @@
-import { Switch } from "@/components/ui/switch"
-import { useTheme } from "next-themes"
+import { Switch } from "@kana-consultant/ui-kit"
+import { setThemeMode, useResolvedTheme } from "@kana-consultant/ui-kit"
 
 export function ThemeSwitch() {
-  const { theme, setTheme } = useTheme()
+  const resolvedTheme = useResolvedTheme()
 
   return (
     <Switch
-      checked={theme === "dark"}
-      onCheckedChange={(checked) =>
-        setTheme(checked ? "dark" : "light")
-      }
+      checked={resolvedTheme === "dark"}
+      onCheckedChange={(checked : any) => {
+        if (checked) {
+          setThemeMode("dark")
+        } else {
+          setThemeMode("light")
+        }
+      }}
     />
   )
 }

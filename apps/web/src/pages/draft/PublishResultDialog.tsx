@@ -1,6 +1,6 @@
 // src/components/drafts/PublishResultDialog.tsx
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
 import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
 
 interface PublishResultDialogProps {

@@ -1,13 +1,13 @@
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Input } from "@kana-consultant/ui-kit";
+import { Label } from "@kana-consultant/ui-kit";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+} from "@kana-consultant/ui-kit";
+import { Card, CardContent, CardHeader, CardTitle } from "@kana-consultant/ui-kit";
 import type { Product } from "@/services/product";
 
 interface ProductBasicInfoProps {
@@ -26,7 +26,7 @@ export function ProductBasicInfo({ product, onChange }: ProductBasicInfoProps) {
                     <Label>Nama Produk</Label>
                     <Input
                         value={product.name}
-                        onChange={(e) => onChange({ name: e.target.value })}
+                        onChange={(e : any) => onChange({ name: e.target.value })}
                         placeholder="Contoh: Toko Saya"
                     />
                 </div>
@@ -34,7 +34,7 @@ export function ProductBasicInfo({ product, onChange }: ProductBasicInfoProps) {
                     <Label>Platform</Label>
                     <Select
                         value={product.platform}
-                        onValueChange={(v) => onChange({ platform: v as any })}
+                        onValueChange={(v : any) => onChange({ platform: v as any })}
                     >
                         <SelectTrigger>
                             <SelectValue />
@@ -50,7 +50,7 @@ export function ProductBasicInfo({ product, onChange }: ProductBasicInfoProps) {
                     <Label>API Endpoint</Label>
                     <Input
                         value={product.apiEndpoint}
-                        onChange={(e) => onChange({ apiEndpoint: e.target.value })}
+                        onChange={(e : any) => onChange({ apiEndpoint: e.target.value })}
                         placeholder="https://domain.com/wp-json/wp/v2/posts"
                     />
                 </div>
@@ -59,7 +59,7 @@ export function ProductBasicInfo({ product, onChange }: ProductBasicInfoProps) {
                     <Input
                         type="password"
                         value={product.apiKey || product.APIKeyEncrypted}
-                        onChange={(e) => onChange({ apiKey: e.target.value })}
+                        onChange={(e : any) => onChange({ apiKey: e.target.value })}
                         placeholder="Masukkan API Key"
                     />
                     <p className="mt-1 text-xs text-slate-500">

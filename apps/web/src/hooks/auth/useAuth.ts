@@ -3,9 +3,11 @@ import { useAuthState } from './useAuthState';
 import { useAuthActions } from './useAuthActions';
 import { useRoleCheck } from './useRoleCheck';
 import type { UseAuthReturn } from '@/types/auth';
+import { useToast } from '../use-toast';
 
 export function useAuth(): UseAuthReturn {
     const { state, setters, actions } = useAuthState();
+    const toast = useToast()
     const authActions = useAuthActions({
         setToken: setters.setToken,
         setUser: setters.setUser,
@@ -15,7 +17,8 @@ export function useAuth(): UseAuthReturn {
         setIsSuperAdmin: setters.setIsSuperAdmin,
         setIsLoading: setters.setIsLoading,
         loadUser: actions.loadUser,
-        clearUserState: actions.clearUserState
+        clearUserState: actions.clearUserState,
+        toast : toast
     });
     const roleChecks = useRoleCheck();
 

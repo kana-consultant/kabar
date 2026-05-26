@@ -1,4 +1,5 @@
-import { toast } from "sonner";
+//   Hapus import Toast langsung, nanti akan menerima toast sebagai parameter
+import type {  ToastContextType } from "@/hooks/use-toast"; // Import type untuk typing
 
 export function handleAddKeyword(
     keywordInput: string,
@@ -34,23 +35,26 @@ export function handleProductToggle(
     );
 }
 
+//   Tambahkan parameter toast
 export function handleSelectAll(
     postToAll: boolean,
     productNames: string[],
     setPostToAll: (val: boolean) => void,
-    setSelectedProducts: (val: string[]) => void
+    setSelectedProducts: (val: string[]) => void,
+    toast: ToastContextType //   Terima toast sebagai parameter
 ) {
     if (postToAll) {
         setPostToAll(false);
         setSelectedProducts([]);
-        toast.info("Semua produk dibatalkan");
+        toast.info("Semua produk dibatalkan"); //   Pakai toast dari parameter
     } else {
         setPostToAll(true);
         setSelectedProducts([...productNames]);
-        toast.success("Semua produk dipilih");
+        toast.success("Semua produk dipilih"); //   Pakai toast dari parameter
     }
 }
 
+//   Tambahkan parameter toast untuk resetForm
 export function resetForm(
     setTopic: (val: string) => void,
     setArticle: (val: string) => void,
@@ -66,7 +70,8 @@ export function resetForm(
     setWordCount: (val: number | null) => void,
     setTone: (val: any) => void,
     setArticleLength: (val: any) => void,
-    setLanguage: (val: any) => void
+    setLanguage: (val: any) => void,
+    toast?: ToastContextType //   Optional toast parameter (opsional)
 ) {
     setTopic("");
     setArticle("");
@@ -83,4 +88,9 @@ export function resetForm(
     setTone("professional");
     setArticleLength("medium");
     setLanguage("id");
+    
+    // Optional: show success toast if toast is provided
+    if (toast) {
+        toast.success("Form berhasil direset");
+    }
 }

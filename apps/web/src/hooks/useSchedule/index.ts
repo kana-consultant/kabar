@@ -4,8 +4,10 @@ import { loadSchedulesData } from "./useScheduleData";
 import { useScheduleFilter } from "./useScheduleFilter";
 import { useScheduleActions } from "./useScheduleActions";
 import { formatDate, getScheduleDisplay, isDailySchedule } from "./useScheduleHelpers";
+import { useToast } from "../use-toast";
 
 export function useSchedule() {
+    const toast = useToast();
     const {
         schedules, setSchedules,
         filteredSchedules, setFilteredSchedules,
@@ -17,19 +19,38 @@ export function useSchedule() {
         showRescheduleDialog, setShowRescheduleDialog,
         newScheduleDate, setNewScheduleDate,
         newScheduleTime, setNewScheduleTime,
+        currentPage, setCurrentPage,
+        totalPages, setTotalPages,
+        totalItems, setTotalItems,
     } = useScheduleState();
 
-    // Load schedules on mount
+    const loadSchedules = (page: number = currentPage) => {
+        loadSchedulesData(
+            setSchedules,
+            setLoading,
+            toast,
+            { limit: 5, offset: (page - 1) * 5 },
+            setTotalItems,
+            setTotalPages,
+        );
+    };
+
+    // Load on mount
     useEffect(() => {
-        loadSchedulesData(setSchedules, setLoading);
+        loadSchedules(1);
     }, []);
+
+    // Reload when page changes
+    useEffect(() => {
+        loadSchedules(currentPage);
+    }, [currentPage]);
 
     // Filter logic
     useScheduleFilter(schedules, searchQuery, setFilteredSchedules);
 
     const { handlePublishNow, handleDelete, handleReschedule } = useScheduleActions(
         setSchedules, setLoading, setShowDeleteDialog, setSelectedSchedule,
-        setShowRescheduleDialog, setNewScheduleDate, setNewScheduleTime
+        setShowRescheduleDialog, setNewScheduleDate, setNewScheduleTime, toast
     );
 
     return {
@@ -50,12 +71,16 @@ export function useSchedule() {
         setNewScheduleDate,
         newScheduleTime,
         setNewScheduleTime,
-        loadSchedules: () => loadSchedulesData(setSchedules, setLoading),
+        loadSchedules: () => loadSchedules(1),
         handlePublishNow,
         handleDelete: () => handleDelete(selectedSchedule),
         handleReschedule: () => handleReschedule(selectedSchedule, newScheduleDate, newScheduleTime),
         formatDate,
         getScheduleDisplay,
         isDailySchedule,
+        currentPage,
+        setCurrentPage,
+        totalPages,
+        totalItems,
     };
 }

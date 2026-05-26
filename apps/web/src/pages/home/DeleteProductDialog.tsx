@@ -1,13 +1,13 @@
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+  Button,
+} from "@kana-consultant/ui-kit";
 import type { Product } from "@/services/product";
 
 interface DeleteProductDialogProps {
@@ -21,23 +21,28 @@ export function DeleteProductDialog({ open, onOpenChange, product, onDelete }: D
     if (!product) return null;
 
     return (
-        <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Hapus Produk?</AlertDialogTitle>
-                    <AlertDialogDescription>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Hapus Produk?</DialogTitle>
+                    <DialogDescription>
                         Apakah Anda yakin ingin menghapus produk "{product.name}"?
                         <br />
                         Semua konfigurasi mapping akan hilang. Tindakan ini tidak dapat dibatalkan.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => onDelete(product.id, product.name)} className="bg-red-600 hover:bg-red-700">
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Batal</Button>
+                    </DialogClose>
+                    <Button 
+                        onClick={() => onDelete(product.id, product.name)} 
+                        variant="destructive"
+                    >
                         Hapus
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

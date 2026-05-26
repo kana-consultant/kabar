@@ -55,3 +55,16 @@ export interface PublishResponse {
         product_id?: string;
     }>;
 }
+
+
+export interface DraftStats {
+    total_draft: number;
+    total_with_image: number;
+    total_without_image: number;
+    total_scheduled: number;
+    product_coverage: Record<string, number>;
+    daily_activity: {
+        date: string;
+        count: number;
+    }[];
+}

@@ -1,7 +1,10 @@
-import { toast } from "sonner";
+// Hapus import Toast langsung
+// import { Toast } from "@kana-consultant/ui-kit";
+import type { ToastContextType } from "@/hooks/use-toast"; // Import type untuk typing
 import { getAPIKeys } from "@/services/apiKey";
 import { generateArticle, generateImage } from "@/services/generate";
-import { createDraft, publishDraft } from "@//services/draft";
+import { createDraft, publishDraft } from "@/services/draft";
+import type { CreateDraftRequest } from "@/services/draft";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -12,15 +15,16 @@ export async function quickGenerate(
     imageUrl: string,
     setPublishing: (val: boolean) => void,
     setCurrentDraftId: (val: string | null) => void,
-    resetForm: () => void
+    resetForm: () => void,
+    toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!topic) {
-        toast.error("Generate artikel terlebih dahulu");
+        toast.error("Generate artikel terlebih dahulu"); //   Ganti toast.error dengan toast.error
         return;
     }
 
     if (selectedProducts.length === 0) {
-        toast.error("Pilih minimal 1 produk");
+        toast.error("Pilih minimal 1 produk"); //   Ganti toast.error dengan toast.error
         return;
     }
 
@@ -31,7 +35,7 @@ export async function quickGenerate(
         const availableModels = data as any[];
 
         if (availableModels.length < 2) {
-            toast.error("Model belum cukup");
+            toast.error("Model belum cukup"); //   Ganti toast.error dengan toast.error
             return;
         }
 
@@ -39,12 +43,12 @@ export async function quickGenerate(
         const imageModel = availableModels.find(model => model.service === 'image');
 
         if (!articleModel) {
-            toast.error("Model untuk generate artikel tidak ditemukan");
+            toast.error("Model untuk generate artikel tidak ditemukan"); //   Ganti toast.error dengan toast.error
             return;
         }
 
         if (!imageModel) {
-            toast.error("Model untuk generate gambar tidak ditemukan");
+            toast.error("Model untuk generate gambar tidak ditemukan"); //   Ganti toast.error dengan toast.error
             return;
         }
 
@@ -77,22 +81,22 @@ export async function quickGenerate(
             article: generatedArticle,
             image_url: generatedImageUrl || undefined,
             image_prompt: imagePrompt,
-            target_products : selectedProducts,
+            target_products: selectedProducts,
         };
 
-        const draft = await createDraft(draftData);
+        const draft = await createDraft(draftData as CreateDraftRequest);
 
         await delay(1500);
 
-        await publishDraft(draft.id,null);
+        await publishDraft(draft.id, null);
 
-        toast.success("Publish berhasil");
+        toast.success("Publish berhasil"); //   Ganti toast.success dengan toast.success
         resetForm();
         return draft.id;
 
     } catch (error: any) {
         console.error(error);
-        toast.error("Gagal melakukan quick generate", {
+        toast.error("Gagal melakukan quick generate", { //   Ganti toast.error dengan toast.error
             description: error?.message || "Terjadi kesalahan",
         });
         return undefined;

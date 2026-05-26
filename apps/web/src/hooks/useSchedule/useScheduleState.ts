@@ -12,6 +12,9 @@ export function useScheduleState() {
     const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
     const [newScheduleDate, setNewScheduleDate] = useState("");
     const [newScheduleTime, setNewScheduleTime] = useState("09:00");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
 
     return {
         schedules, setSchedules,
@@ -24,5 +27,8 @@ export function useScheduleState() {
         showRescheduleDialog, setShowRescheduleDialog,
         newScheduleDate, setNewScheduleDate,
         newScheduleTime, setNewScheduleTime,
+        currentPage, setCurrentPage,
+        totalPages, setTotalPages,
+        totalItems, setTotalItems,
     };
 }

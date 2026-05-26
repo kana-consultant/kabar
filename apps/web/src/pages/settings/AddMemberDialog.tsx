@@ -1,8 +1,4 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from  "@kana-consultant/ui-kit";
 import type { Team, User } from "@/services/user";
 
 type UserRoleType = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
@@ -53,7 +49,7 @@ export function AddMemberDialog({
                         <Input
                             placeholder="email@example.com"
                             value={email}
-                            onChange={(e) => onEmailChange(e.target.value)}
+                            onChange={(e : any) => onEmailChange(e.target.value)}
                         />
                         {email && !userExists && (
                             <p className="mt-1 text-xs text-red-500">
@@ -71,7 +67,7 @@ export function AddMemberDialog({
                     </div>
                     <div>
                         <Label>Role dalam Tim</Label>
-                        <Select value={role} onValueChange={(v) => onRoleChange(v as UserRoleType)}>
+                        <Select value={role} onValueChange={(v : any) => onRoleChange(v as UserRoleType)}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>

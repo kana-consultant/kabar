@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Calendar, Plus, SlidersHorizontal } from "lucide-react";
+import { Button } from "@kana-consultant/ui-kit";
+import { Calendar, Plus, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { ScheduleItem } from "./ScheduleItem";
 import type { Draft } from "@/services/draft";
@@ -14,6 +14,10 @@ interface ScheduleListProps {
     onReschedule: (schedule: Draft) => void;
     onPublishNow: (schedule: Draft) => void;
     onDelete: (schedule: Draft) => void;
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    onPageChange: (page: number) => void;
 }
 
 export function ScheduleList({
@@ -25,6 +29,10 @@ export function ScheduleList({
     onReschedule,
     onPublishNow,
     onDelete,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPageChange,
 }: ScheduleListProps) {
     const navigate = useNavigate();
 
@@ -35,7 +43,6 @@ export function ScheduleList({
                 "bg-white border-slate-200/80",
                 "dark:bg-[#0f0d1a] dark:border-white/[0.06]"
             )}>
-                {/* Glow ring behind icon */}
                 <div className="relative">
                     <div className={cn(
                         "absolute inset-0 rounded-full blur-xl opacity-40",
@@ -94,7 +101,7 @@ export function ScheduleList({
                         "bg-green-100 text-green-700",
                         "dark:bg-purple-500/15 dark:text-purple-300"
                     )}>
-                        {schedules.length}
+                        {totalItems}
                     </span>
                 </div>
 
@@ -142,6 +149,68 @@ export function ScheduleList({
                     />
                 ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className={cn(
+                    "flex items-center justify-between px-5 py-3 border-t",
+                    "border-slate-100 bg-slate-50/60",
+                    "dark:border-white/[0.05] dark:bg-white/[0.02]"
+                )}>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                        Halaman {currentPage} dari {totalPages}
+                    </p>
+
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={currentPage <= 1}
+                            onClick={() => onPageChange(currentPage - 1)}
+                            className={cn(
+                                "h-7 w-7 p-0 rounded-lg",
+                                "text-slate-500 hover:text-green-600 hover:bg-green-50",
+                                "dark:hover:text-purple-400 dark:hover:bg-purple-500/10",
+                                "disabled:opacity-40 disabled:cursor-not-allowed"
+                            )}
+                        >
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <Button
+                                key={page}
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onPageChange(page)}
+                                className={cn(
+                                    "h-7 min-w-7 px-2 rounded-lg text-[11px] font-medium",
+                                    page === currentPage
+                                        ? "bg-green-600 text-white hover:bg-green-700 dark:bg-purple-600 dark:hover:bg-purple-700"
+                                        : "text-slate-500 hover:text-green-600 hover:bg-green-50 dark:hover:text-purple-400 dark:hover:bg-purple-500/10"
+                                )}
+                            >
+                                {page}
+                            </Button>
+                        ))}
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={currentPage >= totalPages}
+                            onClick={() => onPageChange(currentPage + 1)}
+                            className={cn(
+                                "h-7 w-7 p-0 rounded-lg",
+                                "text-slate-500 hover:text-green-600 hover:bg-green-50",
+                                "dark:hover:text-purple-400 dark:hover:bg-purple-500/10",
+                                "disabled:opacity-40 disabled:cursor-not-allowed"
+                            )}
+                        >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

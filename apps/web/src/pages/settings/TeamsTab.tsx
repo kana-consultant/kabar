@@ -1,5 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from  "@kana-consultant/ui-kit";
 import { Plus, Edit2, Trash2, UserPlus, Trash2 as TrashIcon } from "lucide-react";
 import type { Team, UserRole } from "@/services/user";
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/models"
 )
 
@@ -27,7 +28,7 @@ type HistoryRepository interface {
 
 	// Read
 	GetByID(ctx context.Context, id string) (*History, error)
-	GetAll(ctx context.Context, userCtx *models.UserContext) ([]History, error)
+	GetAll(ctx context.Context, userCtx models.UserContext, filter HistoryFilter) (*paginate.PaginatedResult[History], error)
 	GetAllWithQuery(ctx context.Context, query string, args []interface{}) ([]History, error)
 	GetByTeamID(ctx context.Context, teamID string) ([]History, error)
 	GetByCreatedBy(ctx context.Context, createdBy string) ([]History, error)

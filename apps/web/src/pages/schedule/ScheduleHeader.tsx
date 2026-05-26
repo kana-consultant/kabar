@@ -1,5 +1,5 @@
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
 import { Search, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ export function ScheduleHeader({ searchQuery, setSearchQuery, onRefresh }: Sched
                     <Input
                         placeholder="Cari jadwal..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e : any) => setSearchQuery(e.target.value)}
                         className={cn(
                             "h-8 pl-8 pr-3 w-52 text-sm",
                             "border-slate-200/80 bg-white placeholder:text-slate-400",

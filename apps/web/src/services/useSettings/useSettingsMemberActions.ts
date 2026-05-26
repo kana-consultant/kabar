@@ -1,13 +1,15 @@
-import { toast } from "sonner";
+
 import { addTeamMember, removeTeamMember } from "@/services/user";
 import type { User, Team } from "@/services/user";
 import type { UserRoleType } from "./types";
 import { USER_ROLES } from "./types";
+import type { ToastContextType } from "@/hooks/use-toast";
 
 export function useSettingsMemberActions(
     loadData: () => Promise<void>,
     users: User[],
-    currentUser: User | null
+    currentUser: User | null,
+    toast : ToastContextType
 ) {
     const handleAddMember = async (
         newMemberEmail: string,

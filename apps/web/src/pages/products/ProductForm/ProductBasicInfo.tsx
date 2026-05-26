@@ -1,14 +1,14 @@
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Input } from "@kana-consultant/ui-kit";
+import { Label } from "@kana-consultant/ui-kit";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from "@kana-consultant/ui-kit";
+import { Card, CardContent, CardHeader, CardTitle } from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
 import { Wifi } from "lucide-react";
 import type { Product } from "@/services/product";
 
@@ -33,7 +33,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     <Input
                         id="name"
                         value={product.name}
-                        onChange={(e) => onUpdate({ name: e.target.value })}
+                        onChange={(e : any) => onUpdate({ name: e.target.value })}
                         placeholder="Contoh: Toko Saya"
                         className="h-10"
                     />
@@ -45,7 +45,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     </Label>
                     <Select
                         value={product.platform}
-                        onValueChange={(v) => onUpdate({ platform: v as any })}
+                        onValueChange={(v : any) => onUpdate({ platform: v as any })}
                     >
                         <SelectTrigger className="h-10">
                             <SelectValue placeholder="Pilih platform" />
@@ -65,7 +65,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     <Input
                         id="apiEndpoint"
                         value={product.apiEndpoint}
-                        onChange={(e) => onUpdate({ apiEndpoint: e.target.value })}
+                        onChange={(e : any) => onUpdate({ apiEndpoint: e.target.value })}
                         placeholder="https://domain.com/wp-json/wp/v2/posts"
                         className="h-10 font-mono text-sm"
                     />
@@ -79,7 +79,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                         id="apiKey"
                         type="password"
                         value={product.apiKey}
-                        onChange={(e) => onUpdate({ apiKey: e.target.value })}
+                        onChange={(e : any) => onUpdate({ apiKey: e.target.value })}
                         placeholder="Masukkan API Key"
                         className="h-10"
                     />

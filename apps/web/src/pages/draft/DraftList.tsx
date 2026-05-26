@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { FileText, Plus } from "lucide-react";
+import { Button } from "@kana-consultant/ui-kit";
+import { FileText, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { DraftItem } from "./DraftItem";
 import type { Draft } from "@/services/draft";
@@ -13,11 +13,16 @@ interface DraftListProps {
     onPublishNow: (draft: Draft) => void;
     onDelete: (draft: Draft) => void;
     formatDate: (date: string) => string;
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    onPageChange: (page: number) => void;
 }
 
 export function DraftList({
     drafts, onView, onEdit, onSchedule,
     onPublishNow, onDelete, formatDate,
+    currentPage, totalPages, totalItems, onPageChange,
 }: DraftListProps) {
     const navigate = useNavigate();
 
@@ -81,7 +86,7 @@ export function DraftList({
                         "bg-green-100 text-green-700",
                         "dark:bg-purple-500/15 dark:text-purple-300"
                     )}>
-                        {drafts.length}
+                        {totalItems}
                     </span>
                 </div>
 
@@ -114,6 +119,47 @@ export function DraftList({
                     />
                 ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 0 && (
+                <div className={cn(
+                    "flex items-center justify-between px-5 py-3 border-t",
+                    "border-slate-100 bg-slate-50/60",
+                    "dark:border-white/[0.05] dark:bg-white/[0.02]"
+                )}>
+                    <p className="text-xs text-slate-400 dark:text-slate-600">
+                        Halaman {currentPage} dari {totalPages}
+                    </p>
+
+                    <div className="flex items-center gap-1">
+                        <button
+                            disabled={currentPage <= 1}
+                            onClick={() => onPageChange(currentPage - 1)}
+                            className={cn(
+                                "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                                "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+                                "dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200",
+                                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            )}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </button>
+
+                        <button
+                            disabled={currentPage >= totalPages}
+                            onClick={() => onPageChange(currentPage + 1)}
+                            className={cn(
+                                "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                                "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+                                "dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200",
+                                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            )}
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

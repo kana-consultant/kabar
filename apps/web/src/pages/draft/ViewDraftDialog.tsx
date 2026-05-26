@@ -4,8 +4,8 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@kana-consultant/ui-kit";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kana-consultant/ui-kit";
 import { ImageIcon } from "lucide-react";
 import type { Draft } from "@//services/draft";
 
@@ -25,10 +25,10 @@ export function ViewDraftDialog({ draft, open, onOpenChange, formatDate }: ViewD
                 <DialogHeader>
                     <DialogTitle className="text-xl">{draft.title}</DialogTitle>
                     <DialogDescription>
-                        Dibuat: {formatDate(draft.created_at)}
+                        Dibuat: {formatDate(draft.created_at as string)}
                         {draft.updated_at !== draft.created_at && (
                             <span className="ml-2">
-                                | Diperbarui: {formatDate(draft.updated_at)}
+                                | Diperbarui: {formatDate(draft.updated_at as string)}
                             </span>
                         )}
                     </DialogDescription>

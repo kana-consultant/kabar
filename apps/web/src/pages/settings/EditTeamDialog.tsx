@@ -1,8 +1,4 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input, Label, Textarea } from  "@kana-consultant/ui-kit";
 import type { Team } from "@/services/user";
 
 interface EditTeamDialogProps {
@@ -40,7 +36,7 @@ export function EditTeamDialog({
                             id="team-name"
                             placeholder="Masukkan nama tim"
                             value={team.name}
-                            onChange={(e) => onTeamChange({ ...team, name: e.target.value })}
+                            onChange={(e : any) => onTeamChange({ ...team, name: e.target.value })}
                             className="mt-1"
                         />
                         {!team.name.trim() && (
@@ -55,7 +51,7 @@ export function EditTeamDialog({
                             id="team-description"
                             placeholder="Masukkan deskripsi tim (opsional)"
                             value={team.description || ""}
-                            onChange={(e) => onTeamChange({ ...team, description: e.target.value })}
+                            onChange={(e : any) => onTeamChange({ ...team, description: e.target.value })}
                             className="mt-1"
                             rows={3}
                         />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from  "@kana-consultant/ui-kit";
 import { Moon, Bell, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 

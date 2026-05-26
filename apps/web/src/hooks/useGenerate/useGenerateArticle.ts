@@ -1,4 +1,5 @@
-import { toast } from "sonner";
+// Hapus import Toast langsung
+import type { ToastContextType } from "@/hooks/use-toast"; // Import type untuk typing
 import { generateArticle, type GenerateArticleRequest } from "@/services/generate";
 
 export async function generateArticleContent(
@@ -13,15 +14,16 @@ export async function generateArticleContent(
     setSeoScore: (val: number | null) => void,
     setReadabilityScore: (val: number | null) => void,
     setWordCount: (val: number | null) => void,
-    setSlug : (val : string | null) => void,
-    setKeywords : (val : string[]  ) => void
+    setSlug: (val: string | null) => void,
+    setKeywords: (val: string[]) => void,
+    toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!topic) {
-        toast.error("Masukkan topik terlebih dahulu");
+        toast.error("Masukkan topik terlebih dahulu"); //   Ganti toast.error dengan toast.error
         return;
     }
     if (!selectedModelId) {
-        toast.error("Pilih model AI terlebih dahulu");
+        toast.error("Pilih model AI terlebih dahulu"); //   Ganti toast.error dengan toast.error
         return;
     }
 
@@ -41,16 +43,16 @@ export async function generateArticleContent(
         setSeoScore(response.seoScore);
         setReadabilityScore(response.readabilityScore);
         setWordCount(response.wordCount);
-        setSlug(response.slug)
-        setKeywords(response.keywords)
-        console.log(response.slug)
+        setSlug(response.slug);
+        setKeywords(response.keywords);
+        console.log(response.slug);
 
-        toast.success("Artikel berhasil di-generate!", {
+        toast.success("Artikel berhasil di-generate!", { //   Ganti toast.success dengan toast.success
             description: `Topik: ${response.title} | ${response.wordCount} kata`,
         });
     } catch (error) {
         console.error("Error generating article:", error);
-        toast.error("Gagal mengenerate artikel", {
+        toast.error("Gagal mengenerate artikel", { //   Ganti toast.error dengan toast.error
             description: error instanceof Error ? error.message : "Terjadi kesalahan pada server",
         });
     } finally {

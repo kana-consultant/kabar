@@ -1,8 +1,8 @@
 import {
     Select, SelectContent, SelectItem,
     SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+} from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
 import { Loader2, Cpu, Key, RefreshCw } from "lucide-react";
 import { useModels } from "@/hooks/useGenerate/useModel";
 import { useEffect } from "react";

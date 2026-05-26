@@ -1,10 +1,6 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from  "@kana-consultant/ui-kit";
 import { type UserRoleType } from "@/services/useSettings/types";
-import { Loader2 } from "lucide-react"; // tambahkan import ini
+import { Loader2 } from "lucide-react";
 
 interface AddUserDialogProps {
     open: boolean;
@@ -51,7 +47,7 @@ export function AddUserDialog({
                         <Input
                             placeholder="John Doe"
                             value={name}
-                            onChange={(e) => onNameChange(e.target.value)}
+                            onChange={(e : any) => onNameChange(e.target.value)}
                             disabled={isLoading}
                         />
                     </div>
@@ -61,7 +57,7 @@ export function AddUserDialog({
                             type="email"
                             placeholder="email@example.com"
                             value={email}
-                            onChange={(e) => onEmailChange(e.target.value)}
+                            onChange={(e : any) => onEmailChange(e.target.value)}
                             disabled={isLoading}
                         />
                         {email && !isValidEmail && (
@@ -74,7 +70,7 @@ export function AddUserDialog({
                         <Label>Role</Label>
                         <Select
                             value={role}
-                            onValueChange={(v) => onRoleChange(v as UserRoleType)}
+                            onValueChange={(v : any) => onRoleChange(v as UserRoleType)}
                             disabled={isLoading}
                         >
                             <SelectTrigger>

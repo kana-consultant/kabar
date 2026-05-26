@@ -1,19 +1,17 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from  "@kana-consultant/ui-kit";
 import { Plus, Edit2, Trash2, Shield, UserCog, Eye, Pencil } from "lucide-react";
 import type { User } from "@/services/user";
 import { type UserRoleType } from "@/services/useSettings/types";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+} from  "@kana-consultant/ui-kit";
 
 const roleLabels: Record<UserRoleType, string> = {
     admin: "Administrator",
@@ -46,16 +44,16 @@ interface UsersTabProps {
     onDeleteUser: (id: string, name: string) => void;
 }
 
-export function UsersTab({ 
-    users, 
-    currentUserId, 
+export function UsersTab({
+    users,
+    currentUserId,
     canManage,
     isAdmin,
-    onAddUser, 
-    onEditUser, 
-    onDeleteUser 
+    onAddUser,
+    onEditUser,
+    onDeleteUser
 }: UsersTabProps) {
-    
+
     // State untuk delete dialog
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -159,7 +157,7 @@ export function UsersTab({
                                 const RoleIcon = roleIcons[user.role as UserRoleType] || UserCog;
                                 const canEdit = canEditUser(user);
                                 const canDelete = canDeleteUser(user);
-                                
+
                                 return (
                                     <div key={user.id} className="flex items-center justify-between rounded-lg border p-4">
                                         <div className="flex items-center gap-3">
@@ -188,18 +186,18 @@ export function UsersTab({
                                         </div>
                                         {canManage && user.role !== 'admin' && (
                                             <div className="flex gap-2">
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="sm" 
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
                                                     onClick={() => onEditUser(user)}
                                                     disabled={!canEdit}
                                                     title={!canEdit ? "Tidak memiliki izin untuk mengedit user ini" : "Edit user"}
                                                 >
                                                     <Edit2 className="h-4 w-4" />
                                                 </Button>
-                                                <Button 
-                                                    variant="destructive" 
-                                                    size="sm" 
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
                                                     onClick={() => handleDeleteClick(user.id, user.name)}
                                                     disabled={!canDelete}
                                                     title={!canDelete ? "Tidak memiliki izin untuk menghapus user ini" : "Hapus user"}
@@ -213,7 +211,7 @@ export function UsersTab({
                             })}
                         </div>
                     )}
-                    
+
                     {/* Stats summary */}
                     {users.length > 0 && (
                         <div className="mt-6 pt-4 border-t text-xs text-slate-500">
@@ -229,30 +227,29 @@ export function UsersTab({
             </Card>
 
             {/* Delete Confirmation Dialog */}
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Konfirmasi Hapus Pengguna</AlertDialogTitle>
-                        <AlertDialogDescription>
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Konfirmasi Hapus Pengguna</DialogTitle>
+                        <DialogDescription>
                             Apakah Anda yakin ingin menghapus pengguna <span className="font-semibold text-foreground">{userToDelete?.name}</span>?
                             <br />
                             <br />
                             Tindakan ini akan menghapus semua data yang terkait dengan pengguna tersebut dan tidak dapat dibatalkan.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={handleCancelDelete}>
-                            Batal
-                        </AlertDialogCancel>
-                        <AlertDialogAction 
-                            onClick={handleConfirmDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline" onClick={handleCancelDelete}>
+                                Batal
+                            </Button>
+                        </DialogClose>
+                        <Button variant="destructive" onClick={handleConfirmDelete}>
                             Hapus
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

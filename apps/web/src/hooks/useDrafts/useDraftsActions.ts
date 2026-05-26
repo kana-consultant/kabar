@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { toast } from "sonner";
-import { deleteDraft, publishDraft, type Draft } from "@//services/draft";
+import { useToast } from "@/hooks/use-toast";
+import { deleteDraft, publishDraft, type Draft } from "@/services/draft";
 import type { PublishResult, ScheduleConfig } from "./types";
 
 interface UseDraftsActionsParams {
@@ -18,6 +18,7 @@ export function useDraftsActions({
     setShowResultDialog,
     closeDialogs,
 }: UseDraftsActionsParams) {
+    const toast = useToast(); //   Gunakan hook toast
 
     const handleDelete = useCallback(async (draft: Draft) => {
         try {
@@ -31,7 +32,7 @@ export function useDraftsActions({
             toast.error("Gagal menghapus draft");
             return false;
         }
-    }, [loadDrafts]);
+    }, [loadDrafts, toast]);
 
     const processPublishResponse = useCallback((
         response: any,
@@ -56,7 +57,7 @@ export function useDraftsActions({
             }
         }
 
-        // Success toast message
+        // Success Toast message
         if (isScheduled && scheduleConfig) {
             const { dailySchedule, dailyTime, date, time } = scheduleConfig;
             toast.success("Draft dijadwalkan", {
@@ -71,7 +72,7 @@ export function useDraftsActions({
         }
 
         return true;
-    }, [setPublishResults, setShowResultDialog]);
+    }, [setPublishResults, setShowResultDialog, toast]);
 
     const handlePublish = useCallback(async (
         draft: Draft,
@@ -79,7 +80,6 @@ export function useDraftsActions({
         scheduleConfig?: ScheduleConfig
     ) => {
         setPublishingId(draft.id as string);
-       
 
         try {
             const response = await publishDraft(draft.id as string, draft);
@@ -117,7 +117,7 @@ export function useDraftsActions({
         } finally {
             setPublishingId(null);
         }
-    }, [setPublishingId, processPublishResponse, loadDrafts, closeDialogs, setPublishResults, setShowResultDialog]);
+    }, [setPublishingId, processPublishResponse, loadDrafts, closeDialogs, setPublishResults, setShowResultDialog, toast]);
 
     const handlePublishNow = useCallback((draft: Draft) => {
         return handlePublish(draft);
@@ -141,7 +141,7 @@ export function useDraftsActions({
         console.log(draft)
 
         return handlePublish(draft, scheduledFor, scheduleConfig);
-    }, [handlePublish]);
+    }, [handlePublish, toast]);
 
     return {
         handleDelete,

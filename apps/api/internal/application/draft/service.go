@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/draft"
+	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/scheduler"
@@ -38,14 +39,17 @@ func NewService(
 	}
 }
 
-func (s *DraftServiceImpl) GetAll(ctx context.Context, TeamID string) (*[]draft.Draft, error) {
-
-	return s.repo.GetAll(ctx, TeamID)
+func (s *DraftServiceImpl) GetAll(ctx context.Context, teamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
+	return s.repo.GetAll(ctx, teamID, params)
 }
 
-func (s *DraftServiceImpl) GetAllScheduled(ctx context.Context, TeamID string) (*[]draft.Draft, error) {
+func (s *DraftServiceImpl) GetDashboardStats(ctx context.Context, teamID string) (*draft.DraftStats, error) {
+	return s.repo.GetDashboardStats(ctx, teamID)
+}
 
-	return s.repo.GetAllScheduled(ctx, TeamID)
+func (s *DraftServiceImpl) GetAllScheduled(ctx context.Context, TeamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
+
+	return s.repo.GetAllScheduled(ctx, TeamID, params)
 }
 
 // CreateDraft implements draft.Service
@@ -431,7 +435,7 @@ func (s *DraftServiceImpl) GetSEOScore(ctx context.Context, id string) (*draft.S
 }
 
 // CheckSimilarity implements draft.Service
-func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, teamID string) ([]draft.SimilarityResult, error) {
+func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, teamID string, params paginate.PaginationParams) ([]draft.SimilarityResult, error) {
 	target, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("draft not found: %w", err)
@@ -441,13 +445,13 @@ func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, teamI
 		return []draft.SimilarityResult{}, nil
 	}
 
-	allDrafts, err := s.repo.GetAll(ctx, teamID)
-	if err != nil || allDrafts == nil || len(*allDrafts) == 0 {
+	allDrafts, err := s.repo.GetAll(ctx, teamID, params)
+	if err != nil || allDrafts == nil {
 		return []draft.SimilarityResult{}, nil
 	}
 
 	var others []draft.Draft
-	for _, d := range *allDrafts {
+	for _, d := range *&allDrafts.Data {
 		if d.ID != id {
 			others = append(others, d)
 		}

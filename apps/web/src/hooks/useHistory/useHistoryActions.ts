@@ -1,13 +1,15 @@
-import { toast } from "sonner";
+
 import { deleteHistory, clearHistory, addHistory } from "@/services/history";
 import { loadHistoryData } from "./useHistoryData";
+import type { ToastContextType } from "../use-toast";
 
 export async function handleDeleteHistory(
     selectedHistory: any,
     setSelectedHistory: (val: any) => void,
     setShowDeleteDialog: (val: boolean) => void,
     setHistory: (data: any[]) => void,
-    setLoading: (val: boolean) => void
+    setLoading: (val: boolean) => void,
+    toast : ToastContextType
 ) {
     if (selectedHistory) {
         try {
@@ -15,7 +17,7 @@ export async function handleDeleteHistory(
             toast.success("Riwayat dihapus", {
                 description: `"${selectedHistory.title}" telah dihapus`,
             });
-            await loadHistoryData(setHistory, setLoading);
+            await loadHistoryData(setHistory, setLoading,toast);
             setShowDeleteDialog(false);
             setSelectedHistory(null);
         } catch (error) {
@@ -26,12 +28,13 @@ export async function handleDeleteHistory(
 
 export async function handleClearAllHistory(
     setHistory: (data: any[]) => void,
-    setLoading: (val: boolean) => void
+    setLoading: (val: boolean) => void,
+    toast : ToastContextType
 ) {
     try {
         await clearHistory();
         toast.success("Semua riwayat dihapus");
-        await loadHistoryData(setHistory, setLoading);
+        await loadHistoryData(setHistory, setLoading, toast);
     } catch (error) {
         toast.error("Gagal menghapus riwayat");
     }
@@ -48,16 +51,18 @@ export async function addToHistory(
         action: 'published' | 'scheduled' | 'draft_saved';
         errorMessage?: string;
         scheduledFor?: string;
+        keywords : string[]
     },
     setHistory: (data: any[]) => void,
-    setLoading: (val: boolean) => void
+    setLoading: (val: boolean) => void,
+    toast : ToastContextType
 ) {
     try {
         await addHistory({
             ...data,
             publishedAt: new Date().toISOString(),
         });
-        await loadHistoryData(setHistory, setLoading);
+        await loadHistoryData(setHistory, setLoading, toast);
         return true;
     } catch (error) {
         console.error("Failed to add to history:", error);

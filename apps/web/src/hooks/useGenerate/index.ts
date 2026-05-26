@@ -1,5 +1,6 @@
 import { useLocation } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
+import { useToast } from "@/hooks/use-toast";
 import { useGenerateState } from "./useGenerateState";
 import { useGenerateData } from "./useGenerateData";
 import { useLoadDraft } from "./useLoadDraft";
@@ -9,11 +10,11 @@ import { saveAsDraft, saveAsSchedule, postInstant } from "./usePublishActions";
 import { handleAddKeyword, handleRemoveKeyword, handleProductToggle, handleSelectAll, resetForm } from "./useFormManagement";
 import { quickGenerate } from "./useQuickGenerate";
 import { closeResultDialog } from "./useDialogState";
-import { toast } from "sonner";
 
 export function useGenerate() {
+    const toast = useToast();
     const location = useLocation();
-    const navigate = useNavigate()
+    const navigate = useNavigate();
     const searchParams = new URLSearchParams(location.search);
     const editId = searchParams.get("edit") || undefined;
     const TopicId = searchParams.get("topic") || undefined;
@@ -58,28 +59,32 @@ export function useGenerate() {
 
     useGenerateData(
         setProducts, setProductNames, setProductsLoading, setProductsError,
-        setModels, setLoadingModels, setSelectedModelId
+        setModels, setLoadingModels, setSelectedModelId,toast
     );
 
     useLoadDraft(
         editId, TopicId,
         setTopic, setArticle, setImageUrl, setSelectedProducts, setCurrentDraftId,
         setSlug, setKeywords,
+        toast //   Kirim toast ke useLoadDraft
     );
 
     const generateArticle = () => generateArticleContent(
         topic, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
-        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords
+        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords,
+        toast //   Kirim toast ke generateArticleContent
     );
 
     const generateImage = () => generateImageManually(
-        articleResponse, topic, selectedModelId, setLoadingImage, setImageUrl
+        articleResponse, topic, selectedModelId, setLoadingImage, setImageUrl,
+        toast //   Kirim toast ke generateImageManually
     );
 
     const handleSaveAsDraft = () => saveAsDraft(
         article, topic, imageUrl, selectedProducts, currentDraftId, setCurrentDraftId,
-        slug as string, keywords as string[]
+        slug as string, keywords as string[],
+        toast //   Kirim toast ke saveAsDraft
     );
 
     const handleSaveAsSchedule = () => saveAsSchedule(
@@ -89,8 +94,11 @@ export function useGenerate() {
         () => resetForm(
             setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
             setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
-            setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage
-        ), slug as string, keywords as string[]
+            setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+            toast
+        ),
+        slug as string, keywords as string[],
+        toast //   Kirim toast ke saveAsSchedule
     );
 
     const handlePostInstant = () => postInstant(
@@ -99,8 +107,11 @@ export function useGenerate() {
         () => resetForm(
             setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
             setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
-            setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage
-        ), slug as string, keywords as string[]
+            setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+            toast
+        ),
+        slug as string, keywords as string[],
+        toast //   Kirim toast ke postInstant
     );
 
     const handlePost = async () => {
@@ -123,9 +134,6 @@ export function useGenerate() {
                 await handlePostInstant();
             }
         } finally {
-            // navigate({
-            //     to: "/history",
-            // })
             setIsPosting(false);
         }
     };
@@ -133,11 +141,13 @@ export function useGenerate() {
     const onResetForm = () => resetForm(
         setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
         setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
-        setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage
+        setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+        toast
     );
 
     const onQuickGenerate = () => quickGenerate(
-        topic, selectedProducts, article, imageUrl, setPublishing, setCurrentDraftId, onResetForm
+        topic, selectedProducts, article, imageUrl, setPublishing, setCurrentDraftId, onResetForm,
+        toast //   Kirim toast ke quickGenerate
     );
 
     return {
@@ -170,7 +180,7 @@ export function useGenerate() {
         generateArticle,
         generateImage,
         handleProductToggle: (product: string) => handleProductToggle(product, selectedProducts, postToAll, setSelectedProducts),
-        handleSelectAll: () => handleSelectAll(postToAll, productNames, setPostToAll, setSelectedProducts),
+        handleSelectAll: () => handleSelectAll(postToAll, productNames, setPostToAll, setSelectedProducts, toast),
         handlePost,
         saveAsDraft: handleSaveAsDraft,
         resetForm: onResetForm,

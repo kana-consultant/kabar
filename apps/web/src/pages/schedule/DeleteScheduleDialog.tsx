@@ -1,13 +1,14 @@
+import { useState } from "react";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+  Button,
+} from "@kana-consultant/ui-kit";
 import type { Draft } from "@/services/draft";
 
 interface DeleteScheduleDialogProps {
@@ -18,25 +19,41 @@ interface DeleteScheduleDialogProps {
 }
 
 export function DeleteScheduleDialog({ schedule, open, onOpenChange, onConfirm }: DeleteScheduleDialogProps) {
+    const [isDeleting, setIsDeleting] = useState(false);
+    
     if (!schedule) return null;
 
+    const handleConfirm = async () => {
+        setIsDeleting(true);
+        await onConfirm();
+        setIsDeleting(false);
+    };
+
     return (
-        <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Hapus Jadwal?</AlertDialogTitle>
-                    <AlertDialogDescription>
+        <Dialog open={open} onOpenChange={(newOpen : boolean) => {
+            if (!isDeleting) onOpenChange(newOpen);
+        }}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Hapus Jadwal?</DialogTitle>
+                    <DialogDescription>
                         Apakah Anda yakin ingin menghapus jadwal "{schedule.title}"?
                         Tindakan ini tidak dapat dibatalkan.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                    <AlertDialogAction onClick={onConfirm} className="bg-red-600 hover:bg-red-700">
-                        Hapus
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline" disabled={isDeleting}>Batal</Button>
+                    </DialogClose>
+                    <Button 
+                        onClick={handleConfirm} 
+                        variant="destructive"
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? "Menghapus..." : "Hapus"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

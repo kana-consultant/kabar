@@ -1,4 +1,4 @@
-import { Toaster } from "sonner";
+import { ToastProviderWrapper } from "@/hooks/use-toast"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from 'react-dom/client'
 import {
@@ -7,7 +7,6 @@ import {
   createRootRoute,
   createRoute,
 } from '@tanstack/react-router'
-import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from './contexts/AuthContext'
 import './index.css'
 
@@ -124,9 +123,9 @@ const scheduleRoute = createRoute({
 })
 
 const landingRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/',
-    component: Landing,
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: Landing,
 })
 
 
@@ -161,12 +160,12 @@ declare module '@tanstack/react-router' {
 const queryClient = new QueryClient();
 // 6. Render
 createRoot(document.getElementById('root')!).render(
-  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+  <ToastProviderWrapper>
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
-        <Toaster position="top-right" richColors closeButton />
       </QueryClientProvider>
     </AuthProvider>
-  </ThemeProvider>
+  </ToastProviderWrapper>
+
 ) 

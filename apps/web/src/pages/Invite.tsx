@@ -2,10 +2,7 @@
 import { acceptInvite, verifyInviteToken } from "@/services/team";
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button, Input, Label, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from  "@kana-consultant/ui-kit";
 import { Loader2, CheckCircle, XCircle, Mail, Lock, Eye, EyeOff, Users, Shield, AlertCircle, User } from "lucide-react";
 import type { TeamInvite } from "@/services/team/types";
 
@@ -213,7 +210,7 @@ export default function InvitePage() {
                                         type="text"
                                         placeholder="John Doe"
                                         value={fullName}
-                                        onChange={(e) => setFullName(e.target.value)}
+                                        onChange={(e : any) => setFullName(e.target.value)}
                                         className="pl-10 bg-white dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800 focus:border-cyan-500"
                                         disabled={isSubmitting}
                                         required
@@ -251,7 +248,7 @@ export default function InvitePage() {
                                         type={showPassword ? 'text' : 'password'}
                                         placeholder="Create a strong password"
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        onChange={(e : any) => setPassword(e.target.value)}
                                         className="pl-10 pr-10 bg-white dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800 focus:border-cyan-500"
                                         disabled={isSubmitting}
                                         required
@@ -278,7 +275,7 @@ export default function InvitePage() {
                                         type={showConfirmPassword ? 'text' : 'password'}
                                         placeholder="Confirm your password"
                                         value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        onChange={(e : any) => setConfirmPassword(e.target.value)}
                                         className="pl-10 pr-10 bg-white dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800 focus:border-cyan-500"
                                         disabled={isSubmitting}
                                         required

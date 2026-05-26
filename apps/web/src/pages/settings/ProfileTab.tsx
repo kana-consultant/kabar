@@ -1,22 +1,9 @@
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Alert,
-  AlertDescription,
-} from "@/components/ui/alert";
+import { Input, Button, Label, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from  "@kana-consultant/ui-kit";
 import { cn } from "@/lib/utils";
 import type { User } from "@/types/user";
-import { Eye, EyeOff, Lock, KeyRound, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Lock, KeyRound } from "lucide-react";
+import { Alert } from  "@kana-consultant/ui-kit";
 
 const roleConfig: Record<string, { label: string; class: string }> = {
     admin: {
@@ -245,20 +232,11 @@ export function ProfileTab({ currentUser, onChangePassword }: ProfileTabProps) {
 
                     <div className="space-y-4 py-4">
                         {error && (
-                            <Alert variant="destructive" className="py-2">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription className="text-xs">
-                                    {error}
-                                </AlertDescription>
-                            </Alert>
+                            <Alert tone="danger" title={error} className="py-2" />
                         )}
 
                         {success && (
-                            <Alert className="border-green-200 bg-green-50 text-green-800 dark:border-green-800/20 dark:bg-green-900/20 dark:text-green-300">
-                                <AlertDescription className="text-xs">
-                                    {success}
-                                </AlertDescription>
-                            </Alert>
+                            <Alert tone="success" title={success} className="py-2" />
                         )}
 
                         {/* Password Lama */}
@@ -271,7 +249,7 @@ export function ProfileTab({ currentUser, onChangePassword }: ProfileTabProps) {
                                     id="old-password"
                                     type={showOldPassword ? "text" : "password"}
                                     value={oldPassword}
-                                    onChange={(e) => setOldPassword(e.target.value)}
+                                    onChange={(e: any) => setOldPassword(e.target.value)}
                                     placeholder="Masukkan password lama"
                                     className="pr-10"
                                     disabled={isLoading}
@@ -302,7 +280,7 @@ export function ProfileTab({ currentUser, onChangePassword }: ProfileTabProps) {
                                     id="new-password"
                                     type={showNewPassword ? "text" : "password"}
                                     value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    onChange={(e: any) => setNewPassword(e.target.value)}
                                     placeholder="Masukkan password baru"
                                     className="pr-10"
                                     disabled={isLoading}
@@ -342,7 +320,7 @@ export function ProfileTab({ currentUser, onChangePassword }: ProfileTabProps) {
                                     id="confirm-password"
                                     type={showConfirmPassword ? "text" : "password"}
                                     value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    onChange={(e: any) => setConfirmPassword(e.target.value)}
                                     placeholder="Konfirmasi password baru"
                                     className="pr-10"
                                     disabled={isLoading}

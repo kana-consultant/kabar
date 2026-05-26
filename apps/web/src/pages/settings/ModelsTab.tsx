@@ -1,14 +1,9 @@
 // src/pages/settings/ModelsTab.tsx
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { toast } from 'sonner';
+import { Card, CardContent, Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Textarea, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@kana-consultant/ui-kit';
+// Hapus import Toast langsung
+// import { Toast } from '@kana-consultant/ui-kit';
+import { useToast } from '@/hooks/use-toast'; //   Import useToast
 import { type AIModel, type APIProvider } from '@/services/modelProvider/types';
 import { createModel, updateModel, deleteModel, getModelsWithStatus } from "@/services/model";
 import { getProviders } from '@/services/modelProvider/modelQueries';
@@ -22,6 +17,8 @@ interface ModelWithStatus extends AIModel {
 }
 
 export function ModelsTab() {
+    const toast = useToast(); //   Gunakan hook toast
+    
     const [models, setModels] = useState<ModelWithStatus[]>([]);
     const [providers, setProviders] = useState<APIProvider[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,10 +41,10 @@ export function ModelsTab() {
             const data = await getModelsWithStatus();
             setModels(data as ModelWithStatus[]);
         } catch (error) {
-            toast.error('Gagal memuat models');
+            toast.error('Gagal memuat models'); //   Ganti toast.error dengan toast.error
             throw error;
         }
-    }, []);
+    }, [toast]);
 
     // Fetch providers function
     const fetchProviders = useCallback(async () => {
@@ -56,10 +53,10 @@ export function ModelsTab() {
             setProviders(data);
         } catch (error) {
             console.error('Failed to load providers:', error);
-            toast.error('Gagal memuat providers');
+            toast.error('Gagal memuat providers'); //   Ganti toast.error dengan toast.error
             throw error;
         }
-    }, []);
+    }, [toast]);
 
     // Load all data
     const loadAllData = useCallback(async () => {
@@ -80,7 +77,7 @@ export function ModelsTab() {
 
     const handleSave = async () => {
         if (!formName || !formProviderId || !formDisplayName) {
-            toast.error('Isi semua field yang diperlukan');
+            toast.error('Isi semua field yang diperlukan'); //   Ganti toast.error dengan toast.error
             return;
         }
 
@@ -96,7 +93,7 @@ export function ModelsTab() {
                     temperature: formTemperature,
                     isDefault: formIsDefault,
                 });
-                toast.success('Model updated');
+                toast.success('Model updated'); //   Ganti toast.success dengan toast.success
             } else {
                 await createModel({
                     name: formName,
@@ -107,12 +104,12 @@ export function ModelsTab() {
                     temperature: formTemperature,
                     isDefault: formIsDefault,
                 });
-                toast.success('Model created');
+                toast.success('Model created'); //   Ganti toast.success dengan toast.success
             }
             resetForm();
             await fetchModels(); // Refresh models only
         } catch (error) {
-            toast.error('Failed to save model');
+            toast.error('Failed to save model'); //   Ganti toast.error dengan toast.error
             console.error('Save error:', error);
         } finally {
             setSaving(false);
@@ -147,10 +144,10 @@ export function ModelsTab() {
         if (confirm(`Hapus model "${name}"?`)) {
             try {
                 await deleteModel(id);
-                toast.success('Model deleted');
+                toast.success('Model deleted'); //   Ganti toast.success dengan toast.success
                 await fetchModels(); // Refresh models only
             } catch (error) {
-                toast.error('Failed to delete model');
+                toast.error('Failed to delete model'); //   Ganti toast.error dengan toast.error
                 console.error('Delete error:', error);
             }
         }
@@ -159,13 +156,13 @@ export function ModelsTab() {
     const handleSetDefault = async (id: string) => {
         try {
             await updateModel(id, { isDefault: true });
-            toast.success('Default model updated');
+            toast.success('Default model updated'); //   Ganti toast.success dengan toast.success
             await fetchModels(); // Refresh models only
         } catch (error) {
-            toast.error('Failed to set default model');
+            toast.error('Failed to set default model'); //   Ganti toast.error dengan toast.error
             console.error('Set default error:', error);
         }
-    };
+    };;
 
     const getProviderName = (providerId: string) => {
         const provider = providers.find(p => p.id === providerId);
@@ -276,7 +273,7 @@ export function ModelsTab() {
             </div>
 
             {/* Add/Edit Dialog */}
-            <Dialog open={showAddDialog} onOpenChange={(open) => {
+            <Dialog open={showAddDialog} onOpenChange={(open : any) => {
                 if (!open) resetForm();
                 setShowAddDialog(open);
             }}>
@@ -317,7 +314,7 @@ export function ModelsTab() {
                             <Input
                                 placeholder="gemini-2.5-flash, gpt-4-turbo, claude-3-opus"
                                 value={formName}
-                                onChange={(e) => setFormName(e.target.value)}
+                                onChange={(e : any) => setFormName(e.target.value)}
                             />
                             <p className="mt-1 text-xs text-slate-500">
                                 Nama model yang digunakan dalam API call
@@ -328,7 +325,7 @@ export function ModelsTab() {
                             <Input
                                 placeholder="Gemini 2.5 Flash"
                                 value={formDisplayName}
-                                onChange={(e) => setFormDisplayName(e.target.value)}
+                                onChange={(e : any) => setFormDisplayName(e.target.value)}
                             />
                         </div>
                         <div>
@@ -336,7 +333,7 @@ export function ModelsTab() {
                             <Textarea
                                 placeholder="Deskripsi model ini..."
                                 value={formDescription}
-                                onChange={(e) => setFormDescription(e.target.value)}
+                                onChange={(e : any) => setFormDescription(e.target.value)}
                                 rows={2}
                             />
                         </div>
@@ -346,7 +343,7 @@ export function ModelsTab() {
                                 <Input
                                     type="number"
                                     value={formMaxTokens}
-                                    onChange={(e) => setFormMaxTokens(parseInt(e.target.value) || 0)}
+                                    onChange={(e : any) => setFormMaxTokens(parseInt(e.target.value) || 0)}
                                 />
                                 <p className="mt-1 text-xs text-slate-500">Maksimum token yang dihasilkan</p>
                             </div>
@@ -358,7 +355,7 @@ export function ModelsTab() {
                                     min="0"
                                     max="2"
                                     value={formTemperature}
-                                    onChange={(e) => setFormTemperature(parseFloat(e.target.value) || 0)}
+                                    onChange={(e : any) => setFormTemperature(parseFloat(e.target.value) || 0)}
                                 />
                                 <p className="mt-1 text-xs text-slate-500">Kreativitas (0 = konsisten, 1 = kreatif)</p>
                             </div>

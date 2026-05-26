@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { Eye, Edit, Calendar, Send, Trash2, Clock, FileText, CheckCircle, Package, ImageIcon } from "lucide-react";
 import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";

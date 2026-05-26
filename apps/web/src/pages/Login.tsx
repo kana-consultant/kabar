@@ -2,10 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Rocket, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { Button, Input, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Label } from '@kana-consultant/ui-kit';
 import { useAuth } from '@/hooks/auth/useAuth';
 
 export default function Login() {
@@ -91,7 +88,7 @@ export default function Login() {
                                     type="email"
                                     placeholder="admin@seo.com"
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(e : any) => setEmail(e.target.value)}
                                     className="pl-10 bg-white dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800 focus:border-cyan-500"
                                     disabled={isLoadingState}
                                     autoComplete="email"
@@ -108,7 +105,7 @@ export default function Login() {
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="••••••••"
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e : any) => setPassword(e.target.value)}
                                     className="pl-10 pr-10 bg-white dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800 focus:border-cyan-500"
                                     disabled={isLoadingState}
                                     autoComplete="current-password"

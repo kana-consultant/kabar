@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@kana-consultant/ui-kit";
 import { ProductBasicInfo } from "./ProductBasicInfo";
 import { ProductApiConfig } from "./ProductApiConfig";
 import { ProductFormActions } from "./ProductFormActions";
@@ -13,17 +13,17 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
+import { Label } from "@kana-consultant/ui-kit";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
+} from "@kana-consultant/ui-kit";
+import { Toast } from  "@kana-consultant/ui-kit";
 
 interface ProductFormProps {
     isEdit: boolean;
@@ -227,7 +227,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                             <Input
                                 placeholder="https://api.example.com/v1/products"
                                 value={testUrl}
-                                onChange={(e) => setTestUrl(e.target.value)}
+                                onChange={(e : any) => setTestUrl(e.target.value)}
                             />
                         </div>
 
@@ -253,7 +253,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                             <Label>Autentikasi</Label>
                             <Select
                                 value={testAuthType}
-                                onValueChange={(v) => setTestAuthType(v as any)}
+                                onValueChange={(v : any) => setTestAuthType(v as any)}
                             >
                                 <SelectTrigger>
                                     <SelectValue />
@@ -274,7 +274,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                                     type="password"
                                     placeholder="Masukkan API Key"
                                     value={testApiKey}
-                                    onChange={(e) => setTestApiKey(e.target.value)}
+                                    onChange={(e : any) => setTestApiKey(e.target.value)}
                                 />
                             </div>
                         )}
@@ -287,7 +287,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                                     type="password"
                                     placeholder="Masukkan Bearer Token"
                                     value={testBearerToken}
-                                    onChange={(e) => setTestBearerToken(e.target.value)}
+                                    onChange={(e : any) => setTestBearerToken(e.target.value)}
                                 />
                             </div>
                         )}
@@ -306,13 +306,13 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                                         <Input
                                             placeholder="Header Key"
                                             value={header.key}
-                                            onChange={(e) => updateTestHeader(index, "key", e.target.value)}
+                                            onChange={(e : any) => updateTestHeader(index, "key", e.target.value)}
                                             className="flex-1"
                                         />
                                         <Input
                                             placeholder="Header Value"
                                             value={header.value}
-                                            onChange={(e) => updateTestHeader(index, "value", e.target.value)}
+                                            onChange={(e : any) => updateTestHeader(index, "value", e.target.value)}
                                             className="flex-1"
                                         />
                                         <Button

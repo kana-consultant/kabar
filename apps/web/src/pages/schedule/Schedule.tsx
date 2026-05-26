@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import { ScheduleHeader } from "./ScheduleHeader";
-import { ScheduleStats } from "./ScheduleStats";
 import { ScheduleList } from "./ScheduleList";
 import { ScheduleDetailDialog } from "./ScheduleDetailDialog";
 import { RescheduleDialog } from "./RescheduleDialog";
@@ -36,13 +35,16 @@ export default function Schedule() {
     formatDate,
     getScheduleDisplay,
     isDailySchedule,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    totalItems,
   } = useSchedule();
 
   const handleEdit = (schedule: Draft) => {
     navigate({ to: `/generate?edit=${schedule.id}` });
   };
 
-  // Tampilkan loading
   if (loading) {
     return <LoadingSchedule />;
   }
@@ -55,10 +57,7 @@ export default function Schedule() {
         onRefresh={loadSchedules}
       />
 
-      <ScheduleStats
-        schedules={schedules}
-        isDailySchedule={isDailySchedule}
-      />
+  
 
       <ScheduleList
         schedules={filteredSchedules}
@@ -78,6 +77,11 @@ export default function Schedule() {
           setSelectedSchedule(schedule);
           setShowDeleteDialog(true);
         }}
+        // Pagination props
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        onPageChange={setCurrentPage}
       />
 
       <ScheduleDetailDialog
