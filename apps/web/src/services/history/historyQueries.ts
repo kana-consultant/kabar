@@ -1,14 +1,12 @@
 import { apiClient } from '../api';
 import type { HistoryItem } from './types';
+import type { PaginatedResponse, PaginationParams } from './types';
 
-// Get all history
-export async function getHistory(params?: {
-    page?: number;
-    limit?: number;
+export async function getHistory(params?: PaginationParams & {
     status?: string;
     action?: string;
-}): Promise<HistoryItem[]> {
-    return apiClient.get<HistoryItem[]>('/history', { params });
+}): Promise<PaginatedResponse<HistoryItem>> {
+    return apiClient.get<PaginatedResponse<HistoryItem>>('/history', params);
 }
 
 export async function getHistoryById(id: string): Promise<HistoryItem> {

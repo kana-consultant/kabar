@@ -1,21 +1,19 @@
 import { History, CheckCircle, XCircle } from "lucide-react";
-import type { HistoryItem } from "@/services/history";
 import { cn } from "@/lib/utils";
 
 interface HistoryStatsProps {
-    history: HistoryItem[];
+    totalItems: number;
+    totalSuccess: number;
+    totalFailed: number;
 }
 
-export function HistoryStats({ history }: HistoryStatsProps) {
-    const total = history.length;
-    const success = history.filter(h => h.status === "success").length;
-    const failed = history.filter(h => h.status === "failed").length;
-    const successRate = total > 0 ? Math.round((success / total) * 100) : 0;
+export function HistoryStats({ totalItems, totalSuccess, totalFailed }: HistoryStatsProps) {
+    const successRate = totalItems > 0 ? Math.round((totalSuccess / totalItems) * 100) : 0;
 
     const stats = [
         {
             label: "Total Riwayat",
-            value: total,
+            value: totalItems,
             icon: History,
             iconClass: "bg-blue-50 text-blue-600 ring-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20",
             dotClass: "bg-blue-500",
@@ -23,7 +21,7 @@ export function HistoryStats({ history }: HistoryStatsProps) {
         },
         {
             label: "Berhasil",
-            value: success,
+            value: totalSuccess,
             icon: CheckCircle,
             iconClass: "bg-green-50 text-green-600 ring-green-200/60 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20",
             dotClass: "bg-green-500",
@@ -31,11 +29,11 @@ export function HistoryStats({ history }: HistoryStatsProps) {
         },
         {
             label: "Gagal",
-            value: failed,
+            value: totalFailed,
             icon: XCircle,
             iconClass: "bg-red-50 text-red-600 ring-red-200/60 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20",
             dotClass: "bg-red-500",
-            footer: failed > 0 ? "Perlu ditinjau" : "Tidak ada kegagalan",
+            footer: totalFailed > 0 ? "Perlu ditinjau" : "Tidak ada kegagalan",
         },
     ];
 

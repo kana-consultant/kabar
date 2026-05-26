@@ -12,6 +12,11 @@ export function useHistoryState() {
     const [selectedHistory, setSelectedHistory] = useState<HistoryItem | null>(null);
     const [showDetailDialog, setShowDetailDialog] = useState<boolean>(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalSuccess, setTotalSuccess] = useState(0)
+    const [totalFailed, setTotalFailed] = useState(0)
 
     return {
         history, setHistory,
@@ -23,5 +28,10 @@ export function useHistoryState() {
         selectedHistory, setSelectedHistory,
         showDetailDialog, setShowDetailDialog,
         showDeleteDialog, setShowDeleteDialog,
+        currentPage, setCurrentPage,
+        totalPages, setTotalPages,
+        totalItems, setTotalItems,
+        totalSuccess, setTotalSuccess,
+        totalFailed, setTotalFailed,
     };
 }

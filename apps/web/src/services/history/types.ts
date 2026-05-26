@@ -15,3 +15,21 @@ export interface HistoryItem {
     createdAt: string;
     keywords : string[];
 }
+
+// services/types.ts
+export interface PaginationParams {
+    limit?: number;
+    offset?: number;
+}
+
+
+export interface PaginatedResponse<T> {
+    data: T[];
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+    total_success: number;
+    total_failed: number;
+    limit: number;
+    offset: number;
+}

@@ -10,6 +10,7 @@ import (
 
 	app "seo-backend/internal/application/history"
 	"seo-backend/internal/domain/history"
+	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
 	auth "seo-backend/internal/presentation/middleware"
@@ -86,21 +87,6 @@ func (h *HistoryHandler) parseFilters(r *http.Request) history.HistoryFilter {
 		Topic:   r.URL.Query().Get("topic"),
 		Search:  r.URL.Query().Get("search"),
 		OrderBy: r.URL.Query().Get("orderBy"),
-	}
-
-	// Parse pagination
-	if limit := r.URL.Query().Get("limit"); limit != "" {
-		if l, err := strconv.Atoi(limit); err == nil && l > 0 {
-			filters.Limit = l
-		}
-	} else {
-		filters.Limit = 20 // default limit
-	}
-
-	if offset := r.URL.Query().Get("offset"); offset != "" {
-		if o, err := strconv.Atoi(offset); err == nil && o >= 0 {
-			filters.Offset = o
-		}
 	}
 
 	// Parse date filters
@@ -205,12 +191,19 @@ func (h *HistoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Router /history [get]
 func (h *HistoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	filters := h.parseFilters(r)
+	var paginate paginate.PaginationParams
+	paginate = helper.ParsePaginationParams(r)
+
+	filters.Limit = paginate.Limit
+	filters.Offset = paginate.Offset
 
 	user := helper.GetUserContext(r)
+	// Use filters to get history
+
 	log.Printf("FILTER DEBUG: %+v\n", filters)
 	log.Printf("USER DEBUG: %+v\n", user)
-	// Use filters to get history
-	records, _, err := h.service.GetWithFilters(r.Context(), filters, user)
+
+	records, err := h.service.GetAll(r.Context(), &user, filters)
 	if err != nil {
 		log.Printf("Failed to get history: %v", err)
 		h.handleServiceError(w, err)

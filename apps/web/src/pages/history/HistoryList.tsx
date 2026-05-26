@@ -1,5 +1,5 @@
 import { HistoryItem } from "./HistoryItem";
-import { History } from "lucide-react";
+import { History, ChevronLeft, ChevronRight } from "lucide-react";
 import type { HistoryItem as HistoryItemType } from "@/services/history";
 import { cn } from "@/lib/utils";
 
@@ -11,11 +11,16 @@ interface HistoryListProps {
     formatDate: (date: string) => string;
     getStatusData: (status: string) => { label: string; icon: string; color: string };
     getActionData: (action: string) => { label: string; icon: string };
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    onPageChange: (page: number) => void;
 }
 
 export function HistoryList({
     items, onView, onRepost, onDelete,
     formatDate, getStatusData, getActionData,
+    currentPage, totalPages, totalItems, onPageChange,
 }: HistoryListProps) {
 
     if (items.length === 0) {
@@ -66,7 +71,7 @@ export function HistoryList({
                         "bg-green-100 text-green-700",
                         "dark:bg-purple-500/15 dark:text-purple-300"
                     )}>
-                        {items.length}
+                        {totalItems}
                     </span>
                 </div>
             </div>
@@ -86,6 +91,47 @@ export function HistoryList({
                     />
                 ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 0 && (
+                <div className={cn(
+                    "flex items-center justify-between px-5 py-3 border-t",
+                    "border-slate-100 bg-slate-50/60",
+                    "dark:border-white/[0.05] dark:bg-white/[0.02]"
+                )}>
+                    <p className="text-xs text-slate-400 dark:text-slate-600">
+                        Halaman {currentPage} dari {totalPages}
+                    </p>
+
+                    <div className="flex items-center gap-1">
+                        <button
+                            disabled={currentPage <= 1}
+                            onClick={() => onPageChange(currentPage - 1)}
+                            className={cn(
+                                "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                                "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+                                "dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200",
+                                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            )}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </button>
+
+                        <button
+                            disabled={currentPage >= totalPages}
+                            onClick={() => onPageChange(currentPage + 1)}
+                            className={cn(
+                                "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                                "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+                                "dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200",
+                                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            )}
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
