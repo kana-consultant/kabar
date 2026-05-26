@@ -1,10 +1,9 @@
 import { Calendar, Clock, RefreshCw } from "lucide-react";
-import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";
 
 interface ScheduleStatsProps {
-    schedules: Draft[];
-    isDailySchedule: (scheduledFor?: string) => boolean;
+    totalItems: number;
+    isDailySchedule?: never; // akan dipakai nanti
 }
 
 const stats = [
@@ -34,12 +33,13 @@ const stats = [
     },
 ] as const;
 
-export function ScheduleStats({ schedules, isDailySchedule }: ScheduleStatsProps) {
-    const total = schedules.length;
-    const oneTime = schedules.filter(s => !isDailySchedule(s.scheduled_for)).length;
-    const daily = schedules.filter(s => isDailySchedule(s.scheduled_for)).length;
-
-    const values = { total, oneTime, daily };
+export function ScheduleStats({ totalItems }: ScheduleStatsProps) {
+    // TODO: ganti dengan data dari backend
+    const values = {
+        total: totalItems,
+        oneTime: 0,
+        daily: 0,
+    };
 
     return (
         <div className="grid gap-3 md:grid-cols-3">
@@ -52,7 +52,6 @@ export function ScheduleStats({ schedules, isDailySchedule }: ScheduleStatsProps
                         "dark:bg-[#0f0d1a] dark:border-white/[0.06] dark:hover:border-white/[0.10]"
                     )}
                 >
-                    {/* Top row */}
                     <div className="flex items-start justify-between">
                         <span className="text-xs font-medium text-slate-400 dark:text-slate-500 tracking-wide">
                             {label}
@@ -65,12 +64,10 @@ export function ScheduleStats({ schedules, isDailySchedule }: ScheduleStatsProps
                         </div>
                     </div>
 
-                    {/* Number */}
                     <span className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white tabular-nums">
                         {values[key]}
                     </span>
 
-                    {/* Footer */}
                     <div className="flex items-center gap-1.5">
                         <span className={cn("h-1.5 w-1.5 rounded-full", dotClass)} />
                         <span className="text-[11px] text-slate-400 dark:text-slate-600">

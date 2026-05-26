@@ -1,10 +1,54 @@
 import { apiClient } from '../api';
 import type { Draft } from './types';
 
-// Get all drafts
-export async function getDrafts(params?: { status?: string; search?: string }): Promise<Draft[]> {
+export interface DraftStats {
+    total_draft: number;
+    total_with_image: number;
+    total_without_image: number;
+    total_scheduled: number;
+    product_coverage: Record<string, number>;
+    daily_activity: {
+        date: string;
+        count: number;
+    }[];
+}
+
+interface PaginationParams {
+    page?: number;
+    limit?: number;
+    offset?: number;
+    status?: string;
+    search?: string;
+}
+
+export interface PaginatedResponse<T> {
+    data: T[];
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+    limit: number;
+    offset: number;
+}
+
+export interface GetDraftsResponse {
+    drafts: PaginatedResponse<Draft>;
+    stats: DraftStats;
+}
+
+function buildPaginationParams(params: PaginationParams): { limit: number; offset: number } {
+    const limit = params.limit ?? 10;
+    const offset = params.offset ?? ((params.page ?? 1) - 1) * limit;
+    return { limit, offset };
+}
+
+export async function getDrafts(params?: PaginationParams): Promise<GetDraftsResponse> {
     try {
-        const response = await apiClient.get<Draft[]>('/drafts', params);
+        const { limit, offset } = buildPaginationParams(params ?? {});
+        const response = await apiClient.get<GetDraftsResponse>('/drafts', {
+            ...params,
+            limit,
+            offset,
+        });
         return response;
     } catch (error) {
         console.error('Failed to get drafts:', error);
@@ -12,17 +56,21 @@ export async function getDrafts(params?: { status?: string; search?: string }): 
     }
 }
 
-export async function getScheduled(params?: { status?: string; search?: string }): Promise<Draft[]> {
+export async function getScheduled(params?: PaginationParams): Promise<PaginatedResponse<Draft>> {
     try {
-        const response = await apiClient.get<Draft[]>('/drafts/scheduled', params);
+        const { limit, offset } = buildPaginationParams(params ?? {});
+        const response = await apiClient.get<PaginatedResponse<Draft>>('/drafts/scheduled', {
+            ...params,
+            limit,
+            offset,
+        });
         return response;
     } catch (error) {
-        console.error('Failed to get drafts:', error);
+        console.error('Failed to get scheduled drafts:', error);
         throw error;
     }
 }
 
-// Get draft by ID
 export async function getDraftById(id: string): Promise<Draft | null> {
     try {
         const response = await apiClient.get<Draft>(`/drafts/${id}`);

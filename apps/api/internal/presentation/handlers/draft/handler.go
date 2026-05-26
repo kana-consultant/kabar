@@ -31,23 +31,34 @@ func NewDraftHandler(draftService draft.Service) *DraftHandler {
 func (h *DraftHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	usrCtx := helper.GetUserContext(r)
+	teamID := usrCtx.GetTeamID()
 
-	draftData, err := h.draftService.GetAll(ctx, usrCtx.GetTeamID())
-
+	draftData, err := h.draftService.GetAll(ctx, teamID, helper.ParsePaginationParams(r))
 	if err != nil {
 		http.Error(w, "Draft not found", http.StatusNotFound)
 		return
 	}
 
+	stats, err := h.draftService.GetDashboardStats(ctx, teamID)
+	if err != nil {
+		http.Error(w, "Failed to get dashboard stats", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]any{
+		"drafts": draftData,
+		"stats":  stats,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(draftData)
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *DraftHandler) GetAllScheduled(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	usrCtx := helper.GetUserContext(r)
 
-	draftData, err := h.draftService.GetAllScheduled(ctx, usrCtx.GetTeamID())
+	draftData, err := h.draftService.GetAllScheduled(ctx, usrCtx.GetTeamID(), helper.ParsePaginationParams(r))
 
 	if err != nil {
 		http.Error(w, "Draft not found", http.StatusNotFound)
@@ -381,9 +392,9 @@ func (h *DraftHandler) CheckSimilarity(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	teamID := auth.GetTeamID(r.Context())
 
-	results, err := h.draftService.CheckSimilarity(r.Context(), id, teamID)
+	results, err := h.draftService.GetAll(r.Context(), teamID, helper.ParsePaginationParams(r))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Draft not found", http.StatusNotFound)
 		return
 	}
 
@@ -391,7 +402,7 @@ func (h *DraftHandler) CheckSimilarity(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"draft_id":       id,
 		"similar_drafts": results,
-		"total":          len(results),
+		"total":          len(results.Data),
 	})
 }
 

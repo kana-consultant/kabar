@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 
 	"seo-backend/internal/domain/draft"
+	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/helper/keywords"
 
@@ -106,30 +108,53 @@ func (r *RepositoryImpl) GetByID(
 	return &d, nil
 }
 
-func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string) (*[]draft.Draft, error) {
-	var drafts []draft.Draft
+func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
+	// Set default limit
+	if params.Limit <= 0 {
+		params.Limit = 10
+	}
 
+	// Hitung total items dulu
+	var totalItems int
+	countQuery := `
+        SELECT COUNT(*) 
+        FROM drafts
+        WHERE team_id = $1 AND status != 'scheduled'
+    `
+	if err := r.db.QueryRowContext(ctx, countQuery, teamID).Scan(&totalItems); err != nil {
+		return nil, err
+	}
+
+	// Hitung total pages
+	totalPages := int(math.Ceil(float64(totalItems) / float64(params.Limit)))
+	currentPage := (params.Offset / params.Limit) + 1
+
+	// Query dengan LIMIT & OFFSET
 	query := `
-		SELECT 
-			id,
-			title, 
-			topic, 
-			article, 
-			target_products, 
-			team_id,
-			image_url,
-			status,
-			COALESCE(image_prompt, '')
-		FROM drafts
-		WHERE team_id = $1 AND status != 'scheduled'
-	`
+        SELECT 
+            id,
+            title, 
+            topic, 
+            article, 
+            target_products, 
+            team_id,
+            image_url,
+            status,
+            COALESCE(image_prompt, '')
+        FROM drafts
+        WHERE team_id = $1 AND status != 'scheduled'
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
+    `
 
-	rows, err := r.db.QueryContext(ctx, query, teamID)
+	rows, err := r.db.QueryContext(ctx, query, teamID, params.Limit, params.Offset)
 	if err != nil {
-		log.Printf("===================,%v", err)
+		log.Printf("query error: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
+
+	var drafts []draft.Draft
 
 	for rows.Next() {
 		var d draft.Draft
@@ -162,13 +187,135 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string) (*[]draft.Dr
 		return nil, err
 	}
 
-	log.Printf("drafts: %+v", drafts)
-
-	return &drafts, nil
+	return &paginate.PaginatedResult[draft.Draft]{
+		Data:        drafts,
+		TotalItems:  totalItems,
+		TotalPages:  totalPages,
+		CurrentPage: currentPage,
+		Limit:       params.Limit,
+		Offset:      params.Offset,
+	}, nil
 }
 
-func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, teamID string) (*[]draft.Draft, error) {
-	var drafts []draft.Draft
+func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (*draft.DraftStats, error) {
+	stats := &draft.DraftStats{
+		ProductCoverage: make(map[string]int),
+	}
+
+	// 1. Total draft, with/without image, scheduled
+	summaryQuery := `
+		SELECT
+			COUNT(*)                                        AS total_draft,
+			COUNT(*) FILTER (WHERE has_image = true)        AS total_with_image,
+			COUNT(*) FILTER (WHERE has_image = false)       AS total_without_image,
+			COUNT(*) FILTER (WHERE status = 'scheduled')    AS total_scheduled
+		FROM drafts
+		WHERE team_id = $1
+	`
+	if err := r.db.QueryRowContext(ctx, summaryQuery, teamID).Scan(
+		&stats.TotalDraft,
+		&stats.TotalWithImage,
+		&stats.TotalWithoutImage,
+		&stats.TotalScheduled,
+	); err != nil {
+		log.Printf("[DashboardStats] failed to scan summary stats | teamID=%s | err=%v", teamID, err)
+		return nil, fmt.Errorf("failed to get summary stats: %w", err)
+	}
+	log.Printf("[DashboardStats] summary | teamID=%s | total=%d with_image=%d without_image=%d scheduled=%d",
+		teamID, stats.TotalDraft, stats.TotalWithImage, stats.TotalWithoutImage, stats.TotalScheduled)
+
+	// 2. Product coverage
+	productQuery := `
+		SELECT p.name, COUNT(*) AS count
+		FROM (
+			SELECT id, target_products
+			FROM drafts
+			WHERE team_id = $1
+			AND target_products IS NOT NULL
+			AND jsonb_typeof(target_products) = 'array'
+		) filtered_drafts,
+		jsonb_array_elements_text(filtered_drafts.target_products) AS product_id
+		JOIN products p ON p.id = product_id::uuid
+		WHERE p.team_id = $1
+		GROUP BY p.id, p.name
+		ORDER BY count DESC
+	`
+
+	productRows, err := r.db.QueryContext(ctx, productQuery, teamID)
+	if err != nil {
+		log.Printf("[DashboardStats] failed to query product coverage | teamID=%s | err=%v", teamID, err)
+		return nil, fmt.Errorf("failed to get product coverage: %w", err)
+	}
+	defer productRows.Close()
+
+	for productRows.Next() {
+		var product string
+		var count int
+		if err := productRows.Scan(&product, &count); err != nil {
+			log.Printf("[DashboardStats] failed to scan product coverage | teamID=%s | err=%v", teamID, err)
+			return nil, fmt.Errorf("failed to scan product coverage: %w", err)
+		}
+		stats.ProductCoverage[product] = count
+	}
+	if err := productRows.Err(); err != nil {
+		log.Printf("[DashboardStats] product rows iteration error | teamID=%s | err=%v", teamID, err)
+		return nil, err
+	}
+	log.Printf("[DashboardStats] product coverage | teamID=%s | total_products=%d", teamID, len(stats.ProductCoverage))
+
+	// 3. Daily activity — 30 hari terakhir
+	activityQuery := `
+		SELECT
+			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
+			COUNT(*) AS count
+		FROM drafts
+		WHERE team_id = $1
+			AND created_at >= NOW() - INTERVAL '30 days'
+		GROUP BY date
+		ORDER BY date ASC
+	`
+	activityRows, err := r.db.QueryContext(ctx, activityQuery, teamID)
+	if err != nil {
+		log.Printf("[DashboardStats] failed to query daily activity | teamID=%s | err=%v", teamID, err)
+		return nil, fmt.Errorf("failed to get daily activity: %w", err)
+	}
+	defer activityRows.Close()
+
+	for activityRows.Next() {
+		var a draft.DailyActivity
+		if err := activityRows.Scan(&a.Date, &a.Count); err != nil {
+			log.Printf("[DashboardStats] failed to scan daily activity | teamID=%s | err=%v", teamID, err)
+			return nil, fmt.Errorf("failed to scan daily activity: %w", err)
+		}
+		stats.DailyActivity = append(stats.DailyActivity, a)
+	}
+	if err := activityRows.Err(); err != nil {
+		log.Printf("[DashboardStats] activity rows iteration error | teamID=%s | err=%v", teamID, err)
+		return nil, err
+	}
+	log.Printf("[DashboardStats] daily activity | teamID=%s | total_days=%d", teamID, len(stats.DailyActivity))
+
+	log.Printf("[DashboardStats] completed | teamID=%s", teamID)
+	return stats, nil
+}
+
+func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, teamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
+	if params.Limit <= 0 {
+		params.Limit = 10
+	}
+
+	var totalItems int
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM drafts
+		WHERE team_id = $1 AND status = 'scheduled'
+	`
+	if err := r.db.QueryRowContext(ctx, countQuery, teamID).Scan(&totalItems); err != nil {
+		return nil, err
+	}
+
+	totalPages := int(math.Ceil(float64(totalItems) / float64(params.Limit)))
+	currentPage := (params.Offset / params.Limit) + 1
 
 	query := `
 		SELECT 
@@ -178,20 +325,24 @@ func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, teamID string) (*[
 			article, 
 			target_products, 
 			team_id,
+			image_url,
 			status,
 			COALESCE(image_prompt, ''),
 			scheduled_for
 		FROM drafts
-		WHERE team_id = $1 
-		AND status = 'scheduled'
+		WHERE team_id = $1 AND status = 'scheduled'
+		ORDER BY scheduled_for ASC
+		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, teamID)
+	rows, err := r.db.QueryContext(ctx, query, teamID, params.Limit, params.Offset)
 	if err != nil {
 		log.Printf("query error: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
+
+	var drafts []draft.Draft
 
 	for rows.Next() {
 		var d draft.Draft
@@ -204,6 +355,7 @@ func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, teamID string) (*[
 			&d.Article,
 			&targetProductsJSON,
 			&d.TeamID,
+			&d.ImageURL,
 			&d.Status,
 			&d.ImagePrompt,
 			&d.ScheduledFor,
@@ -224,7 +376,14 @@ func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, teamID string) (*[
 		return nil, err
 	}
 
-	return &drafts, nil
+	return &paginate.PaginatedResult[draft.Draft]{
+		Data:        drafts,
+		TotalItems:  totalItems,
+		TotalPages:  totalPages,
+		CurrentPage: currentPage,
+		Limit:       params.Limit,
+		Offset:      params.Offset,
+	}, nil
 }
 
 func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftRequest, userID, teamID string) (string, error) {

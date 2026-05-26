@@ -10,9 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function History() {
     const navigate = useNavigate();
-    const toast = useToast()
+    const toast = useToast();
     const {
-        history,
         filteredHistory,
         searchQuery,
         setSearchQuery,
@@ -32,6 +31,12 @@ export default function History() {
         formatDate,
         getStatusData,
         getActionData,
+        currentPage,
+        totalPages,
+        totalItems,
+        handlePageChange,
+        totalSuccess,
+        totalFailed,
     } = useHistory();
 
     const handleRepost = (item: any) => {
@@ -57,7 +62,11 @@ export default function History() {
                 onClearAll={handleClearAll}
             />
 
-            <HistoryStats history={history} />
+            <HistoryStats
+                totalItems={totalItems}
+                totalSuccess={totalSuccess}
+                totalFailed={totalFailed}
+            />
 
             <HistoryList
                 items={filteredHistory}
@@ -73,6 +82,10 @@ export default function History() {
                 formatDate={formatDate}
                 getStatusData={getStatusData}
                 getActionData={getActionData}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                onPageChange={handlePageChange}  // ✅ pass ke HistoryList
             />
 
             <ViewHistoryDialog
