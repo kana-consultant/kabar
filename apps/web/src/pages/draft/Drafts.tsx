@@ -12,13 +12,10 @@ import { type Draft } from "@/services/draft";
 export default function Drafts() {
     const navigate = useNavigate();
     const {
-        drafts,
         filteredDrafts,
         searchQuery,
         setSearchQuery,
         loading,
-        statusFilter,
-        setStatusFilter,
         selectedDraft,
         showScheduleDialog,
         showDeleteDialog,
@@ -42,7 +39,6 @@ export default function Drafts() {
         totalPages,
         totalItems,
         loadDrafts,
-        stats,
     } = useDrafts();
 
     const handleEdit = (draft: Draft) => {
@@ -55,20 +51,11 @@ export default function Drafts() {
 
     return (
         <div className="space-y-6">
-            <DraftStats
-                totalDraft={stats?.total_draft ?? 0}
-                totalWithImage={stats?.total_with_image ?? 0}
-                totalWithoutImage={stats?.total_without_image ?? 0}
-                totalScheduled={stats?.total_scheduled ?? 0}
-                productCoverage={stats?.product_coverage ?? {}}
-                dailyActivity={stats?.daily_activity ?? []}
-            />
-
+            
             <DraftsHeader
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                statusFilter={statusFilter}
-                setStatusFilter={setStatusFilter}
+               
             />
 
             <DraftList

@@ -4,6 +4,17 @@ import { getDrafts } from "@/services/draft";
 import type { Draft, DraftStats } from "@/services/draft";
 import type { StatusFilter } from "./types";
 
+function useDebounce<T>(value: T, delay: number): T {
+    const [debounced, setDebounced] = useState(value);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+
+    return debounced;
+}
+
 export function useDraftsData() {
     const toast = useToast();
     const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -16,13 +27,15 @@ export function useDraftsData() {
     const [totalItems, setTotalItems] = useState(0);
     const LIMIT = 5;
 
+    const debouncedSearch = useDebounce(searchQuery, 1000);
+
     const loadDrafts = useCallback(async (page: number = 1) => {
         setLoading(true);
         try {
             const response = await getDrafts({
                 offset: (page - 1) * LIMIT,
                 limit: LIMIT,
-                search: searchQuery || undefined,
+                search: debouncedSearch || undefined, // ✅ pakai debouncedSearch
                 status: statusFilter !== "all" ? statusFilter : undefined,
             });
 
@@ -37,12 +50,13 @@ export function useDraftsData() {
         } finally {
             setLoading(false);
         }
-    }, [searchQuery, statusFilter]);
+    }, [debouncedSearch, statusFilter]); 
 
+    // ✅ Trigger reset & fetch hanya setelah debounce selesai
     useEffect(() => {
         setCurrentPage(1);
         loadDrafts(1);
-    }, [searchQuery, statusFilter]);
+    }, [debouncedSearch, statusFilter]);
 
     useEffect(() => {
         if (currentPage === 1) return;
@@ -55,10 +69,10 @@ export function useDraftsData() {
         stats,
         loading,
         searchQuery,
-        setSearchQuery,
+        setSearchQuery, // tetap update searchQuery langsung untuk value input
         statusFilter,
         setStatusFilter,
-        loadDrafts: (page : number) => loadDrafts(page),
+        loadDrafts: (page: number) => loadDrafts(page),
         currentPage,
         setCurrentPage,
         totalPages,

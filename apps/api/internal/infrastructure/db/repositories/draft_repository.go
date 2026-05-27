@@ -16,15 +16,20 @@ import (
 	"seo-backend/internal/helper"
 	"seo-backend/internal/helper/keywords"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
 
 type RepositoryImpl struct {
-	db *sql.DB
+	db          *sql.DB
+	redisClient *redis.Client
 }
 
-func NewDraftRepository(db *sql.DB) draft.Repository {
-	return &RepositoryImpl{db: db}
+func NewDraftRepository(db *sql.DB, redisClient *redis.Client) draft.Repository {
+	return &RepositoryImpl{
+		db:          db,
+		redisClient: redisClient,
+	}
 }
 
 func (r *RepositoryImpl) GetByID(
@@ -109,28 +114,50 @@ func (r *RepositoryImpl) GetByID(
 }
 
 func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
-	// Set default limit
 	if params.Limit <= 0 {
 		params.Limit = 10
 	}
 
-	// Hitung total items dulu
+	// Cache key berdasarkan semua parameter
+	cacheKey := fmt.Sprintf("draft_list:%s:limit=%d:offset=%d:search=%s", teamID, params.Limit, params.Offset, params.Search)
+
+	// Cek Redis cache
+	cached, err := r.redisClient.Get(ctx, cacheKey).Bytes()
+	if err == nil {
+		var result paginate.PaginatedResult[draft.Draft]
+		if err := json.Unmarshal(cached, &result); err == nil {
+			log.Printf("[GetAll] cache hit | teamID=%s | key=%s", teamID, cacheKey)
+			return &result, nil
+		}
+	}
+
+	log.Printf("[GetAll] cache miss | teamID=%s | key=%s", teamID, cacheKey)
+
+	// Build dynamic WHERE clause
+	args := []any{teamID}
+	searchClause := ""
+	if params.Search != "" {
+		args = append(args, "%"+params.Search+"%")
+		searchClause = fmt.Sprintf(" AND (title ILIKE $%d OR topic ILIKE $%d)", len(args), len(args))
+	}
+
+	// Count query
 	var totalItems int
-	countQuery := `
+	countQuery := fmt.Sprintf(`
         SELECT COUNT(*) 
         FROM drafts
-        WHERE team_id = $1 AND status != 'scheduled'
-    `
-	if err := r.db.QueryRowContext(ctx, countQuery, teamID).Scan(&totalItems); err != nil {
+        WHERE team_id = $1 AND status != 'scheduled'%s
+    `, searchClause)
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalItems); err != nil {
 		return nil, err
 	}
 
-	// Hitung total pages
 	totalPages := int(math.Ceil(float64(totalItems) / float64(params.Limit)))
 	currentPage := (params.Offset / params.Limit) + 1
 
-	// Query dengan LIMIT & OFFSET
-	query := `
+	// Append LIMIT & OFFSET
+	args = append(args, params.Limit, params.Offset)
+	query := fmt.Sprintf(`
         SELECT 
             id,
             title, 
@@ -142,14 +169,14 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params pagin
             status,
             COALESCE(image_prompt, '')
         FROM drafts
-        WHERE team_id = $1 AND status != 'scheduled'
+        WHERE team_id = $1 AND status != 'scheduled'%s
         ORDER BY created_at DESC
-        LIMIT $2 OFFSET $3
-    `
+        LIMIT $%d OFFSET $%d
+    `, searchClause, len(args)-1, len(args))
 
-	rows, err := r.db.QueryContext(ctx, query, teamID, params.Limit, params.Offset)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		log.Printf("query error: %v", err)
+		log.Printf("[GetAll] query error | teamID=%s | err=%v", teamID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -172,7 +199,7 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params pagin
 			&d.ImagePrompt,
 		)
 		if err != nil {
-			log.Printf("scan error: %v", err)
+			log.Printf("[GetAll] scan error | teamID=%s | err=%v", teamID, err)
 			return nil, err
 		}
 
@@ -187,22 +214,50 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params pagin
 		return nil, err
 	}
 
-	return &paginate.PaginatedResult[draft.Draft]{
+	result := &paginate.PaginatedResult[draft.Draft]{
 		Data:        drafts,
 		TotalItems:  totalItems,
 		TotalPages:  totalPages,
 		CurrentPage: currentPage,
 		Limit:       params.Limit,
 		Offset:      params.Offset,
-	}, nil
+	}
+
+	// Simpan ke Redis, TTL 2 menit
+	resultBytes, err := json.Marshal(result)
+	if err != nil {
+		log.Printf("[GetAll] failed to marshal result | teamID=%s | err=%v", teamID, err)
+	} else {
+		if err := r.redisClient.Set(ctx, cacheKey, resultBytes, 2*time.Minute).Err(); err != nil {
+			log.Printf("[GetAll] failed to set cache | teamID=%s | err=%v", teamID, err)
+		} else {
+			log.Printf("[GetAll] cache saved | teamID=%s | key=%s | ttl=2m", teamID, cacheKey)
+		}
+	}
+
+	return result, nil
 }
 
 func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (*draft.DraftStats, error) {
+	cacheKey := fmt.Sprintf("dashboard_stats:%s", teamID)
+
+	// 1. Cek Redis cache dulu
+	cached, err := r.redisClient.Get(ctx, cacheKey).Bytes()
+	if err == nil {
+		var stats draft.DraftStats
+		if err := json.Unmarshal(cached, &stats); err == nil {
+			log.Printf("[DashboardStats] cache hit | teamID=%s", teamID)
+			return &stats, nil
+		}
+	}
+
+	log.Printf("[DashboardStats] cache miss | teamID=%s", teamID)
+
 	stats := &draft.DraftStats{
 		ProductCoverage: make(map[string]int),
 	}
 
-	// 1. Total draft, with/without image, scheduled
+	// 2. Total draft, with/without image, scheduled
 	summaryQuery := `
 		SELECT
 			COUNT(*)                                        AS total_draft,
@@ -224,7 +279,7 @@ func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (
 	log.Printf("[DashboardStats] summary | teamID=%s | total=%d with_image=%d without_image=%d scheduled=%d",
 		teamID, stats.TotalDraft, stats.TotalWithImage, stats.TotalWithoutImage, stats.TotalScheduled)
 
-	// 2. Product coverage
+	// 3. Product coverage
 	productQuery := `
 		SELECT p.name, COUNT(*) AS count
 		FROM (
@@ -240,7 +295,6 @@ func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (
 		GROUP BY p.id, p.name
 		ORDER BY count DESC
 	`
-
 	productRows, err := r.db.QueryContext(ctx, productQuery, teamID)
 	if err != nil {
 		log.Printf("[DashboardStats] failed to query product coverage | teamID=%s | err=%v", teamID, err)
@@ -263,7 +317,7 @@ func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (
 	}
 	log.Printf("[DashboardStats] product coverage | teamID=%s | total_products=%d", teamID, len(stats.ProductCoverage))
 
-	// 3. Daily activity — 30 hari terakhir
+	// 4. Daily activity — 30 hari terakhir
 	activityQuery := `
 		SELECT
 			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
@@ -294,6 +348,18 @@ func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (
 		return nil, err
 	}
 	log.Printf("[DashboardStats] daily activity | teamID=%s | total_days=%d", teamID, len(stats.DailyActivity))
+
+	// 5. Simpan ke Redis cache, TTL 5 menit
+	statsBytes, err := json.Marshal(stats)
+	if err != nil {
+		log.Printf("[DashboardStats] failed to marshal stats for cache | teamID=%s | err=%v", teamID, err)
+	} else {
+		if err := r.redisClient.Set(ctx, cacheKey, statsBytes, 5*time.Minute).Err(); err != nil {
+			log.Printf("[DashboardStats] failed to set cache | teamID=%s | err=%v", teamID, err)
+		} else {
+			log.Printf("[DashboardStats] cache saved | teamID=%s | ttl=5m", teamID)
+		}
+	}
 
 	log.Printf("[DashboardStats] completed | teamID=%s", teamID)
 	return stats, nil
@@ -456,10 +522,15 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 		return "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	r.invalidateCache(ctx,
+		fmt.Sprintf("dashboard_stats:%s", teamID),
+		fmt.Sprintf("draft_list:%s", teamID),
+	)
+
 	return draftID, nil
 }
 
-func (r *RepositoryImpl) Update(ctx context.Context, id string, data map[string]interface{}) error {
+func (r *RepositoryImpl) Update(ctx context.Context, TeamID string, id string, data map[string]interface{}) error {
 	// Start transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -496,6 +567,11 @@ func (r *RepositoryImpl) Update(ctx context.Context, id string, data map[string]
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	r.invalidateCache(ctx,
+		fmt.Sprintf("dashboard_stats:%s", TeamID),
+		fmt.Sprintf("draft_list:%s", TeamID),
+	)
+
 	return nil
 }
 
@@ -517,6 +593,7 @@ func (r *RepositoryImpl) updateKeywords(ctx context.Context, tx *sql.Tx, draftID
 	default:
 		return fmt.Errorf("unsupported keywords type: %T", kw)
 	}
+
 }
 
 func (r *RepositoryImpl) UpdateStatus(ctx context.Context, id string, status string, scheduledFor *time.Time) error {
@@ -537,8 +614,12 @@ func (r *RepositoryImpl) UpdateStatus(ctx context.Context, id string, status str
 	return err
 }
 
-func (r *RepositoryImpl) Delete(ctx context.Context, id string) error {
+func (r *RepositoryImpl) Delete(ctx context.Context, TeamID string, id string) error {
 	_, err := r.db.ExecContext(ctx, "DELETE FROM drafts WHERE id = $1", id)
+	r.invalidateCache(ctx,
+		fmt.Sprintf("dashboard_stats:%s", TeamID),
+		fmt.Sprintf("draft_list:%s", TeamID),
+	)
 	return err
 }
 
@@ -632,4 +713,17 @@ func nullIfEmpty(id string) interface{} {
 		return nil
 	}
 	return id
+}
+
+func (r *RepositoryImpl) invalidateCache(ctx context.Context, keys ...string) {
+	if len(keys) == 0 {
+		return
+	}
+
+	if err := r.redisClient.Del(ctx, keys...).Err(); err != nil {
+		log.Printf("[Cache] failed to delete keys | keys=%v | err=%v", keys, err)
+		return
+	}
+
+	log.Printf("[Cache] keys deleted | keys=%v", keys)
 }

@@ -301,16 +301,6 @@ export function DraftStats({
 
     return (
         <div className="space-y-4">
-            {/* Header */}
-            <div>
-                <div className="space-y-1">
-                    <h2 className="text-2xl font-bold tracking-tight">  Dashboard Draft</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Ringkasan performa dan aktivitas konten
-                    </p>
-                </div>
-            </div>
-
             {/* Stat Cards */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {stats.map(({ label, value, icon: Icon, trend, trendUp, iconColor, dotColor, description }) => (
