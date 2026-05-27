@@ -48,7 +48,8 @@ func (r *RepositoryImpl) GetByID(
 		article, 
 		image_url, 
 		COALESCE(image_prompt, ''),
-		target_products 
+		target_products,
+		seo_score
 	FROM drafts 
 	WHERE id = $1
 	`
@@ -61,6 +62,7 @@ func (r *RepositoryImpl) GetByID(
 		&d.ImageURL,
 		&d.ImagePrompt,
 		&targetProductsJSON,
+		&d.SEOScore,
 	)
 
 	if err != nil {
@@ -167,6 +169,7 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params pagin
             team_id,
             image_url,
             status,
+			seo_score,
             COALESCE(image_prompt, '')
         FROM drafts
         WHERE team_id = $1 AND status != 'scheduled'%s
@@ -196,6 +199,7 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params pagin
 			&d.TeamID,
 			&d.ImageURL,
 			&d.Status,
+			&d.SeoScore,
 			&d.ImagePrompt,
 		)
 		if err != nil {
@@ -661,7 +665,7 @@ func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHis
 	query := `
 		INSERT INTO histories (
 			title, topic, content, image_url, target_products,
-			status, action, published_at, created_by, team_id, created_at
+			status, action, published_at, created_by, team_id, created_at,seo_score
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id
 	`
@@ -672,7 +676,7 @@ func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHis
 	err = tx.QueryRowContext(ctx, query,
 		req.Title, req.Topic, req.Article, req.ImageURL,
 		targetProductsJSON, status, action, now,
-		userID, teamID, now,
+		userID, teamID, now, req.SEOScore,
 	).Scan(&historyID)
 	if err != nil {
 		return fmt.Errorf("failed to insert history: %w", err)

@@ -28,7 +28,7 @@ type ArticleResult struct {
 	ImageURL         string   `json:"imageUrl"`
 	WordCount        int      `json:"wordCount"`
 	ReadabilityScore int      `json:"readabilityScore"`
-	SeoScore         int      `json:"seoScore"`
+	SeoScore         int      `json:"seo_score"`
 	Slug             string   `json:"slug"`
 }
 
