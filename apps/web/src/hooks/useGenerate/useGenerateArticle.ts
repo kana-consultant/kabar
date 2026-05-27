@@ -16,6 +16,7 @@ export async function generateArticleContent(
     setWordCount: (val: number | null) => void,
     setSlug: (val: string | null) => void,
     setKeywords: (val: string[]) => void,
+    setExcerpt : (val: string | null) => void,
     toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!topic) {
@@ -45,6 +46,7 @@ export async function generateArticleContent(
         setWordCount(response.wordCount);
         setSlug(response.slug);
         setKeywords(response.keywords);
+        setExcerpt(response.excerpt)
         console.log(response.slug);
 
         toast.success("Artikel berhasil di-generate!", { //   Ganti toast.success dengan toast.success

@@ -44,11 +44,11 @@ export default function Drafts() {
         checkSimilarity,
         getSeoScore,
         seoDialog, setSeoDialog,
-        similarityData, setSimilarityData,
+        similarityData,
         similarityDialog, setSimilarityDialog,
-        seoLoading, setSeoLoading,
-        similarityLoading, setSimilarityLoading,
-        seoData, setSeoData,
+        seoLoading,
+        similarityLoading,
+        seoData,
     } = useDrafts();
 
     const handleEdit = (draft: Draft) => {

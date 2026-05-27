@@ -13,6 +13,7 @@ type CreateDraftRequest struct {
 	Slug           string   `json:"slug"`
 	Keywords       []string `json:"keywords"`
 	SEOScore       int      `json:"seo_score"`
+	Excerpt        string   `json:"excerpt"`
 }
 
 type DraftDataPost struct {
@@ -25,6 +26,7 @@ type DraftDataPost struct {
 	TargetProducts []string `json:"target_products"`
 	Slug           string   `json:"slug"`
 	Keywords       []string `json:"keywords"`
+	Excerpt        string   `json:"excerpt"`
 }
 
 type ScheduleRequest struct {

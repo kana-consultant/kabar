@@ -10,13 +10,9 @@ import (
 )
 
 func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
-	plainContent := stripHTML(draft.Article)
 
 	// Excerpt
-	excerpt := plainContent
-	if len(excerpt) > 160 {
-		excerpt = excerpt[:160] + "..."
-	}
+	excerpt := draft.Excerpt
 
 	// Image URL
 	imageURL := ""

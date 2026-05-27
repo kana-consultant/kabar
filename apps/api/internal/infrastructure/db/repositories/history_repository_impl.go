@@ -142,7 +142,7 @@ func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserConte
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at,seo_score
+			created_by, team_id, created_at
 		FROM histories
 		WHERE team_id = $1
 		ORDER BY created_at DESC
@@ -191,7 +191,7 @@ func (r *HistoryRepository) GetByTeamID(ctx context.Context, teamID string) ([]h
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at,seo_score
+			created_by, team_id, created_at
 		FROM histories WHERE team_id = $1
 		ORDER BY created_at DESC
 	`
@@ -248,7 +248,7 @@ func (r *HistoryRepository) GetRecentActivity(ctx context.Context, teamID string
 	query := `
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
-			created_by, team_id, created_at,seo_score
+			created_by, team_id, created_at
 		FROM histories 
 		WHERE team_id = $1
 		ORDER BY created_at DESC
@@ -471,7 +471,7 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 		err := rows.Scan(
 			&h.ID, &h.Title, &h.Topic, &h.Content, &h.ImageURL, &targetProductsJSON,
 			&h.Status, &h.Action, &errorMessage, &h.PublishedAt, &h.ScheduledFor,
-			&createdBy, &teamID, &h.CreatedAt, &h.SeoScore,
+			&createdBy, &teamID, &h.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan history: %w", err)

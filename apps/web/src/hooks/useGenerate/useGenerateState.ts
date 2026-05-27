@@ -3,6 +3,7 @@ import { useState } from "react";
 export function useGenerateState() {
     const [topic, setTopic] = useState("");
     const [article, setArticle] = useState("");
+    const [excerpt,setExcerpt] = useState<String | null>("");
     const [articleResponse, setArticleResponse] = useState<any>(null);
     const [imageUrl, setImageUrl] = useState("");
     const [loadingArticle, setLoadingArticle] = useState(false);
@@ -78,6 +79,7 @@ export function useGenerateState() {
         productsError, setProductsError,
         isPosting, setIsPosting,
         slug, setSlug,
-        tags, SetTags
+        tags, SetTags,
+        excerpt,setExcerpt
     };
 }

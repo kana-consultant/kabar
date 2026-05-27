@@ -52,7 +52,7 @@ export function useGenerateData(
     useEffect(() => {
         fetchProducts();
         loadModels();
-    }, [fetchProducts, loadModels]); //   Tambahkan dependencies
+    }, []); //   Tambahkan dependencies
 
     return { fetchProducts, loadModels };
 }

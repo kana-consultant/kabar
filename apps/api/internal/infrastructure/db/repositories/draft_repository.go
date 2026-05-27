@@ -31,7 +31,6 @@ func NewDraftRepository(db *sql.DB, redisClient *redis.Client) draft.Repository 
 		redisClient: redisClient,
 	}
 }
-
 func (r *RepositoryImpl) GetByID(
 	ctx context.Context,
 	id string,
@@ -40,6 +39,7 @@ func (r *RepositoryImpl) GetByID(
 	var d draft.DraftData
 	var targetProductsJSON []byte
 
+	// ✅ Fix: hapus trailing comma setelah target_products
 	query := `
 	SELECT 
 		id, 
@@ -72,44 +72,23 @@ func (r *RepositoryImpl) GetByID(
 
 	log.Printf("DRAFT DATA => %+v", d)
 
-	// Parse target_products JSON
 	if len(targetProductsJSON) > 0 {
-
-		if err := json.Unmarshal(
-			targetProductsJSON,
-			&d.TargetProducts,
-		); err != nil {
-
-			log.Printf(
-				"Error unmarshaling target_products: %v",
-				err,
-			)
+		if err := json.Unmarshal(targetProductsJSON, &d.TargetProducts); err != nil {
+			log.Printf("Error unmarshaling target_products: %v", err)
 		}
 	}
 
 	log.Printf("TARGET PRODUCTS => %+v", d.TargetProducts)
 
-	// Get keywords
 	keywords, err := keywords.GetKeywords(ctx, r.db, keywords.DraftSource{DraftID: id})
-
 	if err != nil {
-
-		log.Printf(
-			"Error getting keywords for draft %s: %v",
-			id,
-			err,
-		)
-
-		// fallback empty array
+		log.Printf("Error getting keywords for draft %s: %v", id, err)
 		d.Keywords = []string{}
-
 	} else {
-
 		d.Keywords = keywords
 	}
 
 	log.Printf("KEYWORDS => %+v", d.Keywords)
-
 	log.Printf("FINAL DRAFT RESPONSE => %+v", d)
 
 	return &d, nil
@@ -459,18 +438,17 @@ func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, teamID string, par
 func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftRequest, userID, teamID string) (string, error) {
 	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
 
-	// Start transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Insert draft
+	// ✅ Fix: hapus duplikat excerpt, sesuaikan jumlah kolom & placeholder ($1-$14)
 	query := `INSERT INTO drafts (
 		title, topic, article, image_url, image_prompt,
-		status, target_products, has_image, created_by, team_id, user_id, slug
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		status, target_products, has_image, created_by, team_id, user_id, slug, excerpt, seo_score
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	RETURNING id`
 
 	var draftID string
@@ -478,7 +456,7 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 		ctx,
 		query,
 		req.Title, req.Topic, req.Article, req.ImageURL, req.ImagePrompt,
-		"draft", targetProductsJSON, req.HasImage, nullIfEmpty(userID), nullIfEmpty(teamID), nullIfEmpty(userID), req.Slug,
+		"draft", targetProductsJSON, req.HasImage, nullIfEmpty(userID), nullIfEmpty(teamID), nullIfEmpty(userID), req.Slug, req.Excerpt, req.SEOScore,
 	).Scan(&draftID)
 
 	if err != nil {
@@ -486,21 +464,16 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 		return "", err
 	}
 
-	// Insert keywords with duplicate checking
 	if len(req.Keywords) > 0 {
-
 		log.Printf("RAW KEYWORDS => %+v", req.Keywords)
 
 		uniqueKeywords := keywords.UniqueStrings(req.Keywords)
-
 		log.Printf("UNIQUE KEYWORDS => %+v", uniqueKeywords)
 
 		var keywordEntities []draft.Keywords
-
 		now := time.Now()
 
 		for _, keyword := range uniqueKeywords {
-
 			keywordEntities = append(keywordEntities, draft.Keywords{
 				ID:        uuid.NewString(),
 				IDDraft:   draftID,
@@ -521,14 +494,13 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 		log.Println("INSERT KEYWORDS SUCCESS")
 	}
 
-	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		return "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	r.invalidateCache(ctx,
 		fmt.Sprintf("dashboard_stats:%s", teamID),
-		fmt.Sprintf("draft_list:%s", teamID),
+		fmt.Sprintf("draft_list:%s:limit=%d:offset=%d:search=", teamID, 5, 0),
 	)
 
 	return draftID, nil
@@ -666,7 +638,7 @@ func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHis
 		INSERT INTO histories (
 			title, topic, content, image_url, target_products,
 			status, action, published_at, created_by, team_id, created_at,seo_score
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id
 	`
 
@@ -685,6 +657,11 @@ func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHis
 	if err := keywords.UpdateKeywords(ctx, tx, keywords.HistorySource{HistoryID: historyID}, req.Keywords); err != nil {
 		return fmt.Errorf("failed to update keywords: %w", err)
 	}
+
+	r.invalidateCache(ctx,
+		fmt.Sprintf("dashboard_stats:%s", teamID),
+		fmt.Sprintf("draft_list:%s:limit=%d:offset=%d:search=", teamID, 5, 0),
+	)
 
 	return tx.Commit()
 }

@@ -40,6 +40,7 @@ type DraftData struct {
 	TargetProducts []string `json:"target_products"`
 	SEOScore       int      `json:"seo_score"`
 	Keywords       []string `json:"keywords,omitempty"` // Tambahkan ini
+	Excerpt        string   `json:"excerpt"`
 }
 
 type PublishResult struct {

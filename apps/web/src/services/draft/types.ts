@@ -30,6 +30,7 @@ export interface CreateDraftRequest {
     team_id?: string;
     slug : string;
     keywords : string[] | null
+    excerpt : string
 }
 
 export interface UpdateDraftRequest {
@@ -42,6 +43,7 @@ export interface UpdateDraftRequest {
     scheduled_for?: string;
     target_products?: string[];
     has_image?: boolean;
+    excerpt : string
 }
 
 export interface PublishResponse {
