@@ -16,9 +16,16 @@ export function useDrafts() {
         setStatusFilter,
         loadDrafts,
         currentPage, setCurrentPage,
-        totalPages, 
+        totalPages,
         totalItems,
-        stats
+        stats,
+        seoDialog, setSeoDialog,
+        similarityData, setSimilarityData,
+        similarityDialog, setSimilarityDialog,
+        seoLoading, setSeoLoading,
+        similarityLoading, setSimilarityLoading,
+        seoData, setSeoData,
+
     } = useDraftsData();
 
     // UI state
@@ -46,12 +53,15 @@ export function useDrafts() {
         handleDelete,
         handlePublishNow,
         handleSchedule,
+        handlecheckSimilarity,
+        handlegetSeoScore,
     } = useDraftsActions({
-        loadDrafts: ()=>loadDrafts(currentPage),
+        loadDrafts: () => loadDrafts(currentPage),
         setPublishingId,
         setPublishResults,
         setShowResultDialog,
         closeDialogs,
+
     });
 
     // Wrapper untuk delete dengan draft parameter
@@ -64,6 +74,29 @@ export function useDrafts() {
         }
     }, [selectedDraft, handleDelete, closeDialogs]);
 
+    const checkSimilarity = useCallback(async (draft: Draft) => {
+        setSimilarityDialog({ open: true, draft });
+        setSimilarityLoading(true);
+        setSimilarityData(null);
+        try {
+            const result = await handlecheckSimilarity(draft);
+            setSimilarityData(result?.similar_drafts || []);
+        } finally {
+            setSimilarityLoading(false);
+        }
+    }, [handlecheckSimilarity, setSimilarityDialog, setSimilarityLoading, setSimilarityData]);
+
+    const getSeoScore = useCallback(async (draft: Draft) => {
+        setSeoDialog({ open: true, draft });
+        setSeoLoading(true);
+        setSeoData(null);
+        try {
+            const result = await handlegetSeoScore(draft);
+            setSeoData(result);
+        } finally {
+            setSeoLoading(false);
+        }
+    }, [handlegetSeoScore, setSeoDialog, setSeoLoading, setSeoData]);
     // Wrapper untuk schedule
     const onSchedule = useCallback(async () => {
         if (selectedDraft) {
@@ -81,13 +114,13 @@ export function useDrafts() {
         drafts,
         filteredDrafts,
         loading,
-        
+
         // Filters
         searchQuery,
         setSearchQuery,
         statusFilter,
         setStatusFilter,
-        
+
         // UI State
         selectedDraft,
         showScheduleDialog,
@@ -96,7 +129,14 @@ export function useDrafts() {
         publishResults,
         publishingId,
         scheduleConfig,
-        
+        seoDialog, setSeoDialog,
+        similarityData, setSimilarityData,
+        similarityDialog, setSimilarityDialog,
+        seoLoading, setSeoLoading,
+        similarityLoading, setSimilarityLoading,
+        seoData, setSeoData,
+
+
         // Schedule config getters/setters (convenience)
         scheduleDate: scheduleConfig.date,
         setScheduleDate: (date: string) => setScheduleConfig({ date }),
@@ -106,7 +146,7 @@ export function useDrafts() {
         setDailySchedule: (dailySchedule: boolean) => setScheduleConfig({ dailySchedule }),
         dailyTime: scheduleConfig.dailyTime,
         setDailyTime: (dailyTime: string) => setScheduleConfig({ dailyTime }),
-        
+
         // Actions
         loadDrafts,
         handleDelete: onDelete,
@@ -118,9 +158,11 @@ export function useDrafts() {
         formatDate,
         setSelectedDraft,
         currentPage, setCurrentPage,
-        totalPages, 
+        totalPages,
         totalItems,
-        stats
+        stats,
+        checkSimilarity,
+        getSeoScore
     };
 }
 

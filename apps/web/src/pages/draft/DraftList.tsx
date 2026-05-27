@@ -17,12 +17,15 @@ interface DraftListProps {
     totalPages: number;
     totalItems: number;
     onPageChange: (page: number) => void;
+    checkSimilarity: (draft: Draft) => void;
+    getSeoScore: (draft: Draft) => void;
 }
 
 export function DraftList({
     drafts, onView, onEdit, onSchedule,
     onPublishNow, onDelete, formatDate,
     currentPage, totalPages, totalItems, onPageChange,
+    checkSimilarity, getSeoScore,
 }: DraftListProps) {
     const navigate = useNavigate();
 
@@ -116,6 +119,8 @@ export function DraftList({
                         onPublishNow={onPublishNow}
                         onDelete={onDelete}
                         formatDate={formatDate}
+                        checkSimilarity={checkSimilarity}
+                        getSeoScore={getSeoScore}
                     />
                 ))}
             </div>

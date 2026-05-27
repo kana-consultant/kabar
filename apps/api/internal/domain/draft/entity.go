@@ -16,6 +16,7 @@ type Draft struct {
 	HasImage       bool       `json:"has_image"`
 	TeamID         *string    `json:"team_id"`
 	UserID         *string    `json:"user_id"`
+	SeoScore       int        `json:"seo_score"`
 	CreatedBy      *string    `json:"created_by"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
@@ -37,6 +38,7 @@ type DraftData struct {
 	ImageURL       *string  `json:"image_url"`
 	ImagePrompt    string   `json:"image_prompt"`
 	TargetProducts []string `json:"target_products"`
+	SEOScore       int      `json:"seo_score"`
 	Keywords       []string `json:"keywords,omitempty"` // Tambahkan ini
 }
 

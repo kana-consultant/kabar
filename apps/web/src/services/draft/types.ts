@@ -68,3 +68,20 @@ export interface DraftStats {
         count: number;
     }[];
 }
+export interface SEOScore {
+    total: number;
+    details: Record<string, number>;
+    suggestions: string[];
+}
+
+export interface SimilarityResult {
+    draft_id: string;
+    similar_drafts: SimilarDraft[];
+    total: number;
+}
+
+export interface SimilarDraft {
+    draft_id: string;
+    title: string;
+    similarity: number;
+}

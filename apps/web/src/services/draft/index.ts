@@ -5,11 +5,15 @@ export type {
     DraftStatus, 
     CreateDraftRequest, 
     UpdateDraftRequest, 
-    PublishResponse 
+    PublishResponse,
+    SimilarityResult,
+    SEOScore,
+    SimilarDraft
+    
 } from './types';
 
 // Queries (GET)
-export { getDrafts, getDraftById,getScheduled } from './draftQueries';
+export { getDrafts, getDraftById,getScheduled,checkSimilarity,getSeoScore } from './draftQueries';
 
 // Mutations (POST, PUT, DELETE)
 export { 

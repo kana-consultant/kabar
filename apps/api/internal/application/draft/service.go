@@ -121,11 +121,17 @@ func (s *DraftServiceImpl) PublishDraft(
 		targetProducts = req.TargetProducts
 	}
 
+	seoScore := draftData.SEOScore
+	if len(req.TargetProducts) > 0 {
+		seoScore = req.SEOScore
+	}
+
 	draftData.Title = title
 	draftData.Topic = topic
 	draftData.Article = article
 	draftData.ImageURL = imageURL
 	draftData.TargetProducts = targetProducts
+	draftData.SEOScore = seoScore
 
 	log.Printf(
 		"[PublishDraft] PAYLOAD title=%s topic=%s target_products=%v",
@@ -139,6 +145,7 @@ func (s *DraftServiceImpl) PublishDraft(
 		ImageURL:       imageURL,
 		TargetProducts: targetProducts,
 		Keywords:       draftData.Keywords,
+		SEOScore:       draftData.SEOScore,
 	}
 
 	// Jika ada schedule

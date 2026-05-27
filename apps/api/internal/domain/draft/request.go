@@ -12,6 +12,7 @@ type CreateDraftRequest struct {
 	ScheduledFor   string   `json:"scheduled_for"`
 	Slug           string   `json:"slug"`
 	Keywords       []string `json:"keywords"`
+	SEOScore       int      `json:"seo_score"`
 }
 
 type DraftDataPost struct {
@@ -43,6 +44,7 @@ type PublishHistoryRequest struct {
 	Topic          string
 	Article        string
 	ImageURL       *string
+	SEOScore       int
 	TargetProducts []string
 	Keywords       []string
 }

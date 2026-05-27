@@ -41,16 +41,17 @@ func (h *Route) SetupRoutes() chi.Router {
 		r.Get("/", h.DraftHandler.GetAll)
 		r.Get("/scheduled", h.DraftHandler.GetAllScheduled)
 		r.Post("/", h.DraftHandler.Create)
-		r.Get("/{id}", h.DraftHandler.GetByID)
-		r.Put("/{id}", h.DraftHandler.Update)
-		r.Delete("/{id}", h.DraftHandler.Delete)
 
-		r.Post("/{id}/publish", h.DraftHandler.Publish)
+		// ✅ Route spesifik dulu sebelum /{id}
 		r.Post("/publish", h.DraftHandler.PublishContent)
-
 		r.Post("/schedule", h.DraftHandler.ScheduleDraft)
 		r.Post("/schedule/cancel", h.DraftHandler.CancelScheduledDraft)
 
+		// ✅ Baru route dengan parameter /{id}
+		r.Get("/{id}", h.DraftHandler.GetByID)
+		r.Put("/{id}", h.DraftHandler.Update)
+		r.Delete("/{id}", h.DraftHandler.Delete)
+		r.Post("/{id}/publish", h.DraftHandler.Publish)
 		r.Get("/{id}/seo-score", h.DraftHandler.GetSEOScore)
 		r.Get("/{id}/check-similarity", h.DraftHandler.CheckSimilarity)
 	})
