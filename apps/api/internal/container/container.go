@@ -31,6 +31,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-redis/redis/v8"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -42,6 +43,7 @@ func NewContainer(
 	cfg *config.Config,
 	db *sql.DB,
 	redisScheduler *scheduler.RedisScheduler,
+	redisClient *redis.Client,
 	emailService *services.SMTPEmailService,
 ) *Container {
 
@@ -95,7 +97,7 @@ func NewContainer(
 		protected.Use(auth.JWTMiddleware(cfg))
 		authHandler.NewRoute(db, protected, jwtGenerator).AuthSettingRoute()
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
-		draftHandler.NewRoute(db, protected, redisScheduler).SetupRoutes()
+		draftHandler.NewRoute(db, protected, redisClient, redisScheduler).SetupRoutes()
 		generateHandler.NewRoute(db, protected).SetupRoutes()
 		historyHandler.NewHistoryRoute(db, protected).SetupRoute()
 		productHandler.NewRoute(db, protected).SetupRoutes()

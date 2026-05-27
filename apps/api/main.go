@@ -74,7 +74,7 @@ func main() {
 	defer scheduler.Stop()
 
 	// 6. INITIALIZE CONTAINER
-	appContainer = container.NewContainer(cfg, database.GetDB(), scheduler, emailService)
+	appContainer = container.NewContainer(cfg, database.GetDB(), scheduler, database.RedisClient, emailService)
 
 	// 8. CREATE HTTP SERVER
 	server := &http.Server{

@@ -179,6 +179,7 @@ func (h *DraftHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Update - update existing draft
 func (h *DraftHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	TeamID := helper.GetUserContext(r).GetTeamID()
 	id := chi.URLParam(r, "id")
 
 	var updates map[string]interface{}
@@ -187,7 +188,7 @@ func (h *DraftHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.draftService.UpdateDraft(ctx, id, updates); err != nil {
+	if err := h.draftService.UpdateDraft(ctx, id, TeamID, updates); err != nil {
 		log.Printf("Failed to update draft: %v", err)
 		http.Error(w, "Failed to update draft", http.StatusInternalServerError)
 		return
@@ -200,9 +201,10 @@ func (h *DraftHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Delete - delete draft
 func (h *DraftHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	userCtx := helper.GetUserContext(r)
 	id := chi.URLParam(r, "id")
 
-	if err := h.draftService.DeleteDraft(ctx, id); err != nil {
+	if err := h.draftService.DeleteDraft(ctx, userCtx.GetTeamID(), id); err != nil {
 		http.Error(w, "Draft not found", http.StatusNotFound)
 		return
 	}

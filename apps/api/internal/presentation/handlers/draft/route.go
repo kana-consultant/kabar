@@ -9,6 +9,7 @@ import (
 	"seo-backend/internal/scheduler"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-redis/redis/v8"
 )
 
 type Route struct {
@@ -17,10 +18,10 @@ type Route struct {
 	RedisScheduler *scheduler.RedisScheduler
 }
 
-func NewRoute(db *sql.DB, chi chi.Router, redisScheduler *scheduler.RedisScheduler) *Route {
+func NewRoute(db *sql.DB, chi chi.Router, redisClient *redis.Client, redisScheduler *scheduler.RedisScheduler) *Route {
 	postService := helper.NewPostService(db)
 	productRepo := repositories.NewProductRepository(db)
-	DraftRepo := repositories.NewDraftRepository(db)
+	DraftRepo := repositories.NewDraftRepository(db, redisClient)
 	DraftService := DraftService.NewService(DraftRepo, redisScheduler, postService, productRepo)
 	DraftHandler := NewDraftHandler(DraftService)
 

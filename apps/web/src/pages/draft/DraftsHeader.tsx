@@ -1,25 +1,14 @@
 import { Input } from "@kana-consultant/ui-kit";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@kana-consultant/ui-kit";
-import { Search, FileText, Calendar, CheckCircle } from "lucide-react";
+import { Search } from "lucide-react";
 
 interface DraftsHeaderProps {
     searchQuery: string;
     setSearchQuery: (value: string) => void;
-    statusFilter: "all" | "draft" | "scheduled" | "published";
-    setStatusFilter: (value: "all" | "draft" | "scheduled" | "published") => void;
 }
 
 export function DraftsHeader({
     searchQuery,
     setSearchQuery,
-    statusFilter,
-    setStatusFilter,
 }: DraftsHeaderProps) {
     return (
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -40,36 +29,6 @@ export function DraftsHeader({
                         className="pl-8 w-full sm:w-64"
                     />
                 </div>
-
-                <Select
-                    value={statusFilter}
-                    onValueChange={(value) =>
-                        setStatusFilter(value as "all" | "draft" | "scheduled" | "published")
-                    }
-                >
-                    <SelectTrigger className="w-full sm:w-36">
-                        <SelectValue placeholder="Semua" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">
-                            <div className="flex items-center gap-2">
-                                <span>Semua</span>
-                            </div>
-                        </SelectItem>
-                        <SelectItem value="draft">
-                            <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4" />
-                                <span>Draft</span>
-                            </div>
-                        </SelectItem>
-                        <SelectItem value="published">
-                            <div className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4" />
-                                <span>Terbit</span>
-                            </div>
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
             </div>
         </div>
     );

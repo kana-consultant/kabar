@@ -58,17 +58,18 @@ func (s *DraftServiceImpl) CreateDraft(ctx context.Context, req draft.CreateDraf
 }
 
 // UpdateDraft implements draft.Service
-func (s *DraftServiceImpl) UpdateDraft(ctx context.Context, id string, updates map[string]interface{}) error {
+func (s *DraftServiceImpl) UpdateDraft(ctx context.Context, id string, TeamID string, updates map[string]interface{}) error {
 	data := prepareUpdateData(updates)
+
 	if len(data) == 0 {
 		return fmt.Errorf("no fields to update")
 	}
-	return s.repo.Update(ctx, id, data)
+	return s.repo.Update(ctx, id, TeamID, data)
 }
 
 // DeleteDraft implements draft.Service
-func (s *DraftServiceImpl) DeleteDraft(ctx context.Context, id string) error {
-	return s.repo.Delete(ctx, id)
+func (s *DraftServiceImpl) DeleteDraft(ctx context.Context, TeamID string, id string) error {
+	return s.repo.Delete(ctx, TeamID, id)
 }
 
 // GetDraftByID implements draft.Service
@@ -317,7 +318,7 @@ func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.Schedule
 	}
 
 	if err := s.redisScheduler.ScheduleDraftTask(draftID, scheduledFor, taskData); err != nil {
-		s.repo.Delete(ctx, draftID)
+		s.repo.Delete(ctx, teamID, draftID)
 		log.Printf("ERROR ScheduleDraftTask : %v", err)
 		return "", fmt.Errorf("failed to schedule in Redis: %w", err)
 	}
@@ -407,7 +408,7 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 		}, nil
 	}
 
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.repo.Delete(ctx, teamID, id); err != nil {
 		log.Printf("Failed to delete draft: %v", err)
 	}
 
@@ -451,7 +452,7 @@ func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, teamI
 	}
 
 	var others []draft.Draft
-	for _, d := range *&allDrafts.Data {
+	for _, d := range allDrafts.Data {
 		if d.ID != id {
 			others = append(others, d)
 		}
