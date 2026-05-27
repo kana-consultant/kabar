@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { deleteDraft, publishDraft, type Draft } from "@/services/draft";
+import { deleteDraft, publishDraft,checkSimilarity ,getSeoScore, type Draft } from "@/services/draft";
 import type { PublishResult, ScheduleConfig } from "./types";
 
 interface UseDraftsActionsParams {
@@ -143,9 +143,21 @@ export function useDraftsActions({
         return handlePublish(draft, scheduledFor, scheduleConfig);
     }, [handlePublish, toast]);
 
+
+    const handlecheckSimilarity = useCallback(async(draft : Draft)=>{
+        return await checkSimilarity(draft.id as string)
+    },[checkSimilarity])
+
+      const handlegetSeoScore = useCallback(async(draft : Draft)=>{
+        return await getSeoScore(draft.id as string)
+    },[getSeoScore])
+    
     return {
         handleDelete,
         handlePublishNow,
         handleSchedule,
+        handlecheckSimilarity,
+        handlegetSeoScore
     };
+
 }

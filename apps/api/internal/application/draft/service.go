@@ -54,6 +54,7 @@ func (s *DraftServiceImpl) GetAllScheduled(ctx context.Context, TeamID string, p
 
 // CreateDraft implements draft.Service
 func (s *DraftServiceImpl) CreateDraft(ctx context.Context, req draft.CreateDraftRequest, userID, teamID string) (string, error) {
+	req.SEOScore = draft.CalculateSEOScore(req.Title, req.Article, req.Topic, req.Topic, req.Keywords).Total
 	return s.repo.Create(ctx, req, userID, teamID)
 }
 
@@ -121,11 +122,11 @@ func (s *DraftServiceImpl) PublishDraft(
 		targetProducts = req.TargetProducts
 	}
 
-	log.Printf("KEYWORDS== %v", req.Keywords)
+	seoScore := draftData.SEOScore
 
-	keywords := draftData.Keywords
-	if req.Keywords != nil {
-		keywords = req.Keywords
+	excerpt := draftData.Excerpt
+	if len(req.TargetProducts) > 0 {
+		excerpt = req.Excerpt
 	}
 
 	draftData.Title = title
@@ -133,7 +134,8 @@ func (s *DraftServiceImpl) PublishDraft(
 	draftData.Article = article
 	draftData.ImageURL = imageURL
 	draftData.TargetProducts = targetProducts
-	draftData.Keywords = keywords
+	draftData.SEOScore = seoScore
+	draftData.Excerpt = excerpt
 
 	log.Printf(
 		"[PublishDraft] PAYLOAD title=%s topic=%s target_products=%v",
@@ -147,6 +149,7 @@ func (s *DraftServiceImpl) PublishDraft(
 		ImageURL:       imageURL,
 		TargetProducts: targetProducts,
 		Keywords:       draftData.Keywords,
+		SEOScore:       draftData.SEOScore,
 	}
 
 	// Jika ada schedule
@@ -381,39 +384,14 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 		ImageURL:       draftData.ImageURL,
 		ImagePrompt:    draftData.ImagePrompt,
 		TargetProducts: draftData.TargetProducts,
-	}
-
-	historyReq := draft.PublishHistoryRequest{
-		Title:          draftPost.Title,
-		Topic:          draftPost.Topic,
-		Article:        draftPost.Article,
-		ImageURL:       draftPost.ImageURL,
-		TargetProducts: draftPost.TargetProducts,
+		Excerpt:        draftData.Excerpt,
 	}
 
 	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(draftPost)
 	log.Printf("IS ERROR,%v", err)
-	if err != nil {
-		s.repo.InsertHistory(ctx, historyReq, userID, teamID, "failed")
-		return nil, err
-	}
-
-	if allFailed {
-		s.repo.InsertHistory(ctx, historyReq, userID, teamID, "failed")
-		return &draft.PublishResult{
-			Results:    result,
-			AllFailed:  true,
-			SomeFailed: someFailed,
-			Status:     "failed",
-		}, nil
-	}
 
 	if err := s.repo.Delete(ctx, teamID, id); err != nil {
 		log.Printf("Failed to delete draft: %v", err)
-	}
-
-	if err := s.repo.InsertHistory(ctx, historyReq, userID, teamID, "published"); err != nil {
-		log.Printf("Failed to insert history: %v", err)
 	}
 
 	return &draft.PublishResult{
@@ -431,7 +409,7 @@ func (s *DraftServiceImpl) GetSEOScore(ctx context.Context, id string) (*draft.S
 		return nil, fmt.Errorf("draft not found: %w", err)
 	}
 
-	score := draft.CalculateSEOScore(draftData.Title, draftData.Article, draftData.Topic, draftData.Topic)
+	score := draft.CalculateSEOScore(draftData.Title, draftData.Article, draftData.Topic, draftData.Topic, draftData.Keywords)
 	return &score, nil
 }
 

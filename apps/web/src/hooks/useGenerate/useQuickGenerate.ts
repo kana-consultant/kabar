@@ -16,6 +16,7 @@ export async function quickGenerate(
     setPublishing: (val: boolean) => void,
     setCurrentDraftId: (val: string | null) => void,
     resetForm: () => void,
+    excerpt : string,
     toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!topic) {
@@ -82,6 +83,7 @@ export async function quickGenerate(
             image_url: generatedImageUrl || undefined,
             image_prompt: imagePrompt,
             target_products: selectedProducts,
+            excerpt : excerpt
         };
 
         const draft = await createDraft(draftData as CreateDraftRequest);

@@ -31,6 +31,7 @@ type History struct {
 	ImageURL       *string       `json:"imageUrl,omitempty"`
 	TargetProducts []string      `json:"targetProducts"`
 	Status         HistoryStatus `json:"status"`
+	SeoScore       int           `json:"seo_score"`
 	Action         HistoryAction `json:"action"`
 	ErrorMessage   *string       `json:"errorMessage,omitempty"`
 	PublishedAt    time.Time     `json:"publishedAt"`
@@ -42,14 +43,15 @@ type History struct {
 }
 
 type HistoryFilter struct {
-	TeamID  string
-	Status  string
-	Action  string
-	Search  string
-	Limit   int
-	Offset  int
-	Topic   string
-	OrderBy string
+	TeamID   string
+	Status   string
+	Action   string
+	Search   string
+	Limit    int
+	Offset   int
+	Topic    string
+	OrderBy  string
+	SeoScore int
 }
 
 type HistoryStats struct {

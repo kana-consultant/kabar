@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getDrafts } from "@/services/draft";
-import type { Draft, DraftStats } from "@/services/draft";
 import type { StatusFilter } from "./types";
+import type {  Draft, DraftStats ,SEOScore,SimilarDraft } from "@/services/draft";
+
 
 function useDebounce<T>(value: T, delay: number): T {
     const [debounced, setDebounced] = useState(value);
@@ -22,6 +23,12 @@ export function useDraftsData() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+    const [seoDialog, setSeoDialog] = useState<{ open: boolean; draft: Draft | null }>({ open: false, draft: null });
+    const [similarityDialog, setSimilarityDialog] = useState<{ open: boolean; draft: Draft | null }>({ open: false, draft: null });
+    const [seoData, setSeoData] = useState<SEOScore | null>(null);
+    const [similarityData, setSimilarityData] = useState<SimilarDraft[] | null>(null);
+    const [seoLoading, setSeoLoading] = useState(false);
+    const [similarityLoading, setSimilarityLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
@@ -50,7 +57,7 @@ export function useDraftsData() {
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, statusFilter]); 
+    }, [debouncedSearch, statusFilter]);
 
     // ✅ Trigger reset & fetch hanya setelah debounce selesai
     useEffect(() => {
@@ -77,5 +84,11 @@ export function useDraftsData() {
         setCurrentPage,
         totalPages,
         totalItems,
+        seoDialog, setSeoDialog,
+        similarityData, setSimilarityData,
+        similarityDialog, setSimilarityDialog,
+        seoLoading, setSeoLoading,
+        similarityLoading, setSimilarityLoading,
+        seoData, setSeoData,
     };
 }

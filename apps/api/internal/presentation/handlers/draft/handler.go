@@ -394,7 +394,7 @@ func (h *DraftHandler) CheckSimilarity(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	teamID := auth.GetTeamID(r.Context())
 
-	results, err := h.draftService.GetAll(r.Context(), teamID, helper.ParsePaginationParams(r))
+	results, err := h.draftService.CheckSimilarity(r.Context(), id, teamID, helper.ParsePaginationParams(r))
 	if err != nil {
 		http.Error(w, "Draft not found", http.StatusNotFound)
 		return
@@ -404,7 +404,7 @@ func (h *DraftHandler) CheckSimilarity(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"draft_id":       id,
 		"similar_drafts": results,
-		"total":          len(results.Data),
+		"total":          len(results),
 	})
 }
 

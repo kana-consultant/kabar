@@ -29,9 +29,6 @@ export default function Generate() {
         handleProductToggle,
         handleSelectAll,
         handlePost,
-        seoScore,
-        readabilityScore,
-        wordCount,
         publishResults,
         showResultDialog,
         closeResultDialog,
@@ -80,32 +77,7 @@ export default function Generate() {
 
             <GenerateHeader />
 
-            {/* SEO Metrics Display */}
-            {(seoScore || readabilityScore || wordCount) && (
-                <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 p-4">
-                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">SEO Metrics</h3>
-                    <div className="flex flex-wrap gap-4 text-sm">
-                        {seoScore && (
-                            <div className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
-                                <span>📈 SEO Score:</span>
-                                <span className="font-medium text-cyan-600 dark:text-cyan-400">{seoScore}</span>
-                            </div>
-                        )}
-                        {readabilityScore && (
-                            <div className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
-                                <span>📖 Readability:</span>
-                                <span className="font-medium text-emerald-600 dark:text-emerald-400">{readabilityScore}</span>
-                            </div>
-                        )}
-                        {wordCount && (
-                            <div className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
-                                <span>📝 Word Count:</span>
-                                <span className="font-medium text-purple-600 dark:text-purple-400">{wordCount}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            
 
             {/* Main content grid */}
             <div className="grid gap-6 lg:grid-cols-2">

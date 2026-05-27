@@ -1,5 +1,4 @@
 import { useLocation } from "@tanstack/react-router";
-import { useNavigate } from "@tanstack/react-router";
 import { useToast } from "@/hooks/use-toast";
 import { useGenerateState } from "./useGenerateState";
 import { useGenerateData } from "./useGenerateData";
@@ -14,7 +13,6 @@ import { closeResultDialog } from "./useDialogState";
 export function useGenerate() {
     const toast = useToast();
     const location = useLocation();
-    const navigate = useNavigate();
     const searchParams = new URLSearchParams(location.search);
     const editId = searchParams.get("edit") || undefined;
     const TopicId = searchParams.get("topic") || undefined;
@@ -55,11 +53,12 @@ export function useGenerate() {
         productsError, setProductsError,
         isPosting, setIsPosting,
         slug, setSlug,
+        excerpt, setExcerpt
     } = useGenerateState();
 
     useGenerateData(
         setProducts, setProductNames, setProductsLoading, setProductsError,
-        setModels, setLoadingModels, setSelectedModelId,toast
+        setModels, setLoadingModels, setSelectedModelId, toast
     );
 
     useLoadDraft(
@@ -72,8 +71,7 @@ export function useGenerate() {
     const generateArticle = () => generateArticleContent(
         topic, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
-        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords,
-        toast //   Kirim toast ke generateArticleContent
+        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt, toast //   Kirim toast ke generateArticleContent
     );
 
     const generateImage = () => generateImageManually(
@@ -83,8 +81,7 @@ export function useGenerate() {
 
     const handleSaveAsDraft = () => saveAsDraft(
         article, topic, imageUrl, selectedProducts, currentDraftId, setCurrentDraftId,
-        slug as string, keywords as string[],
-        toast //   Kirim toast ke saveAsDraft
+        slug as string, keywords as string[],excerpt as string,toast //   Kirim toast ke saveAsDraft
     );
 
     const handleSaveAsSchedule = () => saveAsSchedule(
@@ -111,6 +108,7 @@ export function useGenerate() {
             toast
         ),
         slug as string, keywords as string[],
+        excerpt as string,
         toast //   Kirim toast ke postInstant
     );
 
@@ -146,7 +144,7 @@ export function useGenerate() {
     );
 
     const onQuickGenerate = () => quickGenerate(
-        topic, selectedProducts, article, imageUrl, setPublishing, setCurrentDraftId, onResetForm,
+        topic, selectedProducts, article, imageUrl, setPublishing, setCurrentDraftId, onResetForm, excerpt as string,
         toast //   Kirim toast ke quickGenerate
     );
 

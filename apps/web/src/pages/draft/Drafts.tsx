@@ -8,6 +8,8 @@ import { DeleteAlertDialog } from "./DeleteAlertDialog";
 import { LoadingDrafts } from "./LoadingDrafts";
 import { useDrafts } from "@/hooks/useDrafts";
 import { type Draft } from "@/services/draft";
+import { SEOScoreDialog } from "./SEOScoreDialog";
+import { SimilarityDialog } from "./SimilarityDialog";
 
 export default function Drafts() {
     const navigate = useNavigate();
@@ -39,6 +41,14 @@ export default function Drafts() {
         totalPages,
         totalItems,
         loadDrafts,
+        checkSimilarity,
+        getSeoScore,
+        seoDialog, setSeoDialog,
+        similarityData,
+        similarityDialog, setSimilarityDialog,
+        seoLoading,
+        similarityLoading,
+        seoData,
     } = useDrafts();
 
     const handleEdit = (draft: Draft) => {
@@ -51,11 +61,11 @@ export default function Drafts() {
 
     return (
         <div className="space-y-6">
-            
+
             <DraftsHeader
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-               
+
             />
 
             <DraftList
@@ -70,6 +80,8 @@ export default function Drafts() {
                 onPageChange={(page) => loadDrafts(page)}
                 totalPages={totalPages}
                 totalItems={totalItems}
+                checkSimilarity={checkSimilarity}
+                getSeoScore={getSeoScore}
             />
 
             <ViewDraftDialog
@@ -99,6 +111,22 @@ export default function Drafts() {
                 open={showDeleteDialog}
                 onOpenChange={closeDialogs}
                 onConfirm={handleDelete}
+            />
+
+            <SEOScoreDialog
+                open={seoDialog.open}
+                onOpenChange={(open) => setSeoDialog((prev) => ({ ...prev, open }))}
+                draftTitle={seoDialog.draft?.title}
+                data={seoData}
+                loading={seoLoading}
+            />
+
+            <SimilarityDialog
+                open={similarityDialog.open}
+                onOpenChange={(open) => setSimilarityDialog((prev) => ({ ...prev, open }))}
+                draftTitle={similarityDialog.draft?.title}
+                data={similarityData}
+                loading={similarityLoading}
             />
         </div>
     );

@@ -44,7 +44,6 @@ export function PostingConfig({
     products, selectedProducts, postToAll,
     onToggleProduct, onSelectAll,
     article, onPost, isPosting,
-    autoGenerateImage, setAutoGenerateImage,
 }: PostingConfigProps) {
 
     const postLabel = postMode === "instant"

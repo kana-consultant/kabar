@@ -30,6 +30,7 @@ export interface CreateDraftRequest {
     team_id?: string;
     slug : string;
     keywords : string[] | null
+    excerpt : string
 }
 
 export interface UpdateDraftRequest {
@@ -42,6 +43,7 @@ export interface UpdateDraftRequest {
     scheduled_for?: string;
     target_products?: string[];
     has_image?: boolean;
+    excerpt : string
 }
 
 export interface PublishResponse {
@@ -67,4 +69,21 @@ export interface DraftStats {
         date: string;
         count: number;
     }[];
+}
+export interface SEOScore {
+    total: number;
+    details: Record<string, number>;
+    suggestions: string[];
+}
+
+export interface SimilarityResult {
+    draft_id: string;
+    similar_drafts: SimilarDraft[];
+    total: number;
+}
+
+export interface SimilarDraft {
+    draft_id: string;
+    title: string;
+    similarity: number;
 }

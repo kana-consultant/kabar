@@ -33,6 +33,7 @@ func (h *Route) SetupRoute() chi.Router {
 	r := h.baseroute.CHI
 	r.Route("/history", func(r chi.Router) {
 		r.Get("/", h.HistoryHandler.GetAll)
+		r.Get("/recently", h.HistoryHandler.GetRecentActivity)
 		r.Post("/", h.HistoryHandler.Create)
 		r.Get("/{id}", h.HistoryHandler.GetByID)
 		r.Put("/{id}", h.HistoryHandler.Update)

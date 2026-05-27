@@ -13,6 +13,7 @@ export async function saveAsDraft(
     setCurrentDraftId: (id: string | null) => void,
     slug: string,
     tags: string[] | null,
+    excerpt : string,
     toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!article) {
@@ -29,7 +30,8 @@ export async function saveAsDraft(
         target_products: selectedProducts,
         has_image: !!imageUrl,
         slug: slug,
-        keywords: tags as string[]
+        keywords: tags as string[],
+        excerpt : excerpt
     };
 
     try {
@@ -180,6 +182,7 @@ export async function postInstant(
     resetForm: () => void,
     slug: string,
     tags: string[],
+    excerpt : string,
     toast: ToastContextType //   Tambahkan parameter toast
 ) {
     if (!article) {
@@ -203,7 +206,8 @@ export async function postInstant(
             image_prompt: topic,
             target_products: selectedProducts,
             slug: slug,
-            keywords: tags as string[]
+            keywords: tags as string[],
+            excerpt : excerpt
         };
         
         let response: any;

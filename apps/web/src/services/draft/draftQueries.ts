@@ -1,5 +1,6 @@
 import { apiClient } from '../api';
 import type { Draft } from './types';
+import type { SimilarityResult, SEOScore } from './types';
 
 export interface DraftStats {
     total_draft: number;
@@ -74,6 +75,26 @@ export async function getScheduled(params?: PaginationParams): Promise<Paginated
 export async function getDraftById(id: string): Promise<Draft | null> {
     try {
         const response = await apiClient.get<Draft>(`/drafts/${id}`);
+        return response;
+    } catch (error) {
+        console.error('Failed to get draft:', error);
+        return null;
+    }
+}
+
+export async function checkSimilarity(id: string): Promise<SimilarityResult | null> {
+    try {
+        const response = await apiClient.get<SimilarityResult>(`/drafts/${id}/check-similarity`);
+        return response;
+    } catch (error) {
+        console.error('Failed to get draft:', error);
+        return null;
+    }
+}
+
+export async function getSeoScore(id: string): Promise<SEOScore | null> {
+    try {
+        const response = await apiClient.get<SEOScore>(`/drafts/${id}/seo-score`);
         return response;
     } catch (error) {
         console.error('Failed to get draft:', error);
