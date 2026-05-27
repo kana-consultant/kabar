@@ -1,6 +1,7 @@
 package paginate
 
 type PaginationParams struct {
+	Search string
 	Limit  int
 	Offset int
 }

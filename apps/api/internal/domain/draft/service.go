@@ -8,8 +8,8 @@ import (
 type Service interface {
 	// Draft management
 	CreateDraft(ctx context.Context, req CreateDraftRequest, userID, teamID string) (string, error)
-	UpdateDraft(ctx context.Context, id string, updates map[string]interface{}) error
-	DeleteDraft(ctx context.Context, id string) error
+	UpdateDraft(ctx context.Context, id string, TeamID string, updates map[string]interface{}) error
+	DeleteDraft(ctx context.Context, TeamID string, id string) error
 	GetDraftByID(ctx context.Context, id string) (*DraftData, error)
 	GetAll(ctx context.Context, teamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
 	GetDashboardStats(ctx context.Context, teamID string) (*DraftStats, error)

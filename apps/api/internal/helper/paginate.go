@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"seo-backend/internal/domain/paginate"
 	"strconv"
+	"strings"
 )
 
 func ParsePaginationParams(r *http.Request) paginate.PaginationParams {
@@ -17,8 +18,11 @@ func ParsePaginationParams(r *http.Request) paginate.PaginationParams {
 		offset = 0
 	}
 
+	search := strings.TrimSpace(r.URL.Query().Get("search"))
+
 	return paginate.PaginationParams{
 		Limit:  limit,
 		Offset: offset,
+		Search: search,
 	}
 }
