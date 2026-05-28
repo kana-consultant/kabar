@@ -8,6 +8,7 @@ export const getRoleDisplayName = (roleType: UserRoleType): string => {
 
 // Role options untuk dropdown
 export const roleOptions: { value: UserRoleType; label: string }[] = [
+    { value: 'super_admin', label: 'Super Admin' },
     { value: 'admin', label: 'Admin' },
     { value: 'member', label: 'Member' },
     { value: 'viewer', label: 'Viewer' },
@@ -15,22 +16,22 @@ export const roleOptions: { value: UserRoleType; label: string }[] = [
 ];
 
 // Filter role options berdasarkan permission current user
-export const getAvailableRoles = (currentUser: any, isAdmin: boolean): UserRoleType[] => {
-    if (isAdmin) {
-        return ['admin', 'member', 'viewer', 'owner'];
+export const getAvailableRoles = (currentUserRole: UserRoleType): UserRoleType[] => {
+    switch (currentUserRole) {
+        case 'super_admin':
+            return ['admin', 'member', 'viewer', 'owner'];
+        case 'owner':
+        case 'admin':
+            return ['member', 'viewer'];
+        default:
+            return [];
     }
-    if (currentUser?.role === 'owner') {
-        return ['member', 'viewer'];
-    }
-    if (currentUser?.role === 'admin') {
-        return ['member', 'viewer'];
-    }
-    return ['viewer'];
 };
 
 // Atau jika ingin hierarchy berdasarkan level:
 export const getAvailableRolesByLevel = (currentUserRole: UserRoleType): UserRoleType[] => {
     const roleLevel: Record<UserRoleType, number> = {
+        super_admin: 100,
         owner: 100,
         admin: 80,
         member: 50,
@@ -38,7 +39,7 @@ export const getAvailableRolesByLevel = (currentUserRole: UserRoleType): UserRol
     };
 
     const currentLevel = roleLevel[currentUserRole];
-    
+
     return roleOptions
         .filter(option => roleLevel[option.value] <= currentLevel)
         .map(option => option.value);

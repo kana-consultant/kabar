@@ -7,22 +7,22 @@ import { useToast } from '../use-toast';
 
 export function useAuth(): UseAuthReturn {
     const { state, setters, actions } = useAuthState();
-    const toast = useToast()
+    const toast = useToast();
     const authActions = useAuthActions({
         setToken: setters.setToken,
         setUser: setters.setUser,
         setRole: setters.setRole,
+        setPermissions: setters.setPermissions,
         setTeamId: setters.setTeamId,
         setIsAdmin: setters.setIsAdmin,
         setIsSuperAdmin: setters.setIsSuperAdmin,
         setIsLoading: setters.setIsLoading,
         loadUser: actions.loadUser,
         clearUserState: actions.clearUserState,
-        toast : toast
+        toast,
     });
     const roleChecks = useRoleCheck();
 
-    // Load user on mount
     useEffect(() => {
         actions.loadUser();
     }, []);
@@ -32,18 +32,26 @@ export function useAuth(): UseAuthReturn {
         user: state.user,
         token: state.token,
         role: state.role,
+        permissions: state.permissions as string[], // ✅ tambah
         teamId: state.teamId,
-        
+
+        // Setters
+        setUser: setters.setUser || null,
+        setToken: setters.setToken,
+        setRole: setters.setRole,
+        setPermissions: setters.setPermissions, // ✅ tambah
+        setTeamId: setters.setTeamId,
+
         // Status
         isAuthenticated: state.isAuthenticated,
         isLoading: state.isLoading,
         isAdmin: state.isAdmin,
         isSuperAdmin: state.isSuperAdmin,
-        
+
         // Role checks
         ...roleChecks,
-        
+
         // Actions
-        ...authActions
+        ...authActions,
     };
 }

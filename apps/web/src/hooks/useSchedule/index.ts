@@ -35,10 +35,10 @@ export function useSchedule() {
         );
     };
 
-    // Load on mount
-    useEffect(() => {
-        loadSchedules(1);
-    }, []);
+    // // Load on mount
+    // useEffect(() => {
+    //     loadSchedules(1);
+    // }, []);
 
     // Reload when page changes
     useEffect(() => {

@@ -27,13 +27,10 @@ export function useProducts() {
     );
 
     // Load products on mount
-    useEffect(() => {
-        fetchProducts();
-    }, [fetchProducts]);
-
+    
     useEffect(() => {
         loadProducts();
-    }, [loadProducts]);
+    }, []);
 
     // Filter products
     useProductsFilter(products, searchQuery, statusFilter, setFilteredProducts);

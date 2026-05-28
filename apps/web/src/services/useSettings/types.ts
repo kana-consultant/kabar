@@ -1,15 +1,23 @@
 import type { UserRole } from "@/services/user";
 
-export type UserRoleType = 'admin' | 'member' | 'viewer' | 'owner';
+export type UserRoleType = 'superadmin' | 'admin' | 'member' | 'viewer' | 'owner';
 
 // Predefined UserRole objects untuk TeamMember.role
 export const USER_ROLES: Record<UserRoleType, UserRole> = {
+    superadmin: {
+        id: "role_admin",
+        name: "Super Admin",
+        displayName: "Super dmin",
+        description: "Super access",
+        scope: "global",
+        level: 100
+    },
     admin: {
         id: "role_admin",
         name: "admin",
         displayName: "Admin",
         description: "Admin access",
-        scope: "global",
+        scope: "team",
         level: 80
     },
     member: {

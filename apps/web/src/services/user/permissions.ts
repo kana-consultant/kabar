@@ -1,99 +1,106 @@
 import Cookies from 'js-cookie';
 import { getUserFromCookie } from '../api';
 import { getUserById } from './userQueries';
-import type { UserRole } from '@/services/user';
 import { getUserTeams } from './teamQueries';
 
-// Get user role from cookie
-export function getUserRole(): UserRole | any {
-    const user = getUserFromCookie();
-    return user?.role || null;
+// ─── User ────────────────────────────────────────────────
+export function getUserFromStorage() {
+    return getUserFromCookie();
 }
 
-// Get role level
+// ─── Role ────────────────────────────────────────────────
+export function getUserRole(): string {
+    const user = getUserFromCookie();
+    return user?.role || 'viewer';
+}
+
 export function getUserRoleLevel(): number {
-    const role = getUserRole();
-    return role?.level || 0;
+    const levelMap: Record<string, number> = {
+        super_admin: 100,
+        owner: 100,
+        admin: 80,
+        manager: 70,
+        editor: 50,
+        member: 30,
+        viewer: 10,
+    };
+    return levelMap[getUserRole()] ?? 0;
 }
 
-// Get role name
-export function getUserRoleName(): string {
-    const role = getUserRole();
-    return role?.name || 'viewer';
-}
-
-// Get role display name
-export function getUserRoleDisplayName(): string {
-    const role = getUserRole();
-    return role?.displayName || 'Viewer';
-}
-
-// Get team ID from cookie
-export function getTeamId(): string {
+// ─── Permissions ─────────────────────────────────────────
+export function getPermissions(): string[] {
+    // ✅ fix typo: permssions → permissions
     const user = getUserFromCookie();
-    return user?.team_id || 'Viewer';
+    if (user?.permissions) return user.permissions;
+
+    // fallback dari cookie terpisah
+    try {
+        const raw = Cookies.get('permissions');
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
 }
-// Check if user is super admin
+
+export function hasPermission(permission: string): boolean {
+    const role = getUserRole();
+    if (role === 'super_admin') return true;
+    return getPermissions().includes(permission);
+}
+
+// ─── Team ─────────────────────────────────────────────────
+export function getTeamId(): string | null {
+    const user = getUserFromCookie();
+    // ✅ fix: sebelumnya return 'Viewer' kalau kosong
+    return user?.team_id || Cookies.get('team_id') || null;
+}
+
+// ─── Role Checks ──────────────────────────────────────────
 export function isSuperAdmin(): boolean {
-    const roleName = getUserRoleName();
-    return roleName === 'super_admin';
+    return getUserRole() === 'super_admin';
 }
 
-// Check if user is admin (includes super_admin)
 export function isAdmin(): boolean {
-    const roleName = getUserRoleName();
-    return roleName === 'admin' || roleName === 'super_admin';
+    return ['admin', 'super_admin'].includes(getUserRole());
 }
 
-// Check if user is manager or above
 export function isManagerOrAbove(): boolean {
-    const roleLevel = getUserRoleLevel();
-    return roleLevel >= 70; // manager level = 70
+    return getUserRoleLevel() >= 70;
 }
 
-// Check if user is editor or above
 export function isEditorOrAbove(): boolean {
-    const roleLevel = getUserRoleLevel();
-    return roleLevel >= 50; // editor level = 50
+    return getUserRoleLevel() >= 50;
 }
 
-// Check if user is viewer or above (everyone)
 export function isViewerOrAbove(): boolean {
-    const roleLevel = getUserRoleLevel();
-    return roleLevel >= 10; // viewer level = 10
+    return getUserRoleLevel() >= 10;
 }
 
-// Check if user has specific role by name
 export function hasRole(roleName: string): boolean {
-    const userRoleName = getUserRoleName();
-    if (userRoleName === 'super_admin') return true;
-    return userRoleName === roleName;
+    if (isSuperAdmin()) return true;
+    return getUserRole() === roleName;
 }
 
-// Check if user has any of the required role names
 export function hasAnyRole(roleNames: string[]): boolean {
-    const userRoleName = getUserRoleName();
-    if (userRoleName === 'super_admin') return true;
-    return roleNames.includes(userRoleName);
+    if (isSuperAdmin()) return true;
+    return roleNames.includes(getUserRole());
 }
 
-// Check if user has permission based on role level
 export function hasMinLevel(requiredLevel: number): boolean {
-    const userLevel = getUserRoleLevel();
-    return userLevel >= requiredLevel;
+    return getUserRoleLevel() >= requiredLevel;
 }
 
-// Check if user can access resource based on team
-export async function canAccessResource(userId: string, resourceTeamId: string): Promise<boolean> {
+// ─── Async ────────────────────────────────────────────────
+export async function canAccessResource(
+    userId: string,
+    resourceTeamId: string
+): Promise<boolean> {
     const user = await getUserById(userId);
     if (!user) return false;
-    
-    const roleName = user.role || "viewer";
-    
-    // Super admin and admin can access everything
-    if (roleName === 'super_admin' || roleName === 'admin') return true;
-    
-    // Check if user is in the team
+
+    const role = user.role || 'viewer';
+    if (['super_admin', 'admin'].includes(role)) return true;
+
     const userTeams = await getUserTeams(userId);
     return userTeams.some(team => team.id === resourceTeamId);
 }

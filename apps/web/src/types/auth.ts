@@ -4,11 +4,20 @@ export interface AuthState {
     user: User | null;
     token: string | null;
     role: string | null;
+    permissions: string[] ;
     teamId: string | null;
     isAuthenticated: boolean;
     isLoading: boolean;
     isAdmin: boolean;
     isSuperAdmin: boolean;
+}
+
+export interface AuthSetters {
+    setUser: (user: User) => void;
+    setToken: (token: string | null) => void;
+    setRole: (role: string | null) => void;
+    setPermissions: (permissions: string[]) => void;
+    setTeamId: (teamId: string | null) => void;
 }
 
 export interface AuthActions {
@@ -29,4 +38,4 @@ export interface RoleChecks {
     canAccessTeam: (resourceTeamId: string | null) => boolean;
 }
 
-export type UseAuthReturn = AuthState & AuthActions & RoleChecks;
+export type UseAuthReturn = AuthState & AuthSetters & AuthActions & RoleChecks;

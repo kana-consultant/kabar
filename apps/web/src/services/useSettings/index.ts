@@ -8,10 +8,11 @@ import {
     getAvailableRoles,
 } from "./useSettingsHelpers";
 import { addTeamMember } from "../team";
-import { getTeamId } from "../user";
+import { getCurrentUser, getTeamId } from "../user";
 import { type AddTeamMemberRequest } from "../team";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import type { UserRoleType } from "./types";
 
 export function useSettings() {
     const toast = useToast()
@@ -29,13 +30,13 @@ export function useSettings() {
         isAddingUser, setIsAddingUser
     } = useSettingsState();
 
-    const {changePassword} = useAuth();
+    const {changePassword,role} = useAuth();
 
     const { loadData } = useSettingsData(
-        setUsers, setTeams, setCurrentUser, setLoading,toast
+        setUsers, setCurrentUser, setLoading,toast
     );
 
-    const { canManageUsers, canManageTeams, isAdmin } = useSettingsPermissions(currentUser);
+    const { canManageUsers, canManageTeams,isSuperAdmin, isAdmin } = useSettingsPermissions(currentUser);
 
     const { handleUpdateUser, handleDeleteUser } = useSettingsUserActions(
         loadData, currentUser, users,toast
@@ -48,9 +49,10 @@ export function useSettings() {
         loading,
         canManageUsers,
         canManageTeams,
+        isSuperAdmin,
         isAdmin,
         roleOptions,
-        getAvailableRoles: () => getAvailableRoles(currentUser, isAdmin),
+        getAvailableRoles: () => getAvailableRoles(role as UserRoleType),
         getRoleDisplayName,
         showAddUserDialog,
         setShowAddUserDialog,
@@ -73,7 +75,7 @@ export function useSettings() {
                     Email: newUserEmail,
                     role: newUserRole
                 };
-                await addTeamMember(getTeamId(), userTeam);
+                await addTeamMember(getTeamId() as string, userTeam);
                 toast.success(`User ${newUserEmail} has been added as ${newUserRole}`);
                 setNewUserEmail("");
                 setNewUserRole("viewer");

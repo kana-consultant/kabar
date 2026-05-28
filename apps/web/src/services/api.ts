@@ -88,7 +88,6 @@ export const setAuthCookie = (token: string, user: any) => {
 export const removeAuthCookie = () => {
     Cookies.remove('auth_token');
     Cookies.remove('user');
-    Cookies.remove('team_id');
 };
 
 export const getAuthToken = (): string | undefined => {
@@ -114,7 +113,6 @@ export const getUserFromCookie = (): JwtPayload | null => {
 
     try {
         const decoded = jwtDecode<JwtPayload>(token);
-        console.log(decoded)
         return decoded;
     } catch {
         return null;

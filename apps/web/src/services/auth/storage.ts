@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie';
 import { COOKIE_OPTIONS } from './config';
-import type { User } from '@/services/user';
+import { getTeamId, type User } from '@/services/user';
 
 // Get auth token - dari cookie atau localStorage
 export function getToken(): string | undefined {
@@ -26,9 +26,9 @@ export function clearAuthData(): void {
 }
 
 // Get team ID - dari cookie atau localStorage
-export function getTeamId(): string | null {
+export function getTeamIdUser(): string | null {
     // Try cookie first
-    const teamIdFromCookie = Cookies.get('team_id');
+    const teamIdFromCookie =  getTeamId()
     if (teamIdFromCookie) {
         return teamIdFromCookie;
     }

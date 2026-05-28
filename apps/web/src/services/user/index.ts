@@ -22,9 +22,7 @@ export { getCurrentUser, login, logout, isAuthenticated } from './auth';
 // Permissions
 export { 
     getUserRole, 
-    getUserRoleLevel, 
-    getUserRoleName, 
-    getUserRoleDisplayName,
+    getUserRoleLevel,  
     getTeamId,
     isSuperAdmin, 
     isAdmin, 
