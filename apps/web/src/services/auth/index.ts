@@ -14,7 +14,7 @@ export {
     getToken,
     hasToken,
     clearAuthData,
-    getTeamId,
+    getTeamIdUser,
     setAuthCookie,
     removeAuthCookie
 } from './storage';
@@ -26,7 +26,7 @@ export {
     getUserName,
     getUserEmail,
     getUserAvatar,
-    updateLocalUser
+    updateLocalUser,
 } from './user';
 
 // Permissions

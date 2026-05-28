@@ -144,7 +144,7 @@ func (s *DashboardService) buildWhereClause(ctx dashboard.DashboardFilter) (stri
 	argIndex := 1
 
 	switch ctx.Role {
-	case "super_admin":
+	case "superadmin":
 		// Super admin: melihat semua data
 		conditions = append(conditions, "1=1")
 		log.Println("Super admin - melihat semua stats")
@@ -164,8 +164,8 @@ func (s *DashboardService) buildWhereClause(ctx dashboard.DashboardFilter) (stri
 
 	default:
 		// Role lain: hanya melihat data sendiri
-		conditions = append(conditions, "created_by = $1")
-		args = append(args, ctx.UserID)
+		conditions = append(conditions, "team_id = $1")
+		args = append(args, ctx.TeamID)
 		log.Printf("User %s - melihat stats sendiri", ctx.UserID)
 	}
 

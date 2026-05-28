@@ -1,15 +1,18 @@
 import { useState, useCallback } from 'react';
-import { 
-    getCurrentUser, 
-    getToken, 
-    getUserRole, 
-    getTeamId,
-    hasToken
+import {
+    getCurrentUser,
+    getToken,
+    getUserRole,
+    getTeamIdUser,
+    hasToken,
+
 } from '@/services/auth';
 import type { User } from '@/services/user';
+import { isAdmin as AdminCheck, isSuperAdmin as superAdminCheck, getPermissions } from '@/services/user/permissions';
 
 export function useAuthState() {
     const [user, setUser] = useState<User | null>(null);
+    const [permissions, setPermissions] = useState<String[] | []>([])
     const [token, setToken] = useState<string | null>(null);
     const [role, setRole] = useState<string | null>(null);
     const [teamId, setTeamId] = useState<string | null>(null);
@@ -20,17 +23,21 @@ export function useAuthState() {
     const loadUser = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [currentUser, currentToken, currentRole, currentTeamId] = await Promise.all([
+            const [currentUser, currentToken, currentRole, currentTeamId, permissions, isAdmin, isSuperAdmin] = await Promise.all([
                 getCurrentUser(),
                 getToken(),
                 getUserRole(),
-                getTeamId()
+                getTeamIdUser(),
+                getPermissions(),
+                AdminCheck(),
+                superAdminCheck(),
             ]);
-            
+
             setUser(currentUser);
             setToken(currentToken as string);
             setRole(currentRole);
             setTeamId(currentTeamId);
+            setPermissions(permissions);
             setIsAdmin(isAdmin);
             setIsSuperAdmin(isSuperAdmin);
         } catch (error) {
@@ -64,7 +71,8 @@ export function useAuthState() {
             isLoading,
             isAdmin,
             isSuperAdmin,
-            isAuthenticated: hasToken()
+            isAuthenticated: hasToken(),
+            permissions
         },
         setters: {
             setToken,
@@ -73,7 +81,8 @@ export function useAuthState() {
             setTeamId,
             setIsLoading,
             setIsAdmin,
-            setIsSuperAdmin
+            setIsSuperAdmin,
+            setPermissions
         },
         actions: {
             loadUser,

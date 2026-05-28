@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"seo-backend/internal/domain/auth"
+	"seo-backend/internal/infrastructure/db/repositories/rbac"
 	"seo-backend/internal/models"
 )
 
@@ -17,14 +18,16 @@ type Service struct {
 	repo     auth.Repository
 	tokenGen auth.TokenGenerator
 	db       *sql.DB
+	rbacRepo *rbac.PermissionCache
 }
 
 // NewService creates a new auth service
-func NewService(db *sql.DB, repo auth.Repository, tokenGen auth.TokenGenerator) auth.AuthService {
+func NewService(db *sql.DB, repo auth.Repository, tokenGen auth.TokenGenerator, rbacRepo *rbac.PermissionCache) auth.AuthService {
 	return &Service{
 		db:       db,
 		repo:     repo,
 		tokenGen: tokenGen,
+		rbacRepo: rbacRepo,
 	}
 }
 
@@ -35,7 +38,6 @@ func (s *Service) Login(ctx context.Context, req auth.LoginRequest) (*auth.Login
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
-
 	if user == nil {
 		return nil, errors.New("invalid credentials")
 	}
@@ -48,11 +50,23 @@ func (s *Service) Login(ctx context.Context, req auth.LoginRequest) (*auth.Login
 	// Get team ID
 	teamID, _ := s.repo.GetTeamIDByUserID(ctx, user.ID)
 
+	// Ambil permissions berdasarkan role
+	perms, err := s.rbacRepo.Get(ctx, string(user.Role))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get permissions: %w", err)
+	}
+
+	// Format permissions jadi []string → "module:action:scope"
+	permStrings := make([]string, 0, len(perms))
+	for _, p := range perms {
+		permStrings = append(permStrings, fmt.Sprintf("%s:%s:%s", p.Module, p.Action, p.Scope))
+	}
+
 	// Update last active
 	_ = s.repo.UpdateLastActive(ctx, user.ID)
 
-	// Generate token
-	token, err := s.tokenGen.GenerateToken(user.ID, teamID, user.Email, user.Name, string(user.Role))
+	// Generate token dengan permissions
+	token, err := s.tokenGen.GenerateToken(user.ID, teamID, user.Email, user.Name, string(user.Role), permStrings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}

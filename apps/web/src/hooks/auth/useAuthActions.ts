@@ -13,6 +13,7 @@ interface UseAuthActionsParams {
     setToken: (token: string | null) => void;
     setUser: (user: User) => void;
     setRole: (role: string | null) => void;
+    setPermissions : (permissions : string[]) => void;
     setTeamId: (teamId: string | null) => void;
     setIsAdmin: (isAdmin: boolean) => void;
     setIsSuperAdmin: (isSuperAdmin: boolean) => void;
@@ -26,6 +27,7 @@ export function useAuthActions({
     setToken,
     setUser,
     setRole,
+    setPermissions,
     setTeamId,
     setIsAdmin,
     setIsSuperAdmin,
@@ -45,6 +47,9 @@ export function useAuthActions({
             setRole(response.user.role);
             setTeamId(response.teamId || null);
             setIsAdmin(response.user.role === 'admin');
+            setPermissions(response.permissions || [])
+
+            console.log(response.permissions)
             // setIsSuperAdmin(response.user.role === 'super_admin');
 
             toast.success('Login berhasil!', {

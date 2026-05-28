@@ -33,5 +33,5 @@ type Repository interface {
 
 // TokenGenerator interface for JWT operations
 type TokenGenerator interface {
-	GenerateToken(userID, teamID, email, name, role string) (string, error)
+	GenerateToken(userID, teamID, email, name, role string, perm []string) (string, error)
 }

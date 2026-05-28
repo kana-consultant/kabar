@@ -1,4 +1,4 @@
-import { getUserRole } from './user';
+import { getUserRole } from "@/services/user";
 
 export function isAdmin(): boolean {
     const role = getUserRole();

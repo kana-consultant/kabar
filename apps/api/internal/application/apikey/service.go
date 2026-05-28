@@ -95,13 +95,10 @@ func (s *Service) GetAPIKeyByID(ctx context.Context, id string) (*apikey.APIKey,
 
 // GetAllAPIKeys - get all API keys with filters
 func (s *Service) GetAllAPIKeys(ctx context.Context, userCtx models.UserContext) ([]apikey.APIKeyDetail, error) {
-	teamID := s.getTeamIDPtr(userCtx.GetTeamID())
-
-	keys, err := s.repo.GetAll(ctx, teamID, userCtx.GetUserID(), userCtx.GetRole())
+	keys, err := s.repo.GetAll(ctx, userCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API keys: %w", err)
 	}
-
 	return keys, nil
 }
 

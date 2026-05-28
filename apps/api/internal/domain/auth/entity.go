@@ -1,7 +1,11 @@
 // internal/domain/auth/dto.go
 package auth
 
-import "seo-backend/internal/models"
+import (
+	"seo-backend/internal/models"
+
+	"github.com/golang-jwt/jwt/v5"
+)
 
 // ========== REQUEST DTOs ==========
 
@@ -41,4 +45,12 @@ type ForgotPasswordRequest struct {
 type LoginResponse struct {
 	Token string
 	User  *models.User
+}
+
+type Claims struct {
+	UserID string `json:"user_id"`
+	TeamID string `json:"company_id"` // untuk scope non-global
+	Role   string `json:"role"`
+	Email  string `json"email"`
+	jwt.RegisteredClaims
 }
