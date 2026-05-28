@@ -3,6 +3,7 @@ package draft
 import (
 	"context"
 	"seo-backend/internal/domain/paginate"
+	"seo-backend/internal/models"
 )
 
 type Service interface {
@@ -11,9 +12,9 @@ type Service interface {
 	UpdateDraft(ctx context.Context, id string, TeamID string, updates map[string]interface{}) error
 	DeleteDraft(ctx context.Context, TeamID string, id string) error
 	GetDraftByID(ctx context.Context, id string) (*DraftData, error)
-	GetAll(ctx context.Context, teamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
-	GetDashboardStats(ctx context.Context, teamID string) (*DraftStats, error)
-	GetAllScheduled(ctx context.Context, TeamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
+	GetAll(ctx context.Context, userFilter models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
+	GetDashboardStats(ctx context.Context, userFilter models.UserContext) (*DraftStats, error)
+	GetAllScheduled(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
 	// Publishing
 	PublishDraft(ctx context.Context, id string, req CreateDraftRequest, teamID, userID string) (*PublishResult, error)
 	PublishContent(ctx context.Context, req DraftDataPost, teamID, userID string) (*PublishResult, error)
@@ -26,5 +27,5 @@ type Service interface {
 	GetSEOScore(ctx context.Context, id string) (*SEOScore, error)
 
 	// Similarity
-	CheckSimilarity(ctx context.Context, id string, teamID string, params paginate.PaginationParams) ([]SimilarityResult, error)
+	CheckSimilarity(ctx context.Context, id string, useRole models.UserContext, params paginate.PaginationParams) ([]SimilarityResult, error)
 }

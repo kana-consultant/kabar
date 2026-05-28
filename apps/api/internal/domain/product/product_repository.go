@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"database/sql"
+	"seo-backend/internal/models"
 )
 
 type ProductRepository interface {
@@ -14,7 +15,7 @@ type ProductRepository interface {
 	GetByIDWithTx(ctx context.Context, tx *sql.Tx, id string) (*Product, error)
 	GetAll(ctx context.Context, query string, args []interface{}) ([]Product, error)
 	GetAllWithFilters(ctx context.Context) ([]Product, int, error)
-	GetProductsByTeamID(ctx context.Context, teamID string) ([]Product, error)
+	GetProductsByTeamID(ctx context.Context, filter models.UserContext) ([]Product, error)
 	GetProductsByUserID(ctx context.Context, userID string) ([]Product, error)
 	GetProductBasicInfo(ctx context.Context, id string) (*ProductBasicInfo, error)
 	GetProductBasicInfoWithTx(ctx context.Context, tx *sql.Tx, id string) (*ProductBasicInfo, error)

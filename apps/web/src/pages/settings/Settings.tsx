@@ -15,6 +15,7 @@ export default function Settings() {
         loading,
         canManageUsers,
         isAdmin,
+        isSuperAdmin,
         roleOptions,
         getAvailableRoles,
         showAddUserDialog,
@@ -67,6 +68,7 @@ export default function Settings() {
                         currentUserId={currentUser?.id}
                         canManage={canManageUsers as any}
                         isAdmin={isAdmin}
+                        isSuperAdmin = {isSuperAdmin}
                         onAddUser={() => setShowAddUserDialog(true)}
                         onEditUser={(user) => {
                             setSelectedUser(user);

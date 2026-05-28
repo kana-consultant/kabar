@@ -8,23 +8,25 @@ import (
 	// Infrastructure
 	"seo-backend/internal/config"
 	"seo-backend/internal/helper"
+	"seo-backend/internal/infrastructure/db/repositories"
+	"seo-backend/internal/infrastructure/db/repositories/rbac"
+	auth "seo-backend/internal/middleware"
 	"seo-backend/internal/pkg/jwt"
-	auth "seo-backend/internal/presentation/middleware"
 	"seo-backend/internal/scheduler"
 	services "seo-backend/internal/service"
 
 	// Handlers (Routers)
-	aimodelHandler "seo-backend/internal/presentation/handlers/aimodel"
-	apikeyHandler "seo-backend/internal/presentation/handlers/apikey"
-	authHandler "seo-backend/internal/presentation/handlers/auth"
-	dashboardHandler "seo-backend/internal/presentation/handlers/dashboard"
-	draftHandler "seo-backend/internal/presentation/handlers/draft"
-	generateHandler "seo-backend/internal/presentation/handlers/generate"
-	historyHandler "seo-backend/internal/presentation/handlers/history"
-	productHandler "seo-backend/internal/presentation/handlers/product"
-	providerHandler "seo-backend/internal/presentation/handlers/provider"
-	teamHandler "seo-backend/internal/presentation/handlers/team"
-	userHandler "seo-backend/internal/presentation/handlers/user"
+	aimodelHandler "seo-backend/internal/presentation/aimodel"
+	apikeyHandler "seo-backend/internal/presentation/apikey"
+	authHandler "seo-backend/internal/presentation/auth"
+	dashboardHandler "seo-backend/internal/presentation/dashboard"
+	draftHandler "seo-backend/internal/presentation/draft"
+	generateHandler "seo-backend/internal/presentation/generate"
+	historyHandler "seo-backend/internal/presentation/history"
+	productHandler "seo-backend/internal/presentation/product"
+	providerHandler "seo-backend/internal/presentation/provider"
+	teamHandler "seo-backend/internal/presentation/team"
+	userHandler "seo-backend/internal/presentation/user"
 
 	// Utilities
 
@@ -86,24 +88,30 @@ func NewContainer(
 	jwtExpiry := cfg.JWTExpiry
 	jwtGenerator, _ := jwt.NewGenerator(jwtSecret, jwtExpiry)
 
-	// Public routes
 	// Public team routes untuk invite acceptance
 
-	authHandler.NewRoute(db, r, jwtGenerator).SetupRoute()
+	// ← buat SATU instance permCache di sini
+	rbacRepo := repositories.NewRBACRepository(db)
+	permCache := rbac.NewPermissionCache(redisClient, rbacRepo, 10*time.Minute)
+
+	authHandler.NewRoute(db, r, jwtGenerator, permCache).SetupRoute()
 	teamHandler.NewRoute(db, r, emailService).SetupPublicRoutes()
 
 	// Protected routes
+	// main.go atau routes.go
+
 	r.Route("/api/", func(protected chi.Router) {
 		protected.Use(auth.JWTMiddleware(cfg))
-		authHandler.NewRoute(db, protected, jwtGenerator).AuthSettingRoute()
+
+		authHandler.NewRoute(db, protected, jwtGenerator, permCache).AuthSettingRoute()
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
-		draftHandler.NewRoute(db, protected, redisClient, redisScheduler).SetupRoutes()
+		draftHandler.NewRoute(db, protected, redisClient, redisScheduler, permCache).SetupRoutes()
 		generateHandler.NewRoute(db, protected).SetupRoutes()
-		historyHandler.NewHistoryRoute(db, protected).SetupRoute()
-		productHandler.NewRoute(db, protected).SetupRoutes()
+		historyHandler.NewHistoryRoute(db, protected, permCache).SetupRoute()
+		productHandler.NewRoute(db, protected, permCache).SetupRoutes()
 		providerHandler.NewRoute(db, protected).SetupRoutes()
 		teamHandler.NewRoute(db, protected, emailService).SetupRoutes()
-		userHandler.NewRoute(db, protected).SetupRoutes()
+		userHandler.NewRoute(db, protected, permCache).SetupRoutes()
 		apikeyHandler.NewRoute(db, protected).SetupRoutes()
 		aimodelHandler.NewRoute(db, protected).SetupRoute()
 	})

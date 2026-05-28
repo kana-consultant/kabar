@@ -22,7 +22,7 @@ type ProductService interface {
 	GetByID(ctx context.Context, id string) (*Product, error)
 
 	// GetAllProducts retrieves all products with filters
-	GetAllProducts(ctx context.Context, TeamID string) ([]Product, error)
+	GetAllProducts(ctx context.Context, userCtx models.UserContext) ([]Product, error)
 
 	// UpdateConnectionStatus updates product connection status
 	UpdateConnectionStatus(ctx context.Context, productID string, isConnected bool) error

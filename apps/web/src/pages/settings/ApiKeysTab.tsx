@@ -1,18 +1,17 @@
 import { useState, useEffect } from "react";
 import { Button, Input, Label, Textarea, Switch, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@kana-consultant/ui-kit";
-// Hapus import Toast langsung
-// import { Toast } from "@kana-consultant/ui-kit";
-import { useToast } from "@/hooks/use-toast"; //   Import useToast
+import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Trash2, Plus, Key, CheckCircle, XCircle, Edit } from "lucide-react";
 import { getAPIKeys, createAPIKey, updateAPIKey, deleteAPIKey, type APIKey } from "@/services/apiKey";
 import { getModels, type AIModel } from "@/services/model";
 import { type APIProvider } from "@/services/modelProvider/types";
 import { getProviders } from "@/services/modelProvider/modelQueries";
 import { cn } from "@/lib/utils";
+import { Can } from "@/components/ui/Can";
 
 export function ApiKeysTab() {
-    const toast = useToast(); //   Gunakan hook toast
-    
+    const toast = useToast();
+
     // ── state ──────────────────────────────────────────────────
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -31,7 +30,7 @@ export function ApiKeysTab() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [selectedDeleteKey, setSelectedDeleteKey] = useState<APIKey | null>(null);
-    
+
     const loadData = async () => {
         setLoading(true);
         try {
@@ -41,13 +40,13 @@ export function ApiKeysTab() {
             setApiKeys(keysData || []);
             setModels(modelsData || []);
             setProviders(providersData || []);
-        } catch { 
-            toast.error('Gagal memuat data'); //   Ganti toast.error dengan toast.error
-        } finally { 
-            setLoading(false); 
+        } catch {
+            toast.error('Gagal memuat data');
+        } finally {
+            setLoading(false);
         }
     };
-    
+
     useEffect(() => { loadData(); }, []);
 
     const openAddDialog = (service: 'text' | 'image') => {
@@ -68,52 +67,52 @@ export function ApiKeysTab() {
 
     const handleSave = async () => {
         if (!formProviderId) {
-            toast.error('Pilih provider terlebih dahulu'); //   Ganti toast.error dengan toast.error
+            toast.error('Pilih provider terlebih dahulu');
             return;
         }
         if (!formModelId) {
-            toast.error('Pilih model terlebih dahulu'); //   Ganti toast.error dengan toast.error
+            toast.error('Pilih model terlebih dahulu');
             return;
         }
         if (!formApiKey && !editingKey) {
-            toast.error('Masukkan API Key'); //   Ganti toast.error dengan toast.error
+            toast.error('Masukkan API Key');
             return;
         }
-        
+
         setSaving(true);
         try {
             if (editingKey) {
-                const updateData: any = { 
-                    providerId: formProviderId, 
-                    modelId: formModelId, 
-                    systemPrompt: formSystemPrompt || undefined, 
-                    isActive: formIsActive 
+                const updateData: any = {
+                    providerId: formProviderId,
+                    modelId: formModelId,
+                    systemPrompt: formSystemPrompt || undefined,
+                    isActive: formIsActive
                 };
                 if (formApiKey) updateData.key = formApiKey;
                 await updateAPIKey(editingKey.id, updateData);
-                toast.success('API Key updated'); //   Ganti toast.success dengan toast.success
+                toast.success('API Key updated');
             } else {
-                await createAPIKey({ 
-                    service: dialogService, 
-                    providerId: formProviderId, 
-                    modelId: formModelId, 
-                    key: formApiKey, 
-                    systemPrompt: formSystemPrompt 
+                await createAPIKey({
+                    service: dialogService,
+                    providerId: formProviderId,
+                    modelId: formModelId,
+                    key: formApiKey,
+                    systemPrompt: formSystemPrompt
                 });
-                toast.success('API Key created'); //   Ganti toast.success dengan toast.success
+                toast.success('API Key created');
             }
             setShowDialog(false);
             await loadData();
-        } catch { 
-            toast.error('Failed to save API Key'); //   Ganti toast.error dengan toast.error
-        } finally { 
-            setSaving(false); 
+        } catch {
+            toast.error('Failed to save API Key');
+        } finally {
+            setSaving(false);
         }
     };
 
-    const handleDelete = (key: APIKey) => { 
-        setSelectedDeleteKey(key); 
-        setDeleteDialogOpen(true); 
+    const handleDelete = (key: APIKey) => {
+        setSelectedDeleteKey(key);
+        setDeleteDialogOpen(true);
     };
 
     const confirmDelete = async () => {
@@ -121,14 +120,14 @@ export function ApiKeysTab() {
         setDeleting(true);
         try {
             await deleteAPIKey(selectedDeleteKey.id);
-            toast.success("API Key deleted"); //   Ganti toast.success dengan toast.success
-            setDeleteDialogOpen(false); 
+            toast.success("API Key deleted");
+            setDeleteDialogOpen(false);
             setSelectedDeleteKey(null);
             await loadData();
-        } catch { 
-            toast.error("Failed to delete API Key"); //   Ganti toast.error dengan toast.error
-        } finally { 
-            setDeleting(false); 
+        } catch {
+            toast.error("Failed to delete API Key");
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -175,20 +174,24 @@ export function ApiKeysTab() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button
-                            size="sm"
-                            className="h-8 gap-1.5 px-3 text-xs bg-green-600 hover:bg-green-700 text-white dark:bg-purple-600 dark:hover:bg-purple-700"
-                            onClick={() => openAddDialog('text')}
-                        >
-                            <Plus className="h-3.5 w-3.5" /> Add Text Key
-                        </Button>
-                        <Button
-                            variant="outline" size="sm"
-                            className="h-8 gap-1.5 px-3 text-xs border-slate-200/80 dark:border-white/[0.08]"
-                            onClick={() => openAddDialog('image')}
-                        >
-                            <Plus className="h-3.5 w-3.5" /> Add Image Key
-                        </Button>
+                        <Can permission="api_keys.create">
+                            <Button
+                                size="sm"
+                                className="h-8 gap-1.5 px-3 text-xs bg-green-600 hover:bg-green-700 text-white dark:bg-purple-600 dark:hover:bg-purple-700"
+                                onClick={() => openAddDialog('text')}
+                            >
+                                <Plus className="h-3.5 w-3.5" /> Add Text Key
+                            </Button>
+                        </Can>
+                        <Can permission="api_keys.create">
+                            <Button
+                                variant="outline" size="sm"
+                                className="h-8 gap-1.5 px-3 text-xs border-slate-200/80 dark:border-white/[0.08]"
+                                onClick={() => openAddDialog('image')}
+                            >
+                                <Plus className="h-3.5 w-3.5" /> Add Image Key
+                            </Button>
+                        </Can>
                     </div>
                 </div>
 
@@ -289,18 +292,22 @@ export function ApiKeysTab() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    <Button variant="ghost" size="icon"
-                                                        className="h-7 w-7 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:text-purple-400 dark:hover:bg-purple-500/10"
-                                                        onClick={() => openEditDialog(key)}
-                                                    >
-                                                        <Edit className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon"
-                                                        className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
-                                                        onClick={() => handleDelete(key)}
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
+                                                    <Can permission="api_keys.edit">
+                                                        <Button variant="ghost" size="icon"
+                                                            className="h-7 w-7 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:text-purple-400 dark:hover:bg-purple-500/10"
+                                                            onClick={() => openEditDialog(key)}
+                                                        >
+                                                            <Edit className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </Can>
+                                                    <Can permission="api_keys.delete">
+                                                        <Button variant="ghost" size="icon"
+                                                            className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                                            onClick={() => handleDelete(key)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </Can>
                                                 </div>
                                             </TableCell>
                                         </TableRow>

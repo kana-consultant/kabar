@@ -659,7 +659,7 @@ export default function Landing() {
             <li><a href="#faq">Pertanyaan yang Sering Diajukan (FAQ)</a></li>
           </ul>
           <div className="nav-right">
-            <a href="#" className="btn-ghost">Masuk</a>
+            <a href="/login" className="btn-ghost">Masuk</a>
             <a href="#" className="btn-primary">Mulai Gratis</a>
           </div>
         </div>

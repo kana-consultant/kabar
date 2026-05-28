@@ -14,7 +14,9 @@ import (
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
+	userRole "seo-backend/internal/helper/filter"
 	"seo-backend/internal/helper/keywords"
+	"seo-backend/internal/models"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -93,42 +95,43 @@ func (r *RepositoryImpl) GetByID(
 
 	return &d, nil
 }
-
-func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
+func (r *RepositoryImpl) GetAll(ctx context.Context, filter models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
 	if params.Limit <= 0 {
 		params.Limit = 10
 	}
 
-	// Cache key berdasarkan semua parameter
-	cacheKey := fmt.Sprintf("draft_list:%s:limit=%d:offset=%d:search=%s", teamID, params.Limit, params.Offset, params.Search)
+	// Build access filter
+	whereClause, whereArgs := userRole.BuildAccessFilter(filter)
+
+	// Cache key
+	cacheKey := fmt.Sprintf("draft_list:%s:%s:limit=%d:offset=%d:search=%s", filter.GetRole(), filter.GetTeamID(), params.Limit, params.Offset, params.Search)
 
 	// Cek Redis cache
 	cached, err := r.redisClient.Get(ctx, cacheKey).Bytes()
 	if err == nil {
 		var result paginate.PaginatedResult[draft.Draft]
 		if err := json.Unmarshal(cached, &result); err == nil {
-			log.Printf("[GetAll] cache hit | teamID=%s | key=%s", teamID, cacheKey)
+			log.Printf("[GetAll] cache hit | filter=%+v | key=%s", filter, cacheKey)
 			return &result, nil
 		}
 	}
 
-	log.Printf("[GetAll] cache miss | teamID=%s | key=%s", teamID, cacheKey)
+	log.Printf("[GetAll] cache miss | filter=%+v | key=%s", filter, cacheKey)
 
-	// Build dynamic WHERE clause
-	args := []any{teamID}
+	// Build search clause
+	args := append([]any{}, whereArgs...)
 	searchClause := ""
 	if params.Search != "" {
 		args = append(args, "%"+params.Search+"%")
 		searchClause = fmt.Sprintf(" AND (title ILIKE $%d OR topic ILIKE $%d)", len(args), len(args))
 	}
 
+	// Combine WHERE
+	fullWhere := whereClause + searchClause + " AND status != 'scheduled'"
+
 	// Count query
 	var totalItems int
-	countQuery := fmt.Sprintf(`
-        SELECT COUNT(*) 
-        FROM drafts
-        WHERE team_id = $1 AND status != 'scheduled'%s
-    `, searchClause)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM drafts WHERE %s", fullWhere)
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalItems); err != nil {
 		return nil, err
 	}
@@ -140,49 +143,33 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params pagin
 	args = append(args, params.Limit, params.Offset)
 	query := fmt.Sprintf(`
         SELECT 
-            id,
-            title, 
-            topic, 
-            article, 
-            target_products, 
-            team_id,
-            image_url,
-            status,
-			seo_score,
-            COALESCE(image_prompt, '')
+            id, title, topic, article, target_products, team_id,
+            image_url, status, seo_score, COALESCE(image_prompt, '')
         FROM drafts
-        WHERE team_id = $1 AND status != 'scheduled'%s
+        WHERE %s
         ORDER BY created_at DESC
         LIMIT $%d OFFSET $%d
-    `, searchClause, len(args)-1, len(args))
+    `, fullWhere, len(args)-1, len(args))
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		log.Printf("[GetAll] query error | teamID=%s | err=%v", teamID, err)
+		log.Printf("[GetAll] query error | filter=%+v | err=%v", filter, err)
 		return nil, err
 	}
 	defer rows.Close()
 
 	var drafts []draft.Draft
-
 	for rows.Next() {
 		var d draft.Draft
 		var targetProductsJSON []byte
 
 		err := rows.Scan(
-			&d.ID,
-			&d.Title,
-			&d.Topic,
-			&d.Article,
-			&targetProductsJSON,
-			&d.TeamID,
-			&d.ImageURL,
-			&d.Status,
-			&d.SeoScore,
-			&d.ImagePrompt,
+			&d.ID, &d.Title, &d.Topic, &d.Article,
+			&targetProductsJSON, &d.TeamID, &d.ImageURL,
+			&d.Status, &d.SeoScore, &d.ImagePrompt,
 		)
 		if err != nil {
-			log.Printf("[GetAll] scan error | teamID=%s | err=%v", teamID, err)
+			log.Printf("[GetAll] scan error | filter=%+v | err=%v", filter, err)
 			return nil, err
 		}
 
@@ -209,78 +196,84 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, teamID string, params pagin
 	// Simpan ke Redis, TTL 2 menit
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
-		log.Printf("[GetAll] failed to marshal result | teamID=%s | err=%v", teamID, err)
+		log.Printf("[GetAll] failed to marshal result | filter=%+v | err=%v", filter, err)
 	} else {
 		if err := r.redisClient.Set(ctx, cacheKey, resultBytes, 2*time.Minute).Err(); err != nil {
-			log.Printf("[GetAll] failed to set cache | teamID=%s | err=%v", teamID, err)
+			log.Printf("[GetAll] failed to set cache | filter=%+v | err=%v", filter, err)
 		} else {
-			log.Printf("[GetAll] cache saved | teamID=%s | key=%s | ttl=2m", teamID, cacheKey)
+			log.Printf("[GetAll] cache saved | filter=%+v | key=%s | ttl=2m", filter, cacheKey)
 		}
 	}
 
 	return result, nil
 }
 
-func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (*draft.DraftStats, error) {
-	cacheKey := fmt.Sprintf("dashboard_stats:%s", teamID)
+func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, filter models.UserContext) (*draft.DraftStats, error) {
+	// Build access filter
+	whereClause, whereArgs := userRole.BuildAccessFilter(filter)
+
+	cacheKey := fmt.Sprintf("dashboard_stats:%s", filter.GetRole())
+	if filter.GetTeamID() != "" {
+		cacheKey = fmt.Sprintf("dashboard_stats:%s:%s", filter.GetRole(), filter.GetTeamID())
+	}
 
 	// 1. Cek Redis cache dulu
 	cached, err := r.redisClient.Get(ctx, cacheKey).Bytes()
 	if err == nil {
 		var stats draft.DraftStats
 		if err := json.Unmarshal(cached, &stats); err == nil {
-			log.Printf("[DashboardStats] cache hit | teamID=%s", teamID)
+			log.Printf("[DashboardStats] cache hit | filter=%+v", filter)
 			return &stats, nil
 		}
 	}
 
-	log.Printf("[DashboardStats] cache miss | teamID=%s", teamID)
+	log.Printf("[DashboardStats] cache miss | filter=%+v", filter)
 
 	stats := &draft.DraftStats{
 		ProductCoverage: make(map[string]int),
 	}
 
 	// 2. Total draft, with/without image, scheduled
-	summaryQuery := `
+	summaryQuery := fmt.Sprintf(`
 		SELECT
 			COUNT(*)                                        AS total_draft,
 			COUNT(*) FILTER (WHERE has_image = true)        AS total_with_image,
 			COUNT(*) FILTER (WHERE has_image = false)       AS total_without_image,
 			COUNT(*) FILTER (WHERE status = 'scheduled')    AS total_scheduled
 		FROM drafts
-		WHERE team_id = $1
-	`
-	if err := r.db.QueryRowContext(ctx, summaryQuery, teamID).Scan(
+		WHERE %s
+	`, whereClause)
+	if err := r.db.QueryRowContext(ctx, summaryQuery, whereArgs...).Scan(
 		&stats.TotalDraft,
 		&stats.TotalWithImage,
 		&stats.TotalWithoutImage,
 		&stats.TotalScheduled,
 	); err != nil {
-		log.Printf("[DashboardStats] failed to scan summary stats | teamID=%s | err=%v", teamID, err)
+		log.Printf("[DashboardStats] failed to scan summary stats | filter=%+v | err=%v", filter, err)
 		return nil, fmt.Errorf("failed to get summary stats: %w", err)
 	}
-	log.Printf("[DashboardStats] summary | teamID=%s | total=%d with_image=%d without_image=%d scheduled=%d",
-		teamID, stats.TotalDraft, stats.TotalWithImage, stats.TotalWithoutImage, stats.TotalScheduled)
+	log.Printf("[DashboardStats] summary | filter=%+v | total=%d with_image=%d without_image=%d scheduled=%d",
+		filter, stats.TotalDraft, stats.TotalWithImage, stats.TotalWithoutImage, stats.TotalScheduled)
 
 	// 3. Product coverage
-	productQuery := `
+	productQuery := fmt.Sprintf(`
 		SELECT p.name, COUNT(*) AS count
 		FROM (
 			SELECT id, target_products
 			FROM drafts
-			WHERE team_id = $1
+			WHERE %s
 			AND target_products IS NOT NULL
 			AND jsonb_typeof(target_products) = 'array'
 		) filtered_drafts,
 		jsonb_array_elements_text(filtered_drafts.target_products) AS product_id
 		JOIN products p ON p.id = product_id::uuid
-		WHERE p.team_id = $1
 		GROUP BY p.id, p.name
 		ORDER BY count DESC
-	`
-	productRows, err := r.db.QueryContext(ctx, productQuery, teamID)
+	`, whereClause)
+
+	productRows, err := r.db.QueryContext(ctx, productQuery, whereArgs...)
 	if err != nil {
-		log.Printf("[DashboardStats] failed to query product coverage | teamID=%s | err=%v", teamID, err)
+		log.Printf("[DashboardStats] failed to query product coverage | filter=%+v | err=%v", filter, err)
 		return nil, fmt.Errorf("failed to get product coverage: %w", err)
 	}
 	defer productRows.Close()
@@ -289,31 +282,31 @@ func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (
 		var product string
 		var count int
 		if err := productRows.Scan(&product, &count); err != nil {
-			log.Printf("[DashboardStats] failed to scan product coverage | teamID=%s | err=%v", teamID, err)
+			log.Printf("[DashboardStats] failed to scan product coverage | filter=%+v | err=%v", filter, err)
 			return nil, fmt.Errorf("failed to scan product coverage: %w", err)
 		}
 		stats.ProductCoverage[product] = count
 	}
 	if err := productRows.Err(); err != nil {
-		log.Printf("[DashboardStats] product rows iteration error | teamID=%s | err=%v", teamID, err)
+		log.Printf("[DashboardStats] product rows iteration error | filter=%+v | err=%v", filter, err)
 		return nil, err
 	}
-	log.Printf("[DashboardStats] product coverage | teamID=%s | total_products=%d", teamID, len(stats.ProductCoverage))
+	log.Printf("[DashboardStats] product coverage | filter=%+v | total_products=%d", filter, len(stats.ProductCoverage))
 
 	// 4. Daily activity — 30 hari terakhir
-	activityQuery := `
+	activityQuery := fmt.Sprintf(`
 		SELECT
 			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
 			COUNT(*) AS count
 		FROM drafts
-		WHERE team_id = $1
+		WHERE %s
 			AND created_at >= NOW() - INTERVAL '30 days'
 		GROUP BY date
 		ORDER BY date ASC
-	`
-	activityRows, err := r.db.QueryContext(ctx, activityQuery, teamID)
+	`, whereClause)
+	activityRows, err := r.db.QueryContext(ctx, activityQuery, whereArgs...)
 	if err != nil {
-		log.Printf("[DashboardStats] failed to query daily activity | teamID=%s | err=%v", teamID, err)
+		log.Printf("[DashboardStats] failed to query daily activity | filter=%+v | err=%v", filter, err)
 		return nil, fmt.Errorf("failed to get daily activity: %w", err)
 	}
 	defer activityRows.Close()
@@ -321,52 +314,57 @@ func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, teamID string) (
 	for activityRows.Next() {
 		var a draft.DailyActivity
 		if err := activityRows.Scan(&a.Date, &a.Count); err != nil {
-			log.Printf("[DashboardStats] failed to scan daily activity | teamID=%s | err=%v", teamID, err)
+			log.Printf("[DashboardStats] failed to scan daily activity | filter=%+v | err=%v", filter, err)
 			return nil, fmt.Errorf("failed to scan daily activity: %w", err)
 		}
 		stats.DailyActivity = append(stats.DailyActivity, a)
 	}
 	if err := activityRows.Err(); err != nil {
-		log.Printf("[DashboardStats] activity rows iteration error | teamID=%s | err=%v", teamID, err)
+		log.Printf("[DashboardStats] activity rows iteration error | filter=%+v | err=%v", filter, err)
 		return nil, err
 	}
-	log.Printf("[DashboardStats] daily activity | teamID=%s | total_days=%d", teamID, len(stats.DailyActivity))
+	log.Printf("[DashboardStats] daily activity | filter=%+v | total_days=%d", filter, len(stats.DailyActivity))
 
 	// 5. Simpan ke Redis cache, TTL 5 menit
 	statsBytes, err := json.Marshal(stats)
 	if err != nil {
-		log.Printf("[DashboardStats] failed to marshal stats for cache | teamID=%s | err=%v", teamID, err)
+		log.Printf("[DashboardStats] failed to marshal stats for cache | filter=%+v | err=%v", filter, err)
 	} else {
 		if err := r.redisClient.Set(ctx, cacheKey, statsBytes, 5*time.Minute).Err(); err != nil {
-			log.Printf("[DashboardStats] failed to set cache | teamID=%s | err=%v", teamID, err)
+			log.Printf("[DashboardStats] failed to set cache | filter=%+v | err=%v", filter, err)
 		} else {
-			log.Printf("[DashboardStats] cache saved | teamID=%s | ttl=5m", teamID)
+			log.Printf("[DashboardStats] cache saved | filter=%+v | ttl=5m", filter)
 		}
 	}
 
-	log.Printf("[DashboardStats] completed | teamID=%s", teamID)
+	log.Printf("[DashboardStats] completed | filter=%+v", filter)
 	return stats, nil
 }
 
-func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, teamID string, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
+func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
 	if params.Limit <= 0 {
 		params.Limit = 10
 	}
 
+	// Build access filter
+	whereClause, whereArgs := userRole.BuildAccessFilter(userCtx)
+
 	var totalItems int
-	countQuery := `
+	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) 
 		FROM drafts
-		WHERE team_id = $1 AND status = 'scheduled'
-	`
-	if err := r.db.QueryRowContext(ctx, countQuery, teamID).Scan(&totalItems); err != nil {
+		WHERE %s AND status = 'scheduled'
+	`, whereClause)
+	if err := r.db.QueryRowContext(ctx, countQuery, whereArgs...).Scan(&totalItems); err != nil {
 		return nil, err
 	}
 
 	totalPages := int(math.Ceil(float64(totalItems) / float64(params.Limit)))
 	currentPage := (params.Offset / params.Limit) + 1
 
-	query := `
+	// Append LIMIT & OFFSET
+	args := append(whereArgs, params.Limit, params.Offset)
+	query := fmt.Sprintf(`
 		SELECT 
 			id,
 			title, 
@@ -379,12 +377,12 @@ func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, teamID string, par
 			COALESCE(image_prompt, ''),
 			scheduled_for
 		FROM drafts
-		WHERE team_id = $1 AND status = 'scheduled'
+		WHERE %s AND status = 'scheduled'
 		ORDER BY scheduled_for ASC
-		LIMIT $2 OFFSET $3
-	`
+		LIMIT $%d OFFSET $%d
+	`, whereClause, len(args)-1, len(args))
 
-	rows, err := r.db.QueryContext(ctx, query, teamID, params.Limit, params.Offset)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		log.Printf("query error: %v", err)
 		return nil, err

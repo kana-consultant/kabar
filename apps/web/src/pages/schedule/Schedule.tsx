@@ -7,11 +7,11 @@ import { DeleteScheduleDialog } from "./DeleteScheduleDialog";
 import { LoadingSchedule } from "./LoadingSchedule";
 import { useSchedule } from "@/hooks/useSchedule";
 import { type Draft } from "@/services/draft";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Schedule() {
   const navigate = useNavigate();
   const {
-    schedules,
     filteredSchedules,
     searchQuery,
     setSearchQuery,
@@ -41,6 +41,8 @@ export default function Schedule() {
     totalItems,
   } = useSchedule();
 
+  const { can } = useAuth();
+
   const handleEdit = (schedule: Draft) => {
     navigate({ to: `/generate?edit=${schedule.id}` });
   };
@@ -57,58 +59,69 @@ export default function Schedule() {
         onRefresh={loadSchedules}
       />
 
-  
-
       <ScheduleList
         schedules={filteredSchedules}
         isDailySchedule={isDailySchedule}
         getScheduleDisplay={getScheduleDisplay}
+
         onView={(schedule) => {
           setSelectedSchedule(schedule);
           setShowDetailDialog(true);
         }}
-        onEdit={handleEdit}
-        onReschedule={(schedule) => {
+
+        onEdit={can("schedule:edit:team") ? handleEdit : ()=>{}}
+        onReschedule={can("schedule:edit:team") ? (schedule) => {
           setSelectedSchedule(schedule);
           setShowRescheduleDialog(true);
-        }}
-        onPublishNow={handlePublishNow}
-        onDelete={(schedule) => {
+        } : ()=>{}}
+
+        onPublishNow={can("schedule:publish:team") ? handlePublishNow : ()=>{}}
+
+        onDelete={can("schedule:delete:team") ? (schedule) => {
           setSelectedSchedule(schedule);
           setShowDeleteDialog(true);
-        }}
-        // Pagination props
+        } : ()=>{}}
+
         currentPage={currentPage}
         totalPages={totalPages}
         totalItems={totalItems}
         onPageChange={setCurrentPage}
       />
 
-      <ScheduleDetailDialog
-        schedule={selectedSchedule}
-        open={showDetailDialog}
-        onOpenChange={setShowDetailDialog}
-        getScheduleDisplay={getScheduleDisplay}
-        formatDate={formatDate}
-      />
+      {/* Detail — schedule:view:team */}
+      {can("schedule:view:team") && (
+        <ScheduleDetailDialog
+          schedule={selectedSchedule}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
+          getScheduleDisplay={getScheduleDisplay}
+          formatDate={formatDate}
+        />
+      )}
 
-      <RescheduleDialog
-        schedule={selectedSchedule}
-        open={showRescheduleDialog}
-        onOpenChange={setShowRescheduleDialog}
-        newDate={newScheduleDate}
-        onDateChange={setNewScheduleDate}
-        newTime={newScheduleTime}
-        onTimeChange={setNewScheduleTime}
-        onReschedule={handleReschedule}
-      />
+      {/* Reschedule — schedule:edit:team */}
+      {can("schedule:edit:team") && (
+        <RescheduleDialog
+          schedule={selectedSchedule}
+          open={showRescheduleDialog}
+          onOpenChange={setShowRescheduleDialog}
+          newDate={newScheduleDate}
+          onDateChange={setNewScheduleDate}
+          newTime={newScheduleTime}
+          onTimeChange={setNewScheduleTime}
+          onReschedule={handleReschedule}
+        />
+      )}
 
-      <DeleteScheduleDialog
-        schedule={selectedSchedule}
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        onConfirm={handleDelete}
-      />
+      {/* Delete — schedule:delete:team */}
+      {can("schedule:delete:team") && (
+        <DeleteScheduleDialog
+          schedule={selectedSchedule}
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
   );
 }

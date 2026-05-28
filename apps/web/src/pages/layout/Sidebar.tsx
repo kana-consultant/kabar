@@ -7,29 +7,29 @@ import {
     Sparkles, Rocket, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Can } from "@/components/ui/Can"
 
 const menuGroups = [
     {
         label: "MENU",
         items: [
-            { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-            { title: "Generate Konten", href: "/generate", icon: FileText },
-
-        ],
+            { title: "Dashboard",       href: "/dashboard", icon: LayoutDashboard, permission: null },
+            { title: "Generate Konten", href: "/generate",  icon: FileText,        permission: ""}
+        ]
     },
     {
         label: "MANAJEMEN",
         items: [
-            { title: "Produk", href: "/products", icon: Package },
-            { title: "Draft", href: "/drafts", icon: FileStack },
-            { title: "Schedule", href: "/schedule", icon: Calendar },
-            { title: "History", href: "/history", icon: History },
+            { title: "Produk",    href: "/products", icon: Package,   permission: "product:view:team" },
+            { title: "Draft",     href: "/drafts",   icon: FileStack, permission: "draft:view:team" },
+            { title: "Schedule",  href: "/schedule", icon: Calendar,  permission: "schedule:view:team" },
+            { title: "History",   href: "/history",  icon: History,   permission: "schedule:history:team" },
         ],
     },
     {
         label: "GENERAL",
         items: [
-            { title: "Settings", href: "/settings", icon: Settings },
+            { title: "Settings", href: "/settings", icon: Settings, permission: "" },
         ],
     },
 ];
@@ -59,7 +59,8 @@ function NavItems({
                     <div className="space-y-0.5">
                         {group.items.map((item) => {
                             const isActive = currentPath === item.href;
-                            return (
+
+                            const linkNode = (
                                 <Link
                                     key={item.href}
                                     to={item.href}
@@ -94,6 +95,15 @@ function NavItems({
                                         {item.title}
                                     </span>
                                 </Link>
+                            );
+
+                            // null permission = selalu tampil (Dashboard)
+                            if (!item.permission) return linkNode;
+
+                            return (
+                                <Can key={item.href} permission={item.permission}>
+                                    {linkNode}
+                                </Can>
                             );
                         })}
                     </div>

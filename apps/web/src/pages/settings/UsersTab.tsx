@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from  "@kana-consultant/ui-kit";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "@kana-consultant/ui-kit";
 import { Plus, Edit2, Trash2, Shield, UserCog, Eye, Pencil } from "lucide-react";
 import type { User } from "@/services/user";
 import { type UserRoleType } from "@/services/useSettings/types";
@@ -11,9 +11,11 @@ import {
     DialogHeader,
     DialogTitle,
     DialogClose,
-} from  "@kana-consultant/ui-kit";
+} from "@kana-consultant/ui-kit";
+import { Can } from "@/components/ui/Can";
 
 const roleLabels: Record<UserRoleType, string> = {
+    superadmin: "Super Admin",
     admin: "Administrator",
     owner: "Manager",
     member: "Editor",
@@ -21,6 +23,7 @@ const roleLabels: Record<UserRoleType, string> = {
 };
 
 const roleColors: Record<UserRoleType, string> = {
+    superadmin: "text-purple-600 bg-purple-50 dark:bg-purple-950",
     admin: "text-red-600 bg-red-50 dark:bg-red-950",
     owner: "text-blue-600 bg-blue-50 dark:bg-blue-950",
     member: "text-green-600 bg-green-50 dark:bg-green-950",
@@ -28,6 +31,7 @@ const roleColors: Record<UserRoleType, string> = {
 };
 
 const roleIcons: Record<UserRoleType, React.ElementType> = {
+    superadmin: Shield,
     admin: Shield,
     owner: UserCog,
     member: Pencil,
@@ -39,6 +43,7 @@ interface UsersTabProps {
     currentUserId?: string;
     canManage: boolean;
     isAdmin: boolean;
+    isSuperAdmin: boolean;
     onAddUser: () => void;
     onEditUser: (user: User) => void;
     onDeleteUser: (id: string, name: string) => void;
@@ -49,6 +54,7 @@ export function UsersTab({
     currentUserId,
     canManage,
     isAdmin,
+    isSuperAdmin,
     onAddUser,
     onEditUser,
     onDeleteUser
@@ -60,26 +66,36 @@ export function UsersTab({
 
     // Filter users based on permission
     const getVisibleUsers = () => {
-        if (!isAdmin) {
-            // Admin can see all except super_admin
-            return users.filter(u => u.role !== 'admin');
+        if (isSuperAdmin) {
+            // Super admin melihat semua users
+            return users;
         }
-        return users;
+        if (isAdmin) {
+            // Admin melihat semua kecuali superadmin
+            return users.filter(u => u.role !== 'superadmin');
+        }
+        // Role lain hanya melihat user dengan role di bawahnya
+        return users.filter(u => u.role !== 'superadmin' && u.role !== 'admin');
     };
 
     const visibleUsers = getVisibleUsers();
-
     // Check if user can be edited
     const canEditUser = (user: User) => {
         if (user.id === currentUserId) return true;
-        if (user.role === 'admin' && !isAdmin) return false;
+        // Superadmin tidak bisa diedit kecuali oleh dirinya sendiri
+        if (user.role === 'superadmin') return false;
+        // Admin tidak bisa diedit oleh non-superadmin
+        if (user.role === 'admin' && !isSuperAdmin) return false;
         return canManage;
     };
 
     // Check if user can be deleted
     const canDeleteUser = (user: User) => {
         if (user.id === currentUserId) return false;
-        if (user.role === 'admin') return false;
+        // Superadmin tidak bisa dihapus
+        if (user.role === 'superadmin') return false;
+        // Admin tidak bisa dihapus oleh non-superadmin
+        if (user.role === 'admin' && !isSuperAdmin) return false;
         return canManage;
     };
 
@@ -139,12 +155,15 @@ export function UsersTab({
                         <CardTitle>Manajemen Pengguna</CardTitle>
                         <CardDescription>Kelola pengguna dan hak akses mereka</CardDescription>
                     </div>
-                    {canManage && (
+                    <Can
+                        permissions={["user_management.manage", "user_management.assign_role"]}
+                        match="any"
+                    >
                         <Button onClick={onAddUser}>
                             <Plus className="mr-2 h-4 w-4" />
                             Tambah Pengguna
                         </Button>
-                    )}
+                    </Can>
                 </CardHeader>
                 <CardContent>
                     {visibleUsers.length === 0 ? (
@@ -184,26 +203,33 @@ export function UsersTab({
                                                 </div>
                                             </div>
                                         </div>
-                                        {canManage && user.role !== 'admin' && (
+                                        {user.role !== 'superadmin' && (
                                             <div className="flex gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => onEditUser(user)}
-                                                    disabled={!canEdit}
-                                                    title={!canEdit ? "Tidak memiliki izin untuk mengedit user ini" : "Edit user"}
+                                                <Can
+                                                    permissions={["user_management.manage", "user_management.assign_role"]}
+                                                    match="any"
                                                 >
-                                                    <Edit2 className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    onClick={() => handleDeleteClick(user.id, user.name)}
-                                                    disabled={!canDelete}
-                                                    title={!canDelete ? "Tidak memiliki izin untuk menghapus user ini" : "Hapus user"}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => onEditUser(user)}
+                                                        disabled={!canEdit}
+                                                        title={!canEdit ? "Tidak memiliki izin untuk mengedit user ini" : "Edit user"}
+                                                    >
+                                                        <Edit2 className="h-4 w-4" />
+                                                    </Button>
+                                                </Can>
+                                                <Can permission="user_management.manage">
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteClick(user.id, user.name)}
+                                                        disabled={!canDelete}
+                                                        title={!canDelete ? "Tidak memiliki izin untuk menghapus user ini" : "Hapus user"}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </Can>
                                             </div>
                                         )}
                                     </div>

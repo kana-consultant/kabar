@@ -1,106 +1,135 @@
-// internal/middleware/auth.go
 package auth
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 
 	"seo-backend/internal/config"
+	domainAuth "seo-backend/internal/domain/auth"
+	"seo-backend/internal/models"
 )
 
 type contextKey string
 
-const (
-	UserIDKey    contextKey = "user_id"
-	UserRoleKey  contextKey = "user_role"
-	UserEmailKey contextKey = "user_email"
-	TeamIDKey    contextKey = "team_id"
-)
+const ClaimsKey contextKey = "claims"
 
-// JWTMiddleware untuk authentication
+func writeError(w http.ResponseWriter, message string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
 func JWTMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, "Missing authorization header", http.StatusUnauthorized)
+				writeError(w, "Missing authorization header", http.StatusUnauthorized)
 				return
 			}
 
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 			if tokenString == authHeader {
-				http.Error(w, "Invalid token format", http.StatusUnauthorized)
+				writeError(w, "Invalid token format", http.StatusUnauthorized)
 				return
 			}
 
 			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, http.ErrAbortHandler
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 				}
 				return []byte(cfg.JWTSecret), nil
 			})
 
-			if err != nil || !token.Valid {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
+			if err != nil {
+				if errors.Is(err, jwt.ErrTokenExpired) {
+					writeError(w, "Token expired", http.StatusUnauthorized)
+					return
+				}
+				writeError(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
-			claims, ok := token.Claims.(jwt.MapClaims)
+			if !token.Valid {
+				writeError(w, "Token is not valid", http.StatusUnauthorized)
+				return
+			}
+
+			mapClaims, ok := token.Claims.(jwt.MapClaims)
 			if !ok {
-				http.Error(w, "Invalid claims", http.StatusUnauthorized)
+				writeError(w, "Invalid claims", http.StatusUnauthorized)
 				return
 			}
 
-			ctx := r.Context()
-			if userID, ok := claims["user_id"].(string); ok {
-				ctx = context.WithValue(ctx, UserIDKey, userID)
-			}
-			if role, ok := claims["role"].(string); ok {
-				ctx = context.WithValue(ctx, UserRoleKey, role)
-			}
-			if email, ok := claims["email"].(string); ok {
-				ctx = context.WithValue(ctx, UserEmailKey, email)
-			}
-			if teamID, ok := claims["team_id"].(string); ok {
-				ctx = context.WithValue(ctx, TeamIDKey, teamID)
+			log.Printf("MAAAAAAAAAAAAAAAAAAAAAAAAP %v", mapClaims)
+
+			userID, ok := mapClaims["user_id"].(string)
+			if !ok || userID == "" {
+				writeError(w, "Invalid token claims: missing user_id", http.StatusUnauthorized)
+				return
 			}
 
+			// TeamID optional, ambil jika ada
+			teamID, _ := mapClaims["team_id"].(string)
+
+			claims := &domainAuth.Claims{
+				UserID: userID,
+				Role:   mapClaims["role"].(string),
+				Email:  mapClaims["email"].(string),
+				TeamID: teamID,
+			}
+
+			ctx := context.WithValue(r.Context(), ClaimsKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
-// GetUserID mengambil user_id dari context
+func GetClaims(ctx context.Context) *domainAuth.Claims {
+	claims, _ := ctx.Value(ClaimsKey).(*domainAuth.Claims)
+	return claims
+}
+
 func GetUserID(ctx context.Context) string {
-	if userID, ok := ctx.Value(UserIDKey).(string); ok {
-		return userID
+	if c := GetClaims(ctx); c != nil {
+		return c.UserID
 	}
 	return ""
 }
 
-// GetUserRole mengambil user_role dari context
 func GetUserRole(ctx context.Context) string {
-	if role, ok := ctx.Value(UserRoleKey).(string); ok {
-		return role
+	if c := GetClaims(ctx); c != nil {
+		return c.Role
 	}
 	return ""
 }
 
-// GetUserEmail mengambil user_email dari context
 func GetUserEmail(ctx context.Context) string {
-	if email, ok := ctx.Value(UserEmailKey).(string); ok {
-		return email
+	if c := GetClaims(ctx); c != nil {
+		return c.Email
 	}
 	return ""
 }
 
-// GetTeamID mengambil team_id dari context
 func GetTeamID(ctx context.Context) string {
-	if teamID, ok := ctx.Value(TeamIDKey).(string); ok {
-		return teamID
+	if c := GetClaims(ctx); c != nil {
+		return c.TeamID
 	}
 	return ""
+}
+
+func GetUserContext(r *http.Request) models.UserContext {
+	ctx := r.Context()
+	return &models.SimpleUserContext{
+		UserID: GetUserID(ctx),
+		TeamID: GetTeamID(ctx),
+		Role:   GetUserRole(ctx),
+	}
 }

@@ -7,14 +7,14 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"strings"
-	"time"
-
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
+	userRole "seo-backend/internal/helper/filter"
 	"seo-backend/internal/helper/keywords"
 	"seo-backend/internal/models"
+	"strings"
+	"time"
 )
 
 type HistoryRepository struct {
@@ -121,17 +121,20 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 }
 
 func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserContext, params history.HistoryFilter) (*paginate.PaginatedResult[history.History], error) {
+	// Build access filter
+	whereClause, whereArgs := userRole.BuildAccessFilter(userCtx)
+
 	// Count total + per status dalam satu query
 	var totalItems, totalSuccess, totalFailed int
-	countQuery := `
+	countQuery := fmt.Sprintf(`
 		SELECT
 			COUNT(*) AS total,
 			COUNT(*) FILTER (WHERE status = 'published') AS total_success,
 			COUNT(*) FILTER (WHERE status = 'failed')  AS total_failed
 		FROM histories
-		WHERE team_id = $1
-	`
-	if err := r.db.QueryRowContext(ctx, countQuery, userCtx.GetTeamID()).
+		WHERE %s
+	`, whereClause)
+	if err := r.db.QueryRowContext(ctx, countQuery, whereArgs...).
 		Scan(&totalItems, &totalSuccess, &totalFailed); err != nil {
 		return nil, fmt.Errorf("failed to count histories: %w", err)
 	}
@@ -139,16 +142,19 @@ func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserConte
 	totalPages := int(math.Ceil(float64(totalItems) / float64(params.Limit)))
 	currentPage := (params.Offset / params.Limit) + 1
 
-	query := `
+	// Append LIMIT & OFFSET
+	args := append(whereArgs, params.Limit, params.Offset)
+	query := fmt.Sprintf(`
 		SELECT id, title, topic, content, image_url, target_products,
 			status, action, error_message, published_at, scheduled_for,
 			created_by, team_id, created_at
 		FROM histories
-		WHERE team_id = $1
+		WHERE %s
 		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
-	`
-	rows, err := r.db.QueryContext(ctx, query, userCtx.GetTeamID(), params.Limit, params.Offset)
+		LIMIT $%d OFFSET $%d
+	`, whereClause, len(args)-1, len(args))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query history: %w", err)
 	}

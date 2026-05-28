@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { DraftItem } from "./DraftItem";
 import type { Draft } from "@/services/draft";
 import { cn } from "@/lib/utils";
+import { Can } from "@/components/ui/Can";
 
 interface DraftListProps {
     drafts: Draft[];
@@ -93,78 +94,84 @@ export function DraftList({
                     </span>
                 </div>
 
-                <Button
-                    size="sm"
-                    className={cn(
-                        "h-7 gap-1.5 px-2.5 text-[11px] rounded-lg font-medium",
-                        "bg-green-600 hover:bg-green-700 text-white shadow-sm",
-                        "dark:bg-purple-600 dark:hover:bg-purple-700"
-                    )}
-                    onClick={() => navigate({ to: "/generate" })}
-                >
-                    <Plus className="h-3 w-3" />
-                    Draft Baru
-                </Button>
+                <Can permission="draft:create:team">
+                    <Button
+                        size="sm"
+                        className={cn(
+                            "h-7 gap-1.5 px-2.5 text-[11px] rounded-lg font-medium",
+                            "bg-green-600 hover:bg-green-700 text-white shadow-sm",
+                            "dark:bg-purple-600 dark:hover:bg-purple-700"
+                        )}
+                        onClick={() => navigate({ to: "/generate" })}
+                    >
+                        <Plus className="h-3 w-3" />
+                        Draft Baru
+                    </Button>
+                </Can>
             </div>
 
             {/* Items */}
-            <div className="p-3 space-y-1.5">
-                {drafts.map((draft) => (
-                    <DraftItem
-                        key={draft.id}
-                        draft={draft}
-                        onView={onView}
-                        onEdit={onEdit}
-                        onSchedule={onSchedule}
-                        onPublishNow={onPublishNow}
-                        onDelete={onDelete}
-                        formatDate={formatDate}
-                        checkSimilarity={checkSimilarity}
-                        getSeoScore={getSeoScore}
-                    />
-                ))}
-            </div>
+            <Can permission="draft:view:team">
+                <div className="p-3 space-y-1.5">
+                    {drafts.map((draft) => (
+                        <DraftItem
+                            key={draft.id}
+                            draft={draft}
+                            onView={onView}
+                            onEdit={onEdit}
+                            onSchedule={onSchedule}
+                            onPublishNow={onPublishNow}
+                            onDelete={onDelete}
+                            formatDate={formatDate}
+                            checkSimilarity={checkSimilarity}
+                            getSeoScore={getSeoScore}
+                        />
+                    ))}
+                </div>
+            </Can>
 
             {/* Pagination */}
-            {totalPages > 0 && (
-                <div className={cn(
-                    "flex items-center justify-between px-5 py-3 border-t",
-                    "border-slate-100 bg-slate-50/60",
-                    "dark:border-white/[0.05] dark:bg-white/[0.02]"
-                )}>
-                    <p className="text-xs text-slate-400 dark:text-slate-600">
-                        Halaman {currentPage} dari {totalPages}
-                    </p>
+            <Can permission="draft:view:team">
+                {totalPages > 0 && (
+                    <div className={cn(
+                        "flex items-center justify-between px-5 py-3 border-t",
+                        "border-slate-100 bg-slate-50/60",
+                        "dark:border-white/[0.05] dark:bg-white/[0.02]"
+                    )}>
+                        <p className="text-xs text-slate-400 dark:text-slate-600">
+                            Halaman {currentPage} dari {totalPages}
+                        </p>
 
-                    <div className="flex items-center gap-1">
-                        <button
-                            disabled={currentPage <= 1}
-                            onClick={() => onPageChange(currentPage - 1)}
-                            className={cn(
-                                "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
-                                "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
-                                "dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200",
-                                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            )}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button
+                                disabled={currentPage <= 1}
+                                onClick={() => onPageChange(currentPage - 1)}
+                                className={cn(
+                                    "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                                    "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+                                    "dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200",
+                                    "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                )}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </button>
 
-                        <button
-                            disabled={currentPage >= totalPages}
-                            onClick={() => onPageChange(currentPage + 1)}
-                            className={cn(
-                                "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
-                                "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
-                                "dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200",
-                                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            )}
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
+                            <button
+                                disabled={currentPage >= totalPages}
+                                onClick={() => onPageChange(currentPage + 1)}
+                                className={cn(
+                                    "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                                    "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+                                    "dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200",
+                                    "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                )}
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </Can>
         </div>
     );
 }

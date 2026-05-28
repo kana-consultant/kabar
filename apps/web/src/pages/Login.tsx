@@ -31,6 +31,7 @@ export default function Login() {
             const response = await login(email, password);
             if (response) {
                 console.log(response)
+                console.log("dasdaf")
                 navigate({ to: "/dashboard" })
             }
         } catch (err: any) {

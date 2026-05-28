@@ -1,16 +1,17 @@
 import { Button } from "@kana-consultant/ui-kit";
 import { Eye, Edit, RefreshCw, Send, Trash2, Calendar } from "lucide-react";
 import type { Draft } from "@/services/draft";
+import { Can } from "@/components/ui/Can";
 
 interface ScheduleItemProps {
     schedule: Draft;
     isDailySchedule: (scheduledFor?: string) => boolean;
     getScheduleDisplay: (scheduledFor?: string) => string;
     onView: (schedule: Draft) => void;
-    onEdit: (schedule: Draft) => void;
-    onReschedule: (schedule: Draft) => void;
-    onPublishNow: (schedule: Draft) => void;
-    onDelete: (schedule: Draft) => void;
+    onEdit?: (schedule: Draft) => void;
+    onReschedule?: (schedule: Draft) => void;
+    onPublishNow?: (schedule: Draft) => void;
+    onDelete?: (schedule: Draft) => void;
 }
 
 export function ScheduleItem({
@@ -63,32 +64,60 @@ export function ScheduleItem({
                 </div>
             </div>
 
-            {/* Action Buttons - Responsive Grid */}
+            {/* Action Buttons */}
             <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:justify-end">
+
+                {/* view — semua role */}
                 <Button variant="outline" size="sm" onClick={() => onView(schedule)}>
                     <Eye className="h-4 w-4" />
                     <span className="hidden sm:inline">Lihat</span>
                 </Button>
 
-                <Button variant="outline" size="sm" onClick={() => onEdit(schedule)}>
-                    <Edit className="h-4 w-4" />
-                    <span className="hidden sm:inline">Edit</span>
-                </Button>
+                {/* edit */}
+                <Can permission="schedule:edit:team">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEdit?.(schedule)}
+                    >
+                        <Edit className="h-4 w-4" />
+                        <span className="hidden sm:inline">Edit</span>
+                    </Button>
+                </Can>
 
-                <Button variant="outline" size="sm" onClick={() => onReschedule(schedule)}>
-                    <RefreshCw className="h-4 w-4" />
-                    <span className="hidden "/>
-                </Button>
+                {/* reschedule = edit */}
+                <Can permission="schedule:edit:team">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onReschedule?.(schedule)}
+                    >
+                        <RefreshCw className="h-4 w-4" />
+                    </Button>
+                </Can>
 
-                <Button variant="primary" size="sm" onClick={() => onPublishNow(schedule)}>
-                    <Send className="h-4 " />
-                  
-                </Button>
+                {/* publish */}
+                <Can permission="schedule:publish:team">
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => onPublishNow?.(schedule)}
+                    >
+                        <Send className="h-4 w-4" />
+                    </Button>
+                </Can>
 
-                <Button variant="destructive" size="sm" onClick={() => onDelete(schedule)}>
-                    <Trash2 className="h-4 " />
-                   
-                </Button>
+                {/* delete */}
+                <Can permission="schedule:delete:team">
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onDelete?.(schedule)}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </Can>
+
             </div>
         </div>
     );

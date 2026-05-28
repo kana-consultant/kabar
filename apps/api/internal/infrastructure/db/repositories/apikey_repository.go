@@ -9,6 +9,8 @@ import (
 
 	"seo-backend/internal/domain/apikey"
 	"seo-backend/internal/helper"
+	userRole "seo-backend/internal/helper/filter"
+	"seo-backend/internal/models"
 )
 
 type APIKeyRepository struct {
@@ -88,8 +90,11 @@ func (r *APIKeyRepository) GetByID(ctx context.Context, id string) (*apikey.APIK
 }
 
 // GetAll - get all API keys with provider and model details
-func (r *APIKeyRepository) GetAll(ctx context.Context, teamID *string, userID string, userRole string) ([]apikey.APIKeyDetail, error) {
-	query := `
+func (r *APIKeyRepository) GetAll(ctx context.Context, filter models.UserContext) ([]apikey.APIKeyDetail, error) {
+	// Build access filter
+	whereClause, whereArgs := userRole.BuildAccessFilter(filter)
+
+	query := fmt.Sprintf(`
 		SELECT 
 			ak.id, ak.service, ak.provider_id, ak.model_id,
 			ak.is_active, ak.system_prompt, ak.created_by,
@@ -101,13 +106,10 @@ func (r *APIKeyRepository) GetAll(ctx context.Context, teamID *string, userID st
 		FROM api_keys ak
 		LEFT JOIN api_providers p ON ak.provider_id = p.id
 		LEFT JOIN ai_models m ON ak.model_id = m.id
-		WHERE ak.team_id = $1
-	`
+		WHERE %s
+	`, whereClause)
 
-	args := []interface{}{}
-	args = append(args, *teamID)
-
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.db.QueryContext(ctx, query, whereArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query API keys: %w", err)
 	}

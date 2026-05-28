@@ -268,8 +268,8 @@ func (s *ProductService) GetByID(ctx context.Context, id string) (*product.Produ
 }
 
 // GetProduct - tanpa transaction (read-only)
-func (s *ProductService) GetAllProducts(ctx context.Context, TeamId string) ([]product.Product, error) {
-	return s.productRepo.GetProductsByTeamID(ctx, TeamId)
+func (s *ProductService) GetAllProducts(ctx context.Context, userCtx models.UserContext) ([]product.Product, error) {
+	return s.productRepo.GetProductsByTeamID(ctx, userCtx)
 }
 
 // UpdateConnectionStatus - dengan transaction optional

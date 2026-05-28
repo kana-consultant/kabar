@@ -1,6 +1,7 @@
 import { Button } from "@kana-consultant/ui-kit";
 import { Edit2, Trash2, CheckCircle2, AlertCircle, Package as PackageIcon } from "lucide-react";
 import type { Product } from "@/services/product";
+import { Can } from "@/components/ui/Can";
 
 interface ProductListProps {
     products: Product[];
@@ -69,24 +70,29 @@ export function ProductList({ products, testingId, onTest, onEdit, onDelete }: P
                     </div>
 
                     <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-8 rounded-xl border-slate-200 dark:border-white/10 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
-                            onClick={() => onEdit(product)}
-                        >
-                            <Edit2 className="mr-1 h-3 w-3" />
-                            Edit
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            className="flex-1 h-8 rounded-xl"
-                            onClick={() => onDelete(product)}
-                        >
-                            <Trash2 className="mr-1 h-3 w-3" />
-                            Hapus
-                        </Button>
+                        <Can permission="product:edit:team">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-8 rounded-xl border-slate-200 dark:border-white/10 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
+                                onClick={() => onEdit(product)}
+                            >
+                                <Edit2 className="mr-1 h-3 w-3" />
+                                Edit
+                            </Button>
+                        </Can>
+
+                        <Can permission="product:delete:team">
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="flex-1 h-8 rounded-xl"
+                                onClick={() => onDelete(product)}
+                            >
+                                <Trash2 className="mr-1 h-3 w-3" />
+                                Hapus
+                            </Button>
+                        </Can>
                     </div>
                 </div>
             ))}

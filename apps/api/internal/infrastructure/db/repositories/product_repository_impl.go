@@ -10,6 +10,8 @@ import (
 
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
+	userRole "seo-backend/internal/helper/filter"
+	"seo-backend/internal/models"
 )
 
 type ProductRepository struct {
@@ -233,16 +235,19 @@ func (r *ProductRepository) GetProductBasicInfoWithTx(ctx context.Context, tx *s
 	return &info, nil
 }
 
-func (r *ProductRepository) GetProductsByTeamID(ctx context.Context, teamID string) ([]product.Product, error) {
-	query := `
+func (r *ProductRepository) GetProductsByTeamID(ctx context.Context, filter models.UserContext) ([]product.Product, error) {
+	// Build access filter
+	whereClause, whereArgs := userRole.BuildAccessFilter(filter)
+
+	query := fmt.Sprintf(`
 		SELECT id, name, platform, api_endpoint, status, sync_status, 
 			last_sync, created_by, team_id, user_id, created_at, updated_at
-		FROM products WHERE team_id = $1 ORDER BY created_at DESC
-	`
+		FROM products WHERE %s ORDER BY created_at DESC
+	`, whereClause)
 
-	rows, err := r.db.QueryContext(ctx, query, teamID)
+	rows, err := r.db.QueryContext(ctx, query, whereArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch products by team: %w", err)
+		return nil, fmt.Errorf("failed to fetch products: %w", err)
 	}
 	defer rows.Close()
 

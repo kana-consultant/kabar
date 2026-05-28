@@ -26,7 +26,7 @@ func NewGenerator(secret string, expiry string) (*Generator, error) {
 }
 
 // GenerateToken generates a JWT token
-func (g *Generator) GenerateToken(userID, teamID, email, name, role string) (string, error) {
+func (g *Generator) GenerateToken(userID, teamID, email, name, role string, perms []string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
@@ -38,6 +38,10 @@ func (g *Generator) GenerateToken(userID, teamID, email, name, role string) (str
 
 	if teamID != "" {
 		claims["team_id"] = teamID
+	}
+
+	if len(perms) > 0 {
+		claims["permissions"] = perms
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
