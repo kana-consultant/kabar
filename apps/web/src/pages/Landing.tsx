@@ -14,24 +14,31 @@ const STYLES = `
   color: #ededf7;
   min-height: 100vh;
   --bg:           #07070f;
-  --bg2:          #0c0c1a;
-  --bg3:          #101020;
+  --bg2:          #0d0d1c;
+  --bg3:          #111124;
   --border:       rgba(255,255,255,0.065);
   --border2:      rgba(255,255,255,0.11);
   --border3:      rgba(255,255,255,0.22);
   --text:         #ededf7;
   --text2:        #7e7ea0;
   --text3:        #3e3e58;
-  --accent:       #7c3aed;
+
+  /* ── Brand colors from Kabar logo ── */
+  --accent:       #6d28e8;
+  --accent-mid:   #8b5cf6;
   --accent-lt:    #a78bfa;
-  --accent-faint: rgba(124,58,237,0.1);
-  --accent-glow:  rgba(124,58,237,0.28);
+  --accent-faint: rgba(109,40,232,0.10);
+  --accent-glow:  rgba(109,40,232,0.30);
+
+  /* Green orbit accent from logo */
+  --green:        #34d399;
+  --green-faint:  rgba(52,211,153,0.12);
 }
 .kl *, .kl *::before, .kl *::after { box-sizing: border-box; }
 
 /* GRAIN */
 .kl .grain {
-  position: fixed; inset: 0; pointer-events: none; z-index: 999; opacity: 0.024;
+  position: fixed; inset: 0; pointer-events: none; z-index: 999; opacity: 0.022;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -43,6 +50,7 @@ const STYLES = `
 /* ═══ ANIMATIONS ═══ */
 @keyframes kl-up   { from { opacity:0; transform: translateY(22px); } to { opacity:1; transform: translateY(0); } }
 @keyframes kl-blink{ 0%,100%{opacity:1} 50%{opacity:.35} }
+@keyframes kl-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes kl-float-a { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
 @keyframes kl-float-b { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
 @keyframes kl-float-c { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
@@ -62,8 +70,7 @@ const STYLES = `
 
 /* ═══ SCROLL REVEAL ═══ */
 [data-reveal] {
-  opacity: 0;
-  transform: translateY(30px);
+  opacity: 0; transform: translateY(30px);
   transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1);
 }
 [data-reveal].in-view { opacity:1; transform:translateY(0); }
@@ -82,8 +89,9 @@ const STYLES = `
   text-decoration: none; letter-spacing: .01em;
   transition: background .2s, transform .15s, box-shadow .2s;
 }
-.kl .btn-primary:hover { background:#6d28d9; transform:translateY(-1px); box-shadow:0 8px 28px var(--accent-glow); }
+.kl .btn-primary:hover { background:#5b21b6; transform:translateY(-1px); box-shadow:0 8px 28px var(--accent-glow); }
 .kl .btn-primary.lg { font-size:15px; padding:13px 26px; border-radius:9px; }
+
 .kl .btn-ghost {
   display: inline-flex; align-items: center; gap: 7px;
   background: transparent; color: var(--text2);
@@ -94,56 +102,63 @@ const STYLES = `
 .kl .btn-ghost:hover { color:var(--text); border-color:var(--border3); background:rgba(255,255,255,.04); }
 .kl .btn-ghost.lg { font-size:15px; padding:13px 20px; }
 
+/* ═══ LOGO MARK (Rocket + Orbit) ═══ */
+.kl .logo-orbit-ring {
+  transform-origin: 14px 14px;
+  animation: kl-orbit 8s linear infinite;
+}
+
 /* ═══ NAVBAR ═══ */
 .kl nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   border-bottom: 1px solid var(--border);
-  background: rgba(7,7,15,.82);
-  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  background: rgba(7,7,15,.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
 .kl .nav-inner { display:flex; align-items:center; justify-content:space-between; height:60px; max-width:1120px; margin:0 auto; padding:0 32px; }
 .kl .nav-logo  { display:flex; align-items:center; gap:9px; font-weight:800; font-size:17px; letter-spacing:-.02em; color:var(--text); text-decoration:none; }
-.kl .nav-logo-mark { width:28px; height:28px; border-radius:7px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:13px; }
-.kl .nav-links { display:flex; align-items:center; gap:30px; list-style:none; }
+.kl .nav-links { display:flex; align-items:center; gap:30px; list-style:none; margin:0; padding:0; }
 .kl .nav-links a { font-size:13.5px; font-weight:500; color:var(--text2); text-decoration:none; transition:color .2s; }
 .kl .nav-links a:hover { color:var(--text); }
 .kl .nav-right { display:flex; align-items:center; gap:10px; }
 
 /* ═══ HERO — SPLIT LAYOUT ═══ */
 .kl .hero {
-  padding-top: 60px;
-  min-height: 100vh;
+  padding-top: 60px; min-height: 100vh;
   display: flex; align-items: center;
   position: relative; overflow: hidden;
 }
 .kl .hero-dots {
   position:absolute; inset:0; pointer-events:none;
-  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 0);
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.048) 1px, transparent 0);
   background-size: 36px 36px;
   mask-image: radial-gradient(ellipse 90% 90% at 25% 50%, black 20%, transparent 75%);
   -webkit-mask-image: radial-gradient(ellipse 90% 90% at 25% 50%, black 20%, transparent 75%);
 }
 .kl .hero-glow-tr {
   position:absolute; top:-100px; right:-100px; width:700px; height:700px; pointer-events:none;
-  background: radial-gradient(ellipse at top right, rgba(124,58,237,.15) 0%, transparent 55%);
+  background: radial-gradient(ellipse at top right, rgba(109,40,232,.16) 0%, transparent 55%);
+}
+/* subtle green orbit glow bottom-left matching logo */
+.kl .hero-glow-bl {
+  position:absolute; bottom:-80px; left:-80px; width:480px; height:480px; pointer-events:none;
+  background: radial-gradient(ellipse at bottom left, rgba(52,211,153,.07) 0%, transparent 55%);
 }
 .kl .hero-split {
   display: grid; grid-template-columns: 5fr 7fr;
-  gap: 56px; align-items: center;
-  padding: 80px 0;
+  gap: 56px; align-items: center; padding: 80px 0;
   position: relative; z-index: 1; width: 100%;
 }
 
 /* Hero — left text */
-.kl .hero-text {}
 .kl .badge {
   display: inline-flex; align-items: center; gap: 8px;
   border: 1px solid rgba(167,139,250,.22); border-radius:100px;
   padding: 5px 15px; font-size: 11.5px; font-weight: 600; letter-spacing: .08em;
   text-transform: uppercase; color: var(--accent-lt);
-  background: rgba(124,58,237,.08); margin-bottom: 24px;
+  background: rgba(109,40,232,.08); margin-bottom: 24px;
 }
-.kl .badge-dot { width:5px; height:5px; border-radius:50%; background:var(--accent-lt); animation: kl-blink 2s ease-in-out infinite; }
+.kl .badge-dot { width:5px; height:5px; border-radius:50%; background:var(--green); animation: kl-blink 2s ease-in-out infinite; }
 .kl .hero-h1 {
   font-family: 'Fraunces', Georgia, serif;
   font-size: clamp(40px, 4.8vw, 66px); font-weight: 700; line-height: 1.04;
@@ -164,7 +179,7 @@ const STYLES = `
 .kl .hero-visual { position:relative; }
 .kl .hero-visual-glow {
   position:absolute; inset:-80px; pointer-events:none;
-  background: radial-gradient(ellipse at 55% 40%, rgba(124,58,237,.2) 0%, transparent 55%);
+  background: radial-gradient(ellipse at 55% 40%, rgba(109,40,232,.2) 0%, transparent 55%);
 }
 .kl .hero-mockup-tilt {
   position: relative; z-index: 1;
@@ -180,7 +195,7 @@ const STYLES = `
 .kl .fbadge {
   position: absolute; z-index: 10;
   display: flex; align-items: center; gap: 10px;
-  background: rgba(8,8,20,.94); border: 1px solid var(--border2);
+  background: rgba(8,8,22,.94); border: 1px solid var(--border2);
   border-radius: 12px; padding: 10px 14px;
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 8px 32px rgba(0,0,0,.55);
@@ -196,8 +211,8 @@ const STYLES = `
 /* ═══ MINI BROWSER WINDOW ═══ */
 .kl .mwin {
   border: 1px solid var(--border2); border-radius:14px; overflow:hidden;
-  background: #0b0b1c;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.03), 0 40px 80px rgba(0,0,0,.7), 0 0 60px rgba(124,58,237,.07);
+  background: #0b0b1e;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.03), 0 40px 80px rgba(0,0,0,.7), 0 0 60px rgba(109,40,232,.08);
   position: relative;
 }
 .kl .mwin-bar { display:flex; align-items:center; gap:7px; padding:11px 16px; border-bottom:1px solid var(--border); background:rgba(0,0,0,.3); }
@@ -208,19 +223,19 @@ const STYLES = `
 .kl .mwin-sb-sec { font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text3); margin:12px 0 5px 8px; }
 .kl .mwin-sb-sec:first-child { margin-top:0; }
 .kl .mwin-sb-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:5px; font-size:11px; color:var(--text3); margin-bottom:1px; }
-.kl .mwin-sb-item.on { background:rgba(124,58,237,.14); color:var(--accent-lt); border:1px solid rgba(124,58,237,.18); }
+.kl .mwin-sb-item.on { background:rgba(109,40,232,.14); color:var(--accent-lt); border:1px solid rgba(109,40,232,.2); }
 .kl .mwin-main { padding:18px 22px; }
 .kl .mwin-title { font-size:16px; font-weight:700; margin-bottom:2px; }
 .kl .mwin-sub   { font-size:10px; color:var(--text3); margin-bottom:14px; }
 .kl .mwin-pill  { display:inline-flex; align-items:center; gap:12px; border:1px solid var(--border); border-radius:6px; padding:6px 11px; font-size:10px; color:var(--text2); background:rgba(255,255,255,.02); margin-bottom:14px; }
-.kl .mwin-pill b { color:#4ade80; }
+.kl .mwin-pill b { color:var(--green); }
 .kl .mwin-pill span { color:var(--accent-lt); font-weight:700; }
 .kl .mwin-grid  { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .kl .mwin-card  { border:1px solid var(--border); border-radius:8px; padding:10px; background:rgba(255,255,255,.015); }
 .kl .mwin-clabel{ font-size:10px; font-weight:600; margin-bottom:8px; }
 .kl .mwin-inp   { width:100%; background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:5px; padding:6px 8px; font-size:10px; color:var(--text2); font-family:'Syne',sans-serif; margin-bottom:7px; display:block; }
 .kl .mwin-gbtn  { width:100%; background:var(--accent); border:none; border-radius:5px; padding:7px; font-size:10px; font-weight:700; color:#fff; font-family:'Syne',sans-serif; }
-.kl .mwin-ok    { font-size:9px; color:#4ade80; margin-top:5px; }
+.kl .mwin-ok    { font-size:9px; color:var(--green); margin-top:5px; }
 .kl .mwin-modes { display:flex; gap:3px; margin-bottom:8px; }
 .kl .mwin-mode  { flex:1; padding:5px 2px; border-radius:4px; text-align:center; font-size:9.5px; font-weight:600; background:rgba(255,255,255,.04); color:var(--text3); }
 .kl .mwin-mode.on { background:var(--accent); color:#fff; }
@@ -232,7 +247,8 @@ const STYLES = `
 .kl .compat { padding:24px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
 .kl .compat-inner { max-width:1120px; margin:0 auto; padding:0 32px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
 .kl .compat-label { font-size:12px; color:var(--text3); font-weight:500; margin-right:4px; }
-.kl .compat-chip  { padding:5px 14px; border:1px solid var(--border); border-radius:7px; font-size:12px; font-weight:600; color:var(--text3); }
+.kl .compat-chip  { padding:5px 14px; border:1px solid var(--border); border-radius:7px; font-size:12px; font-weight:600; color:var(--text3); transition:border-color .2s, color .2s; }
+.kl .compat-chip:hover { border-color:var(--border2); color:var(--text2); }
 
 /* ═══ SECTIONS ═══ */
 .kl section { padding:96px 0; }
@@ -261,23 +277,21 @@ const STYLES = `
   transition:background .2s, border-color .2s;
 }
 .kl .ft-tab:hover { background:rgba(255,255,255,.025); }
-.kl .ft-tab.on   { background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.07); border-left-color:var(--accent-lt); }
+.kl .ft-tab.on   { background:rgba(109,40,232,.06); border-color:rgba(255,255,255,.07); border-left-color:var(--accent-lt); }
 .kl .ft-tab-icon { font-size:22px; margin-bottom:8px; display:block; }
 .kl .ft-tab-name { font-size:15px; font-weight:700; margin-bottom:4px; }
 .kl .ft-tab-hint { font-size:13px; color:var(--text3); line-height:1.5; }
 .kl .ft-tab.on .ft-tab-hint { color:var(--text2); }
-
 .kl .ft-preview {
   border:1px solid var(--border2); border-radius:16px; overflow:hidden;
   background:var(--bg2); position:relative; min-height:420px;
 }
-.kl .ft-bar { height:2px; background:linear-gradient(90deg, var(--accent), var(--accent-lt), transparent); }
+.kl .ft-bar { height:2px; background:linear-gradient(90deg, var(--accent), var(--green), transparent); }
 .kl .ft-panel {
   position:absolute; inset:0; padding:30px;
   opacity:0; transform:translateY(10px);
   transition:opacity .3s ease, transform .3s ease;
-  pointer-events:none;
-  overflow:hidden;
+  pointer-events:none; overflow:hidden;
 }
 .kl .ft-panel.on { opacity:1; transform:translateY(0); pointer-events:auto; }
 
@@ -287,7 +301,7 @@ const STYLES = `
 .kl .fp-model  { font-size:12px; font-weight:600; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:var(--text); }
 .kl .fp-inp    { width:100%; background:rgba(255,255,255,.05); border:1px solid var(--border2); border-radius:8px; padding:11px 14px; font-size:13px; color:var(--text); font-family:'Syne',sans-serif; margin-bottom:10px; display:block; }
 .kl .fp-gbtn   { width:100%; background:var(--accent); border:none; border-radius:8px; padding:12px; font-size:13.5px; font-weight:700; color:#fff; font-family:'Syne',sans-serif; cursor:default; letter-spacing:.01em; }
-.kl .fp-ok     { font-size:12px; color:#4ade80; margin-top:10px; display:flex; align-items:center; gap:7px; }
+.kl .fp-ok     { font-size:12px; color:var(--green); margin-top:10px; display:flex; align-items:center; gap:7px; }
 .kl .fp-divider{ border:none; border-top:1px solid var(--border); margin:20px 0; }
 .kl .fp-metarow{ display:flex; align-items:center; justify-content:space-between; }
 .kl .fp-meta-k { font-size:11px; color:var(--text3); font-weight:600; }
@@ -295,11 +309,10 @@ const STYLES = `
 
 /* Panel: Schedule */
 .kl .fp-day-label { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; margin:0 0 8px; }
-.kl .fp-day-label + .fp-day-label { margin-top:18px; }
 .kl .fp-sched-list { display:flex; flex-direction:column; gap:6px; }
 .kl .fp-sched-item { display:flex; align-items:center; gap:12px; border:1px solid var(--border); border-radius:9px; padding:10px 14px; background:rgba(255,255,255,.02); }
 .kl .fp-sched-time { font-size:12px; font-weight:700; color:var(--accent-lt); min-width:40px; }
-.kl .fp-sched-dot  { width:7px; height:7px; border-radius:50%; background:#4ade80; flex-shrink:0; }
+.kl .fp-sched-dot  { width:7px; height:7px; border-radius:50%; background:var(--green); flex-shrink:0; }
 .kl .fp-sched-name { font-size:13px; font-weight:600; flex:1; }
 .kl .fp-sched-site { font-size:11px; color:var(--text3); }
 .kl .fp-sched-footer { margin-top:16px; padding:10px 14px; border-radius:8px; background:var(--accent-faint); border:1px solid rgba(167,139,250,.18); font-size:12px; color:var(--accent-lt); font-weight:600; }
@@ -308,8 +321,8 @@ const STYLES = `
 .kl .fp-site-count { font-size:14px; font-weight:600; color:var(--text2); margin-bottom:14px; }
 .kl .fp-site-count b { color:var(--text); }
 .kl .fp-sites { display:flex; flex-direction:column; gap:6px; margin-bottom:20px; }
-.kl .fp-site-row { display:flex; align-items:center; gap:12px; border:1px solid var(--border); border-radius:9px; padding:10px 14px; background:rgba(255,255,255,.02); transition:background .15s; }
-.kl .fp-site-row.sel { border-color:rgba(167,139,250,.25); background:rgba(124,58,237,.06); }
+.kl .fp-site-row { display:flex; align-items:center; gap:12px; border:1px solid var(--border); border-radius:9px; padding:10px 14px; background:rgba(255,255,255,.02); }
+.kl .fp-site-row.sel { border-color:rgba(167,139,250,.25); background:rgba(109,40,232,.06); }
 .kl .fp-site-chk { width:16px; height:16px; border-radius:4px; border:1px solid var(--border2); display:flex; align-items:center; justify-content:center; font-size:9px; flex-shrink:0; }
 .kl .fp-site-row.sel .fp-site-chk { background:var(--accent); border-color:var(--accent); color:#fff; }
 .kl .fp-site-name { font-size:13px; font-weight:600; flex:1; }
@@ -318,11 +331,11 @@ const STYLES = `
 
 /* Panel: SEO */
 .kl .fp-seo-header { display:flex; align-items:center; gap:20px; padding:18px; border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,.02); margin-bottom:22px; }
-.kl .fp-seo-big { font-family:'Fraunces',serif; font-size:62px; font-weight:700; letter-spacing:-.04em; line-height:1; color:#4ade80; }
+.kl .fp-seo-big { font-family:'Fraunces',serif; font-size:62px; font-weight:700; letter-spacing:-.04em; line-height:1; color:var(--green); }
 .kl .fp-seo-sub { font-size:13px; color:var(--text3); margin-top:2px; }
 .kl .fp-seo-track-wrap { flex:1; }
 .kl .fp-seo-track { height:6px; background:rgba(255,255,255,.07); border-radius:100px; overflow:hidden; margin-bottom:6px; }
-.kl .fp-seo-fill  { height:100%; border-radius:100px; background:linear-gradient(90deg,#4ade80,#22d3ee); }
+.kl .fp-seo-fill  { height:100%; border-radius:100px; background:linear-gradient(90deg, var(--green), #22d3ee); }
 .kl .fp-seo-status{ font-size:12px; color:var(--text2); font-weight:600; }
 .kl .fp-metrics { display:flex; flex-direction:column; gap:10px; }
 .kl .fp-metric   { display:flex; align-items:center; gap:12px; }
@@ -347,34 +360,12 @@ const STYLES = `
 .kl .who-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:24px; margin-top:56px; }
 .kl .who-card { border:1px solid var(--border); border-radius:14px; padding:36px; position:relative; overflow:hidden; transition:border-color .25s, transform .25s; }
 .kl .who-card:hover { border-color:rgba(167,139,250,.28); transform:translateY(-2px); }
-.kl .who-stripe { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, var(--accent) 0%, transparent 70%); }
+.kl .who-stripe { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, var(--accent) 0%, var(--green) 60%, transparent 100%); }
 .kl .who-icon  { font-size:34px; margin-bottom:18px; }
 .kl .who-title { font-size:20px; font-weight:700; margin-bottom:10px; }
 .kl .who-desc  { font-size:14px; color:var(--text2); line-height:1.65; margin-bottom:20px; }
 .kl .who-tags  { display:flex; flex-wrap:wrap; gap:8px; }
 .kl .who-tag   { padding:4px 12px; border-radius:100px; font-size:12px; font-weight:600; color:var(--accent-lt); border:1px solid rgba(167,139,250,.2); background:var(--accent-faint); }
-
-/* ═══ PRICING ═══ */
-.kl .pricing-section { border-top:1px solid var(--border); }
-.kl .pricing-center  { text-align:center; }
-.kl .pricing-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:56px; }
-.kl .price-card { border:1px solid var(--border); border-radius:14px; padding:34px; background:var(--bg2); position:relative; transition:transform .25s; }
-.kl .price-card:hover { transform:translateY(-3px); }
-.kl .price-card.pop { border-color:rgba(167,139,250,.35); background:linear-gradient(180deg,rgba(124,58,237,.07) 0%,var(--bg2) 50%); }
-.kl .pop-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--accent); color:#fff; font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:3px 14px; border-radius:100px; white-space:nowrap; }
-.kl .price-tier { font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--text3); margin-bottom:14px; }
-.kl .price-val  { font-family:'Fraunces',serif; font-size:42px; font-weight:700; letter-spacing:-.03em; line-height:1; margin-bottom:4px; }
-.kl .price-val sub { font-size:17px; font-weight:400; color:var(--text2); vertical-align:middle; }
-.kl .price-per  { font-size:12px; color:var(--text3); margin-bottom:26px; }
-.kl .price-sep  { border:none; border-top:1px solid var(--border); margin:22px 0; }
-.kl .price-list { list-style:none; display:flex; flex-direction:column; gap:11px; margin-bottom:26px; }
-.kl .price-li   { display:flex; align-items:flex-start; gap:10px; font-size:13.5px; color:var(--text2); }
-.kl .price-chk  { color:#4ade80; font-size:12px; margin-top:2px; flex-shrink:0; }
-.kl .price-cta  { width:100%; padding:12px; border-radius:9px; font-size:13.5px; font-weight:600; font-family:'Syne',sans-serif; cursor:pointer; border:none; transition:all .2s; }
-.kl .price-cta.ghost { background:transparent; color:var(--text); border:1px solid var(--border2); }
-.kl .price-cta.ghost:hover { border-color:var(--border3); background:rgba(255,255,255,.04); }
-.kl .price-cta.solid { background:var(--accent); color:#fff; }
-.kl .price-cta.solid:hover { background:#6d28d9; box-shadow:0 6px 24px var(--accent-glow); }
 
 /* ═══ FAQ ═══ */
 .kl .faq-section { border-top:1px solid var(--border); }
@@ -390,7 +381,8 @@ const STYLES = `
 /* ═══ CTA ═══ */
 .kl .cta-section { border-top:1px solid var(--border); padding:96px 0; }
 .kl .cta-box { border:1px solid var(--border2); border-radius:20px; padding:88px 60px; text-align:center; position:relative; overflow:hidden; background:var(--bg2); }
-.kl .cta-halo { position:absolute; top:0; left:50%; transform:translateX(-50%); width:500px; height:260px; pointer-events:none; background:radial-gradient(ellipse at top, rgba(124,58,237,.18) 0%, transparent 65%); }
+.kl .cta-halo { position:absolute; top:0; left:50%; transform:translateX(-50%); width:500px; height:260px; pointer-events:none; background:radial-gradient(ellipse at top, rgba(109,40,232,.18) 0%, transparent 65%); }
+.kl .cta-halo-green { position:absolute; bottom:0; right:0; width:360px; height:200px; pointer-events:none; background:radial-gradient(ellipse at bottom right, rgba(52,211,153,.07) 0%, transparent 65%); }
 .kl .cta-box h2 { font-family:'Fraunces',serif; font-size:clamp(30px,5vw,54px); font-weight:700; letter-spacing:-.025em; line-height:1.1; margin-bottom:16px; position:relative; }
 .kl .cta-box p  { font-size:17px; color:var(--text2); margin-bottom:36px; position:relative; }
 .kl .cta-row    { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; position:relative; }
@@ -399,8 +391,7 @@ const STYLES = `
 /* ═══ FOOTER ═══ */
 .kl footer { border-top:1px solid var(--border); padding:44px 0; }
 .kl .footer-inner { max-width:1120px; margin:0 auto; padding:0 32px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; }
-.kl .footer-logo { display:flex; align-items:center; gap:8px; font-weight:800; font-size:15px; color:var(--text); text-decoration:none; }
-.kl .footer-logo-mark { width:24px; height:24px; border-radius:6px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11px; }
+.kl .footer-logo { display:flex; align-items:center; gap:9px; font-weight:800; font-size:15px; color:var(--text); text-decoration:none; }
 .kl .footer-links { display:flex; gap:26px; flex-wrap:wrap; }
 .kl .footer-links a { font-size:13px; color:var(--text3); text-decoration:none; transition:color .2s; }
 .kl .footer-links a:hover { color:var(--text2); }
@@ -421,7 +412,6 @@ const STYLES = `
   .kl .problem-grid  { grid-template-columns:1fr; }
   .kl .ft-wrap    { grid-template-columns:1fr; }
   .kl .who-grid   { grid-template-columns:1fr; }
-  .kl .pricing-grid  { grid-template-columns:1fr; }
   .kl .how-grid   { grid-template-columns:1fr; gap:32px; }
   .kl .how-grid::before { display:none; }
   .kl .cta-box    { padding:52px 28px; }
@@ -430,29 +420,65 @@ const STYLES = `
 `
 
 /* ─────────────────────────────────────────
+   LOGO SVG — rocket + orbit ring
+   matches Kabar brand icon
+───────────────────────────────────────── */
+function KabarLogo({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Outer orbit ring */}
+      <ellipse cx="14" cy="14" rx="12" ry="5.5" stroke="url(#orbit-grad)" strokeWidth="1.5"
+        strokeDasharray="4 3" transform="rotate(-35 14 14)" opacity="0.7"
+        style={{ transformOrigin: '14px 14px', animation: 'kl-orbit 8s linear infinite' }} />
+      {/* Rocket body */}
+      <path d="M14 5.5 C14 5.5 18.5 8 18.5 13.5 C18.5 17 16.5 19.5 14 21 C11.5 19.5 9.5 17 9.5 13.5 C9.5 8 14 5.5 14 5.5Z"
+        fill="url(#rocket-grad)" />
+      {/* Rocket window */}
+      <circle cx="14" cy="13" r="2" fill="#0d0d1c" fillOpacity="0.7" />
+      <circle cx="14" cy="13" r="1.1" fill="url(#window-grad)" />
+      {/* Rocket fins */}
+      <path d="M9.5 16.5 L7 19.5 L10.5 18Z" fill="url(#orbit-grad)" opacity="0.8" />
+      <path d="M18.5 16.5 L21 19.5 L17.5 18Z" fill="url(#orbit-grad)" opacity="0.8" />
+      {/* Rocket flame */}
+      <path d="M12.5 21 C12.5 21 13 23.5 14 24 C15 23.5 15.5 21 15.5 21Z"
+        fill="url(#flame-grad)" opacity="0.9" />
+      {/* Orbit dot (satellite dot) */}
+      <circle r="1.8" fill="#34d399">
+        <animateMotion dur="4s" repeatCount="indefinite">
+          <mpath xlinkHref="#orbit-path" />
+        </animateMotion>
+      </circle>
+      <path id="orbit-path" d="M 2 14 A 12 5.5 -35 1 1 26 14" fill="none" />
+      <defs>
+        <linearGradient id="rocket-grad" x1="14" y1="5.5" x2="14" y2="21" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#6d28e8" />
+        </linearGradient>
+        <linearGradient id="orbit-grad" x1="0" y1="0" x2="28" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="100%" stopColor="#6d28e8" />
+        </linearGradient>
+        <linearGradient id="window-grad" x1="13" y1="12" x2="15" y2="14" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#e0d4ff" />
+          <stop offset="100%" stopColor="#a78bfa" />
+        </linearGradient>
+        <linearGradient id="flame-grad" x1="14" y1="21" x2="14" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
+
+/* ─────────────────────────────────────────
    DATA
 ───────────────────────────────────────── */
 const FEATURES = [
-  {
-    icon: '✦',
-    name: 'Generate Artikel + Gambar',
-    hint: 'AI tulis artikel SEO lengkap dari satu keyword.',
-  },
-  {
-    icon: '📅',
-    name: 'Penjadwalan Otomatis',
-    hint: 'Set jadwal sekali, konten posting sendiri tiap hari.',
-  },
-  {
-    icon: '🌐',
-    name: 'Multi-Website Sekaligus',
-    hint: 'Satu generate, posting ke banyak website sekaligus.',
-  },
-  {
-    icon: '📊',
-    name: 'SEO Score Bawaan',
-    hint: 'Nilai SEO otomatis sebelum artikel dipublish.',
-  },
+  { icon: '✦', name: 'Generate Artikel + Gambar', hint: 'AI tulis artikel SEO lengkap dari satu keyword.' },
+  { icon: '📅', name: 'Penjadwalan Otomatis', hint: 'Set jadwal sekali, konten posting sendiri tiap hari.' },
+  { icon: '🌐', name: 'Multi-Website Sekaligus', hint: 'Satu generate, posting ke banyak website sekaligus.' },
+  { icon: '📊', name: 'SEO Score Bawaan', hint: 'Nilai SEO otomatis sebelum artikel dipublish.' },
 ]
 
 const PROBLEMS = [
@@ -480,11 +506,51 @@ const WHOS = [
   },
 ]
 
+/*
+─── PRICING (nonaktif) ───
+
 const PLANS = [
-  { tier: 'Starter',  price: 'Gratis',      per: 'Selamanya', pop: false, features: ['5 artikel per bulan', '1 website', 'Generate gambar AI', 'SEO Score', 'Support komunitas'], cta: 'Mulai Gratis',        style: 'ghost' },
-  { tier: 'Pro',      price: 'Rp 99.000',   per: 'per bulan', pop: true,  features: ['50 artikel per bulan', '5 website', 'Penjadwalan otomatis', 'Semua AI model', 'Prioritas generate', 'Email support'], cta: 'Coba 7 Hari Gratis', style: 'solid' },
-  { tier: 'Agency',   price: 'Rp 299.000',  per: 'per bulan', pop: false, features: ['Artikel tak terbatas', 'Website tak terbatas', 'Penjadwalan otomatis', 'Semua AI model', 'API access', 'Priority support'], cta: 'Hubungi Kami', style: 'ghost' },
+  { tier: 'Starter',  price: 'Gratis',      per: 'Selamanya', pop: false,
+    features: ['5 artikel per bulan', '1 website', 'Generate gambar AI', 'SEO Score', 'Support komunitas'],
+    cta: 'Mulai Gratis', style: 'ghost' },
+  { tier: 'Pro',      price: 'Rp 99.000',   per: 'per bulan', pop: true,
+    features: ['50 artikel per bulan', '5 website', 'Penjadwalan otomatis', 'Semua AI model', 'Prioritas generate', 'Email support'],
+    cta: 'Coba 7 Hari Gratis', style: 'solid' },
+  { tier: 'Agency',   price: 'Rp 299.000',  per: 'per bulan', pop: false,
+    features: ['Artikel tak terbatas', 'Website tak terbatas', 'Penjadwalan otomatis', 'Semua AI model', 'API access', 'Priority support'],
+    cta: 'Hubungi Kami', style: 'ghost' },
 ]
+
+<section className="pricing-section" id="harga">
+  <div className="container">
+    <div className="pricing-center" data-reveal>
+      <div className="section-label" style={{ justifyContent: 'center' }}>Harga</div>
+      <h2 className="section-title display">Mulai gratis, scale<br />sesuai kebutuhanmu</h2>
+      <p className="section-desc">Tidak ada kontrak panjang. Upgrade atau downgrade kapan saja.</p>
+    </div>
+    <div className="pricing-grid" data-reveal data-delay="2">
+      {PLANS.map(plan => (
+        <div key={plan.tier} className={`price-card ${plan.pop ? 'pop' : ''}`}>
+          {plan.pop && <div className="pop-badge">Paling Populer</div>}
+          <div className="price-tier">{plan.tier}</div>
+          <div className="price-val display">
+            {plan.price}{plan.per === 'per bulan' && <sub>/bln</sub>}
+          </div>
+          <div className="price-per">{plan.per}</div>
+          <hr className="price-sep" />
+          <ul className="price-list">
+            {plan.features.map(f => (
+              <li key={f} className="price-li"><span className="price-chk">✓</span>{f}</li>
+            ))}
+          </ul>
+          <button className={`price-cta ${plan.style}`}>{plan.cta}</button>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+─── END PRICING ───
+*/
 
 const FAQS = [
   { q: 'Apakah konten AI akan dihukum Google?', a: 'Google tidak menghukum konten AI — yang dinilai adalah kualitas dan relevansi. Kabar mengoptimalkan artikel untuk SEO dan readability sehingga memenuhi standar Google. Ribuan website menggunakan konten AI tanpa masalah selama kualitasnya terjaga.' },
@@ -495,7 +561,7 @@ const FAQS = [
 ]
 
 /* ─────────────────────────────────────────
-   FEATURE PREVIEW PANELS
+   FEATURE PANELS
 ───────────────────────────────────────── */
 function PanelGenerate() {
   return (
@@ -504,15 +570,13 @@ function PanelGenerate() {
         <span className="fp-title">Generate Konten</span>
         <span className="fp-model">Gemini 2.5 Flash ▾</span>
       </div>
-      <div className="fp-inp" style={{ display: 'block' }}>
-        10 Tips SEO Terbaik untuk Meningkatkan Traffic 2025
-      </div>
+      <div className="fp-inp" style={{ display: 'block' }}>10 Tips SEO Terbaik untuk Meningkatkan Traffic 2025</div>
       <button className="fp-gbtn">✦&nbsp;&nbsp;Generate Artikel</button>
       <div className="fp-ok"><span>●</span> Artikel siap · 1.240 kata</div>
       <hr className="fp-divider" />
       <div className="fp-metarow">
         <span className="fp-meta-k">SEO Score</span>
-        <span className="fp-meta-v" style={{ color: '#4ade80' }}>87 / 100</span>
+        <span className="fp-meta-v" style={{ color: 'var(--green)' }}>87 / 100</span>
       </div>
       <div className="fp-metarow" style={{ marginTop: 10 }}>
         <span className="fp-meta-k">Mode Posting</span>
@@ -521,16 +585,20 @@ function PanelGenerate() {
     </>
   )
 }
-
 function PanelSchedule() {
+  const today = [
+    { t: '09:00', name: '10 Tips SEO Terbaik 2025', site: 'techblog.id' },
+    { t: '15:00', name: 'Review Laptop Gaming Terbaik', site: 'reviewgadget.com' },
+  ]
+  const tomorrow = [
+    { t: '10:00', name: 'Strategi Affiliate Marketing 2025', site: 'affiliateku.net' },
+    { t: '14:00', name: 'Cara Monetisasi Blog dari Nol', site: 'tutorialseo.id' },
+  ]
   return (
     <>
       <p className="fp-day-label">Hari ini</p>
       <div className="fp-sched-list">
-        {[
-          { t: '09:00', name: '10 Tips SEO Terbaik 2025', site: 'techblog.id' },
-          { t: '15:00', name: 'Review Laptop Gaming Terbaik', site: 'reviewgadget.com' },
-        ].map(i => (
+        {today.map(i => (
           <div key={i.t} className="fp-sched-item">
             <span className="fp-sched-time">{i.t}</span>
             <span className="fp-sched-dot" />
@@ -541,10 +609,7 @@ function PanelSchedule() {
       </div>
       <p className="fp-day-label" style={{ marginTop: 18 }}>Besok</p>
       <div className="fp-sched-list">
-        {[
-          { t: '10:00', name: 'Strategi Affiliate Marketing 2025', site: 'affiliateku.net' },
-          { t: '14:00', name: 'Cara Monetisasi Blog dari Nol', site: 'tutorialseo.id' },
-        ].map(i => (
+        {tomorrow.map(i => (
           <div key={i.t} className="fp-sched-item">
             <span className="fp-sched-time">{i.t}</span>
             <span className="fp-sched-dot" />
@@ -557,13 +622,10 @@ function PanelSchedule() {
     </>
   )
 }
-
 function PanelMultiSite() {
   const sites = [
-    { name: 'techblog.id',       sel: true  },
-    { name: 'reviewgadget.com',  sel: true  },
-    { name: 'tutorialseo.id',    sel: true  },
-    { name: 'affiliateku.net',   sel: false },
+    { name: 'techblog.id', sel: true }, { name: 'reviewgadget.com', sel: true },
+    { name: 'tutorialseo.id', sel: true }, { name: 'affiliateku.net', sel: false },
     { name: 'produkfavorit.com', sel: false },
   ]
   return (
@@ -574,7 +636,7 @@ function PanelMultiSite() {
           <div key={s.name} className={`fp-site-row ${s.sel ? 'sel' : ''}`}>
             <div className="fp-site-chk">{s.sel ? '✓' : ''}</div>
             <span className="fp-site-name">{s.name}</span>
-            <span className="fp-site-stat" style={{ color: s.sel ? '#4ade80' : 'var(--text3)' }}>
+            <span className="fp-site-stat" style={{ color: s.sel ? 'var(--green)' : 'var(--text3)' }}>
               {s.sel ? '● aktif' : '○'}
             </span>
           </div>
@@ -584,13 +646,12 @@ function PanelMultiSite() {
     </>
   )
 }
-
 function PanelSEO() {
   const metrics = [
-    { label: 'Keyword Density',   pct: 80,  color: '#4ade80' },
-    { label: 'Struktur Heading',  pct: 100, color: '#4ade80' },
-    { label: 'Meta Description',  pct: 65,  color: '#fbbf24' },
-    { label: 'Jumlah Kata',       pct: 100, color: '#4ade80' },
+    { label: 'Keyword Density', pct: 80, color: 'var(--green)' },
+    { label: 'Struktur Heading', pct: 100, color: 'var(--green)' },
+    { label: 'Meta Description', pct: 65, color: '#fbbf24' },
+    { label: 'Jumlah Kata', pct: 100, color: 'var(--green)' },
   ]
   return (
     <>
@@ -600,9 +661,7 @@ function PanelSEO() {
           <div className="fp-seo-sub">dari 100</div>
         </div>
         <div className="fp-seo-track-wrap">
-          <div className="fp-seo-track">
-            <div className="fp-seo-fill" style={{ width: '87%' }} />
-          </div>
+          <div className="fp-seo-track"><div className="fp-seo-fill" style={{ width: '87%' }} /></div>
           <div className="fp-seo-status">Skor Bagus — siap dipublish</div>
         </div>
       </div>
@@ -624,13 +683,12 @@ function PanelSEO() {
 const PANELS = [PanelGenerate, PanelSchedule, PanelMultiSite, PanelSEO]
 
 /* ─────────────────────────────────────────
-   COMPONENT
+   MAIN COMPONENT
 ───────────────────────────────────────── */
 export default function Landing() {
   const [activeFeature, setActiveFeature] = useState(0)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
-  /* Scroll reveal */
   useEffect(() => {
     const obs = new IntersectionObserver(
       (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in-view') }),
@@ -648,19 +706,18 @@ export default function Landing() {
       {/* ── NAVBAR ── */}
       <nav>
         <div className="nav-inner">
-          <a href="#" className="nav-logo">
-            <div className="nav-logo-mark">✦</div>
+          <a href="/" className="nav-logo">
+            <KabarLogo size={28} />
             KABAR
           </a>
           <ul className="nav-links">
             <li><a href="#fitur">Fitur</a></li>
             <li><a href="#cara-kerja">Cara Kerja</a></li>
-            <li><a href="#harga">Harga</a></li>
-            <li><a href="#faq">Pertanyaan yang Sering Diajukan (FAQ)</a></li>
+            <li><a href="#faq">FAQ</a></li>
           </ul>
           <div className="nav-right">
-            <a href="#" className="btn-ghost">Masuk</a>
-            <a href="#" className="btn-primary">Mulai Gratis</a>
+            <a href="/login" className="btn-ghost">Masuk</a>
+            <a href="/login" className="btn-primary">Mulai Gratis</a>
           </div>
         </div>
       </nav>
@@ -669,10 +726,11 @@ export default function Landing() {
       <section className="hero">
         <div className="hero-dots" />
         <div className="hero-glow-tr" />
+        <div className="hero-glow-bl" />
         <div className="container">
           <div className="hero-split">
 
-            {/* LEFT — text */}
+            {/* LEFT */}
             <div className="hero-text">
               <div className="badge au d1">
                 <span className="badge-dot" />
@@ -685,7 +743,7 @@ export default function Landing() {
                 Generate artikel SEO berkualitas, buat gambar, dan posting terjadwal ke semua website-mu — tanpa menulis satu kata pun.
               </p>
               <div className="hero-actions au d4">
-                <a href="#" className="btn-primary lg">✦&nbsp; Mulai Gratis</a>
+                <a href="/login" className="btn-primary lg">✦&nbsp; Mulai Gratis</a>
                 <a href="#cara-kerja" className="btn-ghost lg">Cara Kerja →</a>
               </div>
               <p className="hero-disclaimer au d4">
@@ -713,19 +771,19 @@ export default function Landing() {
             <div className="hero-visual">
               <div className="hero-visual-glow" />
 
-              {/* Floating badge: SEO score */}
+              {/* Floating badge SEO */}
               <div className="fbadge fb1 au d6"
-                style={{ position: 'absolute', top: '10%', right: '-20px', zIndex: 10 }}>
+                style={{ position:'absolute', top:'10%', right:'-20px', zIndex:10 }}>
                 <span className="fbadge-icon">📋</span>
                 <div>
                   <div className="fbadge-label">SEO Score</div>
-                  <div className="fbadge-val" style={{ color: '#4ade80' }}>87</div>
+                  <div className="fbadge-val" style={{ color:'var(--green)' }}>87</div>
                 </div>
               </div>
 
-              {/* Floating badge: article ready */}
+              {/* Floating badge article */}
               <div className="fbadge fb2 au d7"
-                style={{ position: 'absolute', bottom: '28%', left: '-22px', zIndex: 10 }}>
+                style={{ position:'absolute', bottom:'28%', left:'-22px', zIndex:10 }}>
                 <span className="fbadge-icon">✅</span>
                 <div>
                   <div className="fbadge-label">Artikel Siap</div>
@@ -733,9 +791,9 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Floating badge: posted */}
+              {/* Floating badge posted */}
               <div className="fbadge fb3 au d7"
-                style={{ position: 'absolute', bottom: '10%', right: '8%', zIndex: 10 }}>
+                style={{ position:'absolute', bottom:'10%', right:'8%', zIndex:10 }}>
                 <span className="fbadge-icon">🌐</span>
                 <div>
                   <div className="fbadge-label">Posted ke</div>
@@ -747,13 +805,12 @@ export default function Landing() {
               <div className="hero-mockup-tilt au d6">
                 <div className="mwin">
                   <div className="mwin-bar">
-                    <div className="mwin-dot" style={{ background: '#ff5f57' }} />
-                    <div className="mwin-dot" style={{ background: '#ffbd2e' }} />
-                    <div className="mwin-dot" style={{ background: '#28c840' }} />
+                    <div className="mwin-dot" style={{ background:'#ff5f57' }} />
+                    <div className="mwin-dot" style={{ background:'#ffbd2e' }} />
+                    <div className="mwin-dot" style={{ background:'#28c840' }} />
                     <div className="mwin-url">app.kabar.id/generate</div>
                   </div>
                   <div className="mwin-body">
-                    {/* sidebar */}
                     <div className="mwin-sb">
                       <div className="mwin-sb-sec">Menu</div>
                       {[['⊞','Dashboard'],['✦','Buat Konten',true],['📦','Produk'],['📄','Draft']].map(([ic,lb,on]) => (
@@ -768,7 +825,6 @@ export default function Landing() {
                         </div>
                       ))}
                     </div>
-                    {/* main */}
                     <div className="mwin-main">
                       <div className="mwin-title">Buat Konten</div>
                       <div className="mwin-sub">Buat artikel + gambar dengan AI</div>
@@ -779,7 +835,7 @@ export default function Landing() {
                       <div className="mwin-grid">
                         <div className="mwin-card">
                           <div className="mwin-clabel">✏️ Topik Artikel</div>
-                          <div className="mwin-inp" style={{ display: 'block' }}>10 Tips SEO Terbaik untuk 2025</div>
+                          <div className="mwin-inp" style={{ display:'block' }}>10 Tips SEO Terbaik untuk 2025</div>
                           <button className="mwin-gbtn">✦ Buat Artikel</button>
                           <div className="mwin-ok">● Artikel siap. Tambahkan gambar!</div>
                         </div>
@@ -799,7 +855,6 @@ export default function Landing() {
                   <div className="mwin-fade" />
                 </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -848,24 +903,16 @@ export default function Landing() {
               Satu platform untuk<br />semua kebutuhan kontenmu
             </h2>
           </div>
-
           <div className="ft-wrap" data-reveal data-delay="2">
-            {/* Tabs */}
             <div className="ft-tabs">
               {FEATURES.map((f, i) => (
-                <button
-                  key={i}
-                  className={`ft-tab ${activeFeature === i ? 'on' : ''}`}
-                  onClick={() => setActiveFeature(i)}
-                >
+                <button key={i} className={`ft-tab ${activeFeature === i ? 'on' : ''}`} onClick={() => setActiveFeature(i)}>
                   <span className="ft-tab-icon">{f.icon}</span>
                   <div className="ft-tab-name">{f.name}</div>
                   <div className="ft-tab-hint">{f.hint}</div>
                 </button>
               ))}
             </div>
-
-            {/* Preview */}
             <div className="ft-preview">
               <div className="ft-bar" />
               {PANELS.map((Panel, i) => (
@@ -882,7 +929,7 @@ export default function Landing() {
       <section className="how-section" id="cara-kerja">
         <div className="container">
           <div className="how-center" data-reveal>
-            <div className="section-label" style={{ justifyContent: 'center' }}>Cara Kerja</div>
+            <div className="section-label" style={{ justifyContent:'center' }}>Cara Kerja</div>
             <h2 className="section-title display">3 langkah, website-mu<br />penuh konten</h2>
           </div>
           <div className="how-grid" data-reveal data-delay="2">
@@ -920,36 +967,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── PRICING ── */}
-      <section className="pricing-section" id="harga">
-        <div className="container">
-          <div className="pricing-center" data-reveal>
-            <div className="section-label" style={{ justifyContent: 'center' }}>Harga</div>
-            <h2 className="section-title display">Mulai gratis, scale<br />sesuai kebutuhanmu</h2>
-            <p className="section-desc">Tidak ada kontrak panjang. Upgrade atau downgrade kapan saja.</p>
-          </div>
-          <div className="pricing-grid" data-reveal data-delay="2">
-            {PLANS.map(plan => (
-              <div key={plan.tier} className={`price-card ${plan.pop ? 'pop' : ''}`}>
-                {plan.pop && <div className="pop-badge">Paling Populer</div>}
-                <div className="price-tier">{plan.tier}</div>
-                <div className="price-val display">
-                  {plan.price}{plan.per === 'per bulan' && <sub>/bln</sub>}
-                </div>
-                <div className="price-per">{plan.per}</div>
-                <hr className="price-sep" />
-                <ul className="price-list">
-                  {plan.features.map(f => (
-                    <li key={f} className="price-li"><span className="price-chk">✓</span>{f}</li>
-                  ))}
-                </ul>
-                <button className={`price-cta ${plan.style}`}>{plan.cta}</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── FAQ ── */}
       <section className="faq-section" id="faq">
         <div className="container-sm">
@@ -977,11 +994,12 @@ export default function Landing() {
           <div data-reveal>
             <div className="cta-box">
               <div className="cta-halo" />
+              <div className="cta-halo-green" />
               <h2 className="display">Siap isi semua website-mu<br />tanpa kerja extra?</h2>
               <p>Mulai hari ini. Gratis. Tanpa kartu kredit.</p>
               <div className="cta-row">
-                <a href="#" className="btn-primary lg">✦&nbsp; Mulai Gratis Sekarang</a>
-                <a href="#" className="btn-ghost lg">Lihat Demo →</a>
+                <a href="/login" className="btn-primary lg">✦&nbsp; Mulai Gratis Sekarang</a>
+                <a href="/login" className="btn-ghost lg">Masuk ke Akun →</a>
               </div>
               <p className="cta-note">Bergabung dengan ratusan content creator Indonesia 🇮🇩</p>
             </div>
@@ -992,16 +1010,16 @@ export default function Landing() {
       {/* ── FOOTER ── */}
       <footer>
         <div className="footer-inner">
-          <a href="#" className="footer-logo">
-            <div className="footer-logo-mark">✦</div>
+          <a href="/" className="footer-logo">
+            <KabarLogo size={22} />
             KABAR
           </a>
           <div className="footer-links">
-            <a href="#">Fitur</a>
-            <a href="#">Harga</a>
-            <a href="#">Blog</a>
-            <a href="#">Kebijakan Privasi</a>
-            <a href="#">Syarat &amp; Ketentuan</a>
+            <a href="#fitur">Fitur</a>
+            <a href="#cara-kerja">Cara Kerja</a>
+            <a href="#faq">FAQ</a>
+            <a href="/privacy">Kebijakan Privasi</a>
+            <a href="/terms">Syarat &amp; Ketentuan</a>
           </div>
           <p className="footer-copy">© 2025 Kabar · Dibuat di Indonesia 🇮🇩</p>
         </div>
