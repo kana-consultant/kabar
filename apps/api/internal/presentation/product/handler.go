@@ -385,49 +385,6 @@ func (h *ProductHandler) UpdateConnectionStatus(
 }
 
 // =======================
-// HELPER FUNCTIONS FOR QUERY BUILDING
-// =======================
-func buildQueryFromRequest(r *http.Request) string {
-	// Build dynamic query based on query parameters
-	// Example: ?status=active&platform=shopify
-	query := "SELECT * FROM products WHERE 1=1"
-
-	if status := r.URL.Query().Get("status"); status != "" {
-		query += " AND status = '" + status + "'"
-	}
-
-	if platform := r.URL.Query().Get("platform"); platform != "" {
-		query += " AND platform = '" + platform + "'"
-	}
-
-	// Add pagination
-	if limit := r.URL.Query().Get("limit"); limit != "" {
-		query += " LIMIT " + limit
-	}
-
-	if offset := r.URL.Query().Get("offset"); offset != "" {
-		query += " OFFSET " + offset
-	}
-
-	return query
-}
-
-func buildArgsFromRequest(r *http.Request) []interface{} {
-	// Build args for parameterized query
-	args := make([]interface{}, 0)
-
-	if status := r.URL.Query().Get("status"); status != "" {
-		args = append(args, status)
-	}
-
-	if platform := r.URL.Query().Get("platform"); platform != "" {
-		args = append(args, platform)
-	}
-
-	return args
-}
-
-// =======================
 // REGISTER ROUTES
 // =======================
 func (h *ProductHandler) RegisterRoutes(r chi.Router) {
