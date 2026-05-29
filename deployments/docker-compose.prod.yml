@@ -53,6 +53,7 @@ services:
     container_name: kabar-web-production
     depends_on:
       - kabar-api
+      - kabar-web
     restart: unless-stopped
     networks:
       - kabar-production

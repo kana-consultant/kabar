@@ -62,6 +62,9 @@ services:
   nginx:
     image: nginx:alpine
     container_name: kabar-nginx-staging
+    depends_on:
+      - kabar-api
+      - kabar-web
     ports:
       - "8081:80"
     volumes:
