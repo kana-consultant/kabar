@@ -79,26 +79,19 @@ jobs:
 
             cd /home/deployer/projects/kabar
 
-            # ==============================
-            # ENV FILE (SAFE - NO HEREDOC)
-            # ==============================
-            mkdir -p apps/api
+            # =========================
+            # ❌ NO ENV RECREATE
+            # =========================
+            echo "Skipping env overwrite (staging safe mode)"
 
-            printf "POSTGRES_USER=%s\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=%s\nREDIS_PASSWORD=%s\n" \
-            "${STAGING_POSTGRES_USER}" \
-            "${STAGING_POSTGRES_PASSWORD}" \
-            "${STAGING_POSTGRES_DB}" \
-            "${STAGING_REDIS_PASSWORD}" \
-            > apps/api/.env.staging
-
-            # ==============================
-            # LOGIN GHCR
-            # ==============================
+            # =========================
+            # GHCR LOGIN
+            # =========================
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            # ==============================
-            # DEPLOY
-            # ==============================
+            # =========================
+            # DEPLOY IMMUTABLE IMAGE
+            # =========================
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:staging-${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
 
