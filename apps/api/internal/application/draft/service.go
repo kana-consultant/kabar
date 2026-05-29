@@ -207,7 +207,7 @@ func (s *DraftServiceImpl) PublishContent(
 	log.Printf("REQUEST TEAM_ID=%s USER_ID=%s", teamID, userID)
 
 	log.Printf(
-		"REQUEST DATA => Title=%s Topic=%s ImageURL=%s TargetProducts=%v keywords=%v",
+		"REQUEST DATA => Title=%s Topic=%s ImageURL=%v TargetProducts=%v keywords=%v",
 		req.Title,
 		req.Topic,
 		req.ImageURL,

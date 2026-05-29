@@ -272,6 +272,6 @@ func (s *RedisSchedulerImpl) ScheduleDraftTask(ctx context.Context, draftID stri
 		return fmt.Errorf("failed to schedule task: %w", err)
 	}
 
-	log.Printf("Draft %d scheduled at %s with task ID: %s", draftID, scheduledFor.Format(time.RFC3339), taskID)
+	log.Printf("Draft %s scheduled at %s with task ID: %s", draftID, scheduledFor.Format(time.RFC3339), taskID)
 	return nil
 }

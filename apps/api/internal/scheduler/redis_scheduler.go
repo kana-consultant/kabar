@@ -125,7 +125,7 @@ func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Tim
 		return fmt.Errorf("failed to schedule task: %w", err)
 	}
 
-	log.Printf("Draft %d scheduled at %s with task ID: %s", draftID, scheduledFor.Format(time.RFC3339), taskID)
+	log.Printf("Draft %s scheduled at %s with task ID: %s", draftID, scheduledFor.Format(time.RFC3339), taskID)
 	return nil
 }
 
@@ -147,7 +147,7 @@ func (s *RedisScheduler) executeDraftTask(taskID string) {
 	// Update draft status to publishing
 	err = s.updateDraftStatus(task.DraftID, "publishing")
 	if err != nil {
-		log.Printf("Failed to update draft %d status: %v", task.DraftID, err)
+		log.Printf("Failed to update draft %s status: %v", task.DraftID, err)
 		task.Status = "failed"
 		task.Error = err.Error()
 		s.updateTask(task)
@@ -157,12 +157,12 @@ func (s *RedisScheduler) executeDraftTask(taskID string) {
 	// Execute publishing with retry
 	err = s.publishDraft(task)
 	if err != nil {
-		log.Printf("Failed to publish draft %d after retries: %v", task.DraftID, err)
+		log.Printf("Failed to publish draft %s after retries: %v", task.DraftID, err)
 		task.Status = "failed"
 		task.Error = err.Error()
 		s.updateDraftStatus(task.DraftID, "failed")
 	} else {
-		log.Printf("Draft %d published successfully", task.DraftID)
+		log.Printf("Draft %s published successfully", task.DraftID)
 		task.Status = "completed"
 		s.updateDraftStatus(task.DraftID, "published")
 	}
@@ -180,7 +180,7 @@ func (s *RedisScheduler) publishDraft(task *ScheduledTask) error {
 
 	for i := 0; i <= task.MaxRetries; i++ {
 		if i > 0 {
-			log.Printf("Retrying draft %d (attempt %d/%d)", task.DraftID, i+1, task.MaxRetries+1)
+			log.Printf("Retrying draft %s (attempt %d/%d)", task.DraftID, i+1, task.MaxRetries+1)
 			time.Sleep(time.Duration(i*5) * time.Second)
 		}
 
@@ -362,7 +362,7 @@ func (s *RedisScheduler) CancelScheduledTask(draftID string) error {
 		}
 	}
 
-	log.Printf("Cancelled scheduled tasks for draft %d", draftID)
+	log.Printf("Cancelled scheduled tasks for draft %s", draftID)
 	return nil
 }
 
