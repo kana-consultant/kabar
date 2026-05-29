@@ -74,7 +74,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            cd /opt/kabar
+            cd /projects/kabar
 
             cat > apps/api/.env.staging << 'EOF'
             POSTGRES_USER=${{ secrets.STAGING_POSTGRES_USER }}

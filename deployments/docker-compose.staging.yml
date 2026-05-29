@@ -34,8 +34,6 @@ services:
 
   api:
     image: ghcr.io/kana-consultant/kabar-api:staging
-    build:
-      context: ../apps/api
     container_name: kabar-api-staging
     env_file:
       - ../apps/api/.env.staging
@@ -50,10 +48,6 @@ services:
 
   web:
     image: ghcr.io/kana-consultant/kabar-web:staging
-    build:
-      context: ../apps/web
-      args:
-        VITE_API_URL: /api
     container_name: kabar-web-staging
     depends_on:
       - api

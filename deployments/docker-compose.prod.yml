@@ -48,10 +48,6 @@ services:
 
   web:
     image: ghcr.io/kana-consultant/kabar-web:latest
-    build:
-      context: ../apps/web
-      args:
-        VITE_API_URL: /api
     container_name: kabar-web-production
     depends_on:
       - api
