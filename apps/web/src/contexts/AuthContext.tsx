@@ -1,8 +1,10 @@
 // src/contexts/AuthContext.tsx
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext } from 'react';
+import { useEffect } from 'react';
 
 import type { User } from '@/services/user';
 import { useAuth as authService } from '@/hooks/auth/useAuth';
+import { getPermissions } from '@/services/user/permissions';
 
 
 interface AuthContextType {
@@ -34,13 +36,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const auth = authService();
 
-    const can = useCallback((permission: string): boolean => {
-        if (!auth.role) return false;
-        if (auth.role === 'superadmin') return true;
-        const allowedRoles = auth.permissions || [];
+    const can = (permission: string): boolean => {
+        const allowedRoles = getPermissions();
         return allowedRoles.includes(permission);
+    }
 
-    }, [auth.role]);
+    // Load user on mount
+    useEffect(() => {
+        auth.refreshUser();
+    }, []); // Hanya jalan sekali saat mount
 
     const value: AuthContextType = {
         // User data

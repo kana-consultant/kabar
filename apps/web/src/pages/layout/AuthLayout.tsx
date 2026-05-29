@@ -14,8 +14,7 @@ export function AuthLayout() {
 
     // Handle redirect berdasarkan auth status
     useEffect(() => {
-        if (isLoading) return;
-
+       
         const currentPath = location.pathname;
         const isPublicRoute = PUBLIC_ROUTES.some(route => currentPath.startsWith(route));
         const isLoggedIn = isAuthenticated && hasToken();

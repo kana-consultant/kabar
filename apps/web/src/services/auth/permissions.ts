@@ -90,7 +90,7 @@ export async function canAccessResource(userId: string, resourceTeamId: string):
     const roleName = user.role || "viewer";
     
     // Super admin and admin can access everything
-    if (roleName === 'super_admin' || roleName === 'admin') return true;
+    if (roleName === 'superadmin' || roleName === 'admin') return true;
     
     // Check if user is in the team
     const userTeams = await getUserTeams(userId);
@@ -98,7 +98,7 @@ export async function canAccessResource(userId: string, resourceTeamId: string):
 }
 
 
-export function hasPermission(requiredRoles: string[]): boolean {
+export function hasPermission(requiredRoles: string[] | []): boolean {
     return hasAnyRole(requiredRoles);
 }
 

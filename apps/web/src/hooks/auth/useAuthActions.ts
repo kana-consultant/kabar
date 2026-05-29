@@ -13,14 +13,14 @@ interface UseAuthActionsParams {
     setToken: (token: string | null) => void;
     setUser: (user: User) => void;
     setRole: (role: string | null) => void;
-    setPermissions : (permissions : string[]) => void;
+    setPermissions: (permissions: string[]) => void;
     setTeamId: (teamId: string | null) => void;
     setIsAdmin: (isAdmin: boolean) => void;
     setIsSuperAdmin: (isSuperAdmin: boolean) => void;
     setIsLoading: (isLoading: boolean) => void;
     loadUser: () => Promise<void>;
     clearUserState: () => void;
-    toast : ToastContextType
+    toast: ToastContextType
 }
 
 export function useAuthActions({
@@ -47,61 +47,44 @@ export function useAuthActions({
             setRole(response.user.role);
             setTeamId(response.teamId || null);
             setIsAdmin(response.user.role === 'admin');
-            setPermissions(response.permissions || [])
+            setIsSuperAdmin(response.user.role === 'superadmin');
+            setPermissions(response.permissions || []);
 
-            console.log(response.permissions)
-            // setIsSuperAdmin(response.user.role === 'super_admin');
+            console.log(response.permissions);
 
             toast.success('Login berhasil!', {
                 description: `Selamat datang, ${response.user.name}!`,
             });
-            
+
             return true;
         } catch (error: any) {
             const status = error.response?.status;
             const message = error.response?.data?.message || error.message || 'Login gagal';
 
-            // Handle berdasarkan status code
             switch (status) {
                 case 400:
-                    toast.error('Login gagal', {
-                        description: 'Format email atau password tidak valid.',
-                    });
+                    toast.error('Login gagal', { description: 'Format email atau password tidak valid.' });
                     break;
                 case 403:
-                    toast.error('Login gagal', {
-                        description: 'Email atau password yang Anda masukkan tidak sesuai.',
-                    });
+                    toast.error('Login gagal', { description: 'Email atau password yang Anda masukkan tidak sesuai.' });
                     break;
                 case 401:
-                    toast.error('Akses ditolak', {
-                        description: message || 'Anda tidak memiliki akses untuk login.',
-                    });
+                    toast.error('Akses ditolak', { description: message || 'Anda tidak memiliki akses untuk login.' });
                     break;
                 case 404:
-                    toast.error('Login gagal', {
-                        description: 'Akun tidak ditemukan.',
-                    });
+                    toast.error('Login gagal', { description: 'Akun tidak ditemukan.' });
                     break;
                 case 422:
-                    toast.error('Validasi gagal', {
-                        description: message || 'Silakan periksa kembali email dan password Anda.',
-                    });
+                    toast.error('Validasi gagal', { description: message || 'Silakan periksa kembali email dan password Anda.' });
                     break;
                 case 429:
-                    toast.error('Terlalu banyak percobaan', {
-                        description: 'Silakan coba lagi setelah beberapa saat.',
-                    });
+                    toast.error('Terlalu banyak percobaan', { description: 'Silakan coba lagi setelah beberapa saat.' });
                     break;
                 case 500:
-                    toast.error('Server error', {
-                        description: 'Terjadi kesalahan pada server. Silakan coba lagi nanti.',
-                    });
+                    toast.error('Server error', { description: 'Terjadi kesalahan pada server. Silakan coba lagi nanti.' });
                     break;
                 default:
-                    toast.error('Login gagal', {
-                        description: message,
-                    });
+                    toast.error('Login gagal', { description: message });
                     break;
             }
 
@@ -109,7 +92,7 @@ export function useAuthActions({
         } finally {
             setIsLoading(false);
         }
-    }, [setToken, setUser, setRole, setTeamId, setIsAdmin, setIsSuperAdmin, setIsLoading]);
+    }, [setToken, setUser, setRole, setTeamId, setIsAdmin, setIsSuperAdmin, setPermissions, setIsLoading]);
 
     const logout = useCallback(async () => {
         setIsLoading(true);

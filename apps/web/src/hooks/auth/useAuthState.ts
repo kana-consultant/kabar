@@ -12,7 +12,7 @@ import { isAdmin as AdminCheck, isSuperAdmin as superAdminCheck, getPermissions 
 
 export function useAuthState() {
     const [user, setUser] = useState<User | null>(null);
-    const [permissions, setPermissions] = useState<String[] | []>([])
+    const [permissions, setPermissions] = useState<String[]>([])
     const [token, setToken] = useState<string | null>(null);
     const [role, setRole] = useState<string | null>(null);
     const [teamId, setTeamId] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function useAuthState() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [setToken, setUser, setRole, setTeamId, setPermissions, setIsAdmin, setIsSuperAdmin, setIsLoading]);
 
     const updateUserState = useCallback((updatedUser: User) => {
         setUser(updatedUser);

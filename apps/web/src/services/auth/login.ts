@@ -14,12 +14,13 @@ export async function login(email: string, password: string): Promise<LoginRespo
     const token = response.token;
     const user = response.user;
 
-    // Save to cookie
+    // Save ke cookie
     Cookies.set('auth_token', token, COOKIE_OPTIONS);
     Cookies.set('user', JSON.stringify(user), COOKIE_OPTIONS);
-   
 
-    // Ambil dari fungsi helper (baca dari cookie yang baru disimpan)
+    // Tunggu sebentar untuk memastikan cookie tersimpan
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     return {
         token,
         user,
