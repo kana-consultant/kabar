@@ -1,0 +1,83 @@
+name: Production Pipeline
+
+on:
+  push:
+    branches: [main]
+
+env:
+  API_IMAGE: ghcr.io/dewo1357/kabar-api
+  WEB_IMAGE: ghcr.io/dewo1357/kabar-web
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run tests
+        run: go test ./apps/api/...
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push API
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/api
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:latest
+            ${{ env.API_IMAGE }}:${{ github.sha }}
+
+      - name: Build & Push Web
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/web
+          push: true
+          tags: |
+            ${{ env.WEB_IMAGE }}:latest
+            ${{ env.WEB_IMAGE }}:${{ github.sha }}
+          build-args: |
+            VITE_API_URL=/api
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy ke Production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            cd /opt/kabar
+
+            cat > apps/api/.env.production << 'EOF'
+            POSTGRES_USER=${{ secrets.PRODUCTION_POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.PRODUCTION_POSTGRES_PASSWORD }}
+            POSTGRES_DB=${{ secrets.PRODUCTION_POSTGRES_DB }}
+            REDIS_PASSWORD=${{ secrets.PRODUCTION_REDIS_PASSWORD }}
+            EOF
+
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f deployments/docker-compose.prod.yml pull api web
+            docker compose -f deployments/docker-compose.prod.yml up -d --no-deps api web
+            docker image prune -f

@@ -5,9 +5,7 @@ services:
     image: postgres:15-alpine
     container_name: kabar-postgres-staging
     env_file:
-      - ../apps/api/.env.production
-    ports:
-      - "5432:5432"
+      - ../apps/api/.env.staging
     volumes:
       - postgres_staging_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -23,13 +21,11 @@ services:
     image: redis:7-alpine
     container_name: kabar-redis-staging
     env_file:
-      - ../apps/api/.env.production
+      - ../apps/api/.env.staging
     command: sh -c "redis-server --requirepass $$REDIS_PASSWORD"
-    ports:
-      - "6379:6379"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "$$REDIS_PASSWORD", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,12 +33,12 @@ services:
       - kabar-staging
 
   api:
+    image: ghcr.io/dewo1357/kabar-api:staging
     build:
       context: ../apps/api
-      dockerfile: Dockerfile
     container_name: kabar-api-staging
     env_file:
-      - ../apps/api/.env.production
+      - ../apps/api/.env.staging
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,9 +49,9 @@ services:
       - kabar-staging
 
   web:
+    image: ghcr.io/dewo1357/kabar-web:staging
     build:
       context: ../apps/web
-      dockerfile: Dockerfile
       args:
         VITE_API_URL: /api
     container_name: kabar-web-staging
@@ -69,7 +65,7 @@ services:
     image: nginx:alpine
     container_name: kabar-nginx-staging
     ports:
-      - "80:80"
+      - "8081:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - nginx_staging_logs:/var/log/nginx

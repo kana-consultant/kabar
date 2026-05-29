@@ -3,13 +3,11 @@ version: '3.9'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: kabar-postgres-staging
+    container_name: kabar-postgres-production
     env_file:
       - ../apps/api/.env.production
-    ports:
-      - "5432:5432"
     volumes:
-      - postgres_staging_data:/var/lib/postgresql/data
+      - postgres_production_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
@@ -17,30 +15,26 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kabar-staging
+      - kabar-production
 
   redis:
     image: redis:7-alpine
-    container_name: kabar-redis-staging
+    container_name: kabar-redis-production
     env_file:
       - ../apps/api/.env.production
     command: sh -c "redis-server --requirepass $$REDIS_PASSWORD"
-    ports:
-      - "6379:6379"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "$$REDIS_PASSWORD", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - kabar-staging
+      - kabar-production
 
   api:
-    build:
-      context: ../apps/api
-      dockerfile: Dockerfile
-    container_name: kabar-api-staging
+    image: ghcr.io/dewo1357/kabar-api:latest
+    container_name: kabar-api-production
     env_file:
       - ../apps/api/.env.production
     depends_on:
@@ -50,40 +44,40 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kabar-staging
+      - kabar-production
 
   web:
+    image: ghcr.io/dewo1357/kabar-web:latest
     build:
       context: ../apps/web
-      dockerfile: Dockerfile
       args:
         VITE_API_URL: /api
-    container_name: kabar-web-staging
+    container_name: kabar-web-production
     depends_on:
       - api
     restart: unless-stopped
     networks:
-      - kabar-staging
+      - kabar-production
 
   nginx:
     image: nginx:alpine
-    container_name: kabar-nginx-staging
+    container_name: kabar-nginx-production
     ports:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - nginx_staging_logs:/var/log/nginx
+      - nginx_production_logs:/var/log/nginx
     depends_on:
       - api
       - web
     restart: unless-stopped
     networks:
-      - kabar-staging
+      - kabar-production
 
 volumes:
-  postgres_staging_data:
-  nginx_staging_logs:
+  postgres_production_data:
+  nginx_production_logs:
 
 networks:
-  kabar-staging:
+  kabar-production:
     driver: bridge

@@ -3,7 +3,8 @@
 # =========================
 .env
 .env.production
-
+.env.staging
+setup-github-secrets.sh
 
 # =========================
 # NODE (React / Vite)

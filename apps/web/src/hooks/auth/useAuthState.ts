@@ -60,6 +60,7 @@ export function useAuthState() {
         setTeamId(null);
         setIsAdmin(false);
         setIsSuperAdmin(false);
+        setPermissions([]);
     }, []);
 
     return {
