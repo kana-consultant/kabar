@@ -53,7 +53,6 @@ services:
     container_name: kabar-web-production
     depends_on:
       - kabar-api
-      - kabar-web
     restart: unless-stopped
     networks:
       - kabar-production
@@ -63,6 +62,9 @@ services:
   nginx:
     image: nginx:alpine
     container_name: kabar-nginx-production
+    depends_on:
+      - kabar-api
+      - kabar-web
     ports:
       - "8001:80" 
     volumes:
