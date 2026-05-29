@@ -32,7 +32,7 @@ services:
     networks:
       - kabar-staging
 
-  api:
+  kabar-api:
     image: ghcr.io/kana-consultant/kabar-api:staging
     container_name: kabar-api-staging
     env_file:
@@ -45,15 +45,19 @@ services:
     restart: unless-stopped
     networks:
       - kabar-staging
+    expose:
+      - "8080"
 
-  web:
+  kabar-web:
     image: ghcr.io/kana-consultant/kabar-web:staging
     container_name: kabar-web-staging
     depends_on:
-      - api
+      - kabar-api
     restart: unless-stopped
     networks:
       - kabar-staging
+    expose:
+      - "80"
 
   nginx:
     image: nginx:alpine
@@ -62,17 +66,12 @@ services:
       - "8081:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - nginx_staging_logs:/var/log/nginx
-    depends_on:
-      - api
-      - web
     restart: unless-stopped
     networks:
       - kabar-staging
 
 volumes:
   postgres_staging_data:
-  nginx_staging_logs:
 
 networks:
   kabar-staging:
