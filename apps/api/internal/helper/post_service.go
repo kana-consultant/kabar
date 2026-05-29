@@ -22,7 +22,7 @@ func (s *PostService) ProcessDraftProducts(draft draft.DraftDataPost) ([]map[str
 	log.Printf("TargetProducts : %v", draft.TargetProducts)
 
 	if len(draft.TargetProducts) == 0 {
-		return nil, false, true, fmt.Errorf("%s","target products is required and cannot be empty")
+		return nil, false, true, fmt.Errorf("%s", "target products is required and cannot be empty")
 	}
 
 	var postResults []map[string]interface{}
@@ -52,7 +52,7 @@ func (s *PostService) ProcessDraftProducts(draft draft.DraftDataPost) ([]map[str
 	}
 
 	if allFailed && len(draft.TargetProducts) > 0 {
-		return postResults, someFailed, allFailed, fmt.Errorf("%s","all products failed to process")
+		return postResults, someFailed, allFailed, fmt.Errorf("%s", "all products failed to process")
 	}
 
 	return postResults, someFailed, allFailed, nil
@@ -69,7 +69,7 @@ func (s *PostService) processSingleProduct(draft draft.DraftDataPost, productID 
 			"product": productID,
 			"success": false,
 			"error":   errMsg,
-		}, fmt.Errorf("%s",errMsg)
+		}, fmt.Errorf("%s", errMsg)
 	}
 
 	requestBody, err := s.buildRequestBody(cfg, draft)
@@ -80,7 +80,7 @@ func (s *PostService) processSingleProduct(draft draft.DraftDataPost, productID 
 			"product": productID,
 			"success": false,
 			"error":   errMsg,
-		}, fmt.Errorf("%s",errMsg)
+		}, fmt.Errorf("%s", errMsg)
 	}
 
 	response, err := s.sendWithRetry(cfg, requestBody)
@@ -91,7 +91,7 @@ func (s *PostService) processSingleProduct(draft draft.DraftDataPost, productID 
 			"product": productID,
 			"success": false,
 			"error":   errMsg,
-		}, fmt.Errorf("%s",errMsg)
+		}, fmt.Errorf("%s", errMsg)
 	}
 
 	if err := s.markProductSynced(cfg.ProductID); err != nil {
@@ -119,7 +119,7 @@ func (s *PostService) updateConnectionStatus(productID string, isConnected bool)
 	`, status, productID)
 
 	if err != nil {
-		return fmt.Errorf("%s","failed to update product status for product %s: %w", productID, err)
+		return fmt.Errorf("failed to update product status for product %s: %w", productID, err)
 	}
 
 	return nil
@@ -134,16 +134,16 @@ func (s *PostService) markProductSynced(productID string) error {
 	`, productID)
 
 	if err != nil {
-		return fmt.Errorf("%s","failed to update sync status for product %s: %w", productID, err)
+		return fmt.Errorf("failed to update sync status for product %s: %w", productID, err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("%s","failed to get rows affected for product %s: %w", productID, err)
+		return fmt.Errorf("failed to get rows affected for product %s: %w", productID, err)
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("%s","product %s not found when updating sync status", productID)
+		return fmt.Errorf("product %s not found when updating sync status", productID)
 	}
 
 	log.Printf("[INFO] Product %s marked as synced successfully", productID)
