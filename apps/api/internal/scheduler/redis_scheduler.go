@@ -350,7 +350,7 @@ func (s *RedisScheduler) updateTask(task *ScheduledTask) error {
 
 // CancelScheduledTask cancels a scheduled draft
 func (s *RedisScheduler) CancelScheduledTask(draftID string) error {
-	pattern := fmt.Sprintf("schedule:draft:draft_%d_*", draftID)
+	pattern := fmt.Sprintf("schedule:draft:draft_%s_*", draftID)
 	keys, err := s.redisClient.Keys(s.ctx, pattern).Result()
 	if err != nil {
 		return err
