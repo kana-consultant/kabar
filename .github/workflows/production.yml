@@ -45,6 +45,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ======================
+      # BUILD API (IMMUTABLE)
+      # ======================
       - name: Build & Push API
         uses: docker/build-push-action@v5
         with:
@@ -53,6 +56,9 @@ jobs:
           tags: |
             ${{ env.API_IMAGE }}:${{ github.sha }}
 
+      # ======================
+      # BUILD WEB (IMMUTABLE)
+      # ======================
       - name: Build & Push Web
         uses: docker/build-push-action@v5
         with:
@@ -79,21 +85,21 @@ jobs:
 
             cd /home/deployer/projects/kabar
 
-            # OPTIONAL: hanya buat kalau belum ada (tidak overwrite lagi)
-            if [ ! -f apps/api/.env.production ]; then
-              mkdir -p apps/api
+            # =========================
+            # ❌ NO ENV OVERWRITE
+            # (production env harus persistent)
+            # =========================
 
-              cat > apps/api/.env.production << EOF
-              POSTGRES_USER=${PRODUCTION_POSTGRES_USER}
-              POSTGRES_PASSWORD=${PRODUCTION_POSTGRES_PASSWORD}
-              POSTGRES_DB=${PRODUCTION_POSTGRES_DB}
-              REDIS_PASSWORD=${PRODUCTION_REDIS_PASSWORD}
-              EOF
-            fi
+            echo "Skipping env overwrite (production safe mode)"
 
+            # =========================
+            # GHCR LOGIN
+            # =========================
             echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
-            # IMPORTANT: pakai image SHA, bukan latest
+            # =========================
+            # DEPLOY IMMUTABLE IMAGE
+            # =========================
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:${{ github.sha }}
 
