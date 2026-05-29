@@ -33,7 +33,7 @@ services:
       - kabar-staging
 
   api:
-    image: ghcr.io/dewo1357/kabar-api:staging
+    image: ghcr.io/kana-consultant/kabar-api:staging
     build:
       context: ../apps/api
     container_name: kabar-api-staging
@@ -49,7 +49,7 @@ services:
       - kabar-staging
 
   web:
-    image: ghcr.io/dewo1357/kabar-web:staging
+    image: ghcr.io/kana-consultant/kabar-web:staging
     build:
       context: ../apps/web
       args:

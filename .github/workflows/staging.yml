@@ -4,9 +4,14 @@ on:
   push:
     branches: [staging]
 
+
+permissions:
+  contents: read
+  packages: write
+
 env:
-  API_IMAGE: ghcr.io/dewo1357/kabar-api
-  WEB_IMAGE: ghcr.io/dewo1357/kabar-web
+  API_IMAGE: ghcr.io/kana-consultant/kabar-api
+  WEB_IMAGE: ghcr.io/kana-consultant/kabar-web
 
 jobs:
   test:

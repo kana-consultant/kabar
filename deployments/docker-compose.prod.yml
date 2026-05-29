@@ -33,7 +33,7 @@ services:
       - kabar-production
 
   api:
-    image: ghcr.io/dewo1357/kabar-api:latest
+    image: ghcr.io/kana-consultant/kabar-api:latest
     container_name: kabar-api-production
     env_file:
       - ../apps/api/.env.production
@@ -47,7 +47,7 @@ services:
       - kabar-production
 
   web:
-    image: ghcr.io/dewo1357/kabar-web:latest
+    image: ghcr.io/kana-consultant/kabar-web:latest
     build:
       context: ../apps/web
       args:
