@@ -11,6 +11,7 @@ permissions:
 env:
   API_IMAGE: ghcr.io/kana-consultant/kabar-api
   WEB_IMAGE: ghcr.io/kana-consultant/kabar-web
+  COMPOSE_PROJECT_NAME: kabar-production
 
 jobs:
   test:
@@ -86,13 +87,6 @@ jobs:
             cd /home/deployer/projects/kabar
 
             # =========================
-            # ❌ NO ENV OVERWRITE
-            # (production env harus persistent)
-            # =========================
-
-            echo "Skipping env overwrite (production safe mode)"
-
-            # =========================
             # GHCR LOGIN
             # =========================
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
@@ -103,7 +97,10 @@ jobs:
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:${{ github.sha }}
 
+            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.prod.yml pull
+
+            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.prod.yml up -d
 
             docker image prune -f

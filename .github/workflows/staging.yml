@@ -11,6 +11,7 @@ permissions:
 env:
   API_IMAGE: ghcr.io/kana-consultant/kabar-api
   WEB_IMAGE: ghcr.io/kana-consultant/kabar-web
+  COMPOSE_PROJECT_NAME: kabar-staging
 
 jobs:
   test:
@@ -95,7 +96,10 @@ jobs:
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:staging-${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
 
+            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.staging.yml pull
+
+            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.staging.yml up -d
 
             docker image prune -f

@@ -34,7 +34,6 @@ services:
 
   kabar-api:
     image: ghcr.io/kana-consultant/kabar-api:latest
-    container_name: kabar-api-production
     env_file:
       - ../apps/api/.env.production
     depends_on:
@@ -50,7 +49,6 @@ services:
 
   kabar-web:
     image: ghcr.io/kana-consultant/kabar-web:latest
-    container_name: kabar-web-production
     depends_on:
       - kabar-api
     restart: unless-stopped

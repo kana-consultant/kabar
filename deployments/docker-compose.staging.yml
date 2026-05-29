@@ -34,7 +34,6 @@ services:
 
   kabar-api:
     image: ghcr.io/kana-consultant/kabar-api:staging
-    container_name: kabar-api-staging
     env_file:
       - ../apps/api/.env.staging
     depends_on:
@@ -50,7 +49,6 @@ services:
 
   kabar-web:
     image: ghcr.io/kana-consultant/kabar-web:staging
-    container_name: kabar-web-staging
     depends_on:
       - kabar-api
     restart: unless-stopped
