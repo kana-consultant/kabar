@@ -51,7 +51,6 @@ jobs:
           context: ./apps/api
           push: true
           tags: |
-            ${{ env.API_IMAGE }}:staging
             ${{ env.API_IMAGE }}:staging-${{ github.sha }}
 
       - name: Build & Push Web
@@ -60,7 +59,6 @@ jobs:
           context: ./apps/web
           push: true
           tags: |
-            ${{ env.WEB_IMAGE }}:staging
             ${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
           build-args: |
             VITE_API_URL=/api
@@ -81,16 +79,13 @@ jobs:
 
             cd /home/deployer/projects/kabar
 
-            mkdir -p apps/api
+            # ❌ HAPUS OVERWRITE ENV TIAP DEPLOY
+            # ENV HARUS STAY DI SERVER
 
-            cat > apps/api/.env.staging << EOF
-            POSTGRES_USER=${{ secrets.STAGING_POSTGRES_USER }}
-            POSTGRES_PASSWORD=${{ secrets.STAGING_POSTGRES_PASSWORD }}
-            POSTGRES_DB=${{ secrets.STAGING_POSTGRES_DB }}
-            REDIS_PASSWORD=${{ secrets.STAGING_REDIS_PASSWORD }}
-            EOF
+            echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            export API_IMAGE_TAG=${{ env.API_IMAGE }}:staging-${{ github.sha }}
+            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
 
             docker compose -f deployments/docker-compose.staging.yml pull
             docker compose -f deployments/docker-compose.staging.yml up -d

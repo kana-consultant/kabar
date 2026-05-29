@@ -51,7 +51,6 @@ jobs:
           context: ./apps/api
           push: true
           tags: |
-            ${{ env.API_IMAGE }}:latest
             ${{ env.API_IMAGE }}:${{ github.sha }}
 
       - name: Build & Push Web
@@ -60,7 +59,6 @@ jobs:
           context: ./apps/web
           push: true
           tags: |
-            ${{ env.WEB_IMAGE }}:latest
             ${{ env.WEB_IMAGE }}:${{ github.sha }}
           build-args: |
             VITE_API_URL=/api
@@ -81,16 +79,23 @@ jobs:
 
             cd /home/deployer/projects/kabar
 
-            mkdir -p apps/api
+            # OPTIONAL: hanya buat kalau belum ada (tidak overwrite lagi)
+            if [ ! -f apps/api/.env.production ]; then
+              mkdir -p apps/api
 
-            cat > apps/api/.env.production << EOF
-            POSTGRES_USER=${{ secrets.PRODUCTION_POSTGRES_USER }}
-            POSTGRES_PASSWORD=${{ secrets.PRODUCTION_POSTGRES_PASSWORD }}
-            POSTGRES_DB=${{ secrets.PRODUCTION_POSTGRES_DB }}
-            REDIS_PASSWORD=${{ secrets.PRODUCTION_REDIS_PASSWORD }}
-            EOF
+              cat > apps/api/.env.production << EOF
+              POSTGRES_USER=${PRODUCTION_POSTGRES_USER}
+              POSTGRES_PASSWORD=${PRODUCTION_POSTGRES_PASSWORD}
+              POSTGRES_DB=${PRODUCTION_POSTGRES_DB}
+              REDIS_PASSWORD=${PRODUCTION_REDIS_PASSWORD}
+              EOF
+            fi
 
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+            # IMPORTANT: pakai image SHA, bukan latest
+            export API_IMAGE_TAG=${{ env.API_IMAGE }}:${{ github.sha }}
+            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:${{ github.sha }}
 
             docker compose -f deployments/docker-compose.prod.yml pull
             docker compose -f deployments/docker-compose.prod.yml up -d
