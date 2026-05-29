@@ -4,7 +4,6 @@ on:
   push:
     branches: [staging]
 
-
 permissions:
   contents: read
   packages: write
@@ -22,12 +21,16 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
           cache: true
+          cache-dependency-path: apps/api/go.sum
 
       - name: Run tests
         working-directory: apps/api
-        run: go test ./...
+        run: |
+          go mod tidy
+          go mod download
+          go test ./...
 
   build:
     runs-on: ubuntu-latest
@@ -74,16 +77,22 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
+            set -e
+
             cd /home/deployer/projects/kabar
 
-            cat > apps/api/.env.staging << 'EOF'
+            mkdir -p apps/api
+
+            cat > apps/api/.env.staging << EOF
             POSTGRES_USER=${{ secrets.STAGING_POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.STAGING_POSTGRES_PASSWORD }}
             POSTGRES_DB=${{ secrets.STAGING_POSTGRES_DB }}
             REDIS_PASSWORD=${{ secrets.STAGING_REDIS_PASSWORD }}
             EOF
 
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
             docker compose -f deployments/docker-compose.staging.yml pull api web
             docker compose -f deployments/docker-compose.staging.yml up -d --no-deps api web
+
             docker image prune -f
