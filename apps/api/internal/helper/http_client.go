@@ -11,6 +11,53 @@ import (
 	"time"
 )
 
+func (s *PostService) setRequestHeaders(req *http.Request, cfg *ProductConfig) {
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	if cfg.CustomHeaders != nil {
+		for k, v := range cfg.CustomHeaders {
+			v = resolveTemplate(v, map[string]string{
+				"api_key": cfg.APIKey,
+				"bearer":  cfg.BearerToken,
+			})
+
+			kLower := strings.ToLower(strings.TrimSpace(k))
+			vTrim := strings.TrimSpace(v)
+
+			if kLower == "" {
+				continue
+			}
+
+			// Handle API key header
+			if kLower == "x-api-key" && (vTrim == "" || vTrim == "{{api_key}}") {
+				v = cfg.APIKey
+			}
+
+			// Handle Bearer token — prioritas: {{bearer}} > {{api_key}} > cfg.APIKey
+			if kLower == "authorization" {
+				switch {
+				case vTrim == "" || vTrim == "Bearer" || vTrim == "Bearer {{api_key}}":
+					v = "Bearer " + cfg.APIKey
+				case vTrim == "Bearer {{bearer}}" || vTrim == "{{bearer}}":
+					token := cfg.BearerToken
+					if token == "" {
+						token = cfg.APIKey
+					}
+					v = "Bearer " + token
+				}
+			}
+
+			req.Header.Set(k, v)
+		}
+	}
+
+	// Fallback auth — skip kalau sudah pakai x-api-key
+	if req.Header.Get("Authorization") == "" && req.Header.Get("X-API-Key") == "" && cfg.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+	}
+}
+
 func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interface{}) ([]byte, error) {
 	var lastErr error
 
@@ -67,6 +114,7 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 		logJSON("request_headers", map[string]interface{}{
 			"attempt":       attempt,
 			"authorization": req.Header.Get("Authorization"),
+			"x_api_key":     req.Header.Get("X-API-Key"),
 			"content_type":  req.Header.Get("Content-Type"),
 		})
 
@@ -89,7 +137,6 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			return io.ReadAll(resp.Body)
 		}()
 
-		// ✅ Cek readErr dulu sebelum log, agar body valid saat di-log
 		if readErr != nil {
 			lastErr = fmt.Errorf("failed to read response body (attempt %d/%d): %w", attempt, cfg.RetryCount, readErr)
 			logJSON("read_body_error", map[string]interface{}{
@@ -104,7 +151,6 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			return nil, lastErr
 		}
 
-		// ✅ Log response hanya setelah body berhasil dibaca
 		logJSON("response", map[string]interface{}{
 			"attempt":     attempt,
 			"status_code": resp.StatusCode,
@@ -128,43 +174,6 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 	return nil, fmt.Errorf("all retries exhausted (%d attempts): %w", cfg.RetryCount, lastErr)
 }
 
-func (s *PostService) setRequestHeaders(req *http.Request, cfg *ProductConfig) {
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	if cfg.CustomHeaders != nil {
-		for k, v := range cfg.CustomHeaders {
-			v = resolveTemplate(v, map[string]string{
-				"api_key": cfg.APIKey,
-			})
-
-			kLower := strings.ToLower(strings.TrimSpace(k))
-			vTrim := strings.TrimSpace(v)
-
-			if kLower == "" {
-				continue
-			}
-
-			// Handle API key header
-			if kLower == "x-api-key" && (vTrim == "" || vTrim == "{{api_key}}") {
-				v = cfg.APIKey
-			}
-
-			// Handle Bearer token
-			if kLower == "authorization" && (vTrim == "" || vTrim == "Bearer" || vTrim == "Bearer {{api_key}}") {
-				v = "Bearer " + cfg.APIKey
-			}
-
-			req.Header.Set(k, v)
-		}
-	}
-
-	// Fallback auth
-	if req.Header.Get("Authorization") == "" && cfg.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
-	}
-}
-
 func logJSON(event string, fields map[string]interface{}) {
 	fields["event"] = event
 	fields["time"] = time.Now().Format(time.RFC3339)
@@ -176,7 +185,6 @@ func logJSON(event string, fields map[string]interface{}) {
 	log.Println(string(b))
 }
 
-// safeJSON memastikan bodyBytes valid sebagai JSON; jika bukan, wrap sebagai string
 func safeJSON(b []byte) []byte {
 	if json.Valid(b) {
 		return b
