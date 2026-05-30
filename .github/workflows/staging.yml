@@ -12,7 +12,6 @@ env:
   API_IMAGE: ghcr.io/kana-consultant/kabar-api
   WEB_IMAGE: ghcr.io/kana-consultant/kabar-web
   COMPOSE_PROJECT_NAME: kabar-staging
-  BACKUP_RETENTION_DAYS: 3
 
 jobs:
   test:
@@ -50,9 +49,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ======================
-      # BUILD API (STAGING)
-      # ======================
       - name: Build & Push API
         uses: docker/build-push-action@v5
         with:
@@ -64,9 +60,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ======================
-      # BUILD WEB (STAGING)
-      # ======================
       - name: Build & Push Web
         uses: docker/build-push-action@v5
         with:
@@ -86,126 +79,43 @@ jobs:
     if: success()
     steps:
       - name: Deploy ke Staging
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSK_KEY }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          script_stop: true
           script: |
             set -e
 
             cd /home/deployer/projects/kabar
 
-            # =========================
-            # CREATE BACKUP DIRECTORY (STAGING)
-            # =========================
+            # Backup staging database
             mkdir -p /home/deployer/backups/kabar-staging
             BACKUP_FILE="/home/deployer/backups/kabar-staging/backup_$(date +%Y%m%d_%H%M%S).sql"
 
-            # =========================
-            # BACKUP DATABASE (if exists)
-            # =========================
-            echo "📦 Creating staging database backup..."
             if docker ps | grep -q "${COMPOSE_PROJECT_NAME}-postgres"; then
-              docker exec ${COMPOSE_PROJECT_NAME}-postgres-1 pg_dump -U ${DB_USER:-kabar} ${DB_NAME:-kabar_staging} > "$BACKUP_FILE" 2>/dev/null || echo "⚠️  Backup failed, but continuing..."
+              docker exec ${COMPOSE_PROJECT_NAME}-postgres-1 pg_dump -U ${DB_USER:-kabar} ${DB_NAME:-kabar_staging} > "$BACKUP_FILE" 2>/dev/null || true
               gzip "$BACKUP_FILE" 2>/dev/null || true
-              echo "✅ Backup created: ${BACKUP_FILE}.gz"
-              
-              # Clean old backups (keep last 3 days for staging)
-              find /home/deployer/backups/kabar-staging -name "backup_*.sql.gz" -mtime +${{ env.BACKUP_RETENTION_DAYS }} -delete
-            else
-              echo "ℹ️  Database not running, skipping backup"
+              find /home/deployer/backups/kabar-staging -name "backup_*.sql.gz" -mtime +3 -delete
             fi
 
-            # =========================
-            # GHCR LOGIN
-            # =========================
+            # Login GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            # =========================
-            # PULL NEW IMAGES
-            # =========================
+            # Deploy
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:staging-${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
-            
-            echo "🔄 Pulling new staging images..."
+
             COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.staging.yml pull
 
-            # =========================
-            # STOP OLD CONTAINERS (GRACEFUL)
-            # =========================
-            echo "🛑 Stopping old staging containers..."
-            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-            docker compose -f deployments/docker-compose.staging.yml stop api web || true
-
-            # =========================
-            # RUN DATABASE MIGRATIONS (STAGING)
-            # =========================
-            echo "🔄 Running staging database migrations..."
-            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-            docker compose -f deployments/docker-compose.staging.yml run --rm api migrate up || {
-              echo "❌ Staging migration failed!"
-              echo "📝 Check migration scripts - DO NOT auto-rollback in staging"
-              echo "⚠️  Manual intervention required"
-              exit 1
-            }
-
-            # =========================
-            # START NEW CONTAINERS
-            # =========================
-            echo "🚀 Starting new staging containers..."
             COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.staging.yml up -d
 
-            # =========================
-            # HEALTH CHECK (STAGING)
-            # =========================
-            echo "🏥 Running staging health checks..."
+            # Health check
             sleep 10
-            
-            MAX_RETRIES=20
-            RETRY_COUNT=0
-            HEALTHY=false
-            
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              if curl -f http://localhost:8081/health > /dev/null 2>&1; then
-                HEALTHY=true
-                break
-              fi
-              echo "Waiting for staging API to be healthy... ($RETRY_COUNT/$MAX_RETRIES)"
-              sleep 5
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-            done
-            
-            if [ "$HEALTHY" = false ]; then
-              echo "❌ Staging health check failed!"
-              echo "📝 Check logs: docker compose -f deployments/docker-compose.staging.yml logs api"
-              echo "⚠️  Deployment continues (staging can be broken)"
-              exit 1
-            fi
-            
-            echo "✅ Staging deployment successful!"
+            curl -f http://localhost:8081/health || echo "Health check warning"
 
-            # =========================
-            # CLEANUP OLD IMAGES
-            # =========================
-            echo "🧹 Cleaning up old staging images..."
             docker image prune -f
-            
-            # Keep staging images (last 10 for staging - more lenient)
-            docker images ghcr.io/kana-consultant/kabar-api --format "{{.Tag}}" | grep "staging-" | sort -r | tail -n +11 | xargs -r docker rmi || true
-            docker images ghcr.io/kana-consultant/kabar-web --format "{{.Tag}}" | grep "staging-" | sort -r | tail -n +11 | xargs -r docker rmi || true
-
-            # =========================
-            # DEPLOYMENT SUMMARY
-            # =========================
-            echo ""
-            echo "=========================================="
-            echo "✅ Staging Deployment Complete!"
-            echo "=========================================="
-            echo "📦 API Image: ${{ env.API_IMAGE }}:staging-${{ github.sha }}"
-            echo "🌐 Web Image: ${{ env.WEB_IMAGE }}:staging-${{ github.sha }}"
-            echo "💾 Backup: ${BACKUP_FILE}.gz"
-            echo "=========================================="

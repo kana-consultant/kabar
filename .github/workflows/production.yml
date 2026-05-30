@@ -12,7 +12,6 @@ env:
   API_IMAGE: ghcr.io/kana-consultant/kabar-api
   WEB_IMAGE: ghcr.io/kana-consultant/kabar-web
   COMPOSE_PROJECT_NAME: kabar-production
-  BACKUP_RETENTION_DAYS: 7
 
 jobs:
   test:
@@ -50,9 +49,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ======================
-      # BUILD API (IMMUTABLE)
-      # ======================
       - name: Build & Push API
         uses: docker/build-push-action@v5
         with:
@@ -64,9 +60,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ======================
-      # BUILD WEB (IMMUTABLE)
-      # ======================
       - name: Build & Push Web
         uses: docker/build-push-action@v5
         with:
@@ -86,123 +79,46 @@ jobs:
     if: success()
     steps:
       - name: Deploy ke Production
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          script_stop: true
           script: |
             set -e
 
             cd /home/deployer/projects/kabar
 
-            # =========================
-            # CREATE BACKUP DIRECTORY
-            # =========================
+            # Create backup directory
             mkdir -p /home/deployer/backups/kabar
             BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
 
-            # =========================
-            # BACKUP DATABASE (if exists)
-            # =========================
+            # Backup database if exists
             echo "📦 Creating database backup..."
             if docker ps | grep -q "${COMPOSE_PROJECT_NAME}-postgres"; then
-              docker exec ${COMPOSE_PROJECT_NAME}-postgres-1 pg_dump -U ${DB_USER:-kabar} ${DB_NAME:-kabar} > "$BACKUP_FILE" 2>/dev/null || echo "⚠️  Backup failed, but continuing..."
+              docker exec ${COMPOSE_PROJECT_NAME}-postgres-1 pg_dump -U ${DB_USER:-kabar} ${DB_NAME:-kabar} > "$BACKUP_FILE" 2>/dev/null || echo "⚠️ Backup failed"
               gzip "$BACKUP_FILE" 2>/dev/null || true
-              echo "✅ Backup created: ${BACKUP_FILE}.gz"
-              
-              # Clean old backups (keep last 7 days)
-              find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +${{ env.BACKUP_RETENTION_DAYS }} -delete
-            else
-              echo "ℹ️  Database not running, skipping backup"
+              echo "✅ Backup created"
+              find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +7 -delete
             fi
 
-            # =========================
-            # GHCR LOGIN
-            # =========================
+            # Login GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            # =========================
-            # PULL NEW IMAGES
-            # =========================
+            # Deploy
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:${{ github.sha }}
-            
-            echo "🔄 Pulling new images..."
+
             COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.prod.yml pull
 
-            # =========================
-            # STOP OLD CONTAINERS
-            # =========================
-            echo "🛑 Stopping old containers..."
-            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-            docker compose -f deployments/docker-compose.prod.yml stop api web || true
-
-            # =========================
-            # RUN DATABASE MIGRATIONS
-            # =========================
-            echo "🔄 Running database migrations..."
-            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-            docker compose -f deployments/docker-compose.prod.yml run --rm api migrate up || {
-              echo "❌ Migration failed! Rolling back..."
-              COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-              docker compose -f deployments/docker-compose.prod.yml up -d  # Restart old containers
-              exit 1
-            }
-
-            # =========================
-            # START NEW CONTAINERS
-            # =========================
-            echo "🚀 Starting new containers..."
             COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.prod.yml up -d
 
-            # =========================
-            # HEALTH CHECK
-            # =========================
-            echo "🏥 Running health checks..."
+            # Health check
             sleep 10
-            
-            MAX_RETRIES=30
-            RETRY_COUNT=0
-            HEALTHY=false
-            
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-                HEALTHY=true
-                break
-              fi
-              echo "Waiting for API to be healthy... ($RETRY_COUNT/$MAX_RETRIES)"
-              sleep 5
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-            done
-            
-            if [ "$HEALTHY" = false ]; then
-              echo "❌ Health check failed! Rolling back..."
-              # Rollback ke image sebelumnya
-              COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-              docker compose -f deployments/docker-compose.prod.yml down
-              COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-              docker compose -f deployments/docker-compose.prod.yml up -d
-              
-              # Restore database from backup
-              if [ -f "${BACKUP_FILE}.gz" ]; then
-                gunzip -c "${BACKUP_FILE}.gz" | docker exec -i ${COMPOSE_PROJECT_NAME}-postgres-1 psql -U ${DB_USER:-kabar} ${DB_NAME:-kabar}
-                echo "✅ Database restored from backup"
-              fi
-              exit 1
-            fi
-            
-            echo "✅ Deployment successful!"
+            curl -f http://localhost:8080/health || exit 1
 
-            # =========================
-            # CLEANUP OLD IMAGES
-            # =========================
-            echo "🧹 Cleaning up old images..."
             docker image prune -f
-            
-            # Keep only last 5 images per repository
-            docker images ghcr.io/kana-consultant/kabar-api --format "{{.Tag}}" | grep -v "latest" | sort -r | tail -n +6 | xargs -r docker rmi || true
-            docker images ghcr.io/kana-consultant/kabar-web --format "{{.Tag}}" | grep -v "latest" | sort -r | tail -n +6 | xargs -r docker rmi || true
