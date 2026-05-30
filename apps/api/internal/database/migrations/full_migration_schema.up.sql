@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS public.drafts (
     scheduled_for timestamp without time zone,
     target_products jsonb DEFAULT '[]'::jsonb,
     has_image boolean DEFAULT false,
+    excerpt text,
     slug text,  
     seo_score int,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,

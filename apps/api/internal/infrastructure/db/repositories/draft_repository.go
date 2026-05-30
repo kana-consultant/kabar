@@ -497,9 +497,11 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 	}
 
 	r.invalidateCache(ctx,
-		fmt.Sprintf("dashboard_stats:%s", teamID),
-		fmt.Sprintf("draft_list:%s:limit=%d:offset=%d:search=", teamID, 5, 0),
-	)
+		fmt.Sprintf("dashboard_stats:%s", teamID))
+
+	if err := r.InvalidateDraftCacheByTeam(ctx, teamID); err != nil {
+		log.Printf("failed to invalidate draft cache: %v", err)
+	}
 
 	return draftID, nil
 }
@@ -542,9 +544,11 @@ func (r *RepositoryImpl) Update(ctx context.Context, TeamID string, id string, d
 	}
 
 	r.invalidateCache(ctx,
-		fmt.Sprintf("dashboard_stats:%s", TeamID),
-		fmt.Sprintf("draft_list:%s", TeamID),
-	)
+		fmt.Sprintf("dashboard_stats:%s", TeamID))
+
+	if err := r.InvalidateDraftCacheByTeam(ctx, TeamID); err != nil {
+		log.Printf("failed to invalidate draft cache: %v", err)
+	}
 
 	return nil
 }
@@ -590,10 +594,13 @@ func (r *RepositoryImpl) UpdateStatus(ctx context.Context, id string, status str
 
 func (r *RepositoryImpl) Delete(ctx context.Context, TeamID string, id string) error {
 	_, err := r.db.ExecContext(ctx, "DELETE FROM drafts WHERE id = $1", id)
+
 	r.invalidateCache(ctx,
-		fmt.Sprintf("dashboard_stats:%s", TeamID),
-		fmt.Sprintf("draft_list:%s", TeamID),
-	)
+		fmt.Sprintf("dashboard_stats:%s", TeamID))
+
+	if err := r.InvalidateDraftCacheByTeam(ctx, TeamID); err != nil {
+		log.Printf("failed to invalidate draft cache: %v", err)
+	}
 	return err
 }
 
@@ -657,9 +664,11 @@ func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHis
 	}
 
 	r.invalidateCache(ctx,
-		fmt.Sprintf("dashboard_stats:%s", teamID),
-		fmt.Sprintf("draft_list:%s:limit=%d:offset=%d:search=", teamID, 5, 0),
-	)
+		fmt.Sprintf("dashboard_stats:%s", teamID))
+
+	if err := r.InvalidateDraftCacheByTeam(ctx, teamID); err != nil {
+		log.Printf("failed to invalidate draft cache: %v", err)
+	}
 
 	return tx.Commit()
 }
@@ -705,4 +714,43 @@ func (r *RepositoryImpl) invalidateCache(ctx context.Context, keys ...string) {
 	}
 
 	log.Printf("[Cache] keys deleted | keys=%v", keys)
+}
+
+func (r *RepositoryImpl) InvalidateDraftCacheByTeam(
+	ctx context.Context,
+	teamID string,
+) error {
+	pattern := fmt.Sprintf("draft_list:*:%s:*", teamID)
+
+	iter := r.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+
+	deleted := 0
+
+	for iter.Next(ctx) {
+		key := iter.Val()
+
+		if err := r.redisClient.Del(ctx, key).Err(); err != nil {
+			log.Printf(
+				"[InvalidateDraftCacheByTeam] failed to delete cache | team_id=%s | key=%s | err=%v",
+				teamID,
+				key,
+				err,
+			)
+			continue
+		}
+
+		deleted++
+	}
+
+	if err := iter.Err(); err != nil {
+		return err
+	}
+
+	log.Printf(
+		"[InvalidateDraftCacheByTeam] cache invalidated | team_id=%s | deleted=%d",
+		teamID,
+		deleted,
+	)
+
+	return nil
 }
