@@ -174,7 +174,7 @@ export function ApiKeysTab() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Can permission="api_keys.create">
+                        <Can permission="api_keys.create:team">
                             <Button
                                 size="sm"
                                 className="h-8 gap-1.5 px-3 text-xs bg-green-600 hover:bg-green-700 text-white dark:bg-purple-600 dark:hover:bg-purple-700"
@@ -183,7 +183,7 @@ export function ApiKeysTab() {
                                 <Plus className="h-3.5 w-3.5" /> Add Text Key
                             </Button>
                         </Can>
-                        <Can permission="api_keys.create">
+                        <Can permission="api_keys.create:team">
                             <Button
                                 variant="outline" size="sm"
                                 className="h-8 gap-1.5 px-3 text-xs border-slate-200/80 dark:border-white/[0.08]"
@@ -292,7 +292,7 @@ export function ApiKeysTab() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    <Can permission="api_keys.edit">
+                                                    <Can permission="api_keys.edit:team">
                                                         <Button variant="ghost" size="icon"
                                                             className="h-7 w-7 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:text-purple-400 dark:hover:bg-purple-500/10"
                                                             onClick={() => openEditDialog(key)}
@@ -300,7 +300,7 @@ export function ApiKeysTab() {
                                                             <Edit className="h-3.5 w-3.5" />
                                                         </Button>
                                                     </Can>
-                                                    <Can permission="api_keys.delete">
+                                                    <Can permission="api_keys.delete:team">
                                                         <Button variant="ghost" size="icon"
                                                             className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
                                                             onClick={() => handleDelete(key)}
