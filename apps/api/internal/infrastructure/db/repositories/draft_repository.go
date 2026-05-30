@@ -589,7 +589,7 @@ func (r *RepositoryImpl) UpdateStatus(ctx context.Context, id string, status str
 }
 
 func (r *RepositoryImpl) Delete(ctx context.Context, TeamID string, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM drafts WHERE id = $1", id)
+	_, err := r.db.ExecContext(ctx, "DELETE FROM drafts WHERE id = $1 AND team_id = $2", id, TeamID)
 	r.invalidateCache(ctx,
 		fmt.Sprintf("dashboard_stats:%s", TeamID),
 		fmt.Sprintf("draft_list:%s", TeamID),
