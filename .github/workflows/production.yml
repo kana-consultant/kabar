@@ -97,28 +97,61 @@ jobs:
 
             # Backup database if exists
             echo "📦 Creating database backup..."
-            if docker ps | grep -q "${COMPOSE_PROJECT_NAME}-postgres"; then
+            if docker ps 2>/dev/null | grep "${COMPOSE_PROJECT_NAME}-postgres" >/dev/null 2>&1; then
               docker exec ${COMPOSE_PROJECT_NAME}-postgres-1 pg_dump -U ${DB_USER:-kabar} ${DB_NAME:-kabar} > "$BACKUP_FILE" 2>/dev/null || echo "⚠️ Backup failed"
               gzip "$BACKUP_FILE" 2>/dev/null || true
               echo "✅ Backup created"
               find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +7 -delete
+            else
+              echo "ℹ️ Database not running, skipping backup"
             fi
 
             # Login GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin 2>/dev/null
 
-            # Deploy
+            # Deploy dengan image tag dari build
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:${{ github.sha }}
 
+            # Pull images
             COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.prod.yml pull
 
+            # Restart containers
             COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
             docker compose -f deployments/docker-compose.prod.yml up -d
 
-            # Health check
-            sleep 10
-            curl -f http://localhost:8080/health || exit 1
+            # Wait for containers ready
+            echo "Waiting for containers to be ready..."
+            sleep 15
 
+            # Health check via nginx (port 8001)
+            echo "🏥 Running health checks..."
+            HEALTH_CHECK_PASSED=false
+            
+            for i in 1 2 3 4 5; do
+              echo "Health check attempt $i/5..."
+              
+              # Coba berbagai endpoint yang mungkin
+              if curl -f http://localhost:8001/health 2>/dev/null || \
+                 curl -f http://localhost:8001/api/health 2>/dev/null; then
+                HEALTH_CHECK_PASSED=true
+                echo "✅ Health check passed!"
+                break
+              fi
+              
+              sleep 5
+            done
+
+            if [ "$HEALTH_CHECK_PASSED" = false ]; then
+              echo "❌ Health check failed!"
+              echo "Container logs:"
+              COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
+              docker compose -f deployments/docker-compose.prod.yml logs --tail=50 kabar-api
+              exit 1
+            fi
+
+            echo "✅ Deployment successful!"
+
+            # Cleanup old images
             docker image prune -f
