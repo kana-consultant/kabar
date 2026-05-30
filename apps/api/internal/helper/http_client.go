@@ -19,7 +19,6 @@ func (s *PostService) setRequestHeaders(req *http.Request, cfg *ProductConfig) {
 		for k, v := range cfg.CustomHeaders {
 			v = resolveTemplate(v, map[string]string{
 				"api_key": cfg.APIKey,
-				"bearer":  cfg.BearerToken,
 			})
 
 			kLower := strings.ToLower(strings.TrimSpace(k))
@@ -29,22 +28,16 @@ func (s *PostService) setRequestHeaders(req *http.Request, cfg *ProductConfig) {
 				continue
 			}
 
-			// Handle API key header
+			// Handle x-api-key — jangan pakai Bearer
 			if kLower == "x-api-key" && (vTrim == "" || vTrim == "{{api_key}}") {
 				v = cfg.APIKey
 			}
 
-			// Handle Bearer token — prioritas: {{bearer}} > {{api_key}} > cfg.APIKey
+			// Handle authorization
 			if kLower == "authorization" {
 				switch {
 				case vTrim == "" || vTrim == "Bearer" || vTrim == "Bearer {{api_key}}":
 					v = "Bearer " + cfg.APIKey
-				case vTrim == "Bearer {{bearer}}" || vTrim == "{{bearer}}":
-					token := cfg.BearerToken
-					if token == "" {
-						token = cfg.APIKey
-					}
-					v = "Bearer " + token
 				}
 			}
 
