@@ -16,6 +16,11 @@ import {
 } from "@kana-consultant/ui-kit";
 import { Button } from "@kana-consultant/ui-kit";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@kana-consultant/ui-kit";
 
 import type { AdapterConfig } from "@/services/product";
 
@@ -31,6 +36,16 @@ interface HeaderItem {
 
 type AuthType = 'none' | 'xapiKey' | 'bearer' | 'custom';
 
+// Daftar placeholder yang tersedia
+const PLACEHOLDER_OPTIONS = [
+    { label: '{{id}}', value: '{{id}}' },
+    { label: '{{name}}', value: '{{name}}' },
+    { label: '{{sku}}', value: '{{sku}}' },
+    { label: '{{price}}', value: '{{price}}' },
+    { label: '{{stock}}', value: '{{stock}}' },
+    { label: '{{api_key}}', value: '{{api_key}}' },
+];
+
 export function ProductApiConfig({
     config,
     onUpdate,
@@ -40,6 +55,9 @@ export function ProductApiConfig({
     const [authType, setAuthType] = useState<AuthType>('none');
     const [customAuthKey, setCustomAuthKey] = useState<string>('');
     const [initialized, setInitialized] = useState(false);
+    
+    // State untuk popover yang terbuka
+    const [openPopoverIndex, setOpenPopoverIndex] = useState<number | null>(null);
     
     // Gunakan ref untuk melacak apakah perubahan berasal dari internal
     const internalUpdateRef = useRef(false);
@@ -183,6 +201,14 @@ export function ProductApiConfig({
         updateHeaders(updated.length ? updated : [{ key: "", value: "" }]);
     }, [headers, updateHeaders]);
 
+    // Handler untuk memilih placeholder dari popover
+    const handlePlaceholderSelect = useCallback((index: number, placeholder: string) => {
+        const updated = [...headers];
+        updated[index].value = placeholder;
+        updateHeaders(updated);
+        setOpenPopoverIndex(null);
+    }, [headers, updateHeaders]);
+
     return (
         <Card className="shadow-sm">
             <CardHeader className="pb-3">
@@ -284,33 +310,93 @@ export function ProductApiConfig({
 
                     <div className="space-y-3">
                         {headers.map((header, index) => (
-                            <div key={index} className="flex gap-2">
-                                <Input
-                                    placeholder="Header Key"
-                                    value={header.key}
-                                    onChange={(e: any) => {
-                                        const updated = [...headers];
-                                        updated[index].key = e.target.value;
-                                        updateHeaders(updated);
-                                    }}
-                                />
-
-                                <Input
-                                    placeholder="Header Value"
-                                    value={header.value}
-                                    onChange={(e: any) => {
-                                        const updated = [...headers];
-                                        updated[index].value = e.target.value;
-                                        updateHeaders(updated);
-                                    }}
-                                />
+                            <div key={index} className="flex gap-2 items-start">
+                                <div className="flex-1">
+                                    <Input
+                                        placeholder="Header Key"
+                                        value={header.key}
+                                        onChange={(e: any) => {
+                                            const updated = [...headers];
+                                            updated[index].key = e.target.value;
+                                            updateHeaders(updated);
+                                        }}
+                                    />
+                                </div>
+                                
+                                <div className="text-sm text-muted-foreground pt-2">=</div>
+                                
+                                <div className="flex-1">
+                                    <Popover 
+                                        open={openPopoverIndex === index} 
+                                        onOpenChange={(open) => {
+                                            if (open) {
+                                                setOpenPopoverIndex(index);
+                                            } else {
+                                                setOpenPopoverIndex(null);
+                                            }
+                                        }}
+                                    >
+                                        <PopoverTrigger asChild>
+                                            <div className="relative">
+                                                <Input
+                                                    placeholder="Header Value"
+                                                    value={header.value}
+                                                    onChange={(e: any) => {
+                                                        const updated = [...headers];
+                                                        updated[index].value = e.target.value;
+                                                        updateHeaders(updated);
+                                                    }}
+                                                    onClick={() => setOpenPopoverIndex(index)}
+                                                    className="cursor-pointer"
+                                                />
+                                            </div>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-48 p-0" align="start">
+                                            <div className="p-2">
+                                                <div className="text-xs font-medium mb-2 text-muted-foreground">
+                                                    Pilih Placeholder
+                                                </div>
+                                                <div className="space-y-1">
+                                                    {PLACEHOLDER_OPTIONS.map((option) => (
+                                                        <button
+                                                            key={option.value}
+                                                            className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent hover:text-accent-foreground transition-colors"
+                                                            onClick={() => handlePlaceholderSelect(index, option.value)}
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    ))}
+                                                    <div className="border-t pt-2 mt-2">
+                                                        <div className="text-xs font-medium mb-1 text-muted-foreground">
+                                                            Custom
+                                                        </div>
+                                                        <Input
+                                                            placeholder="Nama placeholder"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onKeyDown={(e: any) => {
+                                                                if (e.key === 'Enter') {
+                                                                    const customValue = e.target.value.trim();
+                                                                    if (customValue) {
+                                                                        handlePlaceholderSelect(index, `{{${customValue}}}`);
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
 
                                 <Button
                                     type="button"
                                     variant="destructive"
+                                    size="icon"
                                     onClick={() => removeHeader(index)}
+                                    className="shrink-0 mt-0"
                                 >
-                                    Hapus
+                                    ✕
                                 </Button>
                             </div>
                         ))}
