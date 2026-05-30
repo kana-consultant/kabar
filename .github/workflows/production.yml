@@ -97,7 +97,7 @@ jobs:
             # Create backup directory
             mkdir -p /home/deployer/backups/kabar
 
-            # Backup database
+            # Backup database sebelum down
             echo "📦 Creating database backup..."
             BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
 
@@ -124,13 +124,15 @@ jobs:
             docker pull ${{ env.API_IMAGE }}:${{ github.sha }}
             docker pull ${{ env.WEB_IMAGE }}:${{ github.sha }}
 
+            # Set IMAGE_TAG sebelum down maupun up
+            export IMAGE_TAG=${{ github.sha }}
+
             # Down dulu agar tidak ada container name conflict
             echo "🛑 Stopping containers..."
-            docker compose -f deployments/docker-compose.prod.yml down
+            docker compose -f deployments/docker-compose.prod.yml down --remove-orphans
 
             # Deploy dengan image baru
             echo "🚀 Starting containers..."
-            export IMAGE_TAG=${{ github.sha }}
             docker compose -f deployments/docker-compose.prod.yml up -d
 
             # Health check
