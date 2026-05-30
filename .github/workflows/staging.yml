@@ -85,92 +85,110 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          script_stop: true
+          script_stop: false
           script: |
-            set -e
-
-            cd /home/deployer/projects/kabar
-
-            # Create backup directory for staging
+            cd /home/deployer/projects/kabar || exit 1
+            
+            echo "=========================================="
+            echo "Starting deployment to STAGING"
+            echo "=========================================="
+            
+            # Create backup directory
             mkdir -p /home/deployer/backups/kabar-staging
-            BACKUP_FILE="/home/deployer/backups/kabar-staging/backup_$(date +%Y%m%d_%H%M%S).sql"
-
-            # Backup staging database if exists
+            
+            # Backup database (with error handling)
             echo "📦 Creating staging database backup..."
-            if docker ps 2>/dev/null | grep "kabar-postgres-staging" >/dev/null 2>&1; then
-              docker exec kabar-postgres-staging pg_dump -U ${DB_USER:-kabar} ${DB_NAME:-kabar_staging} > "$BACKUP_FILE" 2>/dev/null || echo "⚠️ Backup failed"
-              gzip "$BACKUP_FILE" 2>/dev/null || true
-              echo "✅ Backup created: $(basename $BACKUP_FILE.gz)"
-              find /home/deployer/backups/kabar-staging -name "backup_*.sql.gz" -mtime +3 -delete
+            BACKUP_FILE="/home/deployer/backups/kabar-staging/backup_$(date +%Y%m%d_%H%M%S).sql"
+            
+            if docker ps --format '{{.Names}}' | grep -q "kabar-postgres-staging"; then
+              echo "Postgres container found, creating backup..."
+              docker exec kabar-postgres-staging pg_dump -U kabar kabar_staging > "$BACKUP_FILE" 2>/dev/null && {
+                gzip "$BACKUP_FILE"
+                echo "✅ Backup created: $(basename $BACKUP_FILE.gz)"
+                find /home/deployer/backups/kabar-staging -name "backup_*.sql.gz" -mtime +3 -delete
+              } || {
+                echo "⚠️ Backup failed, continuing anyway..."
+                rm -f "$BACKUP_FILE"
+              }
             else
-              echo "ℹ️ Database not running, skipping backup"
+              echo "ℹ️ Postgres container not running, skipping backup"
             fi
-
-            # Login GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin 2>/dev/null
-
-            # Pull latest staging images
-            echo "🔄 Pulling staging images..."
-            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
+            
+            # Login to GHCR
+            echo "🔐 Logging into GHCR..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            
+            # Set image tags
+            export API_IMAGE_TAG=${{ env.API_IMAGE }}:staging-${{ github.sha }}
+            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
+            
+            echo "📦 API Image: $API_IMAGE_TAG"
+            echo "📦 Web Image: $WEB_IMAGE_TAG"
+            
+            # Pull new images
+            echo "🔄 Pulling new images..."
             docker compose -f deployments/docker-compose.staging.yml pull
-
-            # Restart containers
-            echo "🚀 Restarting staging containers..."
-            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
+            
+            # Stop old containers gracefully
+            echo "🛑 Stopping old containers..."
+            docker compose -f deployments/docker-compose.staging.yml stop kabar-api kabar-web || true
+            
+            # Start new containers
+            echo "🚀 Starting new containers..."
             docker compose -f deployments/docker-compose.staging.yml up -d
-
-            # Wait for containers to be ready
-            echo "⏳ Waiting for containers to be ready..."
+            
+            # Wait for containers
+            echo "⏳ Waiting for containers (15s)..."
             sleep 15
-
-            # Health check via nginx (port 8081)
+            
+            # Health check (non-fatal for staging)
             echo "🏥 Running staging health checks..."
             HEALTH_CHECK_PASSED=false
+            MAX_RETRIES=10
+            RETRY=0
             
-            for i in 1 2 3 4 5; do
-              echo "Health check attempt $i/5..."
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+              RETRY=$((RETRY + 1))
+              echo "Health check attempt $RETRY/$MAX_RETRIES..."
               
-              # Try various endpoints via nginx port 8081
-              if curl -f http://localhost:8081/health 2>/dev/null || \
-                 curl -f http://localhost:8081/api/health 2>/dev/null || \
-                 curl -f http://localhost:8081/ 2>/dev/null | grep -q "healthy\|ok\|up" 2>/dev/null; then
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/health 2>/dev/null || echo "000")
+              
+              if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
                 HEALTH_CHECK_PASSED=true
-                echo "✅ Health check passed!"
+                echo "✅ Health check passed! (HTTP $HTTP_CODE)"
                 break
               fi
               
+              echo "   Got HTTP $HTTP_CODE, retrying in 5s..."
               sleep 5
             done
-
+            
             if [ "$HEALTH_CHECK_PASSED" = false ]; then
-              echo "⚠️ Staging health check failed!"
-              echo "Container logs for debugging:"
-              COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-              docker compose -f deployments/docker-compose.staging.yml logs --tail=50 kabar-api
-              # Don't exit with error for staging, just warn
+              echo "⚠️ WARNING: Health check failed after $MAX_RETRIES attempts!"
+              echo "   This is STAGING, deployment continues for debugging."
+              echo ""
+              echo "📋 Container status:"
+              docker ps -a --filter "name=kabar-staging"
+              echo ""
+              echo "📋 API logs (last 30 lines):"
+              docker compose -f deployments/docker-compose.staging.yml logs --tail=30 kabar-api
             else
-              echo "✅ Staging deployment successful!"
+              echo "✅ Staging health check passed!"
             fi
-
-            # Show running containers
-            echo ""
-            echo "📋 Running containers:"
-            docker ps --filter "name=kabar-staging" --format "table {{.Names}}\t{{.Status}}"
-
+            
             # Cleanup old images
             echo "🧹 Cleaning up old images..."
             docker image prune -f
             
-            # Keep only last 10 staging images
+            # Keep last 10 staging images
             docker images ghcr.io/kana-consultant/kabar-api --format "{{.Tag}}" | grep "staging-" | sort -r | tail -n +11 | xargs -r docker rmi 2>/dev/null || true
             docker images ghcr.io/kana-consultant/kabar-web --format "{{.Tag}}" | grep "staging-" | sort -r | tail -n +11 | xargs -r docker rmi 2>/dev/null || true
-
+            
             echo ""
             echo "=========================================="
-            echo "✅ Staging Deployment Complete!"
+            echo "✅ STAGING DEPLOYMENT COMPLETE!"
             echo "=========================================="
-            echo "🌐 Access: http://${{ secrets.SERVER_HOST }}:8081"
-            echo "📦 API Image: ${{ env.API_IMAGE }}:staging-${{ github.sha }}"
-            echo "🌐 Web Image: ${{ env.WEB_IMAGE }}:staging-${{ github.sha }}"
-            echo "💾 Backup: $(basename $BACKUP_FILE.gz)"
+            echo "🌐 URL: http://${{ secrets.SERVER_HOST }}:8081"
+            echo "🖼️  API Image: $API_IMAGE_TAG"
+            echo "🎨 Web Image: $WEB_IMAGE_TAG"
             echo "=========================================="

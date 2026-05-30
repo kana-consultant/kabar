@@ -85,73 +85,109 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          script_stop: true
+          script_stop: false
           script: |
-            set -e
-
-            cd /home/deployer/projects/kabar
-
+            cd /home/deployer/projects/kabar || exit 1
+            
+            echo "=========================================="
+            echo "Starting deployment to PRODUCTION"
+            echo "=========================================="
+            
             # Create backup directory
             mkdir -p /home/deployer/backups/kabar
-            BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
-
-            # Backup database if exists
+            
+            # Backup database (with error handling)
             echo "📦 Creating database backup..."
-            if docker ps 2>/dev/null | grep "${COMPOSE_PROJECT_NAME}-postgres" >/dev/null 2>&1; then
-              docker exec ${COMPOSE_PROJECT_NAME}-postgres-1 pg_dump -U ${DB_USER:-kabar} ${DB_NAME:-kabar} > "$BACKUP_FILE" 2>/dev/null || echo "⚠️ Backup failed"
-              gzip "$BACKUP_FILE" 2>/dev/null || true
-              echo "✅ Backup created"
-              find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +7 -delete
+            BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
+            
+            # Check if postgres container is running
+            if docker ps --format '{{.Names}}' | grep -q "kabar-postgres-production"; then
+              echo "Postgres container found, creating backup..."
+              docker exec kabar-postgres-production pg_dump -U kabar kabar > "$BACKUP_FILE" 2>/dev/null && {
+                gzip "$BACKUP_FILE"
+                echo "✅ Backup created: $(basename $BACKUP_FILE.gz)"
+                # Clean old backups
+                find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +7 -delete
+              } || {
+                echo "⚠️ Backup failed, continuing anyway..."
+                rm -f "$BACKUP_FILE"
+              }
             else
-              echo "ℹ️ Database not running, skipping backup"
+              echo "ℹ️ Postgres container not running, skipping backup"
             fi
-
-            # Login GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin 2>/dev/null
-
-            # Deploy dengan image tag dari build
+            
+            # Login to GHCR
+            echo "🔐 Logging into GHCR..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            
+            # Set image tags
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:${{ github.sha }}
-
-            # Pull images
-            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
+            
+            echo "📦 API Image: $API_IMAGE_TAG"
+            echo "📦 Web Image: $WEB_IMAGE_TAG"
+            
+            # Pull new images
+            echo "🔄 Pulling new images..."
             docker compose -f deployments/docker-compose.prod.yml pull
-
-            # Restart containers
-            COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
+            
+            # Stop old containers gracefully
+            echo "🛑 Stopping old containers..."
+            docker compose -f deployments/docker-compose.prod.yml stop kabar-api kabar-web || true
+            
+            # Start new containers
+            echo "🚀 Starting new containers..."
             docker compose -f deployments/docker-compose.prod.yml up -d
-
-            # Wait for containers ready
-            echo "Waiting for containers to be ready..."
-            sleep 15
-
-            # Health check via nginx (port 8001)
+            
+            # Wait for containers to be ready
+            echo "⏳ Waiting for containers to be ready (20s)..."
+            sleep 20
+            
+            # Health check
             echo "🏥 Running health checks..."
             HEALTH_CHECK_PASSED=false
+            MAX_RETRIES=10
+            RETRY=0
             
-            for i in 1 2 3 4 5; do
-              echo "Health check attempt $i/5..."
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+              RETRY=$((RETRY + 1))
+              echo "Health check attempt $RETRY/$MAX_RETRIES..."
               
-              # Coba berbagai endpoint yang mungkin
-              if curl -f http://localhost:8001/health 2>/dev/null || \
-                 curl -f http://localhost:8001/api/health 2>/dev/null; then
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health 2>/dev/null || echo "000")
+              
+              if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
                 HEALTH_CHECK_PASSED=true
-                echo "✅ Health check passed!"
+                echo "✅ Health check passed! (HTTP $HTTP_CODE)"
                 break
               fi
               
+              echo "   Got HTTP $HTTP_CODE, retrying in 5s..."
               sleep 5
             done
-
+            
             if [ "$HEALTH_CHECK_PASSED" = false ]; then
-              echo "❌ Health check failed!"
-              echo "Container logs:"
-              COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }} \
-              docker compose -f deployments/docker-compose.prod.yml logs --tail=50 kabar-api
+              echo "❌ Health check FAILED after $MAX_RETRIES attempts!"
+              echo ""
+              echo "📋 Container status:"
+              docker ps -a --filter "name=kabar"
+              echo ""
+              echo "📋 API logs (last 30 lines):"
+              docker compose -f deployments/docker-compose.prod.yml logs --tail=30 kabar-api
+              echo ""
+              echo "📋 Nginx logs:"
+              docker logs kabar-nginx-production --tail=20 2>/dev/null || echo "Nginx container not found"
               exit 1
             fi
-
-            echo "✅ Deployment successful!"
-
+            
             # Cleanup old images
+            echo "🧹 Cleaning up old images..."
             docker image prune -f
+            
+            echo ""
+            echo "=========================================="
+            echo "✅ DEPLOYMENT SUCCESSFUL!"
+            echo "=========================================="
+            echo "🌐 URL: http://${{ secrets.SERVER_HOST }}:8001"
+            echo "🖼️  API Image: $API_IMAGE_TAG"
+            echo "🎨 Web Image: $WEB_IMAGE_TAG"
+            echo "=========================================="
