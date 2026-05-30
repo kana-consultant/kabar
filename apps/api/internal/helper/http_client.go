@@ -66,6 +66,12 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			return io.ReadAll(resp.Body)
 		}()
 
+		log.Printf(
+			"[RESPONSE] status=%d body=%s",
+			resp.StatusCode,
+			string(bodyBytes),
+		)
+
 		if err != nil {
 			lastErr = fmt.Errorf("failed to read response body (attempt %d/%d): %w", i+1, cfg.RetryCount, err)
 			if i < cfg.RetryCount-1 {
