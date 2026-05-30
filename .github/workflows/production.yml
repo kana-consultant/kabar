@@ -93,113 +93,42 @@ jobs:
             echo "Starting deployment to PRODUCTION"
             echo "=========================================="
             
-            # Create backup directory
-            mkdir -p /home/deployer/backups/kabar
-            
-            # Backup database (with error handling)
+            # Backup database
             echo "📦 Creating database backup..."
             BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
+            mkdir -p /home/deployer/backups/kabar
             
-            # Check if postgres container is running
             if docker ps --format '{{.Names}}' | grep -q "kabar-postgres-production"; then
-              echo "Postgres container found, creating backup..."
               docker exec kabar-postgres-production pg_dump -U kabar kabar > "$BACKUP_FILE" 2>/dev/null && {
                 gzip "$BACKUP_FILE"
-                echo "✅ Backup created: $(basename $BACKUP_FILE.gz)"
-                # Clean old backups (keep 7 days for production)
+                echo "✅ Backup created"
                 find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +7 -delete
-              } || {
-                echo "⚠️ Backup failed, continuing anyway..."
-                rm -f "$BACKUP_FILE"
               }
-            else
-              echo "ℹ️ Postgres container not running, skipping backup"
             fi
             
-            # Login to GHCR
-            echo "🔐 Logging into GHCR..."
+            # Login GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             
             # Set image tags
             export API_IMAGE_TAG=${{ env.API_IMAGE }}:${{ github.sha }}
             export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:${{ github.sha }}
             
-            echo "📦 API Image: $API_IMAGE_TAG"
-            echo "📦 Web Image: $WEB_IMAGE_TAG"
-            
-            # Stop and remove old containers (but keep volumes)
-            echo "🛑 Stopping and removing old containers..."
-            docker compose -f deployments/docker-compose.prod.yml down
-            
-            # Pull fresh images
-            echo "🔄 Pulling fresh images..."
+            # Pull new images
             docker compose -f deployments/docker-compose.prod.yml pull
             
-            # Start new containers
-            echo "🚀 Starting new containers..."
-            docker compose -f deployments/docker-compose.prod.yml up -d
-            
-            # Wait for containers to be ready
-            echo "⏳ Waiting for containers to be ready (20s)..."
-            sleep 20
+            # Hanya restart API dan Web (database tetap jalan)
+            docker compose -f deployments/docker-compose.prod.yml up -d --force-recreate kabar-api kabar-web nginx
             
             # Health check
-            echo "🏥 Running health checks..."
-            HEALTH_CHECK_PASSED=false
-            MAX_RETRIES=10
-            RETRY=0
-            
-            while [ $RETRY -lt $MAX_RETRIES ]; do
-              RETRY=$((RETRY + 1))
-              echo "Health check attempt $RETRY/$MAX_RETRIES..."
-              
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health 2>/dev/null || echo "000")
-              
-              if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
-                HEALTH_CHECK_PASSED=true
-                echo "✅ Health check passed! (HTTP $HTTP_CODE)"
-                break
-              fi
-              
-              echo "   Got HTTP $HTTP_CODE, retrying in 5s..."
-              sleep 5
-            done
-            
-            if [ "$HEALTH_CHECK_PASSED" = false ]; then
-              echo "❌ Health check FAILED after $MAX_RETRIES attempts!"
-              echo ""
-              echo "📋 Container status:"
-              docker ps -a --filter "name=kabar"
-              echo ""
-              echo "📋 API logs (last 30 lines):"
-              docker compose -f deployments/docker-compose.prod.yml logs --tail=30 kabar-api
-              echo ""
-              echo "📋 Nginx logs:"
-              docker logs kabar-nginx-production --tail=20 2>/dev/null || echo "Nginx container not found"
-              
-              # Restore from latest backup if available
-              LATEST_BACKUP=$(ls -t /home/deployer/backups/kabar/backup_*.sql.gz 2>/dev/null | head -1)
-              if [ -n "$LATEST_BACKUP" ]; then
-                echo "🔄 Restoring from latest backup: $(basename $LATEST_BACKUP)"
-                gunzip -c "$LATEST_BACKUP" | docker exec -i kabar-postgres-production psql -U kabar kabar 2>/dev/null || echo "⚠️ Restore failed"
-              fi
-              
+            sleep 15
+            if curl -f http://localhost:8001/health; then
+              echo "✅ Health check passed!"
+            else
+              echo "❌ Health check failed!"
               exit 1
             fi
             
-            # Cleanup old images
-            echo "🧹 Cleaning up old images..."
+            # Cleanup
             docker image prune -f
             
-            # Keep only last 5 production images
-            docker images ghcr.io/kana-consultant/kabar-api --format "{{.Tag}}" | grep -v "latest" | grep -v "staging" | sort -r | tail -n +6 | xargs -r docker rmi 2>/dev/null || true
-            docker images ghcr.io/kana-consultant/kabar-web --format "{{.Tag}}" | grep -v "latest" | grep -v "staging" | sort -r | tail -n +6 | xargs -r docker rmi 2>/dev/null || true
-            
-            echo ""
-            echo "=========================================="
             echo "✅ PRODUCTION DEPLOYMENT SUCCESSFUL!"
-            echo "=========================================="
-            echo "🌐 URL: http://${{ secrets.SERVER_HOST }}:8001"
-            echo "🖼️  API Image: $API_IMAGE_TAG"
-            echo "🎨 Web Image: $WEB_IMAGE_TAG"
-            echo "=========================================="
