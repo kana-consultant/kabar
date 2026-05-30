@@ -292,7 +292,7 @@ export function ApiKeysTab() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    <Can permission="api_key:edit:team">
+                                                    <Can permission="api_keys:edit:team">
                                                         <Button variant="ghost" size="icon"
                                                             className="h-7 w-7 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:text-purple-400 dark:hover:bg-purple-500/10"
                                                             onClick={() => openEditDialog(key)}
