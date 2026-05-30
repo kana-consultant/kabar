@@ -33,8 +33,8 @@ services:
       - kabar-production
 
   kabar-api:
-    image: ${API_IMAGE_TAG:-ghcr.io/kana-consultant/kabar-api:latest}  # ← PASTIKAN INI
-    container_name: kabar-api-production
+    image: ghcr.io/kana-consultant/kabar-api:latest
+    # HAPUS container_name: kabar-api-production  ← HAPUS INI
     env_file:
       - ../apps/api/.env.production
     depends_on:
@@ -54,8 +54,8 @@ services:
       retries: 3
 
   kabar-web:
-    image: ${WEB_IMAGE_TAG:-ghcr.io/kana-consultant/kabar-web:latest}  # ← PASTIKAN INI
-    container_name: kabar-web-production
+    image: ghcr.io/kana-consultant/kabar-web:latest
+    # HAPUS container_name: kabar-web-production  ← HAPUS INI
     depends_on:
       - kabar-api
     restart: unless-stopped
