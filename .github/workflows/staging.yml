@@ -55,7 +55,7 @@ jobs:
           context: ./apps/api
           push: true
           tags: |
-            ${{ env.API_IMAGE }}:staging-${{ github.sha }}
+            ${{ env.API_IMAGE }}:${{ github.sha }}
             ${{ env.API_IMAGE }}:staging
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -66,7 +66,7 @@ jobs:
           context: ./apps/web
           push: true
           tags: |
-            ${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
+            ${{ env.WEB_IMAGE }}:${{ github.sha }}
             ${{ env.WEB_IMAGE }}:staging
           build-args: |
             VITE_API_URL=/api
@@ -88,29 +88,25 @@ jobs:
           script_stop: false
           script: |
             cd /home/deployer/projects/kabar || exit 1
-            
+
             echo "=========================================="
             echo "Starting deployment to STAGING"
             echo "=========================================="
-            
+
             # Login GHCR
             echo "🔐 Logging into GHCR..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            
-            # Hapus image lama agar force pull
-            echo "🗑️ Removing old images..."
-            docker rmi ${{ env.WEB_IMAGE }}:staging 2>/dev/null || true
-            docker rmi ${{ env.API_IMAGE }}:staging 2>/dev/null || true
-            
-            # Pull image terbaru
-            echo "🔄 Pulling latest images..."
-            docker pull ${{ env.API_IMAGE }}:staging
-            docker pull ${{ env.WEB_IMAGE }}:staging
-            
-            # Restart containers dengan force recreate
+
+            # Pull image dengan sha spesifik
+            echo "🔄 Pulling images..."
+            docker pull ${{ env.API_IMAGE }}:${{ github.sha }}
+            docker pull ${{ env.WEB_IMAGE }}:${{ github.sha }}
+
+            # Deploy
             echo "🚀 Restarting containers..."
+            export IMAGE_TAG=${{ github.sha }}
             docker compose -f deployments/docker-compose.staging.yml up -d --force-recreate
-            
+
             # Health check
             echo "🏥 Health check..."
             sleep 15
@@ -119,12 +115,19 @@ jobs:
             else
               echo "⚠️ Health check warning (staging continues)"
             fi
-            
+
             # Verifikasi file JS terbaru
             echo "🔍 Verifying web files..."
             docker exec kabar-staging-kabar-web-1 sh -c "ls -la /usr/share/nginx/html/assets/" 2>/dev/null || echo "Cannot list files"
-            
+
             # Cleanup
             docker image prune -f
-            
+
+            echo ""
+            echo "=========================================="
             echo "✅ STAGING DEPLOYMENT SUCCESSFUL!"
+            echo "=========================================="
+            echo "🌐 URL: http://${{ secrets.SERVER_HOST }}:8081"
+            echo "🖼️  API Image: ${{ env.API_IMAGE }}:${{ github.sha }}"
+            echo "🎨 Web Image: ${{ env.WEB_IMAGE }}:${{ github.sha }}"
+            echo "=========================================="

@@ -33,7 +33,7 @@ services:
       - kabar-production
 
   kabar-api:
-    image: ghcr.io/kana-consultant/kabar-api:latest
+    image: ghcr.io/kana-consultant/kabar-api:${IMAGE_TAG}
     # HAPUS container_name: kabar-api-production  ← HAPUS INI
     env_file:
       - ../apps/api/.env.production
@@ -49,7 +49,7 @@ services:
       - "8080"
 
   kabar-web:
-    image: ghcr.io/kana-consultant/kabar-web:latest
+    image: ghcr.io/kana-consultant/kabar-web:${IMAGE_TAG}
     # HAPUS container_name: kabar-web-production  ← HAPUS INI
     depends_on:
       - kabar-api
