@@ -94,17 +94,19 @@ jobs:
             echo "=========================================="
             
             # Login GHCR
+            echo "🔐 Logging into GHCR..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             
-            # Set image tags
-            export API_IMAGE_TAG=${{ env.API_IMAGE }}:staging-${{ github.sha }}
-            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
+            # Hardcode image tags
+            export API_IMAGE_TAG=${{ env.API_IMAGE }}:staging
+            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:staging
             
-            # Pull new images
+            echo "📦 API Image: $API_IMAGE_TAG"
+            echo "📦 Web Image: $WEB_IMAGE_TAG"
+            
+            # Pull and restart
             docker compose -f deployments/docker-compose.staging.yml pull
-            
-            # Hanya restart API dan Web (database dan redis tetap jalan)
-            docker compose -f deployments/docker-compose.staging.yml up -d --force-recreate kabar-api kabar-web nginx
+            docker compose -f deployments/docker-compose.staging.yml up -d --force-recreate
             
             # Health check
             sleep 15

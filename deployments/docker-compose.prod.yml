@@ -33,7 +33,7 @@ services:
       - kabar-production
 
   kabar-api:
-    image: ${API_IMAGE_TAG:-ghcr.io/kana-consultant/kabar-api:latest}  # ← PASTIKAN INI
+    image: ghcr.io/kana-consultant/kabar-api:latest
     container_name: kabar-api-production
     env_file:
       - ../apps/api/.env.production
@@ -47,14 +47,9 @@ services:
       - kabar-production
     expose:
       - "8080"
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   kabar-web:
-    image: ${WEB_IMAGE_TAG:-ghcr.io/kana-consultant/kabar-web:latest}  # ← PASTIKAN INI
+    image: ghcr.io/kana-consultant/kabar-web:latest
     container_name: kabar-web-production
     depends_on:
       - kabar-api
@@ -71,7 +66,7 @@ services:
       - kabar-api
       - kabar-web
     ports:
-      - "8001:80"
+      - "8001:80" 
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped

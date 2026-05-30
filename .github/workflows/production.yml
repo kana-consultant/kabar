@@ -93,11 +93,12 @@ jobs:
             echo "Starting deployment to PRODUCTION"
             echo "=========================================="
             
+            # Create backup directory
+            mkdir -p /home/deployer/backups/kabar
+            BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
+            
             # Backup database
             echo "📦 Creating database backup..."
-            BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
-            mkdir -p /home/deployer/backups/kabar
-            
             if docker ps --format '{{.Names}}' | grep -q "kabar-postgres-production"; then
               docker exec kabar-postgres-production pg_dump -U kabar kabar > "$BACKUP_FILE" 2>/dev/null && {
                 gzip "$BACKUP_FILE"
@@ -107,17 +108,19 @@ jobs:
             fi
             
             # Login GHCR
+            echo "🔐 Logging into GHCR..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             
-            # Set image tags
-            export API_IMAGE_TAG=${{ env.API_IMAGE }}:${{ github.sha }}
-            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:${{ github.sha }}
+            # Hardcode image tags
+            export API_IMAGE_TAG=${{ env.API_IMAGE }}:latest
+            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:latest
             
-            # Pull new images
+            echo "📦 API Image: $API_IMAGE_TAG"
+            echo "📦 Web Image: $WEB_IMAGE_TAG"
+            
+            # Pull and restart
             docker compose -f deployments/docker-compose.prod.yml pull
-            
-            # Hanya restart API dan Web (database tetap jalan)
-            docker compose -f deployments/docker-compose.prod.yml up -d --force-recreate kabar-api kabar-web nginx
+            docker compose -f deployments/docker-compose.prod.yml up -d --force-recreate
             
             # Health check
             sleep 15

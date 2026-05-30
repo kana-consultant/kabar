@@ -33,7 +33,7 @@ services:
       - kabar-staging
 
   kabar-api:
-    image: ${API_IMAGE_TAG:-ghcr.io/kana-consultant/kabar-api:staging}  # ← PASTIKAN INI
+    image: ghcr.io/kana-consultant/kabar-api:staging
     container_name: kabar-api-staging
     env_file:
       - ../apps/api/.env.staging
@@ -47,14 +47,9 @@ services:
       - kabar-staging
     expose:
       - "8080"
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   kabar-web:
-    image: ${WEB_IMAGE_TAG:-ghcr.io/kana-consultant/kabar-web:staging}  # ← PASTIKAN INI
+    image: ghcr.io/kana-consultant/kabar-web:staging
     container_name: kabar-web-staging
     depends_on:
       - kabar-api
