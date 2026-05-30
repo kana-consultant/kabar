@@ -174,7 +174,7 @@ export function ApiKeysTab() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Can permission="api_keys.create:team">
+                        <Can permission="api_keys:create:team">
                             <Button
                                 size="sm"
                                 className="h-8 gap-1.5 px-3 text-xs bg-green-600 hover:bg-green-700 text-white dark:bg-purple-600 dark:hover:bg-purple-700"
@@ -183,7 +183,7 @@ export function ApiKeysTab() {
                                 <Plus className="h-3.5 w-3.5" /> Add Text Key
                             </Button>
                         </Can>
-                        <Can permission="api_keys.create:team">
+                        <Can permission="api_keys:create:team">
                             <Button
                                 variant="outline" size="sm"
                                 className="h-8 gap-1.5 px-3 text-xs border-slate-200/80 dark:border-white/[0.08]"
