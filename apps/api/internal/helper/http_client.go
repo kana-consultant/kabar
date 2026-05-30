@@ -23,9 +23,16 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 	}
 
 	for i := 0; i < cfg.RetryCount; i++ {
+		attempt := i + 1
+
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
-			lastErr = fmt.Errorf("failed to marshal request body (attempt %d/%d): %w", i+1, cfg.RetryCount, err)
+			lastErr = fmt.Errorf("failed to marshal request body (attempt %d/%d): %w", attempt, cfg.RetryCount, err)
+			logJSON("marshal_error", map[string]interface{}{
+				"attempt":     attempt,
+				"retry_count": cfg.RetryCount,
+				"error":       err.Error(),
+			})
 			if i < cfg.RetryCount-1 {
 				time.Sleep(2 * time.Second)
 				continue
@@ -33,11 +40,21 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			return nil, lastErr
 		}
 
-		log.Printf("[REQUEST BODY] %s", string(jsonBody))
+		logJSON("request", map[string]interface{}{
+			"attempt":     attempt,
+			"retry_count": cfg.RetryCount,
+			"method":      cfg.HTTPMethod,
+			"url":         cfg.FullURL,
+			"body":        json.RawMessage(jsonBody),
+		})
 
 		req, err := http.NewRequest(cfg.HTTPMethod, cfg.FullURL, bytes.NewReader(jsonBody))
 		if err != nil {
-			lastErr = fmt.Errorf("failed to create request (attempt %d/%d): %w", i+1, cfg.RetryCount, err)
+			lastErr = fmt.Errorf("failed to create request (attempt %d/%d): %w", attempt, cfg.RetryCount, err)
+			logJSON("create_request_error", map[string]interface{}{
+				"attempt": attempt,
+				"error":   err.Error(),
+			})
 			if i < cfg.RetryCount-1 {
 				time.Sleep(2 * time.Second)
 				continue
@@ -45,15 +62,21 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			return nil, lastErr
 		}
 
-		// Set headers
 		s.setRequestHeaders(req, cfg)
 
-		log.Printf("[AUTH HEADER] %s", req.Header.Get("Authorization"))
-		log.Printf("[REQUEST URL] %s %s", cfg.HTTPMethod, cfg.FullURL)
+		logJSON("request_headers", map[string]interface{}{
+			"attempt":       attempt,
+			"authorization": req.Header.Get("Authorization"),
+			"content_type":  req.Header.Get("Content-Type"),
+		})
 
 		resp, err := client.Do(req)
 		if err != nil {
-			lastErr = fmt.Errorf("request failed (attempt %d/%d): %w", i+1, cfg.RetryCount, err)
+			lastErr = fmt.Errorf("request failed (attempt %d/%d): %w", attempt, cfg.RetryCount, err)
+			logJSON("http_error", map[string]interface{}{
+				"attempt": attempt,
+				"error":   err.Error(),
+			})
 			if i < cfg.RetryCount-1 {
 				time.Sleep(2 * time.Second)
 				continue
@@ -61,32 +84,44 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 			return nil, lastErr
 		}
 
-		bodyBytes, err := func() ([]byte, error) {
+		bodyBytes, readErr := func() ([]byte, error) {
 			defer resp.Body.Close()
 			return io.ReadAll(resp.Body)
 		}()
 
-		log.Printf(
-			"[RESPONSE] status=%d body=%s",
-			resp.StatusCode,
-			string(bodyBytes),
-		)
-
-		if err != nil {
-			lastErr = fmt.Errorf("failed to read response body (attempt %d/%d): %w", i+1, cfg.RetryCount, err)
+		// ✅ Cek readErr dulu sebelum log, agar body valid saat di-log
+		if readErr != nil {
+			lastErr = fmt.Errorf("failed to read response body (attempt %d/%d): %w", attempt, cfg.RetryCount, readErr)
+			logJSON("read_body_error", map[string]interface{}{
+				"attempt":     attempt,
+				"status_code": resp.StatusCode,
+				"error":       readErr.Error(),
+			})
 			if i < cfg.RetryCount-1 {
 				time.Sleep(2 * time.Second)
 				continue
 			}
 			return nil, lastErr
 		}
+
+		// ✅ Log response hanya setelah body berhasil dibaca
+		logJSON("response", map[string]interface{}{
+			"attempt":     attempt,
+			"status_code": resp.StatusCode,
+			"body":        json.RawMessage(safeJSON(bodyBytes)),
+		})
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return bodyBytes, nil
 		}
 
-		lastErr = fmt.Errorf("HTTP %d %s (attempt %d/%d): %s", resp.StatusCode, cfg.FullURL, i+1, cfg.RetryCount, string(bodyBytes))
-		log.Printf("[ERROR] %v", lastErr)
+		lastErr = fmt.Errorf("HTTP %d %s (attempt %d/%d): %s", resp.StatusCode, cfg.FullURL, attempt, cfg.RetryCount, string(bodyBytes))
+		logJSON("http_status_error", map[string]interface{}{
+			"attempt":     attempt,
+			"status_code": resp.StatusCode,
+			"url":         cfg.FullURL,
+			"error":       string(bodyBytes),
+		})
 		time.Sleep(2 * time.Second)
 	}
 
@@ -128,4 +163,24 @@ func (s *PostService) setRequestHeaders(req *http.Request, cfg *ProductConfig) {
 	if req.Header.Get("Authorization") == "" && cfg.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
 	}
+}
+
+func logJSON(event string, fields map[string]interface{}) {
+	fields["event"] = event
+	fields["time"] = time.Now().Format(time.RFC3339)
+	b, err := json.MarshalIndent(fields, "", "  ")
+	if err != nil {
+		log.Printf("[LOG_ERROR] failed to marshal log fields: %v", err)
+		return
+	}
+	log.Println(string(b))
+}
+
+// safeJSON memastikan bodyBytes valid sebagai JSON; jika bukan, wrap sebagai string
+func safeJSON(b []byte) []byte {
+	if json.Valid(b) {
+		return b
+	}
+	escaped, _ := json.Marshal(string(b))
+	return escaped
 }
