@@ -106,7 +106,7 @@ jobs:
               docker exec kabar-postgres-production pg_dump -U kabar kabar > "$BACKUP_FILE" 2>/dev/null && {
                 gzip "$BACKUP_FILE"
                 echo "✅ Backup created: $(basename $BACKUP_FILE.gz)"
-                # Clean old backups
+                # Clean old backups (keep 7 days for production)
                 find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +7 -delete
               } || {
                 echo "⚠️ Backup failed, continuing anyway..."
@@ -127,13 +127,13 @@ jobs:
             echo "📦 API Image: $API_IMAGE_TAG"
             echo "📦 Web Image: $WEB_IMAGE_TAG"
             
-            # Pull new images
-            echo "🔄 Pulling new images..."
-            docker compose -f deployments/docker-compose.prod.yml pull
+            # Stop and remove old containers (but keep volumes)
+            echo "🛑 Stopping and removing old containers..."
+            docker compose -f deployments/docker-compose.prod.yml down
             
-            # Stop old containers gracefully
-            echo "🛑 Stopping old containers..."
-            docker compose -f deployments/docker-compose.prod.yml stop kabar-api kabar-web || true
+            # Pull fresh images
+            echo "🔄 Pulling fresh images..."
+            docker compose -f deployments/docker-compose.prod.yml pull
             
             # Start new containers
             echo "🚀 Starting new containers..."
@@ -176,6 +176,14 @@ jobs:
               echo ""
               echo "📋 Nginx logs:"
               docker logs kabar-nginx-production --tail=20 2>/dev/null || echo "Nginx container not found"
+              
+              # Restore from latest backup if available
+              LATEST_BACKUP=$(ls -t /home/deployer/backups/kabar/backup_*.sql.gz 2>/dev/null | head -1)
+              if [ -n "$LATEST_BACKUP" ]; then
+                echo "🔄 Restoring from latest backup: $(basename $LATEST_BACKUP)"
+                gunzip -c "$LATEST_BACKUP" | docker exec -i kabar-postgres-production psql -U kabar kabar 2>/dev/null || echo "⚠️ Restore failed"
+              fi
+              
               exit 1
             fi
             
@@ -183,9 +191,13 @@ jobs:
             echo "🧹 Cleaning up old images..."
             docker image prune -f
             
+            # Keep only last 5 production images
+            docker images ghcr.io/kana-consultant/kabar-api --format "{{.Tag}}" | grep -v "latest" | grep -v "staging" | sort -r | tail -n +6 | xargs -r docker rmi 2>/dev/null || true
+            docker images ghcr.io/kana-consultant/kabar-web --format "{{.Tag}}" | grep -v "latest" | grep -v "staging" | sort -r | tail -n +6 | xargs -r docker rmi 2>/dev/null || true
+            
             echo ""
             echo "=========================================="
-            echo "✅ DEPLOYMENT SUCCESSFUL!"
+            echo "✅ PRODUCTION DEPLOYMENT SUCCESSFUL!"
             echo "=========================================="
             echo "🌐 URL: http://${{ secrets.SERVER_HOST }}:8001"
             echo "🖼️  API Image: $API_IMAGE_TAG"
