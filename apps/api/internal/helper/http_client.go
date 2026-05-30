@@ -90,11 +90,14 @@ func (s *PostService) sendWithRetry(cfg *ProductConfig, body map[string]interfac
 
 		s.setRequestHeaders(req, cfg)
 
+		// Log semua header yang aktual (dinamis)
+		headers := make(map[string]string)
+		for k, v := range req.Header {
+			headers[k] = strings.Join(v, ", ")
+		}
 		logJSON("request_headers", map[string]interface{}{
-			"attempt":       attempt,
-			"authorization": req.Header.Get("Authorization"),
-			"x_api_key":     req.Header.Get("X-API-Key"),
-			"content_type":  req.Header.Get("Content-Type"),
+			"attempt": attempt,
+			"headers": headers,
 		})
 
 		resp, err := client.Do(req)
