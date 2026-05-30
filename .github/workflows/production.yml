@@ -1,8 +1,8 @@
-name: Production Pipeline
+name: Staging Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
 
 permissions:
   contents: read
@@ -11,7 +11,7 @@ permissions:
 env:
   API_IMAGE: ghcr.io/kana-consultant/kabar-api
   WEB_IMAGE: ghcr.io/kana-consultant/kabar-web
-  COMPOSE_PROJECT_NAME: kabar-production
+  COMPOSE_PROJECT_NAME: kabar-staging
 
 jobs:
   test:
@@ -55,8 +55,8 @@ jobs:
           context: ./apps/api
           push: true
           tags: |
-            ${{ env.API_IMAGE }}:${{ github.sha }}
-            ${{ env.API_IMAGE }}:latest
+            ${{ env.API_IMAGE }}:staging-${{ github.sha }}
+            ${{ env.API_IMAGE }}:staging
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -66,8 +66,8 @@ jobs:
           context: ./apps/web
           push: true
           tags: |
-            ${{ env.WEB_IMAGE }}:${{ github.sha }}
-            ${{ env.WEB_IMAGE }}:latest
+            ${{ env.WEB_IMAGE }}:staging-${{ github.sha }}
+            ${{ env.WEB_IMAGE }}:staging
           build-args: |
             VITE_API_URL=/api
           cache-from: type=gha
@@ -78,7 +78,7 @@ jobs:
     needs: build
     if: success()
     steps:
-      - name: Deploy ke Production
+      - name: Deploy ke Staging
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -90,48 +90,41 @@ jobs:
             cd /home/deployer/projects/kabar || exit 1
             
             echo "=========================================="
-            echo "Starting deployment to PRODUCTION"
+            echo "Starting deployment to STAGING"
             echo "=========================================="
-            
-            # Create backup directory
-            mkdir -p /home/deployer/backups/kabar
-            BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
-            
-            # Backup database
-            echo "📦 Creating database backup..."
-            if docker ps --format '{{.Names}}' | grep -q "kabar-postgres-production"; then
-              docker exec kabar-postgres-production pg_dump -U kabar kabar > "$BACKUP_FILE" 2>/dev/null && {
-                gzip "$BACKUP_FILE"
-                echo "✅ Backup created"
-                find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +7 -delete
-              }
-            fi
             
             # Login GHCR
             echo "🔐 Logging into GHCR..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             
-            # Hardcode image tags
-            export API_IMAGE_TAG=${{ env.API_IMAGE }}:latest
-            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:latest
+            # Hapus image lama agar force pull
+            echo "🗑️ Removing old images..."
+            docker rmi ${{ env.WEB_IMAGE }}:staging 2>/dev/null || true
+            docker rmi ${{ env.API_IMAGE }}:staging 2>/dev/null || true
             
-            echo "📦 API Image: $API_IMAGE_TAG"
-            echo "📦 Web Image: $WEB_IMAGE_TAG"
+            # Pull image terbaru
+            echo "🔄 Pulling latest images..."
+            docker pull ${{ env.API_IMAGE }}:staging
+            docker pull ${{ env.WEB_IMAGE }}:staging
             
-            # Pull and restart
-            docker compose -f deployments/docker-compose.prod.yml pull
-            docker compose -f deployments/docker-compose.prod.yml up -d --force-recreate
+            # Restart containers dengan force recreate
+            echo "🚀 Restarting containers..."
+            docker compose -f deployments/docker-compose.staging.yml up -d --force-recreate
             
             # Health check
+            echo "🏥 Health check..."
             sleep 15
-            if curl -f http://localhost:8001/health; then
+            if curl -f http://localhost:8081/health; then
               echo "✅ Health check passed!"
             else
-              echo "❌ Health check failed!"
-              exit 1
+              echo "⚠️ Health check warning (staging continues)"
             fi
+            
+            # Verifikasi file JS terbaru
+            echo "🔍 Verifying web files..."
+            docker exec kabar-staging-kabar-web-1 sh -c "ls -la /usr/share/nginx/html/assets/" 2>/dev/null || echo "Cannot list files"
             
             # Cleanup
             docker image prune -f
             
-            echo "✅ PRODUCTION DEPLOYMENT SUCCESSFUL!"
+            echo "✅ STAGING DEPLOYMENT SUCCESSFUL!"

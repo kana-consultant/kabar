@@ -34,7 +34,7 @@ services:
 
   kabar-api:
     image: ghcr.io/kana-consultant/kabar-api:latest
-    container_name: kabar-api-production
+    # HAPUS container_name: kabar-api-production  ← HAPUS INI
     env_file:
       - ../apps/api/.env.production
     depends_on:
@@ -50,7 +50,7 @@ services:
 
   kabar-web:
     image: ghcr.io/kana-consultant/kabar-web:latest
-    container_name: kabar-web-production
+    # HAPUS container_name: kabar-web-production  ← HAPUS INI
     depends_on:
       - kabar-api
     restart: unless-stopped
@@ -66,7 +66,7 @@ services:
       - kabar-api
       - kabar-web
     ports:
-      - "8001:80" 
+      - "8001:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped

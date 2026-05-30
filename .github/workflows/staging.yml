@@ -97,20 +97,32 @@ jobs:
             echo "🔐 Logging into GHCR..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             
-            # Hardcode image tags
-            export API_IMAGE_TAG=${{ env.API_IMAGE }}:staging
-            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:staging
+            # Hapus image lama agar force pull
+            echo "🗑️ Removing old images..."
+            docker rmi ${{ env.WEB_IMAGE }}:staging 2>/dev/null || true
+            docker rmi ${{ env.API_IMAGE }}:staging 2>/dev/null || true
             
-            echo "📦 API Image: $API_IMAGE_TAG"
-            echo "📦 Web Image: $WEB_IMAGE_TAG"
+            # Pull image terbaru
+            echo "🔄 Pulling latest images..."
+            docker pull ${{ env.API_IMAGE }}:staging
+            docker pull ${{ env.WEB_IMAGE }}:staging
             
-            # Pull and restart
-            docker compose -f deployments/docker-compose.staging.yml pull
+            # Restart containers dengan force recreate
+            echo "🚀 Restarting containers..."
             docker compose -f deployments/docker-compose.staging.yml up -d --force-recreate
             
             # Health check
+            echo "🏥 Health check..."
             sleep 15
-            curl -f http://localhost:8081/health || echo "Health check warning"
+            if curl -f http://localhost:8081/health; then
+              echo "✅ Health check passed!"
+            else
+              echo "⚠️ Health check warning (staging continues)"
+            fi
+            
+            # Verifikasi file JS terbaru
+            echo "🔍 Verifying web files..."
+            docker exec kabar-staging-kabar-web-1 sh -c "ls -la /usr/share/nginx/html/assets/" 2>/dev/null || echo "Cannot list files"
             
             # Cleanup
             docker image prune -f
