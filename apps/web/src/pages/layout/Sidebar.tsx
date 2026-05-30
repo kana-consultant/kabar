@@ -23,7 +23,7 @@ const menuGroups = [
             { title: "Produk",    href: "/products", icon: Package,   permission: "product:view:team" },
             { title: "Draft",     href: "/drafts",   icon: FileStack, permission: "draft:view:team" },
             { title: "Schedule",  href: "/schedule", icon: Calendar,  permission: "schedule:view:team" },
-            { title: "History",   href: "/history",  icon: History,   permission: "history:view:team" },
+            { title: "History",   href: "/history",  icon: History,   permission: "histories:view:team" },
         ],
     },
     {
