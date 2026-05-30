@@ -9,42 +9,31 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func (s *PostService) setRequestHeaders(req *http.Request, cfg *ProductConfig) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	if cfg.CustomHeaders != nil {
-		for k, v := range cfg.CustomHeaders {
-			kLower := strings.ToLower(strings.TrimSpace(k))
+	for k, v := range cfg.CustomHeaders {
+		kLower := strings.ToLower(strings.TrimSpace(k))
 
-			if kLower == "" {
-				continue
-			}
-
-			// Resolve {{api_key}} → cfg.APIKey
-			v = resolveTemplate(v, map[string]string{
-				"api_key": cfg.APIKey,
-			})
-
-			vTrim := strings.TrimSpace(v)
-			if vTrim == "" {
-				continue
-			}
-
-			// Khusus authorization — pastikan ada prefix "Bearer "
-			if kLower == "authorization" && !strings.HasPrefix(vTrim, "Bearer ") {
-				v = "Bearer " + vTrim
-			}
-
-			req.Header.Set(k, v)
+		if kLower == "" {
+			continue
 		}
-	}
 
-	// Fallback — kalau tidak ada auth header sama sekali
-	if req.Header.Get("Authorization") == "" && req.Header.Get("X-API-Key") == "" && cfg.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+		v = resolveTemplate(v, map[string]string{
+			"api_key": cfg.APIKey,
+			"id":      uuid.New().String(),
+		})
+
+		if strings.TrimSpace(v) == "" {
+			continue
+		}
+
+		req.Header.Set(k, v)
 	}
 }
 
