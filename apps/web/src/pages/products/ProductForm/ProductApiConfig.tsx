@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Input } from "@kana-consultant/ui-kit";
 import { Label } from "@kana-consultant/ui-kit";
 import {
@@ -29,7 +29,7 @@ interface HeaderItem {
     value: string;
 }
 
-type AuthType = 'none' | 'xapiKey' | 'bearer';
+type AuthType = 'none' | 'xapiKey' | 'bearer' | 'custom';
 
 export function ProductApiConfig({
     config,
@@ -38,9 +38,16 @@ export function ProductApiConfig({
 
     const [headers, setHeaders] = useState<HeaderItem[]>([]);
     const [authType, setAuthType] = useState<AuthType>('none');
+    const [customAuthKey, setCustomAuthKey] = useState<string>('');
+    const [initialized, setInitialized] = useState(false);
+    
+    // Gunakan ref untuk melacak apakah perubahan berasal dari internal
+    const internalUpdateRef = useRef(false);
 
-    // convert object -> list
+    // convert object -> list (hanya saat mount)
     useEffect(() => {
+        if (initialized) return;
+
         let obj: Record<string, string> = {};
 
         if (config.customHeaders) {
@@ -66,21 +73,40 @@ export function ProductApiConfig({
             String(obj[key]).toLowerCase().includes('bearer')
         );
 
-        if (hasBearer) setAuthType('bearer');
-        else if (hasxApiKey) setAuthType('xapiKey');
-        else setAuthType('none');
+        // detect custom auth
+        const customAuthEntry = Object.entries(obj).find(([key, value]) => {
+            const lowerKey = key.toLowerCase();
+            return (
+                String(value).includes('{{api_key}}') &&
+                !lowerKey.includes('api-key') &&
+                lowerKey !== 'x-api-key' &&
+                lowerKey !== 'authorization'
+            );
+        });
+
+        if (hasBearer) {
+            setAuthType('bearer');
+        } else if (hasxApiKey) {
+            setAuthType('xapiKey');
+        } else if (customAuthEntry) {
+            setAuthType('custom');
+            setCustomAuthKey(customAuthEntry[0]);
+        } else {
+            setAuthType('none');
+        }
 
         // filter auth headers from list
         const regularHeaders: Record<string, string> = {};
 
         Object.entries(obj).forEach(([key, value]) => {
             const lowerKey = key.toLowerCase();
+            const isAuthHeader =
+                lowerKey.includes('api-key') ||
+                lowerKey === 'x-api-key' ||
+                lowerKey === 'authorization' ||
+                (customAuthEntry && key === customAuthEntry[0]);
 
-            if (
-                !lowerKey.includes('api-key') &&
-                lowerKey !== 'x-api-key' &&
-                !(lowerKey === 'authorization')
-            ) {
+            if (!isAuthHeader) {
                 regularHeaders[key] = value;
             }
         });
@@ -90,14 +116,18 @@ export function ProductApiConfig({
         );
 
         setHeaders(mapped.length ? mapped : [{ key: "", value: "" }]);
+        setInitialized(true);
 
-    }, [config.customHeaders]);
+    }, [config.customHeaders, initialized]);
 
-    const updateFullConfig = (
+    const updateFullConfig = useCallback((
         currentHeaders: HeaderItem[],
-        currentAuthType: AuthType
+        currentAuthType: AuthType,
+        currentCustomKey?: string,
     ) => {
-
+        // Tandai bahwa ini adalah update internal
+        internalUpdateRef.current = true;
+        
         const allHeaders: Record<string, string> = {};
 
         // custom headers
@@ -107,38 +137,51 @@ export function ProductApiConfig({
             }
         });
 
-        // auth headers WITH PLACEHOLDER (INI INTINYA FIX)
+        // auth headers
         if (currentAuthType === 'xapiKey') {
             allHeaders['X-API-Key'] = '{{api_key}}';
-        }
-
-        if (currentAuthType === 'bearer') {
+        } else if (currentAuthType === 'bearer') {
             allHeaders['Authorization'] = 'Bearer {{api_key}}';
+        } else if (currentAuthType === 'custom') {
+            const key = (currentCustomKey ?? customAuthKey).trim();
+            if (key) {
+                allHeaders[key] = '{{api_key}}';
+            }
         }
 
         onUpdate({
             customHeaders: JSON.stringify(allHeaders)
         });
-    };
+        
+        // Reset flag setelah update
+        setTimeout(() => {
+            internalUpdateRef.current = false;
+        }, 0);
+    }, [customAuthKey, onUpdate]);
 
-    const updateHeaders = (updated: HeaderItem[]) => {
+    const updateHeaders = useCallback((updated: HeaderItem[]) => {
         setHeaders(updated);
         updateFullConfig(updated, authType);
-    };
+    }, [authType, updateFullConfig]);
 
-    const updateAuthType = (newType: AuthType) => {
+    const updateAuthType = useCallback((newType: AuthType) => {
         setAuthType(newType);
         updateFullConfig(headers, newType);
-    };
+    }, [headers, updateFullConfig]);
 
-    const addHeader = () => {
+    const updateCustomAuthKey = useCallback((key: string) => {
+        setCustomAuthKey(key);
+        updateFullConfig(headers, authType, key);
+    }, [headers, authType, updateFullConfig]);
+
+    const addHeader = useCallback(() => {
         updateHeaders([...headers, { key: "", value: "" }]);
-    };
+    }, [headers, updateHeaders]);
 
-    const removeHeader = (index: number) => {
+    const removeHeader = useCallback((index: number) => {
         const updated = headers.filter((_, i) => i !== index);
         updateHeaders(updated.length ? updated : [{ key: "", value: "" }]);
-    };
+    }, [headers, updateHeaders]);
 
     return (
         <Card className="shadow-sm">
@@ -155,7 +198,7 @@ export function ProductApiConfig({
                     <Label>Endpoint Path</Label>
                     <Input
                         value={config.endpointPath || ""}
-                        onChange={(e : any) => onUpdate({ endpointPath: e.target.value })}
+                        onChange={(e: any) => onUpdate({ endpointPath: e.target.value })}
                         placeholder="/api/v1/products"
                     />
                 </div>
@@ -165,7 +208,7 @@ export function ProductApiConfig({
                     <Label>HTTP Method</Label>
                     <Select
                         value={config.httpMethod || "POST"}
-                        onValueChange={(v : any) => onUpdate({ httpMethod: v as any })}
+                        onValueChange={(v: any) => onUpdate({ httpMethod: v as any })}
                     >
                         <SelectTrigger>
                             <SelectValue />
@@ -185,7 +228,7 @@ export function ProductApiConfig({
 
                     <RadioGroup
                         value={authType}
-                        onValueChange={(v : any) => updateAuthType(v as AuthType)}
+                        onValueChange={(v: string) => updateAuthType(v as AuthType)}
                         className="flex flex-col space-y-1"
                     >
                         <div className="flex items-center space-x-2">
@@ -195,14 +238,33 @@ export function ProductApiConfig({
 
                         <div className="flex items-center space-x-2">
                             <RadioGroupItem value="xapiKey" id="xapiKey" />
-                            <Label htmlFor="xapiKey">API Key</Label>
+                            <Label htmlFor="xapiKey">API Key (X-API-Key)</Label>
                         </div>
 
                         <div className="flex items-center space-x-2">
                             <RadioGroupItem value="bearer" id="bearer" />
                             <Label htmlFor="bearer">Bearer Token</Label>
                         </div>
+
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="custom" id="custom" />
+                            <Label htmlFor="custom">Custom Header</Label>
+                        </div>
                     </RadioGroup>
+
+                    {/* Custom Auth Fields */}
+                    {authType === 'custom' && (
+                        <div className="mt-3 p-3 border rounded-md bg-muted/40 space-y-3">
+                            <div className="space-y-1">
+                                <Label className="text-xs">Nama Header</Label>
+                                <Input
+                                    placeholder="Contoh: X-Custom-Token"
+                                    value={customAuthKey}
+                                    onChange={(e: any) => updateCustomAuthKey(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* HEADERS */}
@@ -226,7 +288,7 @@ export function ProductApiConfig({
                                 <Input
                                     placeholder="Header Key"
                                     value={header.key}
-                                    onChange={(e : any) => {
+                                    onChange={(e: any) => {
                                         const updated = [...headers];
                                         updated[index].key = e.target.value;
                                         updateHeaders(updated);
@@ -236,7 +298,7 @@ export function ProductApiConfig({
                                 <Input
                                     placeholder="Header Value"
                                     value={header.value}
-                                    onChange={(e : any) => {
+                                    onChange={(e: any) => {
                                         const updated = [...headers];
                                         updated[index].value = e.target.value;
                                         updateHeaders(updated);

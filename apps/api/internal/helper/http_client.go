@@ -17,35 +17,32 @@ func (s *PostService) setRequestHeaders(req *http.Request, cfg *ProductConfig) {
 
 	if cfg.CustomHeaders != nil {
 		for k, v := range cfg.CustomHeaders {
-			v = resolveTemplate(v, map[string]string{
-				"api_key": cfg.APIKey,
-			})
-
 			kLower := strings.ToLower(strings.TrimSpace(k))
-			vTrim := strings.TrimSpace(v)
 
 			if kLower == "" {
 				continue
 			}
 
-			// Handle x-api-key — jangan pakai Bearer
-			if kLower == "x-api-key" && (vTrim == "" || vTrim == "{{api_key}}") {
-				v = cfg.APIKey
+			// Resolve {{api_key}} → cfg.APIKey
+			v = resolveTemplate(v, map[string]string{
+				"api_key": cfg.APIKey,
+			})
+
+			vTrim := strings.TrimSpace(v)
+			if vTrim == "" {
+				continue
 			}
 
-			// Handle authorization
-			if kLower == "authorization" {
-				switch {
-				case vTrim == "" || vTrim == "Bearer" || vTrim == "Bearer {{api_key}}":
-					v = "Bearer " + cfg.APIKey
-				}
+			// Khusus authorization — pastikan ada prefix "Bearer "
+			if kLower == "authorization" && !strings.HasPrefix(vTrim, "Bearer ") {
+				v = "Bearer " + vTrim
 			}
 
 			req.Header.Set(k, v)
 		}
 	}
 
-	// Fallback auth — skip kalau sudah pakai x-api-key
+	// Fallback — kalau tidak ada auth header sama sekali
 	if req.Header.Get("Authorization") == "" && req.Header.Get("X-API-Key") == "" && cfg.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
 	}
