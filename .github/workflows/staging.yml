@@ -87,7 +87,7 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script_stop: false
           script: |
-            cd /home/deployer/projects/kabar || exit 1
+            cd /home/deployer/projects/kabar/deployments || exit 1
 
             echo "=========================================="
             echo "Starting deployment to STAGING"
@@ -102,16 +102,17 @@ jobs:
             docker pull ${{ env.API_IMAGE }}:${{ github.sha }}
             docker pull ${{ env.WEB_IMAGE }}:${{ github.sha }}
 
-            # Set IMAGE_TAG sebelum down maupun up
+            # Set env sebelum down maupun up
             export IMAGE_TAG=${{ github.sha }}
+            export COMPOSE_PROJECT_NAME=kabar-staging
 
             # Down dulu agar tidak ada container name conflict
             echo "🛑 Stopping containers..."
-            docker compose -f deployments/docker-compose.staging.yml down --remove-orphans
+            docker compose -f docker-compose.staging.yml down --remove-orphans
 
             # Deploy dengan image baru
             echo "🚀 Starting containers..."
-            docker compose -f deployments/docker-compose.staging.yml up -d
+            docker compose -f docker-compose.staging.yml up -d
 
             # Health check
             echo "🏥 Health check..."
