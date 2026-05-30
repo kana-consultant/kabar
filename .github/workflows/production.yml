@@ -72,6 +72,7 @@ jobs:
             VITE_API_URL=/api
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          no-cache: true
 
   deploy:
     runs-on: ubuntu-latest
@@ -88,41 +89,48 @@ jobs:
           script_stop: false
           script: |
             cd /home/deployer/projects/kabar || exit 1
-            
+
             echo "=========================================="
             echo "Starting deployment to PRODUCTION"
             echo "=========================================="
-            
+
             # Create backup directory
             mkdir -p /home/deployer/backups/kabar
-            BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
-            
+
             # Backup database
             echo "📦 Creating database backup..."
+            BACKUP_FILE="/home/deployer/backups/kabar/backup_$(date +%Y%m%d_%H%M%S).sql"
+
             if docker ps --format '{{.Names}}' | grep -q "kabar-postgres-production"; then
+              echo "Postgres container found, creating backup..."
               docker exec kabar-postgres-production pg_dump -U kabar kabar > "$BACKUP_FILE" 2>/dev/null && {
                 gzip "$BACKUP_FILE"
-                echo "✅ Backup created"
+                echo "✅ Backup created: $(basename $BACKUP_FILE.gz)"
                 find /home/deployer/backups/kabar -name "backup_*.sql.gz" -mtime +7 -delete
+              } || {
+                echo "⚠️ Backup failed, continuing anyway..."
+                rm -f "$BACKUP_FILE"
               }
+            else
+              echo "ℹ️ Postgres container not running, skipping backup"
             fi
-            
+
             # Login GHCR
             echo "🔐 Logging into GHCR..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            
-            # Hardcode image tags
-            export API_IMAGE_TAG=${{ env.API_IMAGE }}:latest
-            export WEB_IMAGE_TAG=${{ env.WEB_IMAGE }}:latest
-            
-            echo "📦 API Image: $API_IMAGE_TAG"
-            echo "📦 Web Image: $WEB_IMAGE_TAG"
-            
-            # Pull and restart
-            docker compose -f deployments/docker-compose.prod.yml pull
+
+            # Pull image dengan sha spesifik
+            echo "🔄 Pulling images..."
+            docker pull ${{ env.API_IMAGE }}:${{ github.sha }}
+            docker pull ${{ env.WEB_IMAGE }}:${{ github.sha }}
+
+            # Deploy
+            echo "🚀 Restarting containers..."
+            export IMAGE_TAG=${{ github.sha }}
             docker compose -f deployments/docker-compose.prod.yml up -d --force-recreate
-            
+
             # Health check
+            echo "🏥 Health check..."
             sleep 15
             if curl -f http://localhost:8001/health; then
               echo "✅ Health check passed!"
@@ -130,8 +138,21 @@ jobs:
               echo "❌ Health check failed!"
               exit 1
             fi
-            
+
+            # Verifikasi file JS terbaru
+            echo "🔍 Verifying web files..."
+            docker exec kabar-production-kabar-web-1 sh -c "ls -la /usr/share/nginx/html/assets/" || echo "Cannot list files"
+
             # Cleanup
             docker image prune -f
-            
+            docker images ${{ env.API_IMAGE }} --format "{{.Tag}}" | grep -v "latest" | grep -v "staging" | sort -r | tail -n +6 | xargs -r docker rmi 2>/dev/null || true
+            docker images ${{ env.WEB_IMAGE }} --format "{{.Tag}}" | grep -v "latest" | grep -v "staging" | sort -r | tail -n +6 | xargs -r docker rmi 2>/dev/null || true
+
+            echo ""
+            echo "=========================================="
             echo "✅ PRODUCTION DEPLOYMENT SUCCESSFUL!"
+            echo "=========================================="
+            echo "🌐 URL: http://${{ secrets.SERVER_HOST }}:8001"
+            echo "🖼️  API Image: ${{ env.API_IMAGE }}:${{ github.sha }}"
+            echo "🎨 Web Image: ${{ env.WEB_IMAGE }}:${{ github.sha }}"
+            echo "=========================================="

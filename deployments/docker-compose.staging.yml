@@ -33,8 +33,10 @@ services:
       - kabar-staging
 
   kabar-api:
-    image: ghcr.io/kana-consultant/kabar-api:staging
-    container_name: kabar-api-staging
+    image: ghcr.io/kana-consultant/kabar-api:${IMAGE_TAG}
+
+    # HAPUS container_name, biarkan docker compose yang buat
+    # container_name: kabar-api-staging  ← HAPUS INI
     env_file:
       - ../apps/api/.env.staging
     depends_on:
@@ -49,8 +51,8 @@ services:
       - "8080"
 
   kabar-web:
-    image: ghcr.io/kana-consultant/kabar-web:staging
-    container_name: kabar-web-staging
+    image: ghcr.io/kana-consultant/kabar-web:${IMAGE_TAG}
+    # HAPUS container_name: kabar-web-staging  ← HAPUS INI
     depends_on:
       - kabar-api
     restart: unless-stopped
