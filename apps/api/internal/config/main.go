@@ -68,7 +68,7 @@ func Load() *Config {
 
 		// MinIO
 		MinioEndpoint:       getEnv("MINIO_ENDPOINT", "localhost:9000"),
-		MinioPublicEndpoint: getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		MinioPublicEndpoint: getEnv("MINIO_PUBLIC_ENDPOINT", "localhost:9000"),
 		MinioAccessKey:      getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 		MinioSecretKey:      getEnv("MINIO_SECRET_KEY", "minioadmin"),
 		MinioBucket:         getEnv("MINIO_BUCKET", "my-bucket"),
