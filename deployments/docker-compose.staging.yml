@@ -10,7 +10,7 @@ services:
       - postgres_staging_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,9 +21,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: kabar-redis-production
+    container_name: kabar-redis-staging
     env_file:
-      - ../apps/api/.env.production
+      - ../apps/api/.env.staging
     command: sh -c "redis-server --requirepass $${REDIS_PASSWORD}"
     restart: unless-stopped
     healthcheck:
@@ -32,7 +32,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kabar-production
+      - kabar-staging
     ports:
       - "${REDIS_PORT:-6379}:6379"
 
@@ -41,7 +41,7 @@ services:
     container_name: kabar-minio-staging
     env_file:
       - ../apps/api/.env.staging
-    command: server /data --console-address ":${MINIO_CONSOLE_PORT:-9001}"
+    command: server /data --console-address ":$${MINIO_CONSOLE_PORT:-9001}"
     restart: unless-stopped
     volumes:
       - minio_staging_data:/data
