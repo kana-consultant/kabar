@@ -118,52 +118,64 @@ func (s *GenereteServiceImpl) GenerateArticle(ctx context.Context, params genera
 }
 
 func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate.ImageGenerationParams) (*generate.ImageResult, error) {
+	log.Printf("[DEBUG] GenerateImage started, modelID: %s, prompt: %s", params.ModelID, params.Prompt)
+
 	// Validate params
 	if err := s.validateImageParams(params); err != nil {
+		log.Printf("[ERROR] Validation failed: %v", err)
 		return nil, err
 	}
 
 	// Get model configuration
 	config, err := s.repo.GetModelConfig(ctx, params.ModelID, "image")
 	if err != nil {
+		log.Printf("[ERROR] Failed to get model config: %v", err)
 		return nil, fmt.Errorf("failed to get model config: %w", err)
 	}
+	log.Printf("[DEBUG] Model config loaded: %s", config.ModelName)
 
 	SystemPrompt := config.SystemPrompt + "Tentang" + params.Prompt
 
 	// Build request body
 	requestBody, err := s.requestBuilder.BuildImageRequestBody(config, SystemPrompt)
 	if err != nil {
+		log.Printf("[ERROR] Failed to build request body: %v", err)
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
+	log.Printf("[DEBUG] Request body built successfully")
 
 	// Send request with longer timeout for images
 	response, err := s.httpClient.SendRequest(ctx, config, requestBody, 120*time.Second)
 	if err != nil {
+		log.Printf("[ERROR] Failed to send request to AI provider: %v", err)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
+	log.Printf("[DEBUG] AI provider response received")
 
 	// Parse response - dapatkan Base64 string dari AI provider
 	base64String, contentType, err := s.responseParser.ParseImageResponseBase64(response, config.ResponseImagePath)
 	if err != nil {
+		log.Printf("[ERROR] Failed to parse image response: %v", err)
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
+	log.Printf("[DEBUG] Image parsed, contentType: %s, base64 length: %d", contentType, len(base64String))
 
 	// Remove data URL prefix jika ada
 	if strings.Contains(base64String, "base64,") {
 		parts := strings.Split(base64String, "base64,")
 		base64String = parts[len(parts)-1]
 	}
-	// Atau lebih spesifik:
 	base64String = strings.TrimPrefix(base64String, "data:image/png;base64,")
 	base64String = strings.TrimPrefix(base64String, "data:image/jpeg;base64,")
 	base64String = strings.TrimPrefix(base64String, "data:image/webp;base64,")
 
-	// Decode Base64 ke binary (hanya sekali!)
+	// Decode Base64 ke binary
 	imageData, err := base64.StdEncoding.DecodeString(base64String)
 	if err != nil {
+		log.Printf("[ERROR] Failed to decode base64: %v", err)
 		return nil, fmt.Errorf("failed to decode base64 image: %w", err)
 	}
+	log.Printf("[DEBUG] Base64 decoded, image size: %d bytes", len(imageData))
 
 	// Tentukan ekstensi berdasarkan content-type
 	ext := "png"
@@ -174,23 +186,27 @@ func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate
 	} else if contentType == "image/gif" {
 		ext = "gif"
 	}
+	log.Printf("[DEBUG] Image extension: %s", ext)
 
 	objectName := fmt.Sprintf("images/%d.%s", time.Now().UnixNano(), ext)
+	log.Printf("[DEBUG] Object name: %s", objectName)
 
-	// Upload ke MinIO menggunakan bytes.Reader
+	// Upload ke MinIO
 	reader := bytes.NewReader(imageData)
 	uploadedName, err := s.minioClient.Upload(ctx, objectName, reader, int64(len(imageData)), contentType)
 	if err != nil {
-		log.Printf("[WARN] Failed to upload to Minio: %v", err)
+		log.Printf("[ERROR] Failed to upload to Minio: %v", err)
 		return nil, fmt.Errorf("failed to upload image to Minio: %w", err)
 	}
+	log.Printf("[DEBUG] Uploaded to Minio: %s", uploadedName)
 
 	// Ambil presigned URL dengan expiry 7 hari
 	imageURL, err := s.minioClient.GetURL(ctx, uploadedName, 7*24*time.Hour)
 	if err != nil {
-		log.Printf("[WARN] Failed to get Minio URL: %v", err)
+		log.Printf("[ERROR] Failed to get Minio URL: %v", err)
 		return nil, fmt.Errorf("failed to get Minio URL: %w", err)
 	}
+	log.Printf("[DEBUG] Presigned URL generated: %s", imageURL)
 
 	result := &generate.ImageResult{
 		ImageURL:    imageURL,
@@ -199,6 +215,7 @@ func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate
 		Model:       config.ModelName,
 	}
 
+	log.Printf("[DEBUG] GenerateImage completed successfully, imageURL: %s", imageURL)
 	return result, nil
 }
 
