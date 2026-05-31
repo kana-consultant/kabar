@@ -151,6 +151,7 @@ func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	log.Printf("[DEBUG] AI provider response received")
+	log.Printf("[DEBUG] AI provider raw response: %s", string(response))
 
 	// Parse response - dapatkan Base64 string dari AI provider
 	base64String, contentType, err := s.responseParser.ParseImageResponseBase64(response, config.ResponseImagePath)
