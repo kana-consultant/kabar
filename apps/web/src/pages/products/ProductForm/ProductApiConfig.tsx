@@ -34,7 +34,8 @@ interface HeaderItem {
     value: string;
 }
 
-type AuthType = 'none' | 'xapiKey' | 'bearer' | 'custom';
+type AuthType = 'none' | 'xapiKey' | 'bearer' | 'apiKey' | 'custom';
+type AuthPrefix = 'Bearer' | 'ApiKey' | 'Basic' | 'custom';
 
 // Daftar placeholder yang tersedia
 const PLACEHOLDER_OPTIONS = [
@@ -46,14 +47,22 @@ const PLACEHOLDER_OPTIONS = [
     { label: '{{api_key}}', value: '{{api_key}}' },
 ];
 
+const AUTH_PREFIX_OPTIONS = [
+    { label: 'Bearer', value: 'Bearer' },
+    { label: 'ApiKey', value: 'ApiKey' },
+    { label: 'Basic', value: 'Basic' },
+    { label: 'Custom', value: 'custom' },
+];
+
 export function ProductApiConfig({
     config,
     onUpdate,
 }: ProductApiConfigProps) {
 
     const [headers, setHeaders] = useState<HeaderItem[]>([]);
-    const [authType, setAuthType] = useState<AuthType>('none');
-    const [customAuthKey, setCustomAuthKey] = useState<string>('');
+    const [authType, setAuthType] = useState<AuthType>('bearer');
+    const [authPrefix, setAuthPrefix] = useState<AuthPrefix>('ApiKey');
+    const [customAuthPrefix, setCustomAuthPrefix] = useState<string>('');
     const [initialized, setInitialized] = useState(false);
     
     // State untuk popover yang terbuka
@@ -80,51 +89,41 @@ export function ProductApiConfig({
             }
         }
 
-        // detect auth type
-        const hasxApiKey = Object.keys(obj).some(key =>
-            key.toLowerCase().includes('api-key') ||
-            key.toLowerCase() === 'x-api-key'
-        );
-
-        const hasBearer = Object.keys(obj).some(key =>
-            key.toLowerCase() === 'authorization' &&
-            String(obj[key]).toLowerCase().includes('bearer')
-        );
-
-        // detect custom auth
-        const customAuthEntry = Object.entries(obj).find(([key, value]) => {
-            const lowerKey = key.toLowerCase();
-            return (
-                String(value).includes('{{api_key}}') &&
-                !lowerKey.includes('api-key') &&
-                lowerKey !== 'x-api-key' &&
-                lowerKey !== 'authorization'
-            );
-        });
-
-        if (hasBearer) {
-            setAuthType('bearer');
-        } else if (hasxApiKey) {
-            setAuthType('xapiKey');
-        } else if (customAuthEntry) {
-            setAuthType('custom');
-            setCustomAuthKey(customAuthEntry[0]);
+        // Parse authorization header
+        const authHeader = obj['Authorization'] || obj['authorization'] || '';
+        
+        if (authHeader) {
+            // Deteksi prefix
+            if (authHeader.toLowerCase().startsWith('bearer ')) {
+                setAuthType('bearer');
+                setAuthPrefix('Bearer');
+            } else if (authHeader.toLowerCase().startsWith('apikey ')) {
+                setAuthType('apiKey');
+                setAuthPrefix('ApiKey');
+            } else if (authHeader.toLowerCase().startsWith('basic ')) {
+                setAuthType('apiKey');
+                setAuthPrefix('Basic');
+            } else if (authHeader.includes('{{api_key}}') || authHeader.includes('{{api_token}}')) {
+                // Custom prefix
+                setAuthType('apiKey');
+                setAuthPrefix('custom');
+                const customPrefix = authHeader.split(' ')[0];
+                setCustomAuthPrefix(customPrefix);
+            } else {
+                // No placeholder, but has auth header
+                setAuthType('bearer');
+                setAuthPrefix('Bearer');
+            }
         } else {
-            setAuthType('none');
+            // Default: ApiKey
+            setAuthType('apiKey');
+            setAuthPrefix('ApiKey');
         }
 
-        // filter auth headers from list
+        // Remove authorization from regular headers
         const regularHeaders: Record<string, string> = {};
-
         Object.entries(obj).forEach(([key, value]) => {
-            const lowerKey = key.toLowerCase();
-            const isAuthHeader =
-                lowerKey.includes('api-key') ||
-                lowerKey === 'x-api-key' ||
-                lowerKey === 'authorization' ||
-                (customAuthEntry && key === customAuthEntry[0]);
-
-            if (!isAuthHeader) {
+            if (key.toLowerCase() !== 'authorization') {
                 regularHeaders[key] = value;
             }
         });
@@ -138,34 +137,35 @@ export function ProductApiConfig({
 
     }, [config.customHeaders, initialized]);
 
+    const buildAuthValue = useCallback((prefix: AuthPrefix, customPrefix: string) => {
+        if (prefix === 'custom') {
+            return `${customPrefix} {{api_key}}`;
+        }
+        return `${prefix} {{api_key}}`;
+    }, []);
+
     const updateFullConfig = useCallback((
         currentHeaders: HeaderItem[],
         currentAuthType: AuthType,
-        currentCustomKey?: string,
+        currentAuthPrefix: AuthPrefix,
+        currentCustomPrefix: string,
     ) => {
         // Tandai bahwa ini adalah update internal
         internalUpdateRef.current = true;
         
         const allHeaders: Record<string, string> = {};
 
+        // Always add Authorization header
+        if (currentAuthType !== 'none') {
+            allHeaders['Authorization'] = buildAuthValue(currentAuthPrefix, currentCustomPrefix);
+        }
+
         // custom headers
         currentHeaders.forEach(item => {
-            if (item.key.trim()) {
+            if (item.key.trim() && item.key.toLowerCase() !== 'authorization') {
                 allHeaders[item.key.trim()] = item.value;
             }
         });
-
-        // auth headers
-        if (currentAuthType === 'xapiKey') {
-            allHeaders['X-API-Key'] = '{{api_key}}';
-        } else if (currentAuthType === 'bearer') {
-            allHeaders['Authorization'] = 'Bearer {{api_key}}';
-        } else if (currentAuthType === 'custom') {
-            const key = (currentCustomKey ?? customAuthKey).trim();
-            if (key) {
-                allHeaders[key] = '{{api_key}}';
-            }
-        }
 
         onUpdate({
             customHeaders: JSON.stringify(allHeaders)
@@ -175,21 +175,33 @@ export function ProductApiConfig({
         setTimeout(() => {
             internalUpdateRef.current = false;
         }, 0);
-    }, [customAuthKey, onUpdate]);
+    }, [buildAuthValue, onUpdate]);
 
     const updateHeaders = useCallback((updated: HeaderItem[]) => {
         setHeaders(updated);
-        updateFullConfig(updated, authType);
-    }, [authType, updateFullConfig]);
+        updateFullConfig(updated, authType, authPrefix, customAuthPrefix);
+    }, [authType, authPrefix, customAuthPrefix, updateFullConfig]);
 
     const updateAuthType = useCallback((newType: AuthType) => {
         setAuthType(newType);
-        updateFullConfig(headers, newType);
-    }, [headers, updateFullConfig]);
+        if (newType === 'none') {
+            updateFullConfig(headers, newType, authPrefix, customAuthPrefix);
+        } else {
+            updateFullConfig(headers, newType, authPrefix, customAuthPrefix);
+        }
+    }, [headers, authPrefix, customAuthPrefix, updateFullConfig]);
 
-    const updateCustomAuthKey = useCallback((key: string) => {
-        setCustomAuthKey(key);
-        updateFullConfig(headers, authType, key);
+    const updateAuthPrefix = useCallback((newPrefix: AuthPrefix) => {
+        setAuthPrefix(newPrefix);
+        if (newPrefix !== 'custom') {
+            setCustomAuthPrefix('');
+        }
+        updateFullConfig(headers, authType, newPrefix, newPrefix === 'custom' ? customAuthPrefix : '');
+    }, [headers, authType, customAuthPrefix, updateFullConfig]);
+
+    const updateCustomAuthPrefix = useCallback((prefix: string) => {
+        setCustomAuthPrefix(prefix);
+        updateFullConfig(headers, authType, 'custom', prefix);
     }, [headers, authType, updateFullConfig]);
 
     const addHeader = useCallback(() => {
@@ -263,31 +275,50 @@ export function ProductApiConfig({
                         </div>
 
                         <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="xapiKey" id="xapiKey" />
-                            <Label htmlFor="xapiKey">API Key (X-API-Key)</Label>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="bearer" id="bearer" />
-                            <Label htmlFor="bearer">Bearer Token</Label>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="custom" id="custom" />
-                            <Label htmlFor="custom">Custom Header</Label>
+                            <RadioGroupItem value="apiKey" id="apiKey" />
+                            <Label htmlFor="apiKey">Authorization Header</Label>
                         </div>
                     </RadioGroup>
 
-                    {/* Custom Auth Fields */}
-                    {authType === 'custom' && (
+                    {/* Auth Configuration */}
+                    {authType === 'apiKey' && (
                         <div className="mt-3 p-3 border rounded-md bg-muted/40 space-y-3">
-                            <div className="space-y-1">
-                                <Label className="text-xs">Nama Header</Label>
-                                <Input
-                                    placeholder="Contoh: X-Custom-Token"
-                                    value={customAuthKey}
-                                    onChange={(e: any) => updateCustomAuthKey(e.target.value)}
-                                />
+                            <div className="space-y-2">
+                                <Label className="text-xs">Format Authorization</Label>
+                                <div className="flex gap-2">
+                                    <div className="w-1/2">
+                                        <Select
+                                            value={authPrefix}
+                                            onValueChange={(v: string) => updateAuthPrefix(v as AuthPrefix)}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {AUTH_PREFIX_OPTIONS.map((option) => (
+                                                    <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="w-1/2">
+                                        {authPrefix === 'custom' ? (
+                                            <Input
+                                                placeholder="Custom prefix"
+                                                value={customAuthPrefix}
+                                                onChange={(e: any) => updateCustomAuthPrefix(e.target.value)}
+                                            />
+                                        ) : (
+                                            <Input
+                                                value={buildAuthValue(authPrefix, customAuthPrefix)}
+                                                disabled
+                                                className="bg-muted"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
