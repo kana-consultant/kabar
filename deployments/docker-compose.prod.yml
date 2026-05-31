@@ -79,7 +79,7 @@ services:
       - kabar-api
     restart: unless-stopped
     networks:
-      - kabar-staging
+      - kabar-production
 
   nginx:
     image: nginx:alpine
