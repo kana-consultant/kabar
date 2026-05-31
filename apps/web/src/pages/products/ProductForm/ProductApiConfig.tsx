@@ -58,7 +58,7 @@ export function ProductApiConfig({
     config,
     onUpdate,
 }: ProductApiConfigProps) {
-
+  
     const [headers, setHeaders] = useState<HeaderItem[]>([]);
     const [authType, setAuthType] = useState<AuthType>('bearer');
     const [authPrefix, setAuthPrefix] = useState<AuthPrefix>('ApiKey');
@@ -73,10 +73,10 @@ export function ProductApiConfig({
 
     // convert object -> list (hanya saat mount)
     useEffect(() => {
-        if (initialized) return;
+        // if (initialized) return;
 
         let obj: Record<string, string> = {};
-
+        console.log(config)
         if (config.customHeaders) {
             if (typeof config.customHeaders === 'string') {
                 try {
@@ -88,9 +88,11 @@ export function ProductApiConfig({
                 obj = config.customHeaders as Record<string, string>;
             }
         }
+        
 
         // Parse authorization header
         const authHeader = obj['Authorization'] || obj['authorization'] || '';
+        console.log(authHeader)
         
         if (authHeader) {
             // Deteksi prefix
@@ -135,7 +137,7 @@ export function ProductApiConfig({
         setHeaders(mapped.length ? mapped : [{ key: "", value: "" }]);
         setInitialized(true);
 
-    }, [config.customHeaders, initialized]);
+    }, [config.customHeaders]);
 
     const buildAuthValue = useCallback((prefix: AuthPrefix, customPrefix: string) => {
         if (prefix === 'custom') {
@@ -162,6 +164,7 @@ export function ProductApiConfig({
 
         // custom headers
         currentHeaders.forEach(item => {
+            console.log(item.key.trim())
             if (item.key.trim() && item.key.toLowerCase() !== 'authorization') {
                 allHeaders[item.key.trim()] = item.value;
             }

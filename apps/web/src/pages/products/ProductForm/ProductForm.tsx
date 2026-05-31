@@ -44,6 +44,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
+    console.group(product)
 
     const toast = useToast()
 
@@ -75,6 +76,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
     };
 
     const handleTest = async () => {
+        
         if (!testUrl) {
             toast.success("URL tidak boleh kosong");
             return;
