@@ -24,7 +24,7 @@ func NewMinioService(
 	bucket string,
 ) (*MinioService, error) {
 
-	client, err := minio.New(endpoint, &minio.Options{
+	client, err := minio.New(PublicEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: false,
 	})
@@ -104,12 +104,9 @@ func (s *MinioService) GetURL(ctx context.Context, objectName string, expiry tim
 	if err != nil {
 		return "", err
 	}
-	// Replace internal host dengan public endpoint
-	u.Host = s.PublicEndpoint
-	u.Scheme = "http"
-
 	return u.String(), nil
 }
+
 func (s *MinioService) List(ctx context.Context, prefix string) ([]string, error) {
 	var files []string
 
