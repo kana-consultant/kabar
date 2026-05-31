@@ -21,18 +21,18 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: kabar-redis-staging
+    container_name: kabar-redis-production
     env_file:
-      - ../apps/api/.env.staging
-    command: sh -c "redis-server --requirepass ${REDIS_PASSWORD}"
+      - ../apps/api/.env.production
+    command: sh -c "redis-server --requirepass $${REDIS_PASSWORD}"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - kabar-staging
+      - kabar-production
     ports:
       - "${REDIS_PORT:-6379}:6379"
 

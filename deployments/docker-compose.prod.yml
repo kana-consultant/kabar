@@ -24,10 +24,10 @@ services:
     container_name: kabar-redis-production
     env_file:
       - ../apps/api/.env.production
-    command: sh -c "redis-server --requirepass ${REDIS_PASSWORD}"
+    command: sh -c "redis-server --requirepass $${REDIS_PASSWORD}"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
