@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 	"seo-backend/internal/database"
 	"strings"
 )
@@ -39,6 +40,14 @@ func (s *PostService) getProductConfig(productID string) (*ProductConfig, error)
 		FROM products
 		WHERE id = $1
 	`, productID).Scan(&cfg.ProductID, &cfg.APIEndpoint, &cfg.APIKey)
+
+	parsedURL, err := url.Parse(cfg.APIEndpoint)
+	if err == nil {
+		cfg.BaseURL = parsedURL.Scheme + "://" + parsedURL.Host
+		log.Printf("BASE URL: %s", cfg.BaseURL)
+	} else {
+		log.Printf("[WARN] FAILED PARSE BASE URL: %v", err)
+	}
 
 	if err != nil {
 		if err == sql.ErrNoRows {

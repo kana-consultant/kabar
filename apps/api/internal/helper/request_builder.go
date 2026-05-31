@@ -10,15 +10,13 @@ import (
 func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftDataPost) (map[string]interface{}, error) {
 	fmt.Println("========== BUILD REQUEST BODY ==========")
 
-	var fieldMapping map[string]interface{}
-
 	// Parse field mapping
+	var fieldMapping map[string]interface{}
 	if cfg.FieldMappingStr != "" && cfg.FieldMappingStr != "{}" {
 		if err := parseFieldMapping(cfg.FieldMappingStr, &fieldMapping); err != nil {
 			return nil, err
 		}
 	}
-
 	fmt.Println("PARSED FIELD MAPPING KEYS:", getMapKeys(fieldMapping))
 
 	// Validate draft
@@ -26,7 +24,6 @@ func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftData
 		fmt.Println("ERROR: draft title empty")
 		return nil, fmt.Errorf("draft title is required")
 	}
-
 	if strings.TrimSpace(draft.Article) == "" {
 		fmt.Println("ERROR: draft article empty")
 		return nil, fmt.Errorf("draft article content is required")
@@ -36,25 +33,17 @@ func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftData
 	fmt.Println("DRAFT TOPIC:", draft.Topic)
 	fmt.Println("DRAFT ARTICLE (length):", len(draft.Article), "characters")
 
+	// Parse config sekali di sini, reuse ke semua fungsi
+	metaConfig := parseConfig(cfg.MetaConfigStr)
+	sitemapConfig := parseConfig(cfg.SitemapConfigStr)
+
 	// Build request body from field mapping
 	requestBody := s.buildFromFieldMapping(fieldMapping, draft)
 
-	// Add meta tags
-	s.addMetaTagsToBody(cfg, draft, requestBody)
-
-	// Add sitemap info
-	s.addSitemapInfoToBody(cfg, draft, requestBody)
-
-	// Add configs
-	if cfg.MetaConfigStr != "" && cfg.MetaConfigStr != "{}" {
-		requestBody["meta_config"] = removeSensitiveFields(parseConfig(cfg.MetaConfigStr))
-	}
-	if cfg.SitemapConfigStr != "" && cfg.SitemapConfigStr != "{}" {
-		requestBody["sitemap_config"] = removeSensitiveFields(parseConfig(cfg.SitemapConfigStr))
-	}
-
-	// Default request body if empty
+	// ✅ Fallback SEBELUM tambah meta/sitemap
+	// Supaya title/topic/content tetap masuk kalau field mapping kosong
 	if len(requestBody) == 0 {
+		fmt.Println("FIELD MAPPING EMPTY, USING DEFAULT BODY")
 		requestBody = map[string]interface{}{
 			"title":   draft.Title,
 			"topic":   draft.Topic,
@@ -65,6 +54,12 @@ func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftData
 		}
 	}
 
+	// Add meta tags (seo)
+	s.addMetaTagsToBody(metaConfig, sitemapConfig, draft, cfg.BaseURL, requestBody)
+
+	// Add sitemap info
+	s.addSitemapInfoToBody(sitemapConfig, draft, cfg.BaseURL, requestBody)
+
 	// Log final body (redacted)
 	redactedBody := redactSensitiveFields(requestBody)
 	printJSON("FINAL REQUEST BODY (REDACTED)", redactedBody)
@@ -72,15 +67,17 @@ func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftData
 	return requestBody, nil
 }
 
+// ─────────────────────────────────────────────
+// Parse field mapping (handle double encoded)
+// ─────────────────────────────────────────────
+
 func parseFieldMapping(fieldMappingStr string, fieldMapping *map[string]interface{}) error {
 	raw := strings.TrimSpace(fieldMappingStr)
 	fmt.Println("RAW FIELD MAPPING (length):", len(raw))
 
-	// Try direct JSON object
 	if err := json.Unmarshal([]byte(raw), fieldMapping); err != nil {
 		fmt.Println("DIRECT PARSE FAILED:", err)
 
-		// Handle double encoded JSON string
 		var nested string
 		if err2 := json.Unmarshal([]byte(raw), &nested); err2 == nil {
 			fmt.Println("DOUBLE ENCODED DETECTED")
@@ -96,6 +93,10 @@ func parseFieldMapping(fieldMappingStr string, fieldMapping *map[string]interfac
 	return nil
 }
 
+// ─────────────────────────────────────────────
+// Build request body dari field mapping
+// ─────────────────────────────────────────────
+
 func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{}, draft draft.DraftDataPost) map[string]interface{} {
 	requestBody := make(map[string]interface{})
 
@@ -104,7 +105,6 @@ func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{},
 
 		switch v := value.(type) {
 		case string:
-			// Cek dulu apakah value adalah array placeholder
 			arrayPlaceholders := getArrayPlaceholders(draft)
 			if arr, ok := arrayPlaceholders[v]; ok {
 				fmt.Printf("ARRAY FIELD => %s : %v\n", key, arr)
@@ -112,7 +112,6 @@ func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{},
 				break
 			}
 
-			// Bukan array placeholder, lanjut replace string biasa
 			replaced := replaceAllPlaceholders(v, draft)
 			if isSensitiveField(key) {
 				fmt.Printf("STRING FIELD (sensitive) => %s : [REDACTED]\n", key)
@@ -126,8 +125,7 @@ func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{},
 			result := make([]string, 0, len(v))
 			for _, item := range v {
 				if strVal, ok := item.(string); ok {
-					replaced := replaceAllPlaceholders(strVal, draft)
-					result = append(result, replaced)
+					result = append(result, replaceAllPlaceholders(strVal, draft))
 				}
 			}
 			requestBody[key] = result
@@ -138,7 +136,6 @@ func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{},
 
 			for nestedKey, nestedValue := range v {
 				if strVal, ok := nestedValue.(string); ok {
-					// Cek array placeholder di nested juga
 					arrayPlaceholders := getArrayPlaceholders(draft)
 					if arr, ok := arrayPlaceholders[strVal]; ok {
 						fmt.Printf("NESTED ARRAY => %s.%s : %v\n", key, nestedKey, arr)
@@ -169,55 +166,73 @@ func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{},
 	return requestBody
 }
 
-func (s *PostService) addMetaTagsToBody(cfg *ProductConfig, draft draft.DraftDataPost, requestBody map[string]interface{}) {
-	metaConfig := parseConfig(cfg.MetaConfigStr)
-	metaEnabled := false
+// ─────────────────────────────────────────────
+// Add meta tags (seo) ke request body
+// ─────────────────────────────────────────────
 
-	if metaConfig != nil {
-		if enabled, ok := metaConfig["enabled"].(bool); ok && enabled {
-			metaEnabled = true
-			fmt.Println("META CONFIG ENABLED")
-		}
+func (s *PostService) addMetaTagsToBody(
+	metaConfig map[string]interface{},
+	sitemapConfig map[string]interface{},
+	draft draft.DraftDataPost,
+	baseURL string,
+	requestBody map[string]interface{},
+) {
+	if metaConfig == nil {
+		fmt.Println("SKIP META TAG GENERATION: metaConfig nil")
+		return
 	}
 
-	if metaEnabled {
-		sitemapConfig := parseConfig(cfg.SitemapConfigStr)
-		metaTags := generateMetaTags(metaConfig, draft, cfg.BaseURL, sitemapConfig)
-		fmt.Println("GENERATED META TAGS (count):", len(metaTags))
+	enabled, ok := metaConfig["enabled"].(bool)
+	if !ok || !enabled {
+		fmt.Println("SKIP META TAG GENERATION: disabled")
+		return
+	}
 
-		if len(metaTags) > 0 {
-			fmt.Println("INSERT meta_tags TO REQUEST BODY")
-			requestBody["meta_tags"] = metaTags
-		}
+	fmt.Println("META CONFIG ENABLED")
+	metaTags := generateMetaTags(metaConfig, draft, baseURL, sitemapConfig)
+	fmt.Println("GENERATED META TAGS (count):", len(metaTags))
+
+	if len(metaTags) > 0 {
+		fmt.Println("INSERT seo TO REQUEST BODY")
+		requestBody["seo"] = metaTags
+	}
+}
+
+// ─────────────────────────────────────────────
+// Add sitemap info ke request body
+// ─────────────────────────────────────────────
+
+func (s *PostService) addSitemapInfoToBody(
+	sitemapConfig map[string]interface{},
+	draft draft.DraftDataPost,
+	baseURL string,
+	requestBody map[string]interface{},
+) {
+	if sitemapConfig == nil {
+		fmt.Println("SKIP SITEMAP GENERATION: sitemapConfig nil")
+		return
+	}
+
+	enabled, ok := sitemapConfig["enabled"].(bool)
+	if !ok || !enabled {
+		fmt.Println("SKIP SITEMAP GENERATION: disabled")
+		return
+	}
+
+	fmt.Println("SITEMAP CONFIG ENABLED")
+	sitemapInfo := generateSitemapInfo(sitemapConfig, draft, baseURL)
+	if sitemapInfo != nil {
+		fmt.Println("GENERATED SITEMAP INFO (non-nil)")
+		fmt.Println("INSERT sitemap TO REQUEST BODY")
+		requestBody["sitemap"] = sitemapInfo
 	} else {
-		fmt.Println("SKIP META TAG GENERATION")
+		fmt.Println("GENERATED SITEMAP INFO IS NIL")
 	}
 }
 
-func (s *PostService) addSitemapInfoToBody(cfg *ProductConfig, draft draft.DraftDataPost, requestBody map[string]interface{}) {
-	sitemapConfig := parseConfig(cfg.SitemapConfigStr)
-	sitemapEnabled := false
-
-	if sitemapConfig != nil {
-		if enabled, ok := sitemapConfig["enabled"].(bool); ok && enabled {
-			sitemapEnabled = true
-			fmt.Println("SITEMAP CONFIG ENABLED")
-		}
-	}
-
-	if sitemapEnabled {
-		sitemapInfo := generateSitemapInfo(sitemapConfig, draft, cfg.BaseURL)
-		if sitemapInfo != nil {
-			fmt.Println("GENERATED SITEMAP INFO (non-nil)")
-			fmt.Println("INSERT sitemap_info TO REQUEST BODY")
-			requestBody["sitemap_info"] = sitemapInfo
-		} else {
-			fmt.Println("GENERATED SITEMAP INFO IS NIL")
-		}
-	} else {
-		fmt.Println("SKIP SITEMAP GENERATION")
-	}
-}
+// ─────────────────────────────────────────────
+// Parse config JSON (handle double encoded)
+// ─────────────────────────────────────────────
 
 func parseConfig(configStr string) map[string]interface{} {
 	if configStr == "" || configStr == "{}" {
@@ -228,7 +243,6 @@ func parseConfig(configStr string) map[string]interface{} {
 	var config map[string]interface{}
 
 	if err := json.Unmarshal([]byte(raw), &config); err != nil {
-		// Try double encoded
 		var nested string
 		if err2 := json.Unmarshal([]byte(raw), &nested); err2 == nil {
 			fmt.Println("DOUBLE ENCODED CONFIG DETECTED")

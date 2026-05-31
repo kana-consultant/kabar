@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@kana-consultant/ui-kit";
-import { Toast } from  "@kana-consultant/ui-kit";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductFormProps {
     isEdit: boolean;
@@ -44,6 +44,8 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
+
+    const toast = useToast()
 
     // Modal test state
     const [showModal, setShowModal] = useState(false);
@@ -173,6 +175,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
             {/* Field Mapping - Full Width */}
             <div className="mt-2">
                 <ProductFieldMapping
+                    domain = {product?.apiEndpoint as string | ""}
                     fieldMapping={(() => {
                         try {
                             const parsed = JSON.parse(product.adapterConfig?.fieldMapping || "{}");
