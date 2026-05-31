@@ -78,6 +78,19 @@ jobs:
     needs: build
     if: success()
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose file ke VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: "deployments/docker-compose.staging.yml"
+          target: "/home/deployer/projects/kabar/deployments/"
+          strip_components: 1
+
       - name: Deploy ke Staging
         uses: appleboy/ssh-action@v1.2.0
         with:

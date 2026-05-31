@@ -106,7 +106,7 @@ func NewContainer(
 		authHandler.NewRoute(db, protected, jwtGenerator, permCache).AuthSettingRoute()
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
 		draftHandler.NewRoute(db, protected, redisClient, redisScheduler, permCache).SetupRoutes()
-		generateHandler.NewRoute(db, protected).SetupRoutes()
+		generateHandler.NewRoute(db, protected, cfg).SetupRoutes()
 		historyHandler.NewHistoryRoute(db, protected, permCache).SetupRoute()
 		productHandler.NewRoute(db, protected, permCache).SetupRoutes()
 		providerHandler.NewRoute(db, protected).SetupRoutes()

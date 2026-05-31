@@ -10,31 +10,54 @@ services:
       - postgres_production_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - kabar-production
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
 
   redis:
     image: redis:7-alpine
     container_name: kabar-redis-production
     env_file:
       - ../apps/api/.env.production
-    command: sh -c "redis-server --requirepass $$REDIS_PASSWORD"
+    command: sh -c "redis-server --requirepass ${REDIS_PASSWORD}"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "$$REDIS_PASSWORD", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - kabar-production
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  minio:
+    image: minio/minio:latest
+    container_name: kabar-minio-production
+    env_file:
+      - ../apps/api/.env.production
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT:-9001}"
+    restart: unless-stopped
+    volumes:
+      - minio_production_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - kabar-production
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:${MINIO_CONSOLE_PORT:-9001}"
 
   kabar-api:
-    image: ghcr.io/kana-consultant/kabar-api:${IMAGE_TAG}
-    # HAPUS container_name: kabar-api-production  ← HAPUS INI
+    image: ghcr.io/kana-consultant/kabar-api:${IMAGE_TAG:-latest}
     env_file:
       - ../apps/api/.env.production
     depends_on:
@@ -42,22 +65,23 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - kabar-production
-    expose:
-      - "8080"
+    ports:
+      - "${API_PORT:-8080}:8080"
 
   kabar-web:
-    image: ghcr.io/kana-consultant/kabar-web:${IMAGE_TAG}
-    # HAPUS container_name: kabar-web-production  ← HAPUS INI
+    image: ghcr.io/kana-consultant/kabar-web:${IMAGE_TAG:-latest}
     depends_on:
       - kabar-api
     restart: unless-stopped
     networks:
       - kabar-production
-    expose:
-      - "80"
+    ports:
+      - "${WEB_PORT:-80}:80"
 
   nginx:
     image: nginx:alpine
@@ -66,7 +90,7 @@ services:
       - kabar-api
       - kabar-web
     ports:
-      - "8001:80"
+      - "${NGINX_PORT:-8001}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
@@ -75,6 +99,7 @@ services:
 
 volumes:
   postgres_production_data:
+  minio_production_data:
 
 networks:
   kabar-production:

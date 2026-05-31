@@ -6,6 +6,12 @@
 .env.staging
 setup-github-secrets.sh
 
+
+#===============
+docker-compose.minio.yml
+docker-compose.dev.yml
+docker-compose.redis.yml
+
 # =========================
 # NODE (React / Vite)
 # =========================

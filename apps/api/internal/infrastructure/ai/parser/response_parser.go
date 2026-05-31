@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -46,4 +47,52 @@ func (p *ResponseParser) ParseImageResponse(response []byte, responsePath string
 	}
 
 	return imageURL, nil
+}
+
+func (p *ResponseParser) ParseImageResponseBase64(response []byte, responsePath string) (string, string, error) {
+	// Parsing JSON response
+	var result map[string]interface{}
+	if err := json.Unmarshal(response, &result); err != nil {
+		return "", "", err
+	}
+
+	// Navigasi ke field yang mengandung Base64 (contoh: data[0].b64_json)
+	current := helper.ExtractByPath(result, responsePath)
+
+	base64Str := current
+
+	// Coba tentukan content-type dari Base64 header
+	contentType := detectContentTypeFromBase64(base64Str)
+
+	return base64Str, contentType, nil
+}
+
+func detectContentTypeFromBase64(base64Str string) string {
+	// Decode sedikit data untuk deteksi
+	decoded, err := base64.StdEncoding.DecodeString(base64Str[:min(100, len(base64Str))])
+	if err != nil {
+		return "image/png"
+	}
+
+	// Deteksi magic bytes
+	if len(decoded) >= 8 {
+		// PNG: 89 50 4E 47
+		if decoded[0] == 0x89 && decoded[1] == 0x50 && decoded[2] == 0x4E && decoded[3] == 0x47 {
+			return "image/png"
+		}
+		// JPEG: FF D8 FF
+		if decoded[0] == 0xFF && decoded[1] == 0xD8 && decoded[2] == 0xFF {
+			return "image/jpeg"
+		}
+		// WEBP: 52 49 46 46
+		if decoded[0] == 0x52 && decoded[1] == 0x49 && decoded[2] == 0x46 && decoded[3] == 0x46 {
+			return "image/webp"
+		}
+		// GIF: 47 49 46
+		if decoded[0] == 0x47 && decoded[1] == 0x49 && decoded[2] == 0x46 {
+			return "image/gif"
+		}
+	}
+
+	return "image/png" // default
 }

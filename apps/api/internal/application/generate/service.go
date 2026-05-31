@@ -1,21 +1,26 @@
 package generate
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
+	"strings"
 
 	"seo-backend/internal/domain/generate"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/infrastructure/ai/builder"
 	"seo-backend/internal/infrastructure/ai/parser"
 	"seo-backend/internal/infrastructure/http/client"
+	"seo-backend/internal/infrastructure/http/minio"
 	"time"
 )
 
 type GenereteServiceImpl struct {
 	repo           generate.Repository
 	httpClient     *client.HTTPClient
+	minioClient    *minio.MinioService
 	promptBuilder  *builder.PromptBuilder
 	requestBuilder *builder.RequestBuilder
 	responseParser *parser.ResponseParser
@@ -24,6 +29,7 @@ type GenereteServiceImpl struct {
 func NewService(
 	repo generate.Repository,
 	httpClient *client.HTTPClient,
+	minioClient *minio.MinioService,
 	promptBuilder *builder.PromptBuilder,
 	requestBuilder *builder.RequestBuilder,
 	responseParser *parser.ResponseParser,
@@ -34,6 +40,7 @@ func NewService(
 		promptBuilder:  promptBuilder,
 		requestBuilder: requestBuilder,
 		responseParser: responseParser,
+		minioClient:    minioClient,
 	}
 }
 
@@ -111,9 +118,6 @@ func (s *GenereteServiceImpl) GenerateArticle(ctx context.Context, params genera
 }
 
 func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate.ImageGenerationParams) (*generate.ImageResult, error) {
-	log.Println("========== GENERATE IMAGE ==========")
-	defer log.Println("========== END GENERATE IMAGE ==========")
-
 	// Validate params
 	if err := s.validateImageParams(params); err != nil {
 		return nil, err
@@ -126,6 +130,7 @@ func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate
 	}
 
 	SystemPrompt := config.SystemPrompt + "Tentang" + params.Prompt
+
 	// Build request body
 	requestBody, err := s.requestBuilder.BuildImageRequestBody(config, SystemPrompt)
 	if err != nil {
@@ -138,10 +143,53 @@ func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
-	// Parse response
-	imageURL, err := s.responseParser.ParseImageResponse(response, config.ResponseImagePath)
+	// Parse response - dapatkan Base64 string dari AI provider
+	base64String, contentType, err := s.responseParser.ParseImageResponseBase64(response, config.ResponseImagePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Remove data URL prefix jika ada
+	if strings.Contains(base64String, "base64,") {
+		parts := strings.Split(base64String, "base64,")
+		base64String = parts[len(parts)-1]
+	}
+	// Atau lebih spesifik:
+	base64String = strings.TrimPrefix(base64String, "data:image/png;base64,")
+	base64String = strings.TrimPrefix(base64String, "data:image/jpeg;base64,")
+	base64String = strings.TrimPrefix(base64String, "data:image/webp;base64,")
+
+	// Decode Base64 ke binary (hanya sekali!)
+	imageData, err := base64.StdEncoding.DecodeString(base64String)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 image: %w", err)
+	}
+
+	// Tentukan ekstensi berdasarkan content-type
+	ext := "png"
+	if contentType == "image/jpeg" || contentType == "image/jpg" {
+		ext = "jpg"
+	} else if contentType == "image/webp" {
+		ext = "webp"
+	} else if contentType == "image/gif" {
+		ext = "gif"
+	}
+
+	objectName := fmt.Sprintf("images/%d.%s", time.Now().UnixNano(), ext)
+
+	// Upload ke MinIO menggunakan bytes.Reader
+	reader := bytes.NewReader(imageData)
+	uploadedName, err := s.minioClient.Upload(ctx, objectName, reader, int64(len(imageData)), contentType)
+	if err != nil {
+		log.Printf("[WARN] Failed to upload to Minio: %v", err)
+		return nil, fmt.Errorf("failed to upload image to Minio: %w", err)
+	}
+
+	// Ambil presigned URL dengan expiry 7 hari
+	imageURL, err := s.minioClient.GetURL(ctx, uploadedName, 7*24*time.Hour)
+	if err != nil {
+		log.Printf("[WARN] Failed to get Minio URL: %v", err)
+		return nil, fmt.Errorf("failed to get Minio URL: %w", err)
 	}
 
 	result := &generate.ImageResult{
@@ -151,7 +199,6 @@ func (s *GenereteServiceImpl) GenerateImage(ctx context.Context, params generate
 		Model:       config.ModelName,
 	}
 
-	log.Printf("SUCCESS: Image generated for prompt: %s", params.Prompt)
 	return result, nil
 }
 
