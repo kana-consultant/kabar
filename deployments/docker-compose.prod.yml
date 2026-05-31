@@ -41,7 +41,7 @@ services:
     container_name: kabar-minio-production
     env_file:
       - ../apps/api/.env.production
-    command: server /data --console-address ":$${MINIO_CONSOLE_PORT:-9001}"
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT:-9001}"
     restart: unless-stopped
     volumes:
       - minio_production_data:/data
