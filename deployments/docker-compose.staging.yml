@@ -46,7 +46,7 @@ services:
     volumes:
       - minio_staging_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -80,8 +80,6 @@ services:
     restart: unless-stopped
     networks:
       - kabar-staging
-    ports:
-      - "${WEB_PORT:-80}:80"
 
   nginx:
     image: nginx:alpine

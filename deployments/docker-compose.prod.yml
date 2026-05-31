@@ -46,7 +46,7 @@ services:
     volumes:
       - minio_production_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -73,15 +73,13 @@ services:
     ports:
       - "${API_PORT:-8080}:8080"
 
-  kabar-web:
+ kabar-web:
     image: ghcr.io/kana-consultant/kabar-web:${IMAGE_TAG:-latest}
     depends_on:
       - kabar-api
     restart: unless-stopped
     networks:
-      - kabar-production
-    ports:
-      - "${WEB_PORT:-80}:80"
+      - kabar-staging
 
   nginx:
     image: nginx:alpine
