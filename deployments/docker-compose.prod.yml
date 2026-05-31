@@ -82,18 +82,19 @@ services:
       - kabar-production
 
   nginx:
-    image: nginx:alpine
-    container_name: kabar-nginx-production
-    depends_on:
-      - kabar-api
-      - kabar-web
-    ports:
-      - "${NGINX_PORT:-8001}:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    restart: unless-stopped
-    networks:
-      - kabar-production
+      image: nginx:alpine
+      container_name: kabar-nginx-production
+      depends_on:
+        - kabar-api
+        - kabar-web
+        - minio
+      ports:
+        - "${NGINX_PORT:-8001}:80"
+      volumes:
+        - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      restart: unless-stopped
+      networks:
+        - kabar-production
 
 volumes:
   postgres_production_data:
