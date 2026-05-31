@@ -32,6 +32,7 @@ func NewRoute(db *sql.DB, chi chi.Router, cfg *config.Config) *Route {
 	client := client.NewHTTPClient(timeOut)
 	minioStorage, err := minio.NewMinioService(
 		cfg.MinioEndpoint,
+		cfg.MinioPublicEndpoint,
 		cfg.MinioAccessKey,
 		cfg.MinioSecretKey,
 		cfg.MinioBucket,

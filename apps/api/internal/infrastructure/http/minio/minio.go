@@ -11,14 +11,16 @@ import (
 )
 
 type MinioService struct {
-	Client *minio.Client
-	Bucket string
+	Client         *minio.Client
+	Bucket         string
+	PublicEndpoint string
 }
 
 func NewMinioService(
-	endpoint,
-	accessKey,
-	secretKey,
+	endpoint string,
+	PublicEndpoint string,
+	accessKey string,
+	secretKey string,
 	bucket string,
 ) (*MinioService, error) {
 
@@ -49,8 +51,9 @@ func NewMinioService(
 	}
 
 	return &MinioService{
-		Client: client,
-		Bucket: bucket,
+		Client:         client,
+		Bucket:         bucket,
+		PublicEndpoint: PublicEndpoint,
 	}, nil
 }
 
@@ -97,13 +100,16 @@ func (s *MinioService) Delete(ctx context.Context, objectName string) error {
 }
 
 func (s *MinioService) GetURL(ctx context.Context, objectName string, expiry time.Duration) (string, error) {
-	url, err := s.Client.PresignedGetObject(ctx, s.Bucket, objectName, expiry, url.Values{})
+	u, err := s.Client.PresignedGetObject(ctx, s.Bucket, objectName, expiry, url.Values{})
 	if err != nil {
 		return "", err
 	}
-	return url.String(), nil
-}
+	// Replace internal host dengan public endpoint
+	u.Host = s.PublicEndpoint
+	u.Scheme = "http"
 
+	return u.String(), nil
+}
 func (s *MinioService) List(ctx context.Context, prefix string) ([]string, error) {
 	var files []string
 

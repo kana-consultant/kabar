@@ -31,11 +31,12 @@ type Config struct {
 	EnableRateLimit    bool
 	RateLimitPerSecond int
 
-	MinioEndpoint  string
-	MinioAccessKey string
-	MinioSecretKey string
-	MinioBucket    string
-	MinioUseSSL    bool
+	MinioEndpoint       string
+	MinioPublicEndpoint string
+	MinioAccessKey      string
+	MinioSecretKey      string
+	MinioBucket         string
+	MinioUseSSL         bool
 }
 
 func Load() *Config {
@@ -66,11 +67,12 @@ func Load() *Config {
 		RateLimitPerSecond: getEnvAsInt("RATE_LIMIT_PER_SECOND", 100),
 
 		// MinIO
-		MinioEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
-		MinioAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
-		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
-		MinioBucket:    getEnv("MINIO_BUCKET", "my-bucket"),
-		MinioUseSSL:    getEnvAsBool("MINIO_USE_SSL", false),
+		MinioEndpoint:       getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		MinioPublicEndpoint: getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		MinioAccessKey:      getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+		MinioSecretKey:      getEnv("MINIO_SECRET_KEY", "minioadmin"),
+		MinioBucket:         getEnv("MINIO_BUCKET", "my-bucket"),
+		MinioUseSSL:         getEnvAsBool("MINIO_USE_SSL", false),
 	}
 }
 
