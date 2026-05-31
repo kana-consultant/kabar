@@ -73,7 +73,7 @@ services:
     ports:
       - "${API_PORT:-8080}:8080"
 
- kabar-web:
+  kabar-web:
     image: ghcr.io/kana-consultant/kabar-web:${IMAGE_TAG:-latest}
     depends_on:
       - kabar-api
