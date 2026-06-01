@@ -2,12 +2,32 @@ package helper
 
 import (
 	"encoding/json"
+	"fmt"
+	"regexp"
 	"seo-backend/internal/domain/draft"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+func stripHTMLTags(html string) string {
+	re := regexp.MustCompile(`<[^>]*>`)
+	return strings.TrimSpace(re.ReplaceAllString(html, ""))
+}
+
+func injectImageAfterH1(content string, imageTag string) string {
+	if imageTag == "" {
+		return content
+	}
+	idx := strings.Index(content, "</h1>")
+	if idx == -1 {
+		// tidak ada <h1>, taruh di awal
+		return imageTag + content
+	}
+	insertAt := idx + len("</h1>")
+	return content[:insertAt] + imageTag + content[insertAt:]
+}
 
 func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 
@@ -16,8 +36,10 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 
 	// Image URL
 	imageURL := ""
+	imageTag := ""
 	if draft.ImageURL != nil {
 		imageURL = *draft.ImageURL
+		imageTag = fmt.Sprintf(`<img src="%s" wrapperstyle="display: flex">`, imageURL)
 	}
 
 	// Use existing ID or generate new UUID
@@ -40,14 +62,21 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 		slug = slugify(base)
 	}
 
+	// Content variants
+	contentHTML := draft.Article
+	contentText := stripHTMLTags(draft.Article)
+	contentWithImage := injectImageAfterH1(draft.Article, imageTag)
+
 	placeholders := map[string]string{
-		"{title}":   draft.Title,
-		"{topic}":   draft.Topic,
-		"{content}": draft.Article,
-		"{slug}":    slug,
-		// {tags} dan {keywords} dihapus dari sini — handle sebagai array di buildFromFieldMapping
-		"{excerpt}":   excerpt,
-		"{image_url}": imageURL,
+		"{title}":              draft.Title,
+		"{topic}":              draft.Topic,
+		"{content}":            contentHTML,      // HTML asli
+		"{content_text}":       contentText,      // plain text (tanpa tag HTML)
+		"{content_with_image}": contentWithImage, // HTML + gambar setelah <h1>
+		"{slug}":               slug,
+		"{excerpt}":            excerpt,
+		"{image_url}":          imageURL, // plain URL
+		"{image_content_html}": imageTag, // <img> tag saja
 
 		// Meta
 		"{meta_title}":       draft.Title,
@@ -81,7 +110,6 @@ func replaceAllPlaceholders(text string, draft draft.DraftDataPost) string {
 
 	return text
 }
-
 func getArrayPlaceholders(draft draft.DraftDataPost) map[string][]string {
 	keywordNames := make([]string, len(draft.Keywords))
 	copy(keywordNames, draft.Keywords)

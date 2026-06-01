@@ -26,7 +26,7 @@ import { Eye, Send, Copy, Plus, Trash2, Check } from "lucide-react";
 
 // ==================== TYPES ====================
 interface ProductFieldMappingProps {
-    domain : string | undefined;
+    domain: string | undefined;
     fieldMapping: any;
     metaConfig?: any;
     sitemapConfig?: any;
@@ -141,7 +141,31 @@ function MetaTagManager({
     const [editingCustomTag, setEditingCustomTag] = useState<{ oldKey: string; key: string; value: string } | null>(null);
 
     // LIST UNTUK DETECTION - SEMUA DALAM FORMAT {}
-    const PLACEHOLDER_VALUES = ["{title}", "{topic}", "{content}", "{excerpt}", "{image_url}", "{scheduled_for}"];
+    const PLACEHOLDER_VALUES = [
+        "{title}",
+        "{topic}",
+        "{content}",
+        "{content_text}",
+        "{content_with_image}",
+        "{excerpt}",
+        "{image_url}",
+        "{image_content_html}",
+        "{slug}",
+        "{scheduled_for}",
+        "{meta_title}",
+        "{meta_description}",
+        "{meta_keywords}",
+        "{og_title}",
+        "{og_description}",
+        "{og_image}",
+        "{twitter_title}",
+        "{twitter_description}",
+        "{twitter_image}",
+        "{sitemap_priority}",
+        "{sitemap_changefreq}",
+        "{timestamp}",
+        "{id}",
+    ];
 
     // DEFAULT VALUES UNTUK SELECT (jika data kosong)
     const DEFAULT_DYNAMIC_TAGS = {
