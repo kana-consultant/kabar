@@ -52,14 +52,16 @@ func (r *GenerateRepositoryImpl) GetModelConfig(
 	LEFT JOIN request_schemas rs
 		ON rs.id = mf.schema_id
 	WHERE ak.id = $1
+		AND ak.is_active = true
+		AND ak.service = $2
 	LIMIT 1
 `
 
 	err := r.db.QueryRowContext(
 		ctx,
 		query,
-		apiKeyID,
-		serviceType,
+		apiKeyID,    // $1
+		serviceType, // $2 - sekarang sudah ada placeholder
 	).Scan(
 		&encryptedKey,
 		&config.APISystemPrompt,
