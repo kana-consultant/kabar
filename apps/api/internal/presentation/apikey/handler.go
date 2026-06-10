@@ -157,14 +157,3 @@ func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		"message": "deleted successfully",
 	}, http.StatusOK)
 }
-
-// RegisterRoutes - register all routes
-func (h *APIKeyHandler) RegisterRoutes(r chi.Router) {
-	r.Route("/api-keys", func(r chi.Router) {
-		r.Post("/", h.Create)
-		r.Get("/", h.GetAll)
-		r.Get("/{id}", h.GetByID)
-		r.Put("/{id}", h.Update)
-		r.Delete("/{id}", h.Delete)
-	})
-}

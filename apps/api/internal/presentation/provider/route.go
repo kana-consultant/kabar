@@ -7,6 +7,7 @@ import (
 	"seo-backend/internal/infrastructure/db/repositories"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-redis/redis/v8"
 )
 
 type Route struct {
@@ -14,9 +15,11 @@ type Route struct {
 	ProviderHandler ProviderHandler
 }
 
-func NewRoute(db *sql.DB, chi chi.Router) *Route {
-	providerRepo := repositories.NewProviderRepository(db)
-	providerService := providerService.NewService(db, providerRepo)
+func NewRoute(db *sql.DB, chi chi.Router, redisClient *redis.Client) *Route {
+	providerRepo := repositories.NewProviderRepository(db, redisClient)
+	familyModelRepo := repositories.NewModelFamiliesRepository(db, redisClient)
+	SchemaRepo := repositories.NewRequestSchemaRepository(db, redisClient)
+	providerService := providerService.NewService(db, providerRepo, familyModelRepo, SchemaRepo, redisClient)
 	ProviderHandler := NewProviderHandler(providerService)
 	return &Route{
 		baseroute: BaseRoutes.Route{

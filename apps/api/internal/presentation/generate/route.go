@@ -11,7 +11,6 @@ import (
 	"seo-backend/internal/infrastructure/db/repositories"
 	"seo-backend/internal/infrastructure/http/client"
 	"seo-backend/internal/infrastructure/http/minio"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -27,9 +26,7 @@ func NewRoute(db *sql.DB, chi chi.Router, cfg *config.Config) *Route {
 	requestBuilder := aiBuilder.NewRequestBuilder()
 	responseParser := aiParser.NewResponseParser()
 	generateRepo := repositories.NewRepository(db)
-	var timeOut time.Duration
-	timeOut = 30
-	client := client.NewHTTPClient(timeOut)
+	client := client.NewHTTPClient()
 	minioStorage, err := minio.NewMinioService(
 		cfg.MinioEndpoint,
 		cfg.MinioPublicEndpoint,

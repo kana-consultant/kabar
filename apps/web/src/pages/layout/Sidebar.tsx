@@ -4,7 +4,8 @@ import { Button } from "@kana-consultant/ui-kit";
 import {
     LayoutDashboard, FileText, Settings, History,
     Package, FileStack, Calendar, Menu, X,
-    Sparkles, Rocket, ChevronLeft, ChevronRight
+    Sparkles, Rocket, ChevronLeft, ChevronRight,
+    Brain, Cpu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Can } from "@/components/ui/Can"
@@ -24,6 +25,12 @@ const menuGroups = [
             { title: "Draft",     href: "/drafts",   icon: FileStack, permission: "draft:view:team" },
             { title: "Schedule",  href: "/schedule", icon: Calendar,  permission: "schedule:view:team" },
             { title: "History",   href: "/history",  icon: History,   permission: "histories:view:team" },
+        ],
+    },
+    {
+        label: "AI MANAGEMENT",
+        items: [
+            { title: "AI Providers & Models", href: "/ai-management", icon: Cpu, permission: "" },
         ],
     },
     {

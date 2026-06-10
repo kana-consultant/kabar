@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { CreateModelRequest, AIModel } from './types';
+import type { CreateModelRequest,AIModel } from '@/types/provider.types';
 
 // Create model
 export async function createModel(data: CreateModelRequest): Promise<{ id: string; message: string }> {

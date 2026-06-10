@@ -1,17 +1,15 @@
 // src/pages/settings/ModelsTab.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Textarea, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@kana-consultant/ui-kit';
-// Hapus import Toast langsung
-// import { Toast } from '@kana-consultant/ui-kit';
 import { useToast } from '@/hooks/use-toast'; //   Import useToast
-import { type AIModel, type APIProvider } from '@/services/modelProvider/types';
+import { type AIModel,type APIProvider } from '@/types/provider.types';
 import { createModel, updateModel, deleteModel, getModelsWithStatus } from "@/services/model";
-import { getProviders } from '@/services/modelProvider/modelQueries';
+import { getProviders } from '@/services/model';
 import { Loader2, Plus, Edit2, Trash2, Star, CheckCircle, XCircle } from 'lucide-react';
 
 // Interface untuk model dengan status API key
 interface ModelWithStatus extends AIModel {
-    hasApiKey: boolean;
+    hasApiKey?: boolean;
     providerName?: string;
     providerDisplayName?: string;
 }
@@ -33,6 +31,7 @@ export function ModelsTab() {
     const [formMaxTokens, setFormMaxTokens] = useState(4096);
     const [formTemperature, setFormTemperature] = useState(0.7);
     const [formIsDefault, setFormIsDefault] = useState(false);
+    const [formIsActive,setFormIsActive] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // Fetch models function
@@ -49,8 +48,8 @@ export function ModelsTab() {
     // Fetch providers function
     const fetchProviders = useCallback(async () => {
         try {
-            const data = await getProviders();
-            setProviders(data);
+            const providers = await getProviders();
+            setProviders(providers.data as APIProvider[]);
         } catch (error) {
             console.error('Failed to load providers:', error);
             toast.error('Gagal memuat providers'); //   Ganti toast.error dengan toast.error
@@ -86,23 +85,21 @@ export function ModelsTab() {
             if (editingModel) {
                 await updateModel(editingModel.id, {
                     name: formName,
-                    providerId: formProviderId,
-                    displayName: formDisplayName,
-                    description: formDescription,
-                    maxTokens: formMaxTokens,
-                    temperature: formTemperature,
-                    isDefault: formIsDefault,
+                    provider_id: formProviderId,
+                    display_name: formDisplayName,
+                    max_tokens: formMaxTokens,
+                    is_default: formIsDefault,
                 });
                 toast.success('Model updated'); //   Ganti toast.success dengan toast.success
             } else {
                 await createModel({
                     name: formName,
-                    providerId: formProviderId,
-                    displayName: formDisplayName,
-                    description: formDescription,
-                    maxTokens: formMaxTokens,
-                    temperature: formTemperature,
-                    isDefault: formIsDefault,
+                    provider_id: formProviderId,
+                    display_name: formDisplayName,
+                    max_tokens: formMaxTokens,
+                    is_default: formIsDefault,
+                    is_active : formIsActive
+                    
                 });
                 toast.success('Model created'); //   Ganti toast.success dengan toast.success
             }
@@ -131,12 +128,11 @@ export function ModelsTab() {
     const handleEdit = (model: AIModel) => {
         setEditingModel(model);
         setFormName(model.name);
-        setFormProviderId(model.providerId);
-        setFormDisplayName(model.displayName);
-        setFormDescription(model.description || '');
-        setFormMaxTokens(model.maxTokens);
-        setFormTemperature(model.temperature);
-        setFormIsDefault(model.isDefault);
+        setFormProviderId(model.provider_id);
+        setFormDisplayName(model.display_name);
+        setFormMaxTokens(model.max_tokens);
+        setFormIsActive(model.is_active);
+        setFormIsDefault(model.is_default);
         setShowAddDialog(true);
     };
 
@@ -155,7 +151,7 @@ export function ModelsTab() {
 
     const handleSetDefault = async (id: string) => {
         try {
-            await updateModel(id, { isDefault: true });
+            await updateModel(id, { is_default: true });
             toast.success('Default model updated'); //   Ganti toast.success dengan toast.success
             await fetchModels(); // Refresh models only
         } catch (error) {
@@ -166,7 +162,7 @@ export function ModelsTab() {
 
     const getProviderName = (providerId: string) => {
         const provider = providers.find(p => p.id === providerId);
-        return provider?.displayName || provider?.name || providerId;
+        return provider?.name || providerId;
     };
 
     const getProviderBadge = (providerId: string) => {
@@ -217,16 +213,16 @@ export function ModelsTab() {
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="font-medium">{model.displayName}</h3>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full ${getProviderBadge(model.providerId)}`}>
-                                                {getProviderName(model.providerId)}
+                                            <h3 className="font-medium">{model.display_name}</h3>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${getProviderBadge(model.provider_id)}`}>
+                                                {getProviderName(model.provider_id)}
                                             </span>
-                                            {model.isDefault && (
+                                            {model.is_default && (
                                                 <span className="text-xs text-blue-500 flex items-center gap-1">
                                                     <Star className="h-3 w-3 fill-blue-500" /> Default
                                                 </span>
                                             )}
-                                            {!model.isActive && (
+                                            {!model.is_active && (
                                                 <span className="text-xs text-red-500">(Inactive)</span>
                                             )}
                                             {/* API Key Status Badge */}
@@ -240,15 +236,13 @@ export function ModelsTab() {
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-sm text-slate-500 mt-1">{model.description || 'Tidak ada deskripsi'}</p>
                                         <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-400">
                                             <span>Model ID: {model.name}</span>
-                                            <span>Max tokens: {model.maxTokens}</span>
-                                            <span>Temperature: {model.temperature}</span>
+                                            <span>Max tokens: {model.max_tokens}</span>
                                         </div>
                                     </div>
                                     <div className="flex gap-1">
-                                        {!model.isDefault && (
+                                        {!model.is_default && (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -261,7 +255,7 @@ export function ModelsTab() {
                                         <Button variant="ghost" size="sm" onClick={() => handleEdit(model)}>
                                             <Edit2 className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(model.id, model.displayName)}>
+                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(model.id, model.display_name)}>
                                             <Trash2 className="h-4 w-4 text-red-500" />
                                         </Button>
                                     </div>
@@ -296,8 +290,8 @@ export function ModelsTab() {
                                         <SelectItem value="" disabled>No providers available. Add provider first.</SelectItem>
                                     ) : (
                                         providers.map((p) => (
-                                            <SelectItem key={p.id} value={p.id}>
-                                                {p.displayName} ({p.name})
+                                            <SelectItem key={p.id} value={p.id as string}>
+                                                {p.name}
                                             </SelectItem>
                                         ))
                                     )}

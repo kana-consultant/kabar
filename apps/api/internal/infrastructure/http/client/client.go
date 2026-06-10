@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"strings"
 	"time"
 
 	"seo-backend/internal/domain/generate"
@@ -17,9 +19,9 @@ type HTTPClient struct {
 	client *http.Client
 }
 
-func NewHTTPClient(timeout time.Duration) *HTTPClient {
+func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{
-		client: &http.Client{Timeout: timeout},
+		client: &http.Client{}, // No default timeout, use context instead
 	}
 }
 
@@ -30,40 +32,34 @@ func (c *HTTPClient) SendRequest(
 	timeout time.Duration,
 ) ([]byte, error) {
 
-	url := config.BaseURL + config.Endpoint
+	// =========================
+	// BUILD URL WITH MODEL REPLACEMENT
+	// =========================
+	baseURL := config.BaseURL
+	endpoint := config.Endpoint
+
+	baseURL = strings.ReplaceAll(baseURL, "{model}", config.ModelName)
+	endpoint = strings.ReplaceAll(endpoint, "{model}", config.ModelName)
+
+	url := baseURL + endpoint
 
 	log.Println("========== HTTP REQUEST ==========")
-	log.Println("[INFO] URL:", url)
-	log.Println("[INFO] Method: POST")
+	log.Println("[INFO] Full URL:", url)
+	log.Println("[INFO] Model Name:", config.ModelName)
 	log.Println("[INFO] Timeout:", timeout)
 
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"POST",
-		url,
-		bytes.NewBuffer(body),
-	)
-
-	if err != nil {
-		log.Println("[ERROR] Failed to create request:", err)
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
 	// =========================
-	// AUTH HEADER
+	// AUTH HEADER - FIXED FOR sql.NullString
 	// =========================
-	header := config.AuthHeader
-	if header == "" {
-		header = "Authorization"
+	header := "Authorization"
+	if config.AuthHeader.Valid && config.AuthHeader.String != "" {
+		header = config.AuthHeader.String
 	}
 
 	authValue := config.APIKey
-
-	if config.AuthPrefix != "" {
-		authValue = config.AuthPrefix + " " + config.APIKey
+	if config.AuthPrefix.Valid && config.AuthPrefix.String != "" {
+		authValue = config.AuthPrefix.String + " " + config.APIKey
 	}
-
-	req.Header.Set(header, authValue)
 
 	// Mask API KEY
 	maskedKey := config.APIKey
@@ -71,62 +67,129 @@ func (c *HTTPClient) SendRequest(
 		maskedKey = maskedKey[:10] + "..."
 	}
 
-	log.Println("[INFO] Auth Type:", config.AuthType)
 	log.Println("[INFO] Auth Header:", header)
-	log.Println("[INFO] Auth Prefix:", config.AuthPrefix)
-	log.Println("[INFO] API Key Exists:", config.APIKey != "")
 	log.Println("[INFO] API Key Preview:", maskedKey)
 
-	req.Header.Set("Content-Type", "application/json")
+	// =========================
+	// RETRY LOGIC
+	// =========================
+	maxRetries := 3
+	backoff := 1 * time.Second
 
-	log.Println("[INFO] Headers:")
-	for k, v := range req.Header {
-		log.Printf("  %s: %v\n", k, v)
+	var resp *http.Response
+	var respBody []byte
+	var err error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			log.Printf("[INFO] Retry attempt %d/%d after %v", attempt+1, maxRetries, backoff)
+			select {
+			case <-time.After(backoff):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			backoff *= 2
+			if backoff > 30*time.Second {
+				backoff = 30 * time.Second
+			}
+		}
+
+		// =========================
+		// CREATE NEW CONTEXT WITH TIMEOUT
+		// IMPORTANT: Use context.Background() to ignore parent context deadline
+		// =========================
+		reqCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(reqCtx, "POST", url, bytes.NewBuffer(body))
+		if err != nil {
+			log.Println("[ERROR] Failed to create request:", err)
+			continue
+		}
+
+		// Set headers
+		req.Header.Set(header, authValue)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+		req.Header.Set("Accept", "application/json")
+
+		// Log request body (truncate if too long)
+		bodyStr := string(body)
+		if len(bodyStr) > 2000 {
+			log.Println("[INFO] Request Body (truncated):", bodyStr[:2000]+"...")
+		} else {
+			log.Println("[INFO] Request Body:", bodyStr)
+		}
+
+		// Request dump for debug
+		dump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			log.Println("[WARNING] Failed to dump request:", err)
+		} else {
+			log.Println("========== RAW REQUEST DUMP ==========")
+			log.Println(string(dump))
+			log.Println("========== END REQUEST DUMP ==========")
+		}
+
+		log.Println("[INFO] Sending request...")
+		startTime := time.Now()
+
+		resp, err = c.client.Do(req)
+		elapsed := time.Since(startTime)
+
+		if err != nil {
+			log.Printf("[ERROR] Request attempt %d failed after %v: %v", attempt+1, elapsed, err)
+
+			// Check if it's context error, don't retry
+			if strings.Contains(err.Error(), "context canceled") || strings.Contains(err.Error(), "context deadline") {
+				log.Println("[ERROR] Context error, stopping retries")
+				return nil, fmt.Errorf("request timeout after %v: %w", timeout, err)
+			}
+			continue
+		}
+
+		log.Printf("[INFO] Request completed in %v", elapsed)
+		log.Println("[INFO] Response Status:", resp.Status)
+
+		// Read response body
+		respBody, err = io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if err != nil {
+			log.Printf("[ERROR] Failed to read response body: %v", err)
+			continue
+		}
+
+		// Log response body (truncate)
+		respBodyStr := string(respBody)
+		if len(respBodyStr) > 2000 {
+			log.Println("[INFO] Response Body (truncated):", respBodyStr[:2000]+"...")
+		} else {
+			log.Println("[INFO] Response Body:", respBodyStr)
+		}
+
+		// Check if status code is retryable
+		if resp.StatusCode == 503 || resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			log.Printf("[WARNING] Got status %d, will retry", resp.StatusCode)
+			continue
+		}
+
+		// Success
+		if resp.StatusCode == http.StatusOK {
+			log.Println("[SUCCESS] Request completed successfully")
+			log.Println("========== END HTTP REQUEST ==========")
+			return respBody, nil
+		}
+
+		// Non-retryable error status
+		log.Printf("[ERROR] API returned non-200 status (%d)", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	log.Println("[INFO] Request Body:")
-	log.Println(string(body))
-
-	client := &http.Client{
-		Timeout: timeout,
+	// Out of retries
+	if resp == nil {
+		return nil, fmt.Errorf("failed after %d retries: %w", maxRetries, err)
 	}
 
-	log.Println("[INFO] Sending request...")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println("[ERROR] Failed to send request:", err)
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-
-	defer resp.Body.Close()
-
-	log.Println("[INFO] Response Status:", resp.Status)
-	log.Println("[INFO] Response Status Code:", resp.StatusCode)
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Println("[ERROR] Failed to read response body:", err)
-		return nil, err
-	}
-
-	log.Println("[INFO] Response Body:")
-	log.Println(string(respBody))
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf(
-			"[ERROR] API returned non-200 status (%d)\n",
-			resp.StatusCode,
-		)
-
-		return nil, fmt.Errorf(
-			"API returned status %d: %s",
-			resp.StatusCode,
-			string(respBody),
-		)
-	}
-
-	log.Println("[SUCCESS] Request completed successfully")
-
-	return respBody, nil
+	return nil, fmt.Errorf("failed after %d retries: status %d", maxRetries, resp.StatusCode)
 }

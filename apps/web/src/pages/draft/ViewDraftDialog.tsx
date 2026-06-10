@@ -21,7 +21,7 @@ export function ViewDraftDialog({ draft, open, onOpenChange, formatDate }: ViewD
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-5xl max-h-[100vh] overflow-auto p-5">
+            <DialogContent className="m-2 sm:max-w-5xl max-h-[100vh] overflow-auto p-5">
                 <DialogHeader>
                     <DialogTitle className="text-xl">{draft.title}</DialogTitle>
                     <DialogDescription>

@@ -39,6 +39,8 @@ export function ModelSelector({
         "dark:border-white/[0.05] dark:bg-white/[0.02]"
     );
 
+    console.log(models)
+
     if (loadingModels) return (
         <div className={cardCls}>
             <div className={hdrCls}>
@@ -141,7 +143,7 @@ export function ModelSelector({
                                 {filteredModels.map((model) => (
                                     <SelectItem key={model.id} value={model.id} className="py-2.5">
                                         <div className="flex flex-wrap items-center gap-1.5">
-                                            <span className="text-sm font-medium">{model.modelDisplayName}</span>
+                                            <span className="text-sm font-medium">{model.model_name}</span>
                                             <span className={cn(
                                                 "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
                                                 getServiceBadgeColor(model.service)
@@ -150,15 +152,10 @@ export function ModelSelector({
                                             </span>
                                             <span className={cn(
                                                 "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium",
-                                                getProviderColor(model.providerDisplayName)
+                                                getProviderColor(model.provider_name)
                                             )}>
-                                                {model.providerDisplayName}
+                                                {model.provider_display_name}
                                             </span>
-                                            {model.isActive && (
-                                                <span className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 border-green-200/60 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20">
-                                                    Active
-                                                </span>
-                                            )}
                                         </div>
                                     </SelectItem>
                                 ))}
@@ -171,7 +168,7 @@ export function ModelSelector({
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
                                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
                                 </span>
-                                {selectedModel.modelDisplayName} siap digunakan
+                                {selectedModel.model_name} siap digunakan
                             </div>
                         )}
                     </div>

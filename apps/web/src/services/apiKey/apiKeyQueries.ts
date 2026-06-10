@@ -1,10 +1,10 @@
 import { apiClient } from '../api';
-import type { APIKey } from './types';
+import type { APIKeyDetail } from './types';
 
 // Get all API keys
-export async function getAPIKeys(): Promise<APIKey[]> {
+export async function getAPIKeys(): Promise<APIKeyDetail[]> {
     try {
-        const response = await apiClient.get<APIKey[]>('/api-keys');
+        const response = await apiClient.get<APIKeyDetail[]>('/api-keys');
         return response;
     } catch (error) {
         console.error('Failed to get API keys:', error);
@@ -13,7 +13,7 @@ export async function getAPIKeys(): Promise<APIKey[]> {
 }
 
 // Get API key by service
-export async function getAPIKeyByService(service: string): Promise<APIKey | null> {
+export async function getAPIKeyByService(service: string): Promise<APIKeyDetail | null> {
     try {
         const keys = await getAPIKeys();
         return keys.find(k => k.service === service) || null;

@@ -1,16 +1,18 @@
+import type { ModelFormData } from '@/pages/ai-management/Model/provider.types';
 import { apiClient } from '../api';
-import type { CreateModelRequest, AIModel } from './types';
+import type { CreateModelRequest,AIModel } from '@/types/provider.types';
 
 // Create model
-export async function createModel(data: CreateModelRequest): Promise<{ id: string; message: string }> {
+// services/model/modelMutations.ts
+
+export async function createModel(data: CreateModelRequest): Promise<AIModel> {
     const response = await apiClient.post('/models', data);
-    return response as { id: string; message: string };
+    return response as AIModel;  // Sama seperti updateModel
 }
 
-// Update model
-export async function updateModel(id: string, data: Partial<AIModel>): Promise<{ message: string }> {
+export async function updateModel(id: string, data: Partial<ModelFormData>): Promise<AIModel> {
     const response = await apiClient.put(`/models/${id}`, data);
-    return response as { message: string };
+    return response as AIModel;
 }
 
 // Delete model

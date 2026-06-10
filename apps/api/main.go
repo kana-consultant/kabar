@@ -80,9 +80,9 @@ func main() {
 	server := &http.Server{
 		Addr:         ":" + cfg.ServerPort,
 		Handler:      appContainer.Router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  120 * time.Second, // tambah ini
+		WriteTimeout: 120 * time.Second, // tambah ini
+		IdleTimeout:  120 * time.Second,
 	}
 
 	// 9. START SERVER

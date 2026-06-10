@@ -1,75 +1,103 @@
 package provider
 
 import (
-	"database/sql"
+	"encoding/json"
+	"errors"
+	model_family "seo-backend/internal/domain/modelfamily"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-// APIProvider represents an API provider configuration
+// Errors
+var (
+	// Basic errors
+	ErrNotFound       = errors.New("API provider not found")
+	ErrDuplicate      = errors.New("API provider with this name already exists")
+	ErrInvalidID      = errors.New("invalid ID format")
+	ErrInvalidName    = errors.New("invalid provider name")
+	ErrInvalidBaseURL = errors.New("invalid base URL")
+	ErrDatabase       = errors.New("database error")
+
+	// Additional errors
+	ErrEmptyName          = errors.New("provider name cannot be empty")
+	ErrEmptyDisplayName   = errors.New("display name cannot be empty")
+	ErrEmptyBaseURL       = errors.New("base URL cannot be empty")
+	ErrInvalidAuthType    = errors.New("invalid auth type, must be 'bearer', 'basic', 'api_key', or 'none'")
+	ErrInvalidAuthHeader  = errors.New("invalid auth header format")
+	ErrInvalidAuthPrefix  = errors.New("invalid auth prefix")
+	ErrInvalidHeaders     = errors.New("invalid default headers format")
+	ErrProviderInUse      = errors.New("provider is still in use by model families or models")
+	ErrProviderInactive   = errors.New("provider is inactive")
+	ErrProviderActive     = errors.New("provider is already active")
+	ErrProviderInactiveOp = errors.New("cannot perform operation on inactive provider")
+	ErrUnauthorized       = errors.New("unauthorized access to provider")
+	ErrForbidden          = errors.New("access forbidden: insufficient permissions")
+	ErrInvalidUpdateData  = errors.New("invalid update data provided")
+	ErrNoUpdatesProvided  = errors.New("no updates provided")
+	ErrTransactionFailed  = errors.New("transaction failed")
+	ErrOperationTimeout   = errors.New("operation timed out")
+)
+
+// ValidationError represents a validation error with field context
+type ValidationError struct {
+	Field   string      `json:"field"`
+	Message string      `json:"message"`
+	Value   interface{} `json:"value,omitempty"`
+}
+
+func (e *ValidationError) Error() string {
+	return e.Message
+}
+
+// NewValidationError creates a new validation error
+func NewValidationError(field, message string, value interface{}) *ValidationError {
+	return &ValidationError{
+		Field:   field,
+		Message: message,
+		Value:   value,
+	}
+}
+
+// MultiError represents multiple validation errors
+type MultiError struct {
+	Errors []error `json:"errors"`
+}
+
+func (e *MultiError) Error() string {
+	return "multiple validation errors occurred"
+}
+
+func (e *MultiError) Add(err error) {
+	e.Errors = append(e.Errors, err)
+}
+
+func (e *MultiError) HasErrors() bool {
+	return len(e.Errors) > 0
+}
+
+// APIProvider represents the api_providers table entity
 type APIProvider struct {
-	ID                string                 `json:"id"`
-	Name              string                 `json:"name"`
-	DisplayName       string                 `json:"displayName"`
-	Description       string                 `json:"description"`
-	BaseURL           string                 `json:"baseUrl"`
-	AuthType          string                 `json:"authType"`
-	AuthHeader        string                 `json:"authHeader"`
-	AuthPrefix        sql.NullString         `json:"authPrefix,omitempty"`
-	TextEndpoint      string                 `json:"textEndpoint"`
-	ImageEndpoint     *string                `json:"imageEndpoint,omitempty"`
-	DefaultHeaders    map[string]string      `json:"defaultHeaders"`
-	RequestTemplate   map[string]interface{} `json:"requestTemplate"`
-	ResponseTextPath  string                 `json:"responseTextPath"`
-	ResponseImagePath *string                `json:"responseImagePath,omitempty"`
-	IsActive          bool                   `json:"isActive"`
-	CreatedAt         time.Time              `json:"createdAt"`
-	UpdatedAt         time.Time              `json:"updatedAt"`
+	ID             uuid.UUID                            `json:"id"`
+	Name           string                               `json:"name"`
+	DisplayName    string                               `json:"display_name"`
+	Description    *string                              `json:"description,omitempty"`
+	BaseURL        string                               `json:"base_url"`
+	AuthType       *string                              `json:"auth_type"`
+	AuthHeader     *string                              `json:"auth_header"`
+	AuthPrefix     *string                              `json:"auth_prefix"`
+	DefaultHeaders json.RawMessage                      `json:"default_headers"`
+	IsActive       *bool                                `json:"is_active"`
+	CreatedAt      time.Time                            `json:"created_at"`
+	UpdatedAt      time.Time                            `json:"updated_at"`
+	Families       []model_family.ModelFamilyWithSchema `json:"families"`
 }
 
-// CreateProviderRequest represents request to create a provider
-type CreateProviderRequest struct {
-	Name              string                 `json:"name"`
-	DisplayName       string                 `json:"displayName"`
-	Description       string                 `json:"description"`
-	BaseURL           string                 `json:"baseUrl"`
-	AuthType          string                 `json:"authType"`
-	AuthHeader        string                 `json:"authHeader"`
-	AuthPrefix        string                 `json:"authPrefix"`
-	TextEndpoint      string                 `json:"textEndpoint"`
-	ImageEndpoint     string                 `json:"imageEndpoint"`
-	DefaultHeaders    map[string]string      `json:"defaultHeaders"`
-	RequestTemplate   map[string]interface{} `json:"requestTemplate"`
-	ResponseTextPath  string                 `json:"responseTextPath"`
-	ResponseImagePath string                 `json:"responseImagePath"`
-}
-
-// UpdateProviderRequest represents request to update a provider
-type UpdateProviderRequest struct {
-	Name              *string                `json:"name,omitempty"`
-	DisplayName       *string                `json:"displayName,omitempty"`
-	Description       *string                `json:"description,omitempty"`
-	BaseURL           *string                `json:"baseUrl,omitempty"`
-	AuthType          *string                `json:"authType,omitempty"`
-	AuthHeader        *string                `json:"authHeader,omitempty"`
-	AuthPrefix        *string                `json:"authPrefix,omitempty"`
-	TextEndpoint      *string                `json:"textEndpoint,omitempty"`
-	ImageEndpoint     *string                `json:"imageEndpoint,omitempty"`
-	DefaultHeaders    map[string]string      `json:"defaultHeaders,omitempty"`
-	RequestTemplate   map[string]interface{} `json:"requestTemplate,omitempty"`
-	ResponseTextPath  *string                `json:"responseTextPath,omitempty"`
-	ResponseImagePath *string                `json:"responseImagePath,omitempty"`
-	IsActive          *bool                  `json:"isActive,omitempty"`
-}
-
-// ProviderFilters for filtering providers
-type ProviderFilters struct {
-	IsActive *bool
-	Search   string
-}
-
-// UserContext for permission checking
-type UserContext interface {
-	GetUserID() string
-	GetTeamID() string
-	GetUserRole() string
+// ProviderWithStatus for API response with limited fields
+type ProviderWithStatus struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	BaseURL     string `json:"base_url"`
+	IsActive    bool   `json:"is_active"`
 }

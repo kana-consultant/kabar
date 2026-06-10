@@ -89,7 +89,7 @@ func (r *APIKeyRepository) GetByID(ctx context.Context, id string) (*apikey.APIK
 	return &key, nil
 }
 
-// GetAll - get all API keys with provider and model details
+// GetAll - get all API keys with provider and model details (langsung ke model_families)
 func (r *APIKeyRepository) GetAll(ctx context.Context, filter models.UserContext) ([]apikey.APIKeyDetail, error) {
 	// Build access filter
 	whereClause, whereArgs := userRole.BuildAccessFilter(filter)
@@ -101,11 +101,11 @@ func (r *APIKeyRepository) GetAll(ctx context.Context, filter models.UserContext
 			ak.created_at, ak.updated_at,
 			COALESCE(p.name, '') as provider_name,
 			COALESCE(p.display_name, '') as provider_display_name,
-			COALESCE(m.name, '') as model_name,
-			COALESCE(m.display_name, '') as model_display_name
+			COALESCE(mf.name, '') as model_name,
+			COALESCE(mf.display_name, '') as model_display_name
 		FROM api_keys ak
 		LEFT JOIN api_providers p ON ak.provider_id = p.id
-		LEFT JOIN ai_models m ON ak.model_id = m.id
+		LEFT JOIN model_families mf ON ak.model_id = mf.id
 		WHERE %s
 	`, whereClause)
 

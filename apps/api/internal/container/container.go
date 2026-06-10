@@ -23,8 +23,10 @@ import (
 	draftHandler "seo-backend/internal/presentation/draft"
 	generateHandler "seo-backend/internal/presentation/generate"
 	historyHandler "seo-backend/internal/presentation/history"
+	familiesHandler "seo-backend/internal/presentation/model_families"
 	productHandler "seo-backend/internal/presentation/product"
 	providerHandler "seo-backend/internal/presentation/provider"
+	schemasHandler "seo-backend/internal/presentation/request_schema"
 	teamHandler "seo-backend/internal/presentation/team"
 	userHandler "seo-backend/internal/presentation/user"
 
@@ -109,11 +111,13 @@ func NewContainer(
 		generateHandler.NewRoute(db, protected, cfg).SetupRoutes()
 		historyHandler.NewHistoryRoute(db, protected, permCache).SetupRoute()
 		productHandler.NewRoute(db, protected, permCache).SetupRoutes()
-		providerHandler.NewRoute(db, protected).SetupRoutes()
+		providerHandler.NewRoute(db, protected, redisClient).SetupRoutes()
 		teamHandler.NewRoute(db, protected, emailService).SetupRoutes()
 		userHandler.NewRoute(db, protected, permCache).SetupRoutes()
 		apikeyHandler.NewRoute(db, protected).SetupRoutes()
-		aimodelHandler.NewRoute(db, protected).SetupRoute()
+		aimodelHandler.NewRoute(db, protected, redisClient).SetupRoute()
+		schemasHandler.NewRoute(db, protected, redisClient).SetupRoutes()
+		familiesHandler.NewRoute(db, protected, redisClient).SetupRoute()
 	})
 
 	return &Container{

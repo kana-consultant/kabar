@@ -1,0 +1,704 @@
+// pages/admin/ai-management/TestModelDialog.tsx
+
+import { useState } from "react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@kana-consultant/ui-kit";
+import { Button } from "@kana-consultant/ui-kit";
+import { Input } from "@kana-consultant/ui-kit";
+import { Label } from "@kana-consultant/ui-kit";
+import { Checkbox } from "@kana-consultant/ui-kit";
+import { Badge } from "@kana-consultant/ui-kit";
+import { Loader, CheckCircle, XCircle, Image, Type, Hash, ToggleLeft, Key, MessageSquare, Globe, Sparkles, Thermometer, Sigma, AlignLeft, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { APIProvider, Family } from '@/types/provider.types';
+
+interface TestModelDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    family: Family;
+    providerConfig: APIProvider;
+    onPathsSelected: (textPath: string, imagePath?: string) => void;
+    globalConfig?: {
+        max_token?: number;
+        temperature?: number;
+        system_prompt?: string;
+    };
+}
+
+interface PathNode {
+    path: string;
+    value: any;
+    type: "text" | "image" | "number" | "boolean" | "null";
+}
+
+export function TestModelDialog({
+    open,
+    onOpenChange,
+    family,
+    providerConfig,
+    onPathsSelected,
+    globalConfig
+}: TestModelDialogProps) {
+    const [apiKey, setApiKey] = useState("");
+    const [testPrompt, setTestPrompt] = useState("Hello, this is a test message");
+
+    // SEMUA nilai diambil dari family, tidak bisa diedit
+    const maxTokenValue = (() => {
+        if (family.max_token !== undefined && family.max_token !== null) return family.max_token;
+        if (globalConfig?.max_token !== undefined) return globalConfig.max_token;
+        return 1000;
+    })();
+
+    const temperatureValue = (() => {
+        if (family.temperature !== undefined && family.temperature !== null) return family.temperature;
+        if (globalConfig?.temperature !== undefined) return globalConfig.temperature;
+        return 0.7;
+    })();
+
+    const systemPromptValue = (() => {
+        if (family.system_prompt !== undefined && family.system_prompt !== null) return family.system_prompt;
+        if (globalConfig?.system_prompt !== undefined) return globalConfig.system_prompt;
+        return "";
+    })();
+
+    const [loading, setLoading] = useState(false);
+    const [rawResponse, setRawResponse] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedTextPath, setSelectedTextPath] = useState<string>("");
+    const [selectedImagePath, setSelectedImagePath] = useState<string>("");
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            setApiKey("");
+            setRawResponse(null);
+            setError(null);
+            setSelectedTextPath("");
+            setSelectedImagePath("");
+            setTestPrompt("Hello, this is a test message");
+        }
+        onOpenChange(open);
+    };
+
+    const getTemplateString = (template: any): string => {
+        if (!template) return "{}";
+        if (typeof template === 'string') return template;
+        return JSON.stringify(template);
+    };
+
+    console.log("Family data:", family);
+    console.log("Family max_token:", family.max_token);
+    console.log("Family temperature:", family.temperature);
+    console.log("Family system_prompt:", family.system_prompt);
+    console.log("Values used:", { maxTokenValue, temperatureValue, systemPromptValue });
+
+    const replaceVariables = (str: string): string => {
+        const familyName = family.name || "";
+        return str
+            .replace(/\{model\}/g, familyName)
+            .replace(/\{prompt\}/g, testPrompt)
+            .replace(/\{max_token\}/g, String(maxTokenValue))
+            .replace(/\{temperature\}/g, temperatureValue.toString())
+            .replace(/\{system_prompt\}/g, systemPromptValue);
+    };
+
+    const handleTest = async () => {
+        console.log("========== TEST CONNECTION START ==========");
+        console.log("🔑 API KEY:", apiKey);
+        console.log("🔑 API KEY LENGTH:", apiKey?.length);
+        console.log("👨‍💻 PROVIDER CONFIG:", providerConfig);
+        console.log("🤖 FAMILY:", family);
+        console.log("⚙️ TEST PARAMETERS (from Family):", {
+            maxToken: maxTokenValue,
+            temperature: temperatureValue,
+            systemPrompt: systemPromptValue,
+            testPrompt
+        });
+
+        if (!apiKey.trim()) {
+            console.log("❌ API Key kosong");
+            setError("API Key is required");
+            return;
+        }
+
+        if (!family.schema?.request_template) {
+            console.log("❌ Request template belum ada");
+            setError("Request template is required. Please setup request template first.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setRawResponse(null);
+        setSelectedTextPath("");
+        setSelectedImagePath("");
+
+        try {
+            console.log("📄 REQUEST TEMPLATE RAW:", family.schema.request_template);
+            const templateString = getTemplateString(family.schema.request_template);
+            console.log("📄 TEMPLATE STRING:", templateString);
+            const requestBodyString = replaceVariables(templateString);
+            console.log("🔄 REQUEST BODY STRING:", requestBodyString);
+            const parsedBody = JSON.parse(requestBodyString);
+            console.log("📦 PARSED BODY:", parsedBody);
+            console.log("📦 PARSED BODY JSON:", JSON.stringify(parsedBody, null, 2));
+
+            let defaultHeaders: Record<string, string> = {};
+            console.log("📌 DEFAULT HEADERS RAW:", providerConfig?.default_headers);
+
+            if (providerConfig?.default_headers) {
+                if (typeof providerConfig.default_headers === "string") {
+                    try {
+                        defaultHeaders = JSON.parse(providerConfig.default_headers);
+                    } catch (err) {
+                        console.error("❌ FAILED PARSE DEFAULT HEADERS:", err);
+                        defaultHeaders = {};
+                    }
+                } else {
+                    defaultHeaders = providerConfig.default_headers;
+                }
+            }
+
+            console.log("📌 DEFAULT HEADERS PARSED:", defaultHeaders);
+
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+                ...defaultHeaders,
+            };
+
+            console.log("🔐 AUTH HEADER:", providerConfig?.auth_header);
+            console.log("🔐 AUTH PREFIX:", providerConfig?.auth_prefix);
+
+            if (providerConfig?.auth_header && apiKey) {
+                const authValue = providerConfig.auth_prefix
+                    ? `${providerConfig.auth_prefix} ${apiKey}`.trim()
+                    : apiKey;
+                headers[providerConfig.auth_header] = authValue;
+                console.log("🔐 AUTH VALUE:", authValue);
+            }
+
+            console.log("📨 HEADERS:", headers);
+            console.log("📨 HEADERS JSON:", JSON.stringify(headers, null, 2));
+
+            let endpoint = family.schema.endpoint_path || "";
+            let baseUrl = providerConfig?.base_url || "";
+
+            console.log("🌐 BASE URL RAW:", baseUrl);
+            console.log("🌐 ENDPOINT RAW:", endpoint);
+
+            endpoint = replaceVariables(endpoint);
+            baseUrl = replaceVariables(baseUrl);
+
+            console.log("🌐 BASE URL PARSED:", baseUrl);
+            console.log("🌐 ENDPOINT PARSED:", endpoint);
+
+            const url = `${baseUrl}${endpoint}`;
+            console.log("🚀 FINAL URL:", url);
+            console.log("🚀 REQUEST OBJECT:", {
+                method: "POST",
+                headers,
+                body: parsedBody,
+            });
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers,
+                body: JSON.stringify(parsedBody),
+            });
+
+            console.log("📥 RESPONSE OBJECT:", response);
+            console.log("📥 STATUS:", response.status);
+            console.log("📥 STATUS TEXT:", response.statusText);
+            console.log("📥 OK:", response.ok);
+            console.log("📥 RESPONSE HEADERS:");
+            response.headers.forEach((value, key) => {
+                console.log(`${key}: ${value}`);
+            });
+
+            const responseText = await response.text();
+            console.log("📥 RAW RESPONSE:", responseText);
+            console.log("📥 RAW RESPONSE TYPE:", typeof responseText);
+            console.log("📥 RAW RESPONSE LENGTH:", responseText.length);
+
+            let data;
+
+            try {
+                data = JSON.parse(responseText);
+                console.log("📥 PARSED RESPONSE:", data);
+            } catch (err) {
+                console.warn("⚠️ RESPONSE BUKAN JSON", err);
+                data = responseText;
+            }
+
+            if (!response.ok) {
+                console.error("❌ REQUEST FAILED:", data);
+                throw new Error(
+                    data?.error?.message ||
+                    data?.error ||
+                    `HTTP ${response.status}: Request failed`
+                );
+            }
+
+            console.log("✅ REQUEST SUCCESS");
+            setRawResponse(data);
+        } catch (err: any) {
+            console.error("❌ ERROR OBJECT:", err);
+            console.error("❌ ERROR MESSAGE:", err?.message);
+            console.error("❌ ERROR STACK:", err?.stack);
+            setError(
+                err?.message ||
+                "Failed to test. Please check your configuration."
+            );
+        } finally {
+            console.log("========== TEST CONNECTION END ==========");
+            setLoading(false);
+        }
+    };
+
+    const flattenJSON = (obj: any, prefix = ""): PathNode[] => {
+        const nodes: PathNode[] = [];
+
+        if (obj === null || obj === undefined) {
+            nodes.push({ path: prefix, value: null, type: "null" });
+            return nodes;
+        }
+
+        if (Array.isArray(obj)) {
+            obj.forEach((item, index) => {
+                const arrayPath = prefix ? `${prefix}[${index}]` : `[${index}]`;
+                nodes.push(...flattenJSON(item, arrayPath));
+            });
+            return nodes;
+        }
+
+        if (typeof obj === "object") {
+            Object.keys(obj).forEach((key) => {
+                const newPath = prefix ? `${prefix}.${key}` : key;
+                const value = obj[key];
+
+                if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+                    nodes.push(...flattenJSON(value, newPath));
+                } else if (Array.isArray(value)) {
+                    nodes.push(...flattenJSON(value, newPath));
+                } else {
+                    let type: PathNode["type"] = "text";
+
+                    if (typeof value === "string") {
+                        if (value.startsWith("http") || value.startsWith("data:image/") || value.startsWith("/9j/") || value.startsWith("iVBOR")) {
+                            type = "image";
+                        }
+                    } else if (typeof value === "number") {
+                        type = "number";
+                    } else if (typeof value === "boolean") {
+                        type = "boolean";
+                    } else if (value === null) {
+                        type = "null";
+                    }
+
+                    nodes.push({ path: newPath, value, type });
+                }
+            });
+        }
+
+        return nodes;
+    };
+
+    const leafNodes = rawResponse ? flattenJSON(rawResponse) : [];
+
+    const handlePathToggle = (node: PathNode, checked: boolean) => {
+        if (!checked) {
+            if (node.type === "image" && selectedImagePath === node.path) {
+                setSelectedImagePath("");
+            } else if (selectedTextPath === node.path) {
+                setSelectedTextPath("");
+            }
+        } else {
+            if (node.type === "image") {
+                setSelectedImagePath(node.path);
+            } else if (node.type === "text" || node.type === "number" || node.type === "boolean") {
+                setSelectedTextPath(node.path);
+            }
+        }
+    };
+
+    const handleConfirm = () => {
+        if (!selectedTextPath) return;
+        onPathsSelected(selectedTextPath, selectedImagePath || undefined);
+        handleOpenChange(false);
+    };
+
+    const getValuePreview = (value: any): string => {
+        if (value === null) return "null";
+        if (value === undefined) return "undefined";
+        if (typeof value === "string") {
+            if (value.length > 100) return value.substring(0, 100) + "...";
+            return value;
+        }
+        return String(value);
+    };
+
+    const getTypeBadge = (type: PathNode["type"]) => {
+        switch (type) {
+            case "image":
+                return <Badge tone="info" className="text-[10px] h-4 px-1.5 shrink-0"><Image className="h-2.5 w-2.5 mr-0.5" />IMAGE</Badge>;
+            case "number":
+                return <Badge tone="outline" className="text-[10px] h-4 px-1.5 shrink-0"><Hash className="h-2.5 w-2.5 mr-0.5" />NUM</Badge>;
+            case "boolean":
+                return <Badge tone="outline" className="text-[10px] h-4 px-1.5 shrink-0"><ToggleLeft className="h-2.5 w-2.5 mr-0.5" />BOOL</Badge>;
+            case "null":
+                return <Badge tone="outline" className="text-[10px] h-4 px-1.5 shrink-0">NULL</Badge>;
+            default:
+                return <Badge tone="info" className="text-[10px] h-4 px-1.5 shrink-0"><Type className="h-2.5 w-2.5 mr-0.5" />TEXT</Badge>;
+        }
+    };
+
+    const getPreviewEndpoint = () => {
+        console.log(family);
+        if (!providerConfig) return "Not selected";
+        const endpoint = family.schema?.endpoint_path || "";
+        const baseUrl = providerConfig.base_url || "";
+        const familyName = family.name || "{model}";
+
+        let previewEndpoint = endpoint.replace(/\{model\}/g, familyName);
+        let previewBaseUrl = baseUrl.replace(/\{model\}/g, familyName);
+
+        return `${previewBaseUrl}${previewEndpoint}`;
+    };
+
+    const copyToClipboard = () => {
+        if (rawResponse) {
+            navigator.clipboard.writeText(JSON.stringify(rawResponse, null, 2));
+        }
+    };
+
+    // Cek sumber nilai
+    const getValueSource = (value: any, familyValue: any, globalValue: any) => {
+        if (familyValue !== undefined && familyValue !== null) return "family";
+        if (globalValue !== undefined) return "global";
+        return "default";
+    };
+
+    const maxTokenSource = getValueSource(maxTokenValue, family.max_token, globalConfig?.max_token);
+    const temperatureSource = getValueSource(temperatureValue, family.temperature, globalConfig?.temperature);
+    const systemPromptSource = getValueSource(systemPromptValue, family.system_prompt, globalConfig?.system_prompt);
+
+    return (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+                <DialogHeader className="px-6 pt-6 pb-4 border-b">
+                    <DialogTitle className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-purple-500" />
+                        Test {family.display_name || family.name} & Auto-Detect Response Paths
+                    </DialogTitle>
+                    <DialogDescription>
+                        Send a test request to see the actual API response and select which fields to extract
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+                    {/* Test Configuration */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl p-4 border">
+                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <Key className="h-4 w-4 text-blue-500" />
+                            Test Configuration
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-medium">API Key *</Label>
+                                <Input
+                                    type="password"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder="Enter temporary API key"
+                                    className="bg-white dark:bg-gray-900"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    ⚠️ This key is only used for testing and will NOT be saved
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-medium">Test Prompt</Label>
+                                <Input
+                                    value={testPrompt}
+                                    onChange={(e) => setTestPrompt(e.target.value)}
+                                    placeholder="Enter test prompt"
+                                    className="bg-white dark:bg-gray-900"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* AI Parameters Section - READ ONLY FROM FAMILY */}
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-xl p-4 border">
+                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-purple-500" />
+                            Family Parameters (Read Only)
+                            <Badge tone="warning" className="text-[10px]">
+                                From Family Configuration
+                            </Badge>
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Max Token - Read Only */}
+                            <div className="space-y-2">
+                                <Label className="text-xs font-medium flex items-center gap-1">
+                                    <Sigma className="h-3 w-3" />
+                                    Max Token
+                                    <Badge tone="info" className="text-[9px] ml-1">
+                                        {maxTokenSource === "family" ? "From Family" : maxTokenSource === "global" ? "From Global" : "Default"}
+                                    </Badge>
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        type="number"
+                                        value={maxTokenValue}
+                                        disabled
+                                        className="w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-75"
+                                    />
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Maximum tokens to generate
+                                    {maxTokenSource === "family" && family.max_token && ` (Value: ${family.max_token})`}
+                                </p>
+                            </div>
+
+                            {/* Temperature - Read Only */}
+                            <div className="space-y-2">
+                                <Label className="text-xs font-medium flex items-center gap-1">
+                                    <Thermometer className="h-3 w-3" />
+                                    Temperature
+                                    <Badge tone="info" className="text-[9px] ml-1">
+                                        {temperatureSource === "family" ? "From Family" : temperatureSource === "global" ? "From Global" : "Default"}
+                                    </Badge>
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        type="number"
+                                        value={temperatureValue}
+                                        disabled
+                                        className="w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-75"
+                                        step={0.1}
+                                    />
+                                    <Info className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Randomness level (0-2)
+                                    {temperatureSource === "family" && family.temperature && ` (Value: ${family.temperature})`}
+                                </p>
+                            </div>
+
+                            {/* System Prompt - Read Only */}
+                            <div className="md:col-span-2 space-y-2">
+                                <Label className="text-xs font-medium flex items-center gap-1">
+                                    <AlignLeft className="h-3 w-3" />
+                                    System Prompt
+                                    <Badge tone="info" className="text-[9px] ml-1">
+                                        {systemPromptSource === "family" ? "From Family" : systemPromptSource === "global" ? "From Global" : "Default"}
+                                    </Badge>
+                                </Label>
+                                <textarea
+                                    value={systemPromptValue}
+                                    disabled
+                                    rows={2}
+                                    className="w-full px-3 py-2 border rounded-md bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-75 font-mono text-sm"
+                                    placeholder="No system prompt set"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    System instructions for the AI model (read only from family configuration)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Request Configuration Summary */}
+                    <div className="bg-muted/30 rounded-xl p-4 border">
+                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <Globe className="h-4 w-4 text-green-500" />
+                            Request Configuration
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex items-start gap-2">
+                                <span className="font-medium w-20 shrink-0">Provider:</span>
+                                <span>{providerConfig?.display_name || "Not selected"}</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                                <span className="font-medium w-20 shrink-0">Family:</span>
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                                    {family.display_name || family.name} ({family.name})
+                                </code>
+                            </div>
+                            <div className="flex items-start gap-2">
+                                <span className="font-medium w-20 shrink-0">Endpoint:</span>
+                                <code className="text-xs text-green-600 break-all font-mono bg-green-50 dark:bg-green-950/30 px-1.5 py-0.5 rounded">
+                                    {getPreviewEndpoint()}
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Send Button */}
+                    <Button
+                        onClick={handleTest}
+                        disabled={!apiKey.trim() || loading || !providerConfig?.base_url}
+                        className="w-full"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader className="h-4 w-4 mr-2 animate-spin" />
+                                Sending request...
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles className="h-4 w-4 mr-2" />
+                                Send Test Request
+                            </>
+                        )}
+                    </Button>
+
+                    {/* Error */}
+                    {error && (
+                        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 flex items-start space-x-3">
+                            <XCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                            <div className="flex-1">
+                                <div className="font-semibold text-sm text-red-700">Test Failed</div>
+                                <p className="text-sm text-red-600 mt-0.5">{error}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Response */}
+                    {rawResponse && !error && (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="h-0.5 flex-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full" />
+                                <Badge tone="success" className="gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    Response Received
+                                </Badge>
+                                <div className="h-0.5 flex-1 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full" />
+                            </div>
+
+                            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-5">
+                                {/* Raw Response */}
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-semibold uppercase flex items-center justify-between">
+                                        <span>Raw JSON Response</span>
+                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={copyToClipboard}>
+                                            Copy
+                                        </Button>
+                                    </Label>
+                                    <div className="bg-slate-900 text-slate-100 p-3 rounded-xl max-h-[420px] overflow-y-auto">
+                                        <pre className="text-xs font-mono whitespace-pre-wrap break-words">
+                                            {JSON.stringify(rawResponse, null, 2)}
+                                        </pre>
+                                    </div>
+                                </div>
+
+                                {/* Path Picker */}
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-semibold uppercase block">
+                                        Select Response Paths
+                                        <span className="text-muted-foreground ml-2">({leafNodes.length} fields)</span>
+                                    </Label>
+                                    <div className="border rounded-xl max-h-[420px] overflow-y-auto bg-white dark:bg-gray-950">
+                                        <div className="divide-y">
+                                            {leafNodes.map((node, index) => {
+                                                const isTextSelected = node.type !== "image" && selectedTextPath === node.path;
+                                                const isImageSelected = node.type === "image" && selectedImagePath === node.path;
+                                                const isSelected = isTextSelected || isImageSelected;
+
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className={cn(
+                                                            "flex items-start space-x-3 p-3 transition-all cursor-pointer hover:bg-muted/50",
+                                                            isSelected ? "bg-blue-50 dark:bg-blue-500/10 border-l-4 border-l-blue-500" : ""
+                                                        )}
+                                                        onClick={() => handlePathToggle(node, !isSelected)}
+                                                    >
+                                                        <Checkbox
+                                                            checked={isSelected}
+                                                            onCheckedChange={(checked) => handlePathToggle(node, checked as boolean)}
+                                                            className="mt-0.5 shrink-0"
+                                                        />
+                                                        <div className="flex-1 min-w-0">
+                                                            <code className="text-xs font-mono font-semibold break-all">
+                                                                {node.path}
+                                                            </code>
+                                                            <div className="mt-1">
+                                                                {getTypeBadge(node.type)}
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground mt-1 truncate font-mono">
+                                                                {getValuePreview(node.value)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Selected Summary */}
+                            {(selectedTextPath || selectedImagePath) && (
+                                <div className="space-y-3 border-t pt-4">
+                                    <Label className="text-xs font-semibold uppercase">Selected Paths Summary</Label>
+                                    <div className="grid gap-2">
+                                        {selectedTextPath && (
+                                            <div className="p-3 rounded-xl border border-green-200 bg-green-50">
+                                                <Badge tone="success" className="gap-1 mb-2">
+                                                    <Type className="h-3 w-3" />
+                                                    TEXT
+                                                </Badge>
+                                                <code className="text-sm font-mono text-green-700 block break-all">
+                                                    {selectedTextPath}
+                                                </code>
+                                            </div>
+                                        )}
+                                        {selectedImagePath && (
+                                            <div className="p-3 rounded-xl border border-blue-200 bg-blue-50">
+                                                <Badge tone="info" className="gap-1 mb-2">
+                                                    <Image className="h-3 w-3" />
+                                                    IMAGE
+                                                </Badge>
+                                                <code className="text-sm font-mono text-blue-700 block break-all">
+                                                    {selectedImagePath}
+                                                </code>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="border-t px-6 py-4 bg-muted/20 flex justify-between items-center">
+                    <p className="text-xs text-muted-foreground">
+                        {rawResponse
+                            ? "✓ Select one text field and optionally one image field"
+                            : "🔑 Enter API key and click test to see response structure"}
+                    </p>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleConfirm}
+                            disabled={!selectedTextPath || !rawResponse}
+                        >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Confirm & Fill Paths
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}

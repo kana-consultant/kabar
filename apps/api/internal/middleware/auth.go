@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -67,8 +66,6 @@ func JWTMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 				writeError(w, "Invalid claims", http.StatusUnauthorized)
 				return
 			}
-
-			log.Printf("MAAAAAAAAAAAAAAAAAAAAAAAAP %v", mapClaims)
 
 			userID, ok := mapClaims["user_id"].(string)
 			if !ok || userID == "" {

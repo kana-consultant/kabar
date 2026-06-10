@@ -13,17 +13,17 @@ export interface APIKey {
 export interface APIKeyDetail {
     id: string;
     service: string;
-    providerId: string;
-    modelId: string;
-    isActive: boolean;
-    systemPrompt: string;
-    createdBy: string;
-    createdAt: string;
-    updatedAt: string;
-    providerName: string;
-    providerDisplayName: string;
-    modelName: string;
-    modelDisplayName: string;
+    provider_id: string;
+    model_id: string;
+    is_active: boolean;
+    system_prompt: string;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+    provider_name: string;
+    provider_display_name: string;
+    model_name: string;
+    model_display_name: string;
 }
 
 export interface CreateAPIKeyRequest {

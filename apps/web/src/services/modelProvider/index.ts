@@ -4,7 +4,7 @@ export type {
     ModelWithStatus, 
     CreateModelRequest, 
     ModelFromAPIKey 
-} from './types';
+} from '@/types/provider.types';
 
 // Queries (GET)
 export { 
@@ -12,7 +12,7 @@ export {
     getDefaultModel, 
     getModelsWithStatus, 
     getModelsFromAPIKeys 
-} from './modelQueries';
+} from  "@/services/model";
 
 // Mutations (POST, PUT, DELETE)
 export { createModel, updateModel, deleteModel } from './modelMutations';

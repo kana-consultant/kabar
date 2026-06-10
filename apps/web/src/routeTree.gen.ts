@@ -12,16 +12,25 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ProviderRouteImport } from './routes/provider'
 import { Route as ProductsRouteImport } from './routes/products'
+import { Route as ModelRouteImport } from './routes/model'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as GenerateRouteImport } from './routes/generate'
+import { Route as AiManagementRouteImport } from './routes/ai-management'
 import { Route as DraftsRouteImport } from './routes/Drafts'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProviderAddRouteImport } from './routes/provider.add'
+import { Route as ProviderIdRouteImport } from './routes/provider.$id'
 import { Route as ProductsAddRouteImport } from './routes/products.add'
+import { Route as ModelAddRouteImport } from './routes/model.add'
+import { Route as ModelIdRouteImport } from './routes/model.$id'
+import { Route as ProviderIdEditRouteImport } from './routes/provider.$id.edit'
 import { Route as ProductsIdEditRouteImport } from './routes/products.$id.edit'
+import { Route as ModelIdEditRouteImport } from './routes/model.$id.edit'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -38,9 +47,19 @@ const RegisterRoute = RegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProviderRoute = ProviderRouteImport.update({
+  id: '/provider',
+  path: '/provider',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProductsRoute = ProductsRouteImport.update({
   id: '/products',
   path: '/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ModelRoute = ModelRouteImport.update({
+  id: '/model',
+  path: '/model',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -68,6 +87,11 @@ const GenerateRoute = GenerateRouteImport.update({
   path: '/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AiManagementRoute = AiManagementRouteImport.update({
+  id: '/ai-management',
+  path: '/ai-management',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DraftsRoute = DraftsRouteImport.update({
   id: '/Drafts',
   path: '/Drafts',
@@ -78,120 +102,207 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProviderAddRoute = ProviderAddRouteImport.update({
+  id: '/add',
+  path: '/add',
+  getParentRoute: () => ProviderRoute,
+} as any)
+const ProviderIdRoute = ProviderIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProviderRoute,
+} as any)
 const ProductsAddRoute = ProductsAddRouteImport.update({
   id: '/add',
   path: '/add',
   getParentRoute: () => ProductsRoute,
+} as any)
+const ModelAddRoute = ModelAddRouteImport.update({
+  id: '/add',
+  path: '/add',
+  getParentRoute: () => ModelRoute,
+} as any)
+const ModelIdRoute = ModelIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ModelRoute,
+} as any)
+const ProviderIdEditRoute = ProviderIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => ProviderIdRoute,
 } as any)
 const ProductsIdEditRoute = ProductsIdEditRouteImport.update({
   id: '/$id/edit',
   path: '/$id/edit',
   getParentRoute: () => ProductsRoute,
 } as any)
+const ModelIdEditRoute = ModelIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => ModelIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/Drafts': typeof DraftsRoute
+  '/ai-management': typeof AiManagementRoute
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
   '/invite': typeof InviteRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
+  '/model': typeof ModelRouteWithChildren
   '/products': typeof ProductsRouteWithChildren
+  '/provider': typeof ProviderRouteWithChildren
   '/register': typeof RegisterRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/model/$id': typeof ModelIdRouteWithChildren
+  '/model/add': typeof ModelAddRoute
   '/products/add': typeof ProductsAddRoute
+  '/provider/$id': typeof ProviderIdRouteWithChildren
+  '/provider/add': typeof ProviderAddRoute
+  '/model/$id/edit': typeof ModelIdEditRoute
   '/products/$id/edit': typeof ProductsIdEditRoute
+  '/provider/$id/edit': typeof ProviderIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/Drafts': typeof DraftsRoute
+  '/ai-management': typeof AiManagementRoute
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
   '/invite': typeof InviteRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
+  '/model': typeof ModelRouteWithChildren
   '/products': typeof ProductsRouteWithChildren
+  '/provider': typeof ProviderRouteWithChildren
   '/register': typeof RegisterRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/model/$id': typeof ModelIdRouteWithChildren
+  '/model/add': typeof ModelAddRoute
   '/products/add': typeof ProductsAddRoute
+  '/provider/$id': typeof ProviderIdRouteWithChildren
+  '/provider/add': typeof ProviderAddRoute
+  '/model/$id/edit': typeof ModelIdEditRoute
   '/products/$id/edit': typeof ProductsIdEditRoute
+  '/provider/$id/edit': typeof ProviderIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/Drafts': typeof DraftsRoute
+  '/ai-management': typeof AiManagementRoute
   '/generate': typeof GenerateRoute
   '/history': typeof HistoryRoute
   '/invite': typeof InviteRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
+  '/model': typeof ModelRouteWithChildren
   '/products': typeof ProductsRouteWithChildren
+  '/provider': typeof ProviderRouteWithChildren
   '/register': typeof RegisterRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/model/$id': typeof ModelIdRouteWithChildren
+  '/model/add': typeof ModelAddRoute
   '/products/add': typeof ProductsAddRoute
+  '/provider/$id': typeof ProviderIdRouteWithChildren
+  '/provider/add': typeof ProviderAddRoute
+  '/model/$id/edit': typeof ModelIdEditRoute
   '/products/$id/edit': typeof ProductsIdEditRoute
+  '/provider/$id/edit': typeof ProviderIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/Drafts'
+    | '/ai-management'
     | '/generate'
     | '/history'
     | '/invite'
     | '/landing'
     | '/login'
+    | '/model'
     | '/products'
+    | '/provider'
     | '/register'
     | '/schedule'
     | '/settings'
+    | '/model/$id'
+    | '/model/add'
     | '/products/add'
+    | '/provider/$id'
+    | '/provider/add'
+    | '/model/$id/edit'
     | '/products/$id/edit'
+    | '/provider/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/Drafts'
+    | '/ai-management'
     | '/generate'
     | '/history'
     | '/invite'
     | '/landing'
     | '/login'
+    | '/model'
     | '/products'
+    | '/provider'
     | '/register'
     | '/schedule'
     | '/settings'
+    | '/model/$id'
+    | '/model/add'
     | '/products/add'
+    | '/provider/$id'
+    | '/provider/add'
+    | '/model/$id/edit'
     | '/products/$id/edit'
+    | '/provider/$id/edit'
   id:
     | '__root__'
     | '/'
     | '/Drafts'
+    | '/ai-management'
     | '/generate'
     | '/history'
     | '/invite'
     | '/landing'
     | '/login'
+    | '/model'
     | '/products'
+    | '/provider'
     | '/register'
     | '/schedule'
     | '/settings'
+    | '/model/$id'
+    | '/model/add'
     | '/products/add'
+    | '/provider/$id'
+    | '/provider/add'
+    | '/model/$id/edit'
     | '/products/$id/edit'
+    | '/provider/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DraftsRoute: typeof DraftsRoute
+  AiManagementRoute: typeof AiManagementRoute
   GenerateRoute: typeof GenerateRoute
   HistoryRoute: typeof HistoryRoute
   InviteRoute: typeof InviteRoute
   LandingRoute: typeof LandingRoute
   LoginRoute: typeof LoginRoute
+  ModelRoute: typeof ModelRouteWithChildren
   ProductsRoute: typeof ProductsRouteWithChildren
+  ProviderRoute: typeof ProviderRouteWithChildren
   RegisterRoute: typeof RegisterRoute
   ScheduleRoute: typeof ScheduleRoute
   SettingsRoute: typeof SettingsRoute
@@ -220,11 +331,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provider': {
+      id: '/provider'
+      path: '/provider'
+      fullPath: '/provider'
+      preLoaderRoute: typeof ProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/products': {
       id: '/products'
       path: '/products'
       fullPath: '/products'
       preLoaderRoute: typeof ProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/model': {
+      id: '/model'
+      path: '/model'
+      fullPath: '/model'
+      preLoaderRoute: typeof ModelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -262,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ai-management': {
+      id: '/ai-management'
+      path: '/ai-management'
+      fullPath: '/ai-management'
+      preLoaderRoute: typeof AiManagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/Drafts': {
       id: '/Drafts'
       path: '/Drafts'
@@ -276,12 +408,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provider/add': {
+      id: '/provider/add'
+      path: '/add'
+      fullPath: '/provider/add'
+      preLoaderRoute: typeof ProviderAddRouteImport
+      parentRoute: typeof ProviderRoute
+    }
+    '/provider/$id': {
+      id: '/provider/$id'
+      path: '/$id'
+      fullPath: '/provider/$id'
+      preLoaderRoute: typeof ProviderIdRouteImport
+      parentRoute: typeof ProviderRoute
+    }
     '/products/add': {
       id: '/products/add'
       path: '/add'
       fullPath: '/products/add'
       preLoaderRoute: typeof ProductsAddRouteImport
       parentRoute: typeof ProductsRoute
+    }
+    '/model/add': {
+      id: '/model/add'
+      path: '/add'
+      fullPath: '/model/add'
+      preLoaderRoute: typeof ModelAddRouteImport
+      parentRoute: typeof ModelRoute
+    }
+    '/model/$id': {
+      id: '/model/$id'
+      path: '/$id'
+      fullPath: '/model/$id'
+      preLoaderRoute: typeof ModelIdRouteImport
+      parentRoute: typeof ModelRoute
+    }
+    '/provider/$id/edit': {
+      id: '/provider/$id/edit'
+      path: '/edit'
+      fullPath: '/provider/$id/edit'
+      preLoaderRoute: typeof ProviderIdEditRouteImport
+      parentRoute: typeof ProviderIdRoute
     }
     '/products/$id/edit': {
       id: '/products/$id/edit'
@@ -290,8 +457,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsIdEditRouteImport
       parentRoute: typeof ProductsRoute
     }
+    '/model/$id/edit': {
+      id: '/model/$id/edit'
+      path: '/edit'
+      fullPath: '/model/$id/edit'
+      preLoaderRoute: typeof ModelIdEditRouteImport
+      parentRoute: typeof ModelIdRoute
+    }
   }
 }
+
+interface ModelIdRouteChildren {
+  ModelIdEditRoute: typeof ModelIdEditRoute
+}
+
+const ModelIdRouteChildren: ModelIdRouteChildren = {
+  ModelIdEditRoute: ModelIdEditRoute,
+}
+
+const ModelIdRouteWithChildren =
+  ModelIdRoute._addFileChildren(ModelIdRouteChildren)
+
+interface ModelRouteChildren {
+  ModelIdRoute: typeof ModelIdRouteWithChildren
+  ModelAddRoute: typeof ModelAddRoute
+}
+
+const ModelRouteChildren: ModelRouteChildren = {
+  ModelIdRoute: ModelIdRouteWithChildren,
+  ModelAddRoute: ModelAddRoute,
+}
+
+const ModelRouteWithChildren = ModelRoute._addFileChildren(ModelRouteChildren)
 
 interface ProductsRouteChildren {
   ProductsAddRoute: typeof ProductsAddRoute
@@ -307,15 +504,44 @@ const ProductsRouteWithChildren = ProductsRoute._addFileChildren(
   ProductsRouteChildren,
 )
 
+interface ProviderIdRouteChildren {
+  ProviderIdEditRoute: typeof ProviderIdEditRoute
+}
+
+const ProviderIdRouteChildren: ProviderIdRouteChildren = {
+  ProviderIdEditRoute: ProviderIdEditRoute,
+}
+
+const ProviderIdRouteWithChildren = ProviderIdRoute._addFileChildren(
+  ProviderIdRouteChildren,
+)
+
+interface ProviderRouteChildren {
+  ProviderIdRoute: typeof ProviderIdRouteWithChildren
+  ProviderAddRoute: typeof ProviderAddRoute
+}
+
+const ProviderRouteChildren: ProviderRouteChildren = {
+  ProviderIdRoute: ProviderIdRouteWithChildren,
+  ProviderAddRoute: ProviderAddRoute,
+}
+
+const ProviderRouteWithChildren = ProviderRoute._addFileChildren(
+  ProviderRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DraftsRoute: DraftsRoute,
+  AiManagementRoute: AiManagementRoute,
   GenerateRoute: GenerateRoute,
   HistoryRoute: HistoryRoute,
   InviteRoute: InviteRoute,
   LandingRoute: LandingRoute,
   LoginRoute: LoginRoute,
+  ModelRoute: ModelRouteWithChildren,
   ProductsRoute: ProductsRouteWithChildren,
+  ProviderRoute: ProviderRouteWithChildren,
   RegisterRoute: RegisterRoute,
   ScheduleRoute: ScheduleRoute,
   SettingsRoute: SettingsRoute,

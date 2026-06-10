@@ -200,7 +200,7 @@ func (s *Service) DeleteAPIKey(ctx context.Context, id string, userCtx models.Us
 	}
 
 	// Business rule: check permission
-	if existingKey.CreatedBy != userCtx.GetUserID() {
+	if existingKey.CreatedBy != userCtx.GetUserID() && userCtx.GetRole() != "superadmin" {
 		teamID := s.getTeamIDPtr(userCtx.GetTeamID())
 		if existingKey.TeamID == nil || teamID == nil || *existingKey.TeamID != *teamID {
 			return errors.New("access denied")

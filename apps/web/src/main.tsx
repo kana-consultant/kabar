@@ -1,3 +1,5 @@
+// main.tsx
+
 import { ToastProviderWrapper } from "@/hooks/use-toast"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from 'react-dom/client'
@@ -11,8 +13,8 @@ import { AuthProvider } from './contexts/AuthContext'
 import './index.css'
 
 // Import Layouts
-import { Layout } from "@/pages/layout/Layout"           // Untuk protected routes
-import { AuthLayout } from "@/pages/layout/AuthLayout"   // Untuk login/register
+import { Layout } from "@/pages/layout/Layout"
+import { AuthLayout } from "@/pages/layout/AuthLayout"
 
 // Import Pages
 import { Dashboard } from './routes';
@@ -28,12 +30,23 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import InvitePage from "./pages/Invite";
 import Landing from './pages/Landing'
+import AIManagement from "./pages/ai-management/AIManagement";
+
+// Import AI Management - Provider Pages
+import ProviderListPage from "./pages/ai-management/Provider/index";
+import CreateProviderPage from "./pages/ai-management/Provider/create";
+import ProviderDetailPage from "./pages/ai-management/Provider/[id]/index";
+import EditProviderPage from "./pages/ai-management/Provider/[id]/edit";
+
+// Import AI Management - Model Pages
+import CreateModelPage from "./pages/ai-management/Model/create";
+import EditModelPage from "./pages/ai-management/Model/[id]/edit";
 
 import { Outlet } from '@tanstack/react-router';
 
 // 1. Buat root route (tanpa layout)
 const rootRoute = createRootRoute({
-  component: () => <Outlet />,  // Root hanya sebagai outlet
+  component: () => <Outlet />,
 })
 
 // 2. Buat auth routes (pakai AuthLayout)
@@ -122,18 +135,75 @@ const scheduleRoute = createRoute({
   component: Schedule,
 })
 
+// AI Management Route
+const aiManagementRoute = createRoute({
+  getParentRoute: () => protectedLayoutRoute,
+  path: '/ai-management',
+  component: AIManagement,
+})
+
+// Provider Routes (nested under protected layout)
+const providerLayoutRoute = createRoute({
+  getParentRoute: () => protectedLayoutRoute,
+  path: '/provider',
+})
+
+const providerListRoute = createRoute({
+  getParentRoute: () => providerLayoutRoute,
+  path: '/',
+  component: ProviderListPage,
+})
+
+const providerAddRoute = createRoute({
+  getParentRoute: () => providerLayoutRoute,
+  path: '/add',
+  component: CreateProviderPage,
+})
+
+const providerDetailRoute = createRoute({
+  getParentRoute: () => providerLayoutRoute,
+  path: '/$id',
+  component: ProviderDetailPage,
+})
+
+const providerEditRoute = createRoute({
+  getParentRoute: () => providerLayoutRoute,
+  path: '/$id/edit',
+  component: EditProviderPage,
+})
+
+// Model Routes (nested under protected layout)
+const modelLayoutRoute = createRoute({
+  getParentRoute: () => protectedLayoutRoute,
+  path: '/model',
+})
+
+
+const modelAddRoute = createRoute({
+  getParentRoute: () => modelLayoutRoute,
+  path: '/add',
+  component: CreateModelPage,
+})
+
+
+
+const modelEditRoute = createRoute({
+  getParentRoute: () => modelLayoutRoute,
+  path: '/$id/edit',
+  component: EditModelPage,
+})
+
+// Landing route (public)
 const landingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: Landing,
 })
 
-
-
 // 4. Gabungkan semua route
 const routeTree = rootRoute.addChildren([
   landingRoute,
-  authLayoutRoute.addChildren([loginRoute, registerRoute]),
+  authLayoutRoute.addChildren([loginRoute, registerRoute, inviteRoute]),
   protectedLayoutRoute.addChildren([
     indexRoute,
     generateRoute,
@@ -144,7 +214,21 @@ const routeTree = rootRoute.addChildren([
     draftsRoute,
     settingsRoute,
     scheduleRoute,
-    inviteRoute
+    aiManagementRoute,
+    // Provider routes
+    providerLayoutRoute.addChildren([
+      providerListRoute,
+      providerAddRoute,
+      providerDetailRoute,
+      providerEditRoute,
+    ]),
+    // Model routes
+    modelLayoutRoute.addChildren([
+    
+      modelAddRoute,
+    
+      modelEditRoute,
+    ]),
   ]),
 ])
 
@@ -158,6 +242,7 @@ declare module '@tanstack/react-router' {
 }
 
 const queryClient = new QueryClient();
+
 // 6. Render
 createRoot(document.getElementById('root')!).render(
   <ToastProviderWrapper>
@@ -167,5 +252,4 @@ createRoot(document.getElementById('root')!).render(
       </QueryClientProvider>
     </AuthProvider>
   </ToastProviderWrapper>
-
-) 
+)

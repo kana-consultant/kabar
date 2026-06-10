@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"seo-backend/internal/domain/generate"
 	"seo-backend/internal/helper"
@@ -24,17 +25,58 @@ func (p *ResponseParser) ParseArticleResponse(response []byte, responsePath stri
 	}
 
 	text := helper.ExtractByPath(result, responsePath)
-	jsonStr := helper.ExtractJSON(text)
+
+	// Clean the text
+	text = strings.TrimSpace(text)
+	text = strings.TrimPrefix(text, "```json")
+	text = strings.TrimPrefix(text, "```")
+	text = strings.TrimSuffix(text, "```")
+	text = strings.TrimSpace(text)
 
 	var article generate.ArticleResult
-	if err := json.Unmarshal([]byte(jsonStr), &article); err != nil {
-		log.Printf("Raw JSON: %s", jsonStr)
-		return nil, fmt.Errorf("failed to parse article response: %w", err)
+
+	// Try to parse as JSON
+	if err := json.Unmarshal([]byte(text), &article); err != nil {
+		// If failed, extract fields manually with regex
+		log.Printf("JSON parse failed, extracting with regex: %v", err)
+
+		article.Title = extractJSONField(text, "title")
+		article.Slug = extractJSONField(text, "slug")
+		article.Excerpt = extractJSONField(text, "excerpt")
+		article.Content = extractJSONField(text, "content")
+
+		// If still empty, use raw text as content
+		if article.Content == "" && article.Title == "" {
+			article.Content = text
+		}
 	}
 
 	return &article, nil
 }
 
+func extractJSONField(jsonStr, field string) string {
+	// Cari posisi field
+	searchFor := fmt.Sprintf(`"%s":"`, field)
+	start := strings.Index(jsonStr, searchFor)
+	if start == -1 {
+		searchFor = fmt.Sprintf(`"%s": "`, field)
+		start = strings.Index(jsonStr, searchFor)
+	}
+	if start == -1 {
+		return ""
+	}
+
+	start += len(searchFor)
+
+	// Ambil sampe akhir atau sampe ketemu ", (tapi kalo kepotong sampe akhir)
+	end := strings.Index(jsonStr[start:], `"`)
+	if end == -1 {
+		// Kepotong, ambil sampe akhir
+		return jsonStr[start:]
+	}
+
+	return jsonStr[start : start+end]
+}
 func (p *ResponseParser) ParseImageResponse(response []byte, responsePath string) (string, error) {
 	var result map[string]interface{}
 	if err := json.Unmarshal(response, &result); err != nil {

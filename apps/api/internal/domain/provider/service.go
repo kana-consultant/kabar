@@ -1,22 +1,40 @@
-// internal/domain/provider/service.go
 package provider
 
-import "context"
+import (
+	"context"
+	"database/sql"
+	model_family "seo-backend/internal/domain/modelfamily"
+	"seo-backend/internal/domain/paginate"
+	"seo-backend/internal/models"
+)
 
-// ProviderService defines the provider business logic interface
-type ProviderService interface {
-	// CreateProvider creates a new provider (admin only)
-	CreateProvider(ctx context.Context, req CreateProviderRequest, userCtx UserContext) (string, error)
+// Service defines the business logic interface for APIProvider
+type Service interface {
+	// Create operations
+	Create(ctx context.Context, req *CreateRequest, userCtx models.UserContext) (*Response, error)
 
-	// GetProviderByID retrieves a provider by ID
-	GetProviderByID(ctx context.Context, id string) (*APIProvider, error)
+	// Update operations
+	Update(ctx context.Context, id string, req *UpdateRequest, userCtx models.UserContext) (*APIProvider, error)
 
-	// GetAllProviders retrieves all providers based on user role
-	GetAllProviders(ctx context.Context, userCtx UserContext) ([]APIProvider, error)
+	// Delete operations
+	Delete(ctx context.Context, id string, userCtx models.UserContext) error
+	HardDelete(ctx context.Context, id string, userCtx models.UserContext) error
 
-	// UpdateProvider updates a provider (admin only)
-	UpdateProvider(ctx context.Context, id string, req UpdateProviderRequest, userCtx UserContext) error
+	// Read operations
+	GetByID(ctx context.Context, id string, userCtx models.UserContext) (*Response, error)
+	GetByName(ctx context.Context, name string, userCtx models.UserContext) (*Response, error)
+	GetAll(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Response], error)
+	GetActive(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Response], error)
 
-	// DeleteProvider deletes a provider (admin only)
-	DeleteProvider(ctx context.Context, id string, userCtx UserContext) error
+	// Utility operations
+	UpdateHeaders(ctx context.Context, id string, headers map[string]string, userCtx models.UserContext) error
+	ToggleActive(ctx context.Context, id string, userCtx models.UserContext) error
+	Validate(ctx context.Context, provider *APIProvider) error
+
+	// Model Family operations
+	CreateModelFamily(ctx context.Context, providerID string, families []model_family.ModelFamilyWithSchema, userCtx models.UserContext) ([]model_family.Response, error)
+	UpdateModelFamily(ctx context.Context, familyID string, family *model_family.ModelFamily, userCtx models.UserContext) (*model_family.Response, error)
+	DeleteModelFamily(ctx context.Context, familyID string, userCtx models.UserContext) error
+	CreateOrUpdateModelFamilies(ctx context.Context, tx *sql.Tx, providerID string, families []model_family.ModelFamilyWithSchema) error
+	GetModelFamiliesByProvider(ctx context.Context, providerID string, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[model_family.Response], error)
 }

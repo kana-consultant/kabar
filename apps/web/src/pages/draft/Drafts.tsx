@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import { DraftsHeader } from "./DraftsHeader";
-import { DraftStats } from "./DraftStats";
 import { DraftList } from "./DraftList";
 import { ViewDraftDialog } from "./ViewDraftDialog";
 import { ScheduleDialog } from "./ScheduleDialog";

@@ -1,7 +1,10 @@
 // internal/domain/generate/entity.go
 package generate
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 // ========== PARAMETERS ==========
 type ArticleGenerationParams struct {
@@ -41,19 +44,21 @@ type ImageResult struct {
 
 // ========== INTERNAL TYPES ==========
 type ModelConfig struct {
-	APIKey            string
-	ModelName         string
-	Template          string
-	ResponsePath      string
-	ResponseImagePath string
-	BaseURL           string
-	AuthType          string
-	AuthHeader        string
-	AuthPrefix        string
-	Endpoint          string
-	SystemPrompt      string
-	EncryptedKey      string
-	Slug              string
+	APIKey            string         `json:"api_key"`
+	APISystemPrompt   string         `json:"api_system_prompt"`
+	ModelSystemPrompt string         `json:"model_system_prompt"`
+	SystemPrompt      string         `json:"system_prompt"`
+	ModelName         string         `json:"model_name"`
+	MaxTokens         int            `json:"max_tokens"`
+	Temperature       float64        `json:"temperature"`
+	Template          string         `json:"template"`
+	ResponsePath      string         `json:"response_path"`
+	ResponseImagePath string         `json:"response_image_path"`
+	BaseURL           string         `json:"base_url"`
+	AuthType          sql.NullString `json:"auth_type"`
+	AuthHeader        sql.NullString `json:"auth_header"`
+	AuthPrefix        sql.NullString `json:"auth_prefix"`
+	Endpoint          string         `json:"endpoint"`
 }
 
 type GenerationHistory struct {

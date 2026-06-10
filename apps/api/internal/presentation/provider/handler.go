@@ -1,21 +1,27 @@
 package provider
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/domain/provider"
 	auth "seo-backend/internal/middleware"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 )
 
 // ProviderHandler handles HTTP requests for providers
 type ProviderHandler struct {
-	service provider.ProviderService
+	service provider.Service
 }
 
 // NewProviderHandler creates a new provider handler
-func NewProviderHandler(service provider.ProviderService) *ProviderHandler {
+func NewProviderHandler(service provider.Service) *ProviderHandler {
 	return &ProviderHandler{service: service}
 }
 
@@ -51,59 +57,83 @@ func (h *ProviderHandler) writeError(w http.ResponseWriter, message string, stat
 }
 
 // Create handles POST /providers
-// @Summary Create a new API provider
-// @Tags providers
-// @Accept json
-// @Produce json
-// @Param request body provider.CreateProviderRequest true "Provider data"
-// @Success 201 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 500 {object} map[string]string
 func (h *ProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userCtx := h.getUserContext(r)
+	userCtx := auth.GetUserContext(r)
 
-	var req provider.CreateProviderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, "Invalid request body", http.StatusBadRequest)
+	// Log request received
+	log.Printf("[ProviderHandler.Create] Received create provider request from user: %v", userCtx.GetUserID())
+
+	// Read body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("[ProviderHandler.Create] Failed to read request body: %v", err)
+		h.writeError(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 
-	id, err := h.service.CreateProvider(ctx, req, userCtx)
+	// Log raw request body
+	log.Printf("[ProviderHandler.Create] Raw request body: %s", string(body))
+
+	// Restore body for decoding
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+
+	var req provider.CreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("[ProviderHandler.Create] JSON decode error: %v", err)
+		log.Printf("[ProviderHandler.Create] Raw body that caused error: %s", string(body))
+		h.writeError(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Log decoded request
+	log.Printf("[ProviderHandler.Create] Decoded request: %+v", req)
+
+	// Validate required fields
+	if req.Name == "" {
+		log.Printf("[ProviderHandler.Create] Validation failed: name is required")
+		h.writeError(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	if req.DisplayName == "" {
+		log.Printf("[ProviderHandler.Create] Validation failed: display_name is required")
+		h.writeError(w, "display_name is required", http.StatusBadRequest)
+		return
+	}
+	if req.BaseURL == "" {
+		log.Printf("[ProviderHandler.Create] Validation failed: base_url is required")
+		h.writeError(w, "base_url is required", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.service.Create(ctx, &req, userCtx)
 	if err != nil {
+		log.Printf("[ProviderHandler.Create] Service error: %v", err)
+
 		status := http.StatusInternalServerError
 		switch err.Error() {
 		case "access denied: admin role required":
 			status = http.StatusForbidden
-		case "name is required", "displayName is required", "baseUrl is required",
-			"authType is required", "authHeader is required", "textEndpoint is required",
-			"responseTextPath is required":
+		case "name is required", "display_name is required", "base_url is required":
 			status = http.StatusBadRequest
+		case "provider with this name already exists":
+			status = http.StatusConflict
 		}
 		h.writeError(w, err.Error(), status)
 		return
 	}
 
-	h.writeJSON(w, map[string]string{
-		"id":      id,
-		"message": "Provider created successfully",
-	}, http.StatusCreated)
+	log.Printf("[ProviderHandler.Create] Successfully created provider with ID: %v", resp.ID)
+	h.writeJSON(w, resp, http.StatusCreated)
 }
 
 // GetByID handles GET /providers/{id}
-// @Summary Get provider by ID
-// @Tags providers
-// @Produce json
-// @Param id path string true "Provider ID"
-// @Success 200 {object} provider.APIProvider
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
 func (h *ProviderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
+	userCtx := auth.GetUserContext(r)
 
-	provider, err := h.service.GetProviderByID(ctx, id)
+	provider, err := h.service.GetByID(ctx, id, userCtx)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "provider not found" {
@@ -116,90 +146,173 @@ func (h *ProviderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, provider, http.StatusOK)
 }
 
-// GetAll handles GET /providers
-// @Summary Get all providers
-// @Tags providers
-// @Produce json
-// @Success 200 {array} provider.APIProvider
-// @Failure 500 {object} map[string]string
+// GetByName handles GET /providers/name/{name}
+func (h *ProviderHandler) GetByName(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	name := chi.URLParam(r, "name")
+	userCtx := auth.GetUserContext(r)
+
+	provider, err := h.service.GetByName(ctx, name, userCtx)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "provider not found" {
+			status = http.StatusNotFound
+		}
+		h.writeError(w, err.Error(), status)
+		return
+	}
+
+	h.writeJSON(w, provider, http.StatusOK)
+}
+
+// GetAll handles GET /providers with pagination
 func (h *ProviderHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userCtx := h.getUserContext(r)
+	userCtx := auth.GetUserContext(r)
 
-	providers, err := h.service.GetAllProviders(ctx, userCtx)
+	// Parse pagination params
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	search := r.URL.Query().Get("search")
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	params := paginate.PaginationParams{
+		Limit:  limit,
+		Offset: offset,
+		Search: search,
+	}
+
+	result, err := h.service.GetAll(ctx, userCtx, params)
 	if err != nil {
 		h.writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	h.writeJSON(w, providers, http.StatusOK)
+	h.writeJSON(w, result, http.StatusOK)
 }
 
-// Update handles PUT /providers/{id}
-// @Summary Update a provider
-// @Tags providers
-// @Accept json
-// @Produce json
-// @Param id path string true "Provider ID"
-// @Param request body provider.UpdateProviderRequest true "Update data"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-func (h *ProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
+// GetActive handles GET /providers/active
+func (h *ProviderHandler) GetActive(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	id := chi.URLParam(r, "id")
-	userCtx := h.getUserContext(r)
+	userCtx := auth.GetUserContext(r)
 
-	var req provider.UpdateProviderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, "Invalid request body", http.StatusBadRequest)
+	// Parse pagination params
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	search := r.URL.Query().Get("search")
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	params := paginate.PaginationParams{
+		Limit:  limit,
+		Offset: offset,
+		Search: search,
+	}
+
+	result, err := h.service.GetActive(ctx, userCtx, params)
+	if err != nil {
+		h.writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if err := h.service.UpdateProvider(ctx, id, req, userCtx); err != nil {
+	h.writeJSON(w, result, http.StatusOK)
+}
+
+// Update handles PUT /providers/{id}
+func (h *ProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+	userCtx := auth.GetUserContext(r)
+
+	// Log request received
+	log.Printf("[ProviderHandler.Update] Received update request for provider ID: %s from user: %v", id, userCtx.GetUserID())
+
+	// Read body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("[ProviderHandler.Update] Failed to read request body: %v", err)
+		h.writeError(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+
+	// Log raw request body
+	log.Printf("[ProviderHandler.Update] Raw request body: %s", string(body))
+
+	// Restore body for decoding
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+
+	var req provider.UpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("[ProviderHandler.Update] JSON decode error: %v", err)
+		log.Printf("[ProviderHandler.Update] Raw body that caused error: %s", string(body))
+		h.writeError(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Log decoded request
+	log.Printf("[ProviderHandler.Update] Decoded request: %+v", req)
+
+	// Validate at least one field to update
+	if req.Name == nil && req.DisplayName == nil && req.Description == nil &&
+		req.BaseURL == nil && req.AuthType == nil && req.AuthHeader == nil &&
+		req.AuthPrefix == nil && req.DefaultHeaders == nil && req.IsActive == nil {
+		log.Printf("[ProviderHandler.Update] Validation failed: no fields to update")
+		h.writeError(w, "No fields to update", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.service.Update(ctx, id, &req, userCtx)
+	if err != nil {
+		log.Printf("[ProviderHandler.Update] Service error: %v", err)
+
 		status := http.StatusInternalServerError
 		switch err.Error() {
 		case "access denied: admin role required":
 			status = http.StatusForbidden
 		case "provider not found":
 			status = http.StatusNotFound
-		case "provider id is required":
-			status = http.StatusBadRequest
+		case "provider with this name already exists":
+			status = http.StatusConflict
 		}
 		h.writeError(w, err.Error(), status)
 		return
 	}
 
-	h.writeJSON(w, map[string]string{
-		"message": "Provider updated successfully",
-	}, http.StatusOK)
+	log.Printf("[ProviderHandler.Update] Successfully updated provider ID: %s", id)
+	h.writeJSON(w, resp, http.StatusOK)
 }
 
 // Delete handles DELETE /providers/{id}
-// @Summary Delete a provider
-// @Tags providers
-// @Produce json
-// @Param id path string true "Provider ID"
-// @Success 204 "No Content"
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
 func (h *ProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
-	userCtx := h.getUserContext(r)
+	userCtx := auth.GetUserContext(r)
 
-	if err := h.service.DeleteProvider(ctx, id, userCtx); err != nil {
+	if err := h.service.Delete(ctx, id, userCtx); err != nil {
 		status := http.StatusInternalServerError
 		switch {
 		case err.Error() == "access denied: admin role required":
 			status = http.StatusForbidden
 		case err.Error() == "provider not found":
 			status = http.StatusNotFound
-		case len(err.Error()) > 0 && err.Error()[:7] == "cannot delete provider because it is used":
+		case len(err.Error()) > 0 && err.Error()[:7] == "cannot delete provider":
 			status = http.StatusConflict
 		}
 		h.writeError(w, err.Error(), status)
@@ -209,13 +322,67 @@ func (h *ProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// RegisterRoutes registers all provider routes
-func (h *ProviderHandler) RegisterRoutes(r chi.Router) {
-	r.Route("/providers", func(r chi.Router) {
-		r.Post("/", h.Create)
-		r.Get("/", h.GetAll)
-		r.Get("/{id}", h.GetByID)
-		r.Put("/{id}", h.Update)
-		r.Delete("/{id}", h.Delete)
-	})
+// HardDelete handles DELETE /providers/{id}/hard
+func (h *ProviderHandler) HardDelete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+	userCtx := auth.GetUserContext(r)
+
+	if err := h.service.HardDelete(ctx, id, userCtx); err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case err.Error() == "access denied: admin role required":
+			status = http.StatusForbidden
+		case err.Error() == "provider not found":
+			status = http.StatusNotFound
+		case len(err.Error()) > 0 && err.Error()[:7] == "cannot delete provider":
+			status = http.StatusConflict
+		}
+		h.writeError(w, err.Error(), status)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ToggleActive handles PATCH /providers/{id}/toggle-active
+func (h *ProviderHandler) ToggleActive(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+	userCtx := auth.GetUserContext(r)
+
+	if err := h.service.ToggleActive(ctx, id, userCtx); err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "provider not found" {
+			status = http.StatusNotFound
+		}
+		h.writeError(w, err.Error(), status)
+		return
+	}
+
+	h.writeJSON(w, map[string]string{"message": "Provider status toggled successfully"}, http.StatusOK)
+}
+
+// UpdateHeaders handles PATCH /providers/{id}/headers
+func (h *ProviderHandler) UpdateHeaders(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+	userCtx := auth.GetUserContext(r)
+
+	var headers map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&headers); err != nil {
+		h.writeError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.UpdateHeaders(ctx, id, headers, userCtx); err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "provider not found" {
+			status = http.StatusNotFound
+		}
+		h.writeError(w, err.Error(), status)
+		return
+	}
+
+	h.writeJSON(w, map[string]string{"message": "Headers updated successfully"}, http.StatusOK)
 }

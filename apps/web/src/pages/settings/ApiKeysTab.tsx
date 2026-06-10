@@ -2,24 +2,24 @@ import { useState, useEffect } from "react";
 import { Button, Input, Label, Textarea, Switch, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@kana-consultant/ui-kit";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Trash2, Plus, Key, CheckCircle, XCircle, Edit } from "lucide-react";
-import { getAPIKeys, createAPIKey, updateAPIKey, deleteAPIKey, type APIKey } from "@/services/apiKey";
+import { getAPIKeys, createAPIKey, updateAPIKey, deleteAPIKey, type APIKey, type APIKeyDetail } from "@/services/apiKey";
 import { getModels, type AIModel } from "@/services/model";
-import { type APIProvider } from "@/services/modelProvider/types";
-import { getProviders } from "@/services/modelProvider/modelQueries";
+import { type APIProvider } from "@/types/provider.types";
+import { getProviders } from "@/services/model";
 import { cn } from "@/lib/utils";
 import { Can } from "@/components/ui/Can";
 
 export function ApiKeysTab() {
-    const toast = useToast();
+    const toast = useToast(); // Fixed: useToast should be destructured
 
     // ── state ──────────────────────────────────────────────────
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
+    const [apiKeys, setApiKeys] = useState<APIKeyDetail[]>([]);
     const [models, setModels] = useState<AIModel[]>([]);
     const [providers, setProviders] = useState<APIProvider[]>([]);
     const [showDialog, setShowDialog] = useState(false);
-    const [editingKey, setEditingKey] = useState<APIKey | null>(null);
+    const [editingKey, setEditingKey] = useState<APIKeyDetail | null>(null);
     const [dialogService, setDialogService] = useState<'text' | 'image'>('text');
     const [showApiKey, setShowApiKey] = useState(false);
     const [formProviderId, setFormProviderId] = useState("");
@@ -29,39 +29,55 @@ export function ApiKeysTab() {
     const [formIsActive, setFormIsActive] = useState(true);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [selectedDeleteKey, setSelectedDeleteKey] = useState<APIKey | null>(null);
+    const [selectedDeleteKey, setSelectedDeleteKey] = useState<APIKeyDetail | null>(null);
 
     const loadData = async () => {
         setLoading(true);
         try {
             const [keysData, modelsData, providersData] = await Promise.all([
-                getAPIKeys(), getModels(), getProviders()
+                getAPIKeys(),
+                getModels(),
+                getProviders()
             ]);
+            console.log("Loaded models:", modelsData.data);
+            console.log("loaded providers", providersData?.data)
             setApiKeys(keysData || []);
-            setModels(modelsData || []);
-            setProviders(providersData || []);
-        } catch {
+            setModels(modelsData.data as AIModel[]); // Added optional chaining
+            setProviders(providersData?.data || []); // Added optional chaining
+        } catch (error) {
+            console.error("Error loading data:", error);
             toast.error('Gagal memuat data');
         } finally {
             setLoading(false);
         }
     };
+    console
 
-    useEffect(() => { loadData(); }, []);
+    useEffect(() => {
+        loadData();
+    }, []);
 
     const openAddDialog = (service: 'text' | 'image') => {
-        setDialogService(service); setEditingKey(null);
-        setFormProviderId(""); setFormModelId("");
-        setFormApiKey(""); setFormSystemPrompt("");
-        setFormIsActive(true); setShowApiKey(false);
+        setDialogService(service);
+        setEditingKey(null);
+        setFormProviderId("");
+        setFormModelId("");
+        setFormApiKey("");
+        setFormSystemPrompt("");
+        setFormIsActive(true);
+        setShowApiKey(false);
         setShowDialog(true);
     };
 
-    const openEditDialog = (key: APIKey) => {
-        setEditingKey(key); setDialogService(key.service as 'text' | 'image');
-        setFormProviderId(key.providerId || ""); setFormModelId(key.modelId || "");
-        setFormApiKey(""); setFormSystemPrompt(key.systemPrompt || "");
-        setFormIsActive(key.isActive); setShowApiKey(false);
+    const openEditDialog = (key: APIKeyDetail) => {
+        setEditingKey(key);
+        setDialogService(key.service as 'text' | 'image');
+        setFormProviderId(key.provider_id || "");
+        setFormModelId(key.model_id || "");
+        setFormApiKey(""); // Don't populate API key for security
+        setFormSystemPrompt(key.system_prompt || "");
+        setFormIsActive(key.is_active);
+        setShowApiKey(false);
         setShowDialog(true);
     };
 
@@ -97,20 +113,21 @@ export function ApiKeysTab() {
                     providerId: formProviderId,
                     modelId: formModelId,
                     key: formApiKey,
-                    systemPrompt: formSystemPrompt
+                    systemPrompt: formSystemPrompt || undefined,
                 });
                 toast.success('API Key created');
             }
             setShowDialog(false);
             await loadData();
-        } catch {
+        } catch (error) {
+            console.error("Error saving API key:", error);
             toast.error('Failed to save API Key');
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDelete = (key: APIKey) => {
+    const handleDelete = (key: APIKeyDetail) => {
         setSelectedDeleteKey(key);
         setDeleteDialogOpen(true);
     };
@@ -124,15 +141,19 @@ export function ApiKeysTab() {
             setDeleteDialogOpen(false);
             setSelectedDeleteKey(null);
             await loadData();
-        } catch {
+        } catch (error) {
+            console.error("Error deleting API key:", error);
             toast.error("Failed to delete API Key");
         } finally {
             setDeleting(false);
         }
     };
 
-    const getProviderName = (id: string) => providers.find(p => p.id === id)?.displayName || id;
-    const getModelName = (id: string) => models.find(m => m.id === id)?.displayName || id;
+    const getProviderName = (id: string) => providers.find(p => p.id === id)?.name || id;
+    const getModelName = (id: string) => {
+        const model = models.find(m => m.id === id);
+        return model?.display_name || model?.name || id;
+    };
 
     // ── helpers ────────────────────────────────────────────────
     const textKeys = apiKeys.filter(k => k.service === 'text');
@@ -150,6 +171,8 @@ export function ApiKeysTab() {
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
         </div>
     );
+
+
 
     return (
         <div className="space-y-4">
@@ -199,8 +222,8 @@ export function ApiKeysTab() {
                     {/* Mini stats */}
                     <div className="grid grid-cols-2 gap-3">
                         {[
-                            { label: "Text Generation", count: textKeys.length, active: textKeys.filter(k => k.isActive).length, iconCls: "bg-blue-50 text-blue-600 ring-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20" },
-                            { label: "Image Generation", count: imageKeys.length, active: imageKeys.filter(k => k.isActive).length, iconCls: "bg-violet-50 text-violet-600 ring-violet-200/60 dark:bg-violet-500/10 dark:text-violet-400 dark:ring-violet-500/20" },
+                            { label: "Text Generation", count: textKeys.length, active: textKeys.filter(k => k.is_active).length, iconCls: "bg-blue-50 text-blue-600 ring-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20" },
+                            { label: "Image Generation", count: imageKeys.length, active: imageKeys.filter(k => k.is_active).length, iconCls: "bg-violet-50 text-violet-600 ring-violet-200/60 dark:bg-violet-500/10 dark:text-violet-400 dark:ring-violet-500/20" },
                         ].map(({ label, count, active, iconCls }) => (
                             <div key={label} className={cn(
                                 "flex items-center justify-between rounded-xl border p-4",
@@ -266,27 +289,27 @@ export function ApiKeysTab() {
                                                 </span>
                                             </TableCell>
                                             <TableCell className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                                {getProviderName(key.providerId)}
+                                                {key.provider_display_name}
                                             </TableCell>
                                             <TableCell className="text-xs text-slate-500 dark:text-slate-500">
-                                                {getModelName(key.modelId)}
+                                                {getModelName(key.model_id)}
                                             </TableCell>
                                             <TableCell>
                                                 <span className={cn(
                                                     "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
-                                                    key.isActive
+                                                    key.is_active
                                                         ? "bg-green-50 text-green-700 border-green-200/60 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20"
                                                         : "bg-red-50 text-red-700 border-red-200/60 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20"
                                                 )}>
-                                                    {key.isActive
+                                                    {key.is_active
                                                         ? <><CheckCircle className="h-2.5 w-2.5" /> Active</>
                                                         : <><XCircle className="h-2.5 w-2.5" /> Inactive</>
                                                     }
                                                 </span>
                                             </TableCell>
                                             <TableCell className="max-w-[180px]">
-                                                {key.systemPrompt
-                                                    ? <span className="text-xs text-slate-400 truncate block" title={key.systemPrompt}>{key.systemPrompt.substring(0, 50)}…</span>
+                                                {key.system_prompt
+                                                    ? <span className="text-xs text-slate-400 truncate block" title={key.system_prompt}>{key.system_prompt.substring(0, 50)}…</span>
                                                     : <span className="text-xs text-slate-300 dark:text-slate-700">—</span>
                                                 }
                                             </TableCell>
@@ -334,14 +357,19 @@ export function ApiKeysTab() {
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">Provider *</Label>
                             <Select value={formProviderId} onValueChange={setFormProviderId}>
-                                <SelectTrigger className={inputCls}><SelectValue placeholder="Pilih Provider" /></SelectTrigger>
+                                <SelectTrigger className={inputCls}>
+                                    <SelectValue placeholder="Pilih Provider" />
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {providers.map(p => <SelectItem key={p.id} value={p.id}>{p.displayName} ({p.name})</SelectItem>)}
+                                    {providers.map(p => (
+                                        <SelectItem key={p.id} value={p.id as string}>
+                                            {p.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        {formProviderId && (
+                        {formProviderId &&
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">
                                     Model *
@@ -351,41 +379,40 @@ export function ApiKeysTab() {
                                     value={formModelId}
                                     onValueChange={setFormModelId}
                                     required
+                                    disabled={!formProviderId}
                                 >
-                                    <SelectTrigger
-                                        className={`${inputCls} ${!formModelId ? "border-red-500" : ""
-                                            }`}
-                                    >
-                                        <SelectValue placeholder="Pilih Model" />
+                                    <SelectTrigger className={inputCls}>
+                                        <SelectValue placeholder={formProviderId ? "Pilih Model" : "Pilih provider terlebih dahulu"} />
                                     </SelectTrigger>
 
                                     <SelectContent>
                                         {models
-                                            .filter((m) => m.providerId === formProviderId)
+                                            .filter((m) => m.provider_id === formProviderId)
                                             .map((m) => (
                                                 <SelectItem key={m.id} value={m.id}>
-                                                    {m.displayName} ({m.name})
+                                                    {m.name}
                                                 </SelectItem>
                                             ))}
                                     </SelectContent>
                                 </Select>
 
-                                {!formModelId && (
+                                {!formModelId && formProviderId && (
                                     <p className="text-xs text-red-500">
                                         Model wajib dipilih
                                     </p>
                                 )}
                             </div>
-                        )}
+                        }
+
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">API Key *</Label>
+                            <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">API Key {!editingKey && '*'}</Label>
                             <div className="relative">
                                 <Input
                                     type={showApiKey ? "text" : "password"}
-                                    placeholder="Masukkan API Key"
+                                    placeholder={editingKey ? "Masukkan API Key baru (kosongkan jika tidak ingin mengubah)" : "Masukkan API Key"}
                                     value={formApiKey}
-                                    onChange={(e: any) => setFormApiKey(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormApiKey(e.target.value)}
                                     className={cn(inputCls, "pr-9")}
                                 />
                                 <button
@@ -409,7 +436,7 @@ export function ApiKeysTab() {
                             <Textarea
                                 placeholder="Custom system prompt untuk AI..."
                                 value={formSystemPrompt}
-                                onChange={(e: any) => setFormSystemPrompt(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormSystemPrompt(e.target.value)}
                                 rows={3}
                                 className={cn(
                                     inputCls,
@@ -466,8 +493,8 @@ export function ApiKeysTab() {
                         "dark:bg-white/[0.02] dark:border-white/[0.05]"
                     )}>
                         {[
-                            { label: "Provider", value: selectedDeleteKey && getProviderName(selectedDeleteKey.providerId) },
-                            { label: "Model", value: selectedDeleteKey && getModelName(selectedDeleteKey.modelId) },
+                            { label: "Provider", value: selectedDeleteKey && getProviderName(selectedDeleteKey.provider_id) },
+                            { label: "Model", value: selectedDeleteKey && getModelName(selectedDeleteKey.model_id) },
                         ].map(({ label, value }) => (
                             <div key={label}>
                                 <p className="text-[10px] uppercase tracking-wide text-slate-400">{label}</p>
