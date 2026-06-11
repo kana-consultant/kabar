@@ -17,16 +17,14 @@ type AdapterConfigRepository struct {
 	db *sql.DB
 }
 
-// Constructor - implements interface
 func NewAdapterConfigRepository(db *sql.DB) adapter.AdapterConfigRepository {
 	return &AdapterConfigRepository{db: db}
 }
 
-// LoadForProduct - load config and attach to product
 func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *product.Product) error {
 	query := `
 		SELECT id, product_id, endpoint_path, http_method,
-			custom_headers, field_mapping, meta_config, sitemap_config, timeout_seconds,
+			custom_headers, field_mapping, response_mapping, meta_config, sitemap_config, timeout_seconds,
 			retry_count, created_at, updated_at
 		FROM adapter_configs WHERE product_id = $1
 	`
@@ -34,12 +32,14 @@ func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *prod
 	var config product.AdapterConfig
 	var customHeadersJSON []byte
 	var fieldMappingJSON []byte
+	var responseMappingJSON []byte
 	var metaConfigJSON []byte
 	var sitemapConfigJSON []byte
 
 	err := r.db.QueryRowContext(ctx, query, data.ID).Scan(
 		&config.ID, &config.ProductID, &config.EndpointPath,
 		&config.HTTPMethod, &customHeadersJSON, &fieldMappingJSON,
+		&responseMappingJSON,
 		&metaConfigJSON, &sitemapConfigJSON,
 		&config.TimeoutSeconds, &config.RetryCount,
 		&config.CreatedAt, &config.UpdatedAt,
@@ -47,12 +47,11 @@ func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *prod
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil // No config is fine
+			return nil
 		}
 		return fmt.Errorf("failed to load adapter config: %w", err)
 	}
 
-	// Unmarshal JSON fields
 	if len(customHeadersJSON) > 0 {
 		if err := json.Unmarshal(customHeadersJSON, &config.CustomHeaders); err != nil {
 			return fmt.Errorf("failed to unmarshal custom headers: %w", err)
@@ -62,6 +61,12 @@ func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *prod
 	if len(fieldMappingJSON) > 0 {
 		if err := json.Unmarshal(fieldMappingJSON, &config.FieldMapping); err != nil {
 			return fmt.Errorf("failed to unmarshal field mapping: %w", err)
+		}
+	}
+
+	if len(responseMappingJSON) > 0 {
+		if err := json.Unmarshal(responseMappingJSON, &config.ResponseMapping); err != nil {
+			return fmt.Errorf("failed to unmarshal response mapping: %w", err)
 		}
 	}
 
@@ -81,16 +86,16 @@ func (r *AdapterConfigRepository) LoadForProduct(ctx context.Context, data *prod
 	return nil
 }
 
-// GetOrDefault - get config with default values
 func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID string) (*product.AdapterConfig, error) {
 	config := &product.AdapterConfig{
-		HTTPMethod:     "GET",
-		TimeoutSeconds: 10,
-		RetryCount:     1,
-		CustomHeaders:  "",
-		FieldMapping:   "",
-		MetaConfig:     "",
-		SitemapConfig:  "",
+		HTTPMethod:      "GET",
+		TimeoutSeconds:  10,
+		RetryCount:      1,
+		CustomHeaders:   "",
+		FieldMapping:    "",
+		ResponseMapping: "",
+		MetaConfig:      "",
+		SitemapConfig:   "",
 	}
 
 	query := `
@@ -99,6 +104,7 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 			COALESCE(http_method, 'GET'),
 			COALESCE(custom_headers, '{}'),
 			COALESCE(field_mapping, '{}'),
+			COALESCE(response_mapping, '{}'),
 			COALESCE(meta_config, '{}'),
 			COALESCE(sitemap_config, '{}'),
 			COALESCE(timeout_seconds, 10),
@@ -109,6 +115,7 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 
 	var customHeadersJSON []byte
 	var fieldMappingJSON []byte
+	var responseMappingJSON []byte
 	var metaConfigJSON []byte
 	var sitemapConfigJSON []byte
 
@@ -117,6 +124,7 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 		&config.HTTPMethod,
 		&customHeadersJSON,
 		&fieldMappingJSON,
+		&responseMappingJSON,
 		&metaConfigJSON,
 		&sitemapConfigJSON,
 		&config.TimeoutSeconds,
@@ -134,6 +142,9 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 		if len(fieldMappingJSON) > 0 {
 			json.Unmarshal(fieldMappingJSON, &config.FieldMapping)
 		}
+		if len(responseMappingJSON) > 0 {
+			json.Unmarshal(responseMappingJSON, &config.ResponseMapping)
+		}
 		if len(metaConfigJSON) > 0 {
 			json.Unmarshal(metaConfigJSON, &config.MetaConfig)
 		}
@@ -145,11 +156,10 @@ func (r *AdapterConfigRepository) GetOrDefault(ctx context.Context, productID st
 	return config, nil
 }
 
-// GetByProductID - get config by product ID (without defaults)
 func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID string) (*product.AdapterConfig, error) {
 	query := `
 		SELECT id, product_id, endpoint_path, http_method,
-			custom_headers, field_mapping, meta_config, sitemap_config, timeout_seconds,
+			custom_headers, field_mapping, response_mapping, meta_config, sitemap_config, timeout_seconds,
 			retry_count, created_at, updated_at
 		FROM adapter_configs WHERE product_id = $1
 	`
@@ -157,12 +167,14 @@ func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID 
 	var config product.AdapterConfig
 	var customHeadersJSON []byte
 	var fieldMappingJSON []byte
+	var responseMappingJSON []byte
 	var metaConfigJSON []byte
 	var sitemapConfigJSON []byte
 
 	err := r.db.QueryRowContext(ctx, query, productID).Scan(
 		&config.ID, &config.ProductID, &config.EndpointPath,
 		&config.HTTPMethod, &customHeadersJSON, &fieldMappingJSON,
+		&responseMappingJSON,
 		&metaConfigJSON, &sitemapConfigJSON,
 		&config.TimeoutSeconds, &config.RetryCount,
 		&config.CreatedAt, &config.UpdatedAt,
@@ -175,12 +187,14 @@ func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID 
 		return nil, fmt.Errorf("failed to get adapter config: %w", err)
 	}
 
-	// Unmarshal JSON fields
 	if len(customHeadersJSON) > 0 {
 		json.Unmarshal(customHeadersJSON, &config.CustomHeaders)
 	}
 	if len(fieldMappingJSON) > 0 {
 		json.Unmarshal(fieldMappingJSON, &config.FieldMapping)
+	}
+	if len(responseMappingJSON) > 0 {
+		json.Unmarshal(responseMappingJSON, &config.ResponseMapping)
 	}
 	if len(metaConfigJSON) > 0 {
 		json.Unmarshal(metaConfigJSON, &config.MetaConfig)
@@ -192,7 +206,6 @@ func (r *AdapterConfigRepository) GetByProductID(ctx context.Context, productID 
 	return &config, nil
 }
 
-// InsertWithTx - insert config with transaction
 func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, productID string, config *product.AdapterConfig) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is required for InsertWithTx")
@@ -200,6 +213,7 @@ func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, 
 
 	customHeadersJSON, _ := json.Marshal(config.CustomHeaders)
 	fieldMappingJSON, _ := json.Marshal(config.FieldMapping)
+	responseMappingJSON, _ := json.Marshal(config.ResponseMapping)
 	metaConfigJSON, _ := json.Marshal(config.MetaConfig)
 	sitemapConfigJSON, _ := json.Marshal(config.SitemapConfig)
 
@@ -215,14 +229,14 @@ func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, 
 	query := `
 		INSERT INTO adapter_configs (
 			product_id, endpoint_path, http_method,
-			custom_headers, field_mapping, meta_config, sitemap_config, timeout_seconds, retry_count,
+			custom_headers, field_mapping, response_mapping, meta_config, sitemap_config, timeout_seconds, retry_count,
 			created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 	`
 
 	_, err := tx.ExecContext(ctx, query,
 		productID, config.EndpointPath, config.HTTPMethod,
-		customHeadersJSON, fieldMappingJSON, metaConfigJSON, sitemapConfigJSON,
+		customHeadersJSON, fieldMappingJSON, responseMappingJSON, metaConfigJSON, sitemapConfigJSON,
 		timeoutSeconds, retryCount,
 	)
 
@@ -233,7 +247,6 @@ func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, 
 	return nil
 }
 
-// UpdateWithTx - update config with transaction
 func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, productID string, updates map[string]interface{}) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is required for UpdateWithTx")
@@ -248,52 +261,35 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 	argIndex := 1
 
 	fieldMap := map[string]string{
-		"endpointPath":   "endpoint_path",
-		"httpMethod":     "http_method",
-		"customHeaders":  "custom_headers",
-		"fieldMapping":   "field_mapping",
-		"metaConfig":     "meta_config",    // ✅ TAMBAH INI
-		"sitemapConfig":  "sitemap_config", // ✅ TAMBAH INI
-		"timeoutSeconds": "timeout_seconds",
-		"retryCount":     "retry_count",
+		"endpointPath":    "endpoint_path",
+		"httpMethod":      "http_method",
+		"customHeaders":   "custom_headers",
+		"fieldMapping":    "field_mapping",
+		"responseMapping": "response_mapping",
+		"metaConfig":      "meta_config",
+		"sitemapConfig":   "sitemap_config",
+		"timeoutSeconds":  "timeout_seconds",
+		"retryCount":      "retry_count",
+	}
+
+	jsonFields := map[string]bool{
+		"customHeaders":   true,
+		"fieldMapping":    true,
+		"responseMapping": true,
+		"metaConfig":      true,
+		"sitemapConfig":   true,
 	}
 
 	for key, value := range updates {
 		if dbField, ok := fieldMap[key]; ok {
-			switch key {
-			case "customHeaders":
+			if jsonFields[key] {
 				jsonValue, err := json.Marshal(value)
 				if err != nil {
-					return fmt.Errorf("failed to marshal custom headers: %w", err)
+					return fmt.Errorf("failed to marshal %s: %w", key, err)
 				}
 				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
 				args = append(args, jsonValue)
-
-			case "fieldMapping":
-				jsonValue, err := json.Marshal(value)
-				if err != nil {
-					return fmt.Errorf("failed to marshal field mapping: %w", err)
-				}
-				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
-				args = append(args, jsonValue)
-
-			case "metaConfig":
-				jsonValue, err := json.Marshal(value)
-				if err != nil {
-					return fmt.Errorf("failed to marshal meta config: %w", err)
-				}
-				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
-				args = append(args, jsonValue)
-
-			case "sitemapConfig":
-				jsonValue, err := json.Marshal(value)
-				if err != nil {
-					return fmt.Errorf("failed to marshal sitemap config: %w", err)
-				}
-				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
-				args = append(args, jsonValue)
-
-			default:
+			} else {
 				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
 				args = append(args, value)
 			}
@@ -305,12 +301,10 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 		return nil
 	}
 
-	// Always update timestamp
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
 	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
 	argIndex++
 
-	// Add WHERE clause
 	args = append(args, productID)
 	query := fmt.Sprintf("UPDATE adapter_configs SET %s WHERE product_id = $%d",
 		strings.Join(setClauses, ", "), argIndex)
@@ -332,7 +326,6 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 	return nil
 }
 
-// DeleteWithTx - delete adapter config by product ID with transaction
 func (r *AdapterConfigRepository) DeleteWithTx(ctx context.Context, tx *sql.Tx, productID string) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is required for DeleteWithTx")

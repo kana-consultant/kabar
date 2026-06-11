@@ -87,19 +87,21 @@ type Product struct {
 }
 
 type AdapterConfig struct {
-	ID             string    `json:"id"`
-	ProductID      string    `json:"productId"`
-	EndpointPath   string    `json:"endpointPath"`
-	HTTPMethod     string    `json:"httpMethod"`
-	CustomHeaders  string    `json:"customHeaders"`
-	FieldMapping   string    `json:"fieldMapping"`  // ✅ JSON template untuk konten
-	MetaConfig     string    `json:"metaConfig"`    // ✅ NEW: Meta tags configuration
-	SitemapConfig  string    `json:"sitemapConfig"` // ✅ NEW: Sitemap configuration
-	TimeoutSeconds int       `json:"timeoutSeconds"`
-	RetryCount     int       `json:"retryCount"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID              string    `json:"id"`
+	ProductID       string    `json:"productId"`
+	EndpointPath    string    `json:"endpointPath"`
+	HTTPMethod      string    `json:"httpMethod"`
+	CustomHeaders   string    `json:"customHeaders"`
+	FieldMapping    string    `json:"fieldMapping"`
+	ResponseMapping string    `json:"responseMapping"`
+	MetaConfig      string    `json:"metaConfig"`
+	SitemapConfig   string    `json:"sitemapConfig"`
+	TimeoutSeconds  int       `json:"timeoutSeconds"`
+	RetryCount      int       `json:"retryCount"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
+
 type CreateProductRequest struct {
 	Name          string                      `json:"name"`
 	Platform      string                      `json:"platform"`

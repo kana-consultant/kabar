@@ -29,6 +29,7 @@ import (
 	schemasHandler "seo-backend/internal/presentation/request_schema"
 	teamHandler "seo-backend/internal/presentation/team"
 	userHandler "seo-backend/internal/presentation/user"
+	workflowNodeHandler "seo-backend/internal/presentation/workflow_node"
 
 	// Utilities
 
@@ -100,8 +101,6 @@ func NewContainer(
 	teamHandler.NewRoute(db, r, emailService).SetupPublicRoutes()
 
 	// Protected routes
-	// main.go atau routes.go
-
 	r.Route("/api/", func(protected chi.Router) {
 		protected.Use(auth.JWTMiddleware(cfg))
 
@@ -118,6 +117,7 @@ func NewContainer(
 		aimodelHandler.NewRoute(db, protected, redisClient).SetupRoute()
 		schemasHandler.NewRoute(db, protected, redisClient).SetupRoutes()
 		familiesHandler.NewRoute(db, protected, redisClient).SetupRoute()
+		workflowNodeHandler.NewRoute(db, protected).SetupRoutes()
 	})
 
 	return &Container{
