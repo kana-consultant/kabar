@@ -648,7 +648,7 @@ export function ProductFieldMapping({
     sitemapConfig: initialSitemapConfig,
     onChange,
 }: ProductFieldMappingProps) {
-    const [activeTab, setActiveTab] = useState<"form" | "raw" | "meta" | "sitemap" | "payload">("form");
+    const [activeTab, setActiveTab] = useState<"meta" | "sitemap" | "payload">("meta");
     const [rawJson, setRawJson] = useState(() => JSON.stringify(getObjectValue(fieldMapping), null, 2));
     const [previewObject, setPreviewObject] = useState(getObjectValue(fieldMapping));
 
@@ -696,23 +696,11 @@ export function ProductFieldMapping({
     return (
         <div className="border rounded-xl p-5 space-y-6">
             <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v as any)}>
-                <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="form">📝 Drag & Drop</TabsTrigger>
-                    <TabsTrigger value="raw">📄 Raw JSON</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="meta">🏷️ Meta Tags</TabsTrigger>
                     <TabsTrigger value="sitemap">🗺️ Sitemap</TabsTrigger>
                     <TabsTrigger value="payload">🚀 Payload</TabsTrigger>
                 </TabsList>
-
-                <TabsContent value="form" className="pt-4">
-                    <SimpleJsonBuilder value={previewObject} onChange={handleBuilderChange} />
-                </TabsContent>
-
-                <TabsContent value="raw" className="pt-4 space-y-3">
-                    <Textarea value={rawJson} onChange={(e: any) => setRawJson(e.target.value)} className="h-96 font-mono text-sm" />
-                    <Button onClick={saveRawJson} className="w-full">💾 Simpan JSON</Button>
-                </TabsContent>
-
                 <TabsContent value="meta" className="pt-4">
                     <MetaTagManager fieldMapping={fieldMapping} initialConfig={metaConfig} onChange={handleMetaChange} />
                 </TabsContent>

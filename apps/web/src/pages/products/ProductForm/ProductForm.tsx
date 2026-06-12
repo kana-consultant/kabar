@@ -6,17 +6,14 @@ import { ProductApiConfig } from "./ProductApiConfig";
 import { ProductFormActions } from "./ProductFormActions";
 import { ProductFieldMapping } from "@/pages/products/ProductFieldMapping";
 import { useProductForm } from "@/hooks/useProductForm";
-import type { Product } from "@/services/product";
 import {
     Dialog,
     DialogContent,
     DialogDescription,
     DialogHeader,
     DialogTitle,
-} from "@kana-consultant/ui-kit";
-import { Input } from "@kana-consultant/ui-kit";
-import { Label } from "@kana-consultant/ui-kit";
-import {
+    Input,
+    Label,
     Select,
     SelectContent,
     SelectItem,
@@ -24,6 +21,9 @@ import {
     SelectValue,
 } from "@kana-consultant/ui-kit";
 import { useToast } from "@/hooks/use-toast";
+import { WorkflowBuilder } from "../WorkflowBuilder/WorkflowBuilder";
+import type { AdapterConfig } from "@/types/workflow";
+import type { Product } from "@/types/product";
 
 interface ProductFormProps {
     isEdit: boolean;
@@ -44,9 +44,8 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
-    console.group(product)
 
-    const toast = useToast()
+    const toast = useToast();
 
     // Modal test state
     const [showModal, setShowModal] = useState(false);
@@ -76,36 +75,32 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
     };
 
     const handleTest = async () => {
-        
         if (!testUrl) {
-            toast.success("URL tidak boleh kosong");
+            toast.error("URL tidak boleh kosong");
             return;
         }
 
         if (testAuthType === "apiKey" && !testApiKey) {
-            toast.error("Mohon masukkan API Key")
+            toast.error("Mohon masukkan API Key");
             return;
         }
 
         if (testAuthType === "bearer" && !testBearerToken) {
-            toast.error("Mohon masukkan Bearer Token")
+            toast.error("Mohon masukkan Bearer Token");
             return;
         }
 
         setIsLoading(true);
 
         try {
-            // Build headers
             const headers: Record<string, string> = {};
 
-            // Add custom headers
             testCustomHeaders.forEach(header => {
                 if (header.key.trim()) {
                     headers[header.key.trim()] = header.value;
                 }
             });
 
-            // Add auth
             if (testAuthType === "apiKey") {
                 headers["X-API-Key"] = testApiKey;
             } else if (testAuthType === "bearer") {
@@ -129,7 +124,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 toast.success(`Status: ${response.status} ${response.statusText}`);
                 console.log("Response data:", data);
             } else {
-                toast.success(`Status: ${response.status} ${response.statusText}`);
+                toast.error(`Status: ${response.status} ${response.statusText}`);
             }
         } catch (error: any) {
             toast.error(error.message);
@@ -138,8 +133,21 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         }
     };
 
+    const adapterConfigs: AdapterConfig[] = product.adapterConfig
+        ? [{
+            ...product.adapterConfig,
+            id: product.adapterConfig.id || "default",
+            productId: product.adapterConfig.productId || product.id || "",
+            endpointPath: product.adapterConfig.endpointPath || "",
+            httpMethod: product.adapterConfig.httpMethod || "POST",
+            customHeaders: product.adapterConfig.customHeaders || "{}",
+            fieldMapping: product.adapterConfig.fieldMapping || "{}",
+            responseMapping: product.adapterConfig.responseMapping || "{}",
+        } as AdapterConfig]
+        : [];
+
     return (
-        <div className="max-w-7xl mx-auto space-y-6 ">
+        <div className="max-w-full mx-auto space-y-6">
             {/* Header */}
             <div className="flex items-center gap-4 border-b pb-4">
                 <Button
@@ -160,55 +168,75 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 </div>
             </div>
 
-            {/* Form Grid */}
-            <div className="grid gap-6 lg:grid-cols-2">
-                <ProductBasicInfo
-                    product={product}
-                    onUpdate={updateProductInfo}
-                    onTestConnection={() => setShowModal(true)}
-                    isTesting={testing}
-                />
-                <ProductApiConfig
-                    config={product.adapterConfig || {}}
-                    onUpdate={updateAdapterConfig}
-                />
+            {/* Single Endpoint Section */}
+            <div className="space-y-6">
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <ProductBasicInfo
+                        product={product}
+                        onUpdate={updateProductInfo}
+                        onTestConnection={() => setShowModal(true)}
+                        isTesting={testing}
+                    />
+                    <ProductApiConfig
+                        config={product.adapterConfig || {}}
+                        onUpdate={updateAdapterConfig}
+                    />
+                </div>
+
+                <div>
+                    <ProductFieldMapping
+                        domain={product?.apiEndpoint as string || ""}
+                        fieldMapping={(() => {
+                            try {
+                                const parsed = JSON.parse(product.adapterConfig?.fieldMapping || "{}");
+                                return parsed;
+                            } catch (e) {
+                                return {};
+                            }
+                        })()}
+                        metaConfig={(() => {
+                            try {
+                                return JSON.parse(product.adapterConfig?.metaConfig || "{}");
+                            } catch (e) {
+                                return {};
+                            }
+                        })()}
+                        sitemapConfig={(() => {
+                            try {
+                                return JSON.parse(product.adapterConfig?.sitemapConfig || "{}");
+                            } catch (e) {
+                                return {};
+                            }
+                        })()}
+                        onChange={(fieldMapping, metaConfig, sitemapConfig) => {
+                            updateFieldMapping(fieldMapping);
+                            if (metaConfig) updateMetaConfig(metaConfig);
+                            if (sitemapConfig) updateSitemapConfig(sitemapConfig);
+                        }}
+                    />
+                </div>
             </div>
 
-            {/* Field Mapping - Full Width */}
-            <div className="mt-2">
-                <ProductFieldMapping
-                    domain = {product?.apiEndpoint as string | ""}
-                    fieldMapping={(() => {
-                        try {
-                            const parsed = JSON.parse(product.adapterConfig?.fieldMapping || "{}");
-                            return parsed;
-                        } catch (e) {
-                            return {};
-                        }
-                    })()}
-                    metaConfig={(() => {
-                        try {
-                            return JSON.parse(product.adapterConfig?.metaConfig || "{}");
-                        } catch (e) {
-                            return {};
-                        }
-                    })()}
-                    sitemapConfig={(() => {
-                        try {
-                            return JSON.parse(product.adapterConfig?.sitemapConfig || "{}");
-                        } catch (e) {
-                            return {};
-                        }
-                    })()}
-                    onChange={(fieldMapping, metaConfig, sitemapConfig) => {
-                        updateFieldMapping(fieldMapping);
-                        if (metaConfig) updateMetaConfig(metaConfig);
-                        if (sitemapConfig) updateSitemapConfig(sitemapConfig);
+            {/* Workflow Builder Section */}
+            <div className="border-t pt-6">
+                <div className="mb-4">
+                    <h3 className="text-lg font-semibold">Workflow Builder</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Buat workflow multi-step dengan menghubungkan beberapa adapter
+                    </p>
+                </div>
+                <WorkflowBuilder
+                    productId={product.id || ""}
+                    adapterConfigs={adapterConfigs}
+                    initialWorkflowId={product.workflowId} // Untuk edit mode
+                    onChange={(workflowData) => {
+                        // Update product dengan workflow yang dipilih
+                        updateProductInfo({ workflowId: workflowData.workflowId });
                     }}
                 />
             </div>
 
-            {/* Action Buttons */}
+            {/* Save Button */}
             <ProductFormActions
                 onCancel={handleCancel}
                 onSave={handleSave}
@@ -226,17 +254,15 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                     </DialogHeader>
 
                     <div className="space-y-4 py-4">
-                        {/* URL */}
                         <div className="space-y-2">
                             <Label>URL Endpoint</Label>
                             <Input
                                 placeholder="https://api.example.com/v1/products"
                                 value={testUrl}
-                                onChange={(e : any) => setTestUrl(e.target.value)}
+                                onChange={(e: any) => setTestUrl(e.target.value)}
                             />
                         </div>
 
-                        {/* Method */}
                         <div className="space-y-2">
                             <Label>HTTP Method</Label>
                             <Select value={testMethod} onValueChange={setTestMethod}>
@@ -253,12 +279,11 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                             </Select>
                         </div>
 
-                        {/* Auth Type */}
                         <div className="space-y-2">
                             <Label>Autentikasi</Label>
                             <Select
                                 value={testAuthType}
-                                onValueChange={(v : any) => setTestAuthType(v as any)}
+                                onValueChange={(v: any) => setTestAuthType(v as any)}
                             >
                                 <SelectTrigger>
                                     <SelectValue />
@@ -271,7 +296,6 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                             </Select>
                         </div>
 
-                        {/* API Key Input */}
                         {testAuthType === "apiKey" && (
                             <div className="space-y-2">
                                 <Label>API Key</Label>
@@ -279,12 +303,11 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                                     type="password"
                                     placeholder="Masukkan API Key"
                                     value={testApiKey}
-                                    onChange={(e : any) => setTestApiKey(e.target.value)}
+                                    onChange={(e: any) => setTestApiKey(e.target.value)}
                                 />
                             </div>
                         )}
 
-                        {/* Bearer Token Input */}
                         {testAuthType === "bearer" && (
                             <div className="space-y-2">
                                 <Label>Bearer Token</Label>
@@ -292,12 +315,11 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                                     type="password"
                                     placeholder="Masukkan Bearer Token"
                                     value={testBearerToken}
-                                    onChange={(e : any) => setTestBearerToken(e.target.value)}
+                                    onChange={(e: any) => setTestBearerToken(e.target.value)}
                                 />
                             </div>
                         )}
 
-                        {/* Custom Headers */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label>Custom Headers</Label>
@@ -311,13 +333,13 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                                         <Input
                                             placeholder="Header Key"
                                             value={header.key}
-                                            onChange={(e : any) => updateTestHeader(index, "key", e.target.value)}
+                                            onChange={(e: any) => updateTestHeader(index, "key", e.target.value)}
                                             className="flex-1"
                                         />
                                         <Input
                                             placeholder="Header Value"
                                             value={header.value}
-                                            onChange={(e : any) => updateTestHeader(index, "value", e.target.value)}
+                                            onChange={(e: any) => updateTestHeader(index, "value", e.target.value)}
                                             className="flex-1"
                                         />
                                         <Button

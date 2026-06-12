@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS public.api_keys (
 );
 
 -- 3.7 Products
+-- 1. Products (ada perubahan)
 CREATE TABLE IF NOT EXISTS public.products (
     id                uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     name              varchar(255) NOT NULL,
@@ -134,21 +135,43 @@ CREATE TABLE IF NOT EXISTS public.products (
     updated_at        timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3.8 Adapter Configs
+-- 2. Adapter Configs (ada penambahan response_mapping)
 CREATE TABLE IF NOT EXISTS public.adapter_configs (
-    id              uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
-    product_id      uuid         NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
-    endpoint_path   varchar(500) NOT NULL,
-    http_method     varchar(10)  DEFAULT 'POST',
-    custom_headers  jsonb        DEFAULT '{}'::jsonb,
-    meta_config     text,
-    sitemap_config  text,
-    field_mapping   text         NOT NULL,
-    timeout_seconds integer      DEFAULT 30,
-    retry_count     integer      DEFAULT 3,
-    created_at      timestamp    DEFAULT CURRENT_TIMESTAMP,
-    updated_at      timestamp    DEFAULT CURRENT_TIMESTAMP
+    id               uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    product_id       uuid         NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    endpoint_path    varchar(500) NOT NULL,
+    http_method      varchar(10)  DEFAULT 'POST',
+    custom_headers   jsonb        DEFAULT '{}'::jsonb,
+    meta_config      text,
+    sitemap_config   text,
+    field_mapping    text         NOT NULL,
+    response_mapping jsonb        DEFAULT '{}'::jsonb,
+    timeout_seconds  integer      DEFAULT 30,
+    retry_count      integer      DEFAULT 3,
+    created_at       timestamp    DEFAULT CURRENT_TIMESTAMP,
+    updated_at       timestamp    DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 3. Workflow Definitions
+CREATE TABLE IF NOT EXISTS public.workflow_definitions (
+    id          uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    product_id  uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    name        varchar(255) NOT NULL,
+    created_at  timestamp DEFAULT CURRENT_TIMESTAMP,
+    updated_at  timestamp DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Workflow Nodes
+CREATE TABLE IF NOT EXISTS public.workflow_nodes (
+    id                 uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    workflow_id        uuid NOT NULL REFERENCES public.workflow_definitions(id) ON DELETE CASCADE,
+    adapter_config_id  uuid NOT NULL REFERENCES public.adapter_configs(id) ON DELETE CASCADE,
+    step_order         integer NOT NULL,
+    input_mapping      jsonb DEFAULT '{}'::jsonb,
+    next_node_id       uuid REFERENCES public.workflow_nodes(id),
+    created_at         timestamp DEFAULT CURRENT_TIMESTAMP
+);
+
 
 -- 3.9 Drafts
 CREATE TABLE IF NOT EXISTS public.drafts (

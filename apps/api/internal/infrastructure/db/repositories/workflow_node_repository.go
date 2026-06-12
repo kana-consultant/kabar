@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"seo-backend/internal/domain/workflow_node"
 	"strings"
+
+	"github.com/lib/pq"
 )
 
 type WorkflowNodeRepository struct {
@@ -120,6 +122,62 @@ func (r *WorkflowNodeRepository) Insert(ctx context.Context, node *workflow_node
 	}
 
 	return nil
+}
+
+func (r *WorkflowNodeRepository) InsertBatch(ctx context.Context, nodes []workflow_node.WorkflowNode) ([]workflow_node.WorkflowNode, error) {
+	query := `
+		WITH data AS (
+			SELECT 
+				unnest($1::uuid[]) as workflow_id,
+				unnest($2::uuid[]) as adapter_config_id,
+				unnest($3::int[]) as step_order,
+				unnest($4::jsonb[]) as input_mapping,
+				unnest($5::uuid[]) as next_node_id
+		)
+		INSERT INTO workflow_nodes (workflow_id, adapter_config_id, step_order, input_mapping, next_node_id, created_at)
+		SELECT workflow_id, adapter_config_id, step_order, input_mapping, next_node_id, NOW()
+		FROM data
+		RETURNING id, workflow_id, adapter_config_id, step_order, input_mapping, next_node_id, created_at
+	`
+
+	workflowIDs := make([]string, len(nodes))
+	adapterConfigIDs := make([]string, len(nodes))
+	stepOrders := make([]int, len(nodes))
+	inputMappings := make([]json.RawMessage, len(nodes))
+	nextNodeIDs := make([]interface{}, len(nodes))
+
+	for i, node := range nodes {
+		workflowIDs[i] = node.WorkflowID
+		adapterConfigIDs[i] = node.AdapterConfigID
+		stepOrders[i] = node.StepOrder
+		inputMappings[i], _ = json.Marshal(node.InputMapping)
+		if node.NextNodeID != nil {
+			nextNodeIDs[i] = *node.NextNodeID
+		} else {
+			nextNodeIDs[i] = nil
+		}
+	}
+
+	rows, err := r.db.QueryContext(ctx, query,
+		pq.Array(workflowIDs), pq.Array(adapterConfigIDs),
+		pq.Array(stepOrders), pq.Array(inputMappings), pq.Array(nextNodeIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var savedNodes []workflow_node.WorkflowNode
+	for rows.Next() {
+		var node workflow_node.WorkflowNode
+		err := rows.Scan(&node.ID, &node.WorkflowID, &node.AdapterConfigID,
+			&node.StepOrder, &node.InputMapping, &node.NextNodeID, &node.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		savedNodes = append(savedNodes, node)
+	}
+
+	return savedNodes, nil
 }
 
 func (r *WorkflowNodeRepository) Update(ctx context.Context, id string, updates map[string]interface{}) error {
