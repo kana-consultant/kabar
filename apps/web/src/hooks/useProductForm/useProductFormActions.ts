@@ -44,11 +44,50 @@ export function useProductFormActions(
         }));
     };
 
+    // ========== WORKFLOW ACTIONS ==========
+    
+    const updateWorkflowId = (workflowId: string) => {
+        setProduct((prev: Partial<Product>) => ({
+            ...prev,
+            workflow_id: workflowId,
+        }));
+    };
+
+    const addAdapterConfig = (adapter: AdapterConfig) => {
+        setProduct((prev: Partial<Product>) => ({
+            ...prev,
+            adapterConfigs: [...(prev.adapterConfigs || []), adapter],
+        }));
+    };
+
+    const updateAdapterConfigs = (index: number, updates: Partial<AdapterConfig>) => {
+        setProduct((prev: Partial<Product>) => {
+            const updatedConfigs = [...(prev.adapterConfigs || [])];
+            updatedConfigs[index] = { ...updatedConfigs[index], ...updates } as AdapterConfig;
+            return {
+                ...prev,
+                adapterConfigs: updatedConfigs,
+            };
+        });
+    };
+
+    const removeAdapterConfig = (index: number) => {
+        setProduct((prev: Partial<Product>) => ({
+            ...prev,
+            adapterConfigs: (prev.adapterConfigs || []).filter((_, i) => i !== index),
+        }));
+    };
+
     return {
         updateProductInfo,
         updateAdapterConfig,
         updateFieldMapping,
         updateMetaConfig,
-        updateSitemapConfig
+        updateSitemapConfig,
+        // Workflow actions
+        updateWorkflowId,
+        addAdapterConfig,
+        updateAdapterConfigs,
+        removeAdapterConfig,
     };
 }

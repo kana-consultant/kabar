@@ -18,7 +18,12 @@ export function useProductForm(isEdit: boolean, productId?: string, initialData?
         updateAdapterConfig,
         updateFieldMapping,
         updateMetaConfig,
-        updateSitemapConfig
+        updateSitemapConfig,
+        // Workflow actions
+        updateWorkflowId,
+        addAdapterConfig,
+        updateAdapterConfigs,
+        removeAdapterConfig,
     } = useProductFormActions(setProduct);
 
     const {
@@ -34,13 +39,20 @@ export function useProductForm(isEdit: boolean, productId?: string, initialData?
         product,
         loading,
         testing,
+        // Product info
         updateProductInfo,
         updateAdapterConfig,
         updateFieldMapping,
+        updateMetaConfig,
+        updateSitemapConfig,
+        // Workflow
+        updateWorkflowId,
+        addAdapterConfig,
+        updateAdapterConfigs,
+        removeAdapterConfig,
+        // Handlers
         handleTestConnection,
         handleSave,
         handleCancel,
-        updateMetaConfig,
-        updateSitemapConfig
     };
 }

@@ -4,7 +4,7 @@ import type { Product, AdapterConfig } from "@/services/product";
 const createEmptyAdapterConfig = (): Omit<AdapterConfig, 'id' | 'productId'> => ({
     endpointPath: "",
     httpMethod: "POST",
-    customHeaders: { "Content-Type": "application/json" },
+    customHeaders: JSON.stringify({ "Content-Type": "application/json" }),
     fieldMapping: "{}",
     responseMapping: {},
     metaConfig: "{}",
@@ -13,7 +13,8 @@ const createEmptyAdapterConfig = (): Omit<AdapterConfig, 'id' | 'productId'> => 
     retryCount: 3,
 });
 
-const createEmptyProduct = (): Partial<Product> => ({
+const createEmptyProduct = (): Product => ({
+    id: "",
     name: "",
     platform: "wordpress",
     apiEndpoint: "",
@@ -21,13 +22,21 @@ const createEmptyProduct = (): Partial<Product> => ({
     status: "pending",
     syncStatus: "idle",
     lastSync: undefined,
+    createdBy: undefined,
+    teamId: undefined,
+    userId: undefined,
+    createdAt: "",
+    updatedAt: "",
+    adapterConfig: undefined,
+    workflow_id: "",
     adapterConfigs: [createEmptyAdapterConfig() as AdapterConfig],
+    workflows: [],
 });
 
 export function useProductFormState() {
     const [loading, setLoading] = useState(false);
     const [testing, setTesting] = useState(false);
-    const [product, setProduct] = useState<Partial<Product>>(createEmptyProduct());
+    const [product, setProduct] = useState<Product>(createEmptyProduct());
 
     return {
         loading,
