@@ -1,7 +1,7 @@
 // src/pages/products/WorkflowBuilder/WorkflowList.tsx
 import { Trash2 } from "lucide-react";
 import { Button } from "@kana-consultant/ui-kit";
-import type { WorkflowDefinition } from "@/types/workflow";
+import type { WorkflowDefinition } from "@/types/product";
 
 interface WorkflowListProps {
     workflows: WorkflowDefinition[];
@@ -43,6 +43,7 @@ export function WorkflowList({
                 >
                     <span className="truncate">{wf.name}</span>
                     <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 opacity-0 group-hover:opacity-100"

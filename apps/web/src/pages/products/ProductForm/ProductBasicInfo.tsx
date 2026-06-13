@@ -60,15 +60,18 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
 
                 <div className="space-y-2">
                     <Label htmlFor="apiEndpoint" className="text-sm font-medium">
-                        API Endpoint <span className="text-red-500">*</span>
+                        Base URL <span className="text-red-500">*</span>
                     </Label>
                     <Input
                         id="apiEndpoint"
                         value={product.apiEndpoint}
                         onChange={(e : any) => onUpdate({ apiEndpoint: e.target.value })}
-                        placeholder="https://domain.com/wp-json/wp/v2/posts"
+                        placeholder="https://domain.com/wp-json/wp/v2"
                         className="h-10 font-mono text-sm"
                     />
+                    <p className="text-xs text-slate-400">
+                        Base URL tanpa endpoint path (contoh: /posts, /media akan ditambahkan di adapter)
+                    </p>
                 </div>
 
                 <div className="space-y-2">

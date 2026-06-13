@@ -22,7 +22,7 @@ import {
 } from "@kana-consultant/ui-kit";
 import { useToast } from "@/hooks/use-toast";
 import { WorkflowBuilder } from "../WorkflowBuilder/WorkflowBuilder";
-import type { AdapterConfig } from "@/types/workflow";
+import type { AdapterConfig } from "@/types/product";
 import type { Product } from "@/types/product";
 
 interface ProductFormProps {
@@ -41,6 +41,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         updateFieldMapping,
         updateMetaConfig,
         updateSitemapConfig,
+        updateWorkflowId,
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
@@ -133,18 +134,26 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         }
     };
 
-    const adapterConfigs: AdapterConfig[] = product.adapterConfig
-        ? [{
-            ...product.adapterConfig,
-            id: product.adapterConfig.id || "default",
-            productId: product.adapterConfig.productId || product.id || "",
-            endpointPath: product.adapterConfig.endpointPath || "",
-            httpMethod: product.adapterConfig.httpMethod || "POST",
-            customHeaders: product.adapterConfig.customHeaders || "{}",
-            fieldMapping: product.adapterConfig.fieldMapping || "{}",
-            responseMapping: product.adapterConfig.responseMapping || "{}",
-        } as AdapterConfig]
+    const adapterConfigs: AdapterConfig[] = product.adapterConfigs
+        ? product.adapterConfigs.map(config => ({
+            id: config.id,
+            productId: config.productId,
+            endpointPath: config.endpointPath,
+            httpMethod: config.httpMethod,
+            customHeaders: config.customHeaders,
+            fieldMapping: config.fieldMapping,
+            responseMapping: config.responseMapping,
+            metaConfig: config.metaConfig,
+            sitemapConfig: config.sitemapConfig,
+            timeoutSeconds: config.timeoutSeconds,
+            retryCount: config.retryCount,
+            createdAt: config.createdAt,
+            updatedAt: config.updatedAt,
+        }))
         : [];
+
+    console.log("HASIL AKHIR")
+    console.log(product)
 
     return (
         <div className="max-w-full mx-auto space-y-6">
@@ -225,17 +234,19 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                         Buat workflow multi-step dengan menghubungkan beberapa adapter
                     </p>
                 </div>
+
                 <WorkflowBuilder
                     productId={product.id || ""}
                     adapterConfigs={adapterConfigs}
-                    initialWorkflowId={product.workflowId} // Untuk edit mode
-                    onChange={(workflowData) => {
-                        // Update product dengan workflow yang dipilih
-                        updateProductInfo({ workflowId: workflowData.workflowId });
+                    product={product}  // ← tambahkan ini
+                    onUpdateAdapterConfigs={(newAdapterConfigs) => {
+                        updateProductInfo({ adapterConfigs: newAdapterConfigs });
+                    }}
+                    onChange={(workflowId) => {
+                        updateWorkflowId(workflowId);
                     }}
                 />
             </div>
-
             {/* Save Button */}
             <ProductFormActions
                 onCancel={handleCancel}

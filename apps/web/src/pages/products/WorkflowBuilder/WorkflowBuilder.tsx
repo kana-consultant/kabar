@@ -1,11 +1,10 @@
 // src/pages/products/WorkflowBuilder/WorkflowBuilder.tsx
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Plus, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
-import { Button, Input } from "@kana-consultant/ui-kit";
+import { Plus, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Pencil, Trash2, Maximize2, Minimize2 } from "lucide-react";
+import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kana-consultant/ui-kit";
 import ReactFlow, {
   Controls,
   Background,
-  MiniMap,
   addEdge,
   useNodesState,
   useEdgesState,
@@ -13,24 +12,22 @@ import ReactFlow, {
 } from "reactflow";
 import type { Connection, Node, Edge } from "reactflow";
 import "reactflow/dist/style.css";
-import { useWorkflow, useWorkflowNodes } from "@/hooks/useWorkflow";
+import { useWorkflow } from "@/hooks/useWorkflow";
 import { WorkflowList } from "./WorkflowList";
 import { NodePanel } from "./NodePanel";
 import { AdapterNode } from "./AdapterNode";
-import {
-  getWorkflowNodes,
-  saveAllWorkflowNodes,
-  type BatchCreateNode,
-  type BatchUpdateNode,
-  type SaveNodesResponse
-} from "@/services/workflow/workflowService";
-import type { AdapterConfig } from "@/types/workflow";
+import { getWorkflowNodes } from "@/services/workflow/workflowService";
+import type { AdapterConfig, Product } from "@/types/product";
 
 interface WorkflowBuilderProps {
   productId: string;
   adapterConfigs: AdapterConfig[];
-  onChange?: (data: any) => void;
-  initialWorkflowId?: string | null; // Untuk edit mode
+  product: Product;
+  onUpdateAdapterConfigs?: (adapterConfigs: AdapterConfig[]) => void;
+  onChange?: (workflowId: string) => void;
+  initialWorkflowId?: string;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 const nodeTypes = {
@@ -43,12 +40,22 @@ interface TempWorkflowNode {
   adapterConfigId: string;
   stepOrder: number;
   inputMapping: Record<string, any>;
+  previousNodeIds?: string[];
   nextNodeId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWorkflowId }: WorkflowBuilderProps) {
+export function WorkflowBuilder({
+  productId,
+  adapterConfigs,
+  product,
+  onUpdateAdapterConfigs,
+  onChange,
+  initialWorkflowId,
+  isFullscreen = false,
+  onToggleFullscreen
+}: WorkflowBuilderProps) {
   const {
     workflows,
     loading: workflowLoading,
@@ -62,8 +69,20 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isDragSectionExpanded, setIsDragSectionExpanded] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [showAdapterModal, setShowAdapterModal] = useState(false);
+  const [editingAdapter, setEditingAdapter] = useState<AdapterConfig | null>(null);
+  const [newAdapter, setNewAdapter] = useState<Partial<AdapterConfig>>({
+    endpointPath: "",
+    httpMethod: "POST",
+    customHeaders: "{}",
+    fieldMapping: "{}",
+    responseMapping: {},
+    metaConfig: "{}",
+    sitemapConfig: "{}",
+    timeoutSeconds: 30,
+    retryCount: 3,
+  });
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -73,34 +92,86 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
   const [deletedNodes, setDeletedNodes] = useState<Record<string, string[]>>({});
   const [updatedNodes, setUpdatedNodes] = useState<Record<string, Record<string, any>>>({});
 
+  // Helper function to generate readable temporary node ID
+  const generateTempId = (endpointPath: string = "node") => {
+    const cleanName = endpointPath
+      .replace(/^\//, '') // Remove leading slash
+      .replace(/[^a-zA-Z0-9]/g, '_') // Replace special chars with underscore
+      .substring(0, 20); // Limit length
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 4);
+    return `draft_${cleanName}_${timestamp}_${random}`;
+  };
+
+  // Handle save adapter
+  const handleSaveAdapter = () => {
+    if (!newAdapter.endpointPath) return;
+
+    if (editingAdapter) {
+      const updated = adapterConfigs.map(a =>
+        a.id === editingAdapter.id
+          ? { ...a, ...newAdapter, id: a.id } as AdapterConfig
+          : a
+      );
+      onUpdateAdapterConfigs?.(updated);
+    } else {
+      const adapter: AdapterConfig = {
+        id: `adapter_${Date.now()}`,
+        productId,
+        endpointPath: newAdapter.endpointPath || "",
+        httpMethod: newAdapter.httpMethod as any || "POST",
+        customHeaders: newAdapter.customHeaders || "{}",
+        fieldMapping: newAdapter.fieldMapping || "{}",
+        responseMapping: newAdapter.responseMapping || {},
+        metaConfig: newAdapter.metaConfig || "{}",
+        sitemapConfig: newAdapter.sitemapConfig || "{}",
+        timeoutSeconds: newAdapter.timeoutSeconds || 30,
+        retryCount: newAdapter.retryCount || 3,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      onUpdateAdapterConfigs?.([...adapterConfigs, adapter]);
+    }
+
+    setShowAdapterModal(false);
+    setEditingAdapter(null);
+    setNewAdapter({
+      endpointPath: "",
+      httpMethod: "POST",
+      customHeaders: "{}",
+      fieldMapping: "{}",
+      responseMapping: {},
+      metaConfig: "{}",
+      sitemapConfig: "{}",
+      timeoutSeconds: 30,
+      retryCount: 3,
+    });
+  };
+
+  const handleEditAdapter = (adapter: AdapterConfig) => {
+    setEditingAdapter(adapter);
+    setNewAdapter(adapter);
+    setShowAdapterModal(true);
+  };
+
+  const handleDeleteAdapter = (id: string) => {
+    onUpdateAdapterConfigs?.(adapterConfigs.filter(a => a.id !== id));
+  };
+
   // Load initial workflow jika ada initialWorkflowId
   useEffect(() => {
     if (initialWorkflowId && workflows.length > 0) {
       const workflowExists = workflows.some(w => w.id === initialWorkflowId);
       if (workflowExists) {
         setSelectedWorkflowId(initialWorkflowId);
+        const workflow = workflows.find(w => w.id === initialWorkflowId);
+        if (workflow) {
+          setWorkflowName(workflow.name);
+        }
         loadWorkflowNodes(initialWorkflowId);
       }
     }
   }, [initialWorkflowId, workflows]);
-
-  // Trigger onChange when data changes
-  useEffect(() => {
-    if (onChange && selectedWorkflowId) {
-      const workflowData = {
-        workflowId: selectedWorkflowId,
-        nodes: nodes.map(node => ({
-          id: node.id,
-          type: node.type,
-          position: node.position,
-          data: node.data,
-        })),
-        edges: edges,
-        hasChanges: hasChanges(),
-      };
-      onChange(workflowData);
-    }
-  }, [nodes, edges, selectedWorkflowId]);
 
   const loadWorkflowNodes = useCallback(async (workflowId: string) => {
     setIsInitialLoading(true);
@@ -121,16 +192,45 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
       }));
       setNodes(flowNodes);
 
-      const flowEdges: Edge[] = backendNodes
-        .filter((wn: any) => wn.nextNodeId)
-        .map((wn: any) => ({
-          id: `e-${wn.id}-${wn.nextNodeId}`,
-          source: wn.id,
-          target: wn.nextNodeId as string,
-          sourceHandle: null,
-          targetHandle: null,
-          animated: true,
-        }));
+      const edgeMap = new Map<string, Edge>();
+
+      backendNodes.forEach((node: any) => {
+        // ===== RELASI DARI nextNodeId =====
+        if (node.nextNodeId) {
+          const edgeId = `e-${node.id}-${node.nextNodeId}`;
+
+          edgeMap.set(edgeId, {
+            id: edgeId,
+            source: node.id,
+            target: node.nextNodeId,
+            sourceHandle: null,
+            targetHandle: null,
+            animated: true,
+          });
+        }
+
+        // ===== RELASI DARI previousNodeIds =====
+        if (
+          Array.isArray(node.previousNodeIds) &&
+          node.previousNodeIds.length > 0
+        ) {
+          node.previousNodeIds.forEach((prevId: string) => {
+            const edgeId = `e-${prevId}-${node.id}`;
+
+            edgeMap.set(edgeId, {
+              id: edgeId,
+              source: prevId,
+              target: node.id,
+              sourceHandle: null,
+              targetHandle: null,
+              animated: true,
+            });
+          });
+        }
+      });
+
+      const flowEdges = Array.from(edgeMap.values());
+
       setEdges(flowEdges);
 
       setTempNodes(prev => ({ ...prev, [workflowId]: [] }));
@@ -145,11 +245,14 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
 
   const handleSelectWorkflow = async (workflowId: string) => {
     setSelectedWorkflowId(workflowId);
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (workflow) {
+      setWorkflowName(workflow.name);
+    }
     await loadWorkflowNodes(workflowId);
 
-    // Trigger onChange untuk workflow yang dipilih
     if (onChange) {
-      onChange({ workflowId, isNew: false });
+      onChange(workflowId);
     }
   };
 
@@ -163,56 +266,220 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
       setTempNodes(prev => ({ ...prev, [wf.id]: [] }));
 
       if (onChange) {
-        onChange({ workflowId: wf.id, isNew: true, name: workflowName });
+        onChange(wf.id);
       }
     }
   };
 
-  const generateTempId = () => {
-    return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const handleUpdateNode = useCallback(
+    async (nodeId: string, updates: Record<string, any>) => {
+      console.log("📝 Updating node:", nodeId, updates); // ← DEBUG
+
+      if (nodeId.startsWith('draft_') && selectedWorkflowId) {
+        setTempNodes(prev => {
+          const workflowTempNodes = [...(prev[selectedWorkflowId] || [])];
+          const nodeIndex = workflowTempNodes.findIndex(n => n.id === nodeId);
+          if (nodeIndex !== -1) {
+            workflowTempNodes[nodeIndex] = {
+              ...workflowTempNodes[nodeIndex],
+              ...updates
+            };
+          }
+          return { ...prev, [selectedWorkflowId]: workflowTempNodes };
+        });
+      } else if (selectedWorkflowId) {
+        // Update real node
+        setUpdatedNodes(prev => ({
+          ...prev,
+          [selectedWorkflowId]: {
+            ...prev[selectedWorkflowId],
+            [nodeId]: {
+              ...prev[selectedWorkflowId]?.[nodeId],
+              ...updates
+            }
+          }
+        }));
+      }
+
+      // 🔥 UPDATE NODE DI STATE LANGSUNG
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId
+            ? {
+              ...n,
+              data: {
+                ...n.data,
+                workflowNode: {
+                  ...n.data.workflowNode,
+                  ...updates
+                },
+              },
+            }
+            : n
+        )
+      );
+    },
+    [setNodes, selectedWorkflowId]
+  );
+
+  const updateNodeRelationship = (
+    sourceId: string,
+    targetId: string
+  ) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        const workflowNode = node.data.workflowNode || {};
+
+        if (node.id === sourceId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              workflowNode: {
+                ...workflowNode,
+                nextNodeId: targetId,
+              },
+            },
+          };
+        }
+
+        if (node.id === targetId) {
+          const prevIds = workflowNode.previousNodeIds || [];
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              workflowNode: {
+                ...workflowNode,
+                previousNodeIds: prevIds.includes(sourceId)
+                  ? prevIds
+                  : [...prevIds, sourceId],
+              },
+            },
+          };
+        }
+
+        return node;
+      })
+    );
+  };
+
+
+  const updateRealNodeRelationship = (
+    workflowId: string,
+    sourceId: string,
+    targetId: string
+  ) => {
+    setUpdatedNodes((prev) => ({
+      ...prev,
+      [workflowId]: {
+        ...prev[workflowId],
+
+        [sourceId]: {
+          ...prev[workflowId]?.[sourceId],
+          nextNodeId: targetId,
+        },
+
+        [targetId]: {
+          ...prev[workflowId]?.[targetId],
+          previousNodeIds: [
+            ...(prev[workflowId]?.[targetId]
+              ?.previousNodeIds || []),
+            sourceId,
+          ].filter(
+            (v, i, arr) => arr.indexOf(v) === i
+          ),
+        },
+      },
+    }));
+  };
+
+
+  const updateTempNodeRelationship = (
+    workflowId: string,
+    sourceId: string,
+    targetId: string
+  ) => {
+    setTempNodes((prev) => {
+      const workflowTempNodes = [
+        ...(prev[workflowId] || [])
+      ];
+
+      const updated = workflowTempNodes.map((node) => {
+        if (node.id === sourceId) {
+          return {
+            ...node,
+            nextNodeId: targetId,
+          };
+        }
+
+        if (node.id === targetId) {
+          return {
+            ...node,
+            previousNodeIds: [
+              ...(node.previousNodeIds || []),
+              sourceId,
+            ].filter(
+              (v, i, arr) => arr.indexOf(v) === i
+            ),
+          };
+        }
+
+        return node;
+      });
+
+      return {
+        ...prev,
+        [workflowId]: updated,
+      };
+    });
   };
 
   const onConnect = useCallback(
-    async (connection: Connection) => {
+    (connection: Connection) => {
       if (!connection.source || !connection.target) return;
 
-      setEdges((eds) => addEdge({
-        ...connection,
-        id: `e-${connection.source}-${connection.target}`,
-        animated: true
-      }, eds));
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...connection,
+            id: `e-${connection.source}-${connection.target}`,
+            animated: true,
+          },
+          eds
+        )
+      );
 
-      if (selectedWorkflowId) {
-        const isTempSource = connection.source.startsWith('temp_');
-        const isTempTarget = connection.target.startsWith('temp_');
+      // ReactFlow state
+      updateNodeRelationship(
+        connection.source,
+        connection.target
+      );
 
-        if (isTempSource || isTempTarget) {
-          setTempNodes(prev => {
-            const workflowTempNodes = [...(prev[selectedWorkflowId] || [])];
-            const nodeIndex = workflowTempNodes.findIndex(n => n.id === connection.source);
-            if (nodeIndex !== -1) {
-              workflowTempNodes[nodeIndex] = {
-                ...workflowTempNodes[nodeIndex],
-                nextNodeId: connection.target
-              };
-            }
-            return { ...prev, [selectedWorkflowId]: workflowTempNodes };
-          });
-        } else {
-          setUpdatedNodes(prev => ({
-            ...prev,
-            [selectedWorkflowId]: {
-              ...prev[selectedWorkflowId],
-              [connection.source as any]: {
-                ...prev[selectedWorkflowId]?.[connection.source as any],
-                nextNodeId: connection.target
-              }
-            }
-          }));
-        }
+      if (!selectedWorkflowId) return;
+
+      const sourceIsTemp =
+        connection.source.startsWith("draft_");
+
+      const targetIsTemp =
+        connection.target.startsWith("draft_");
+
+      if (sourceIsTemp || targetIsTemp) {
+        updateTempNodeRelationship(
+          selectedWorkflowId,
+          connection.source,
+          connection.target
+        );
       }
+
+      updateRealNodeRelationship(
+        selectedWorkflowId,
+        connection.source,
+        connection.target
+      );
     },
-    [setEdges, selectedWorkflowId]
+    [selectedWorkflowId]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -224,10 +491,29 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
     async (event: React.DragEvent) => {
       event.preventDefault();
       const adapterConfigId = event.dataTransfer.getData("adapterConfigId");
-      if (!adapterConfigId || !reactFlowWrapper.current || !selectedWorkflowId) return;
+      if (!adapterConfigId || !reactFlowWrapper.current) return;
 
       const config = adapterConfigs.find((c) => c.id === adapterConfigId);
       if (!config) return;
+
+      let currentWorkflowId = selectedWorkflowId;
+
+      if (!currentWorkflowId) {
+        const defaultWorkflowName = `Workflow ${new Date().toLocaleString()}`;
+        const newWorkflow = await createWorkflow(defaultWorkflowName);
+        if (newWorkflow) {
+          currentWorkflowId = newWorkflow.id;
+          setSelectedWorkflowId(newWorkflow.id);
+          setWorkflowName(defaultWorkflowName);
+          setTempNodes(prev => ({ ...prev, [newWorkflow.id]: [] }));
+
+          if (onChange) {
+            onChange(newWorkflow.id);
+          }
+        } else {
+          return;
+        }
+      }
 
       const rect = reactFlowWrapper.current.getBoundingClientRect();
       const position = {
@@ -235,23 +521,24 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
         y: event.clientY - rect.top - 25,
       };
 
-      const tempId = generateTempId();
-      const stepOrder = nodes.filter(n => !n.id.startsWith('temp_')).length +
-        (tempNodes[selectedWorkflowId]?.length || 0) + 1;
+      const tempId = generateTempId(config.endpointPath);
+      const stepOrder = nodes.filter(n => !n.id.startsWith('draft_')).length +
+        (tempNodes[currentWorkflowId]?.length || 0) + 1;
 
       const tempWorkflowNode: TempWorkflowNode = {
         id: tempId,
-        workflowId: selectedWorkflowId,
+        workflowId: currentWorkflowId,
         adapterConfigId,
         stepOrder,
         inputMapping: {},
+        previousNodeIds: [], // 
+        nextNodeId: null,    // 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-
       setTempNodes(prev => ({
         ...prev,
-        [selectedWorkflowId]: [...(prev[selectedWorkflowId] || []), tempWorkflowNode]
+        [currentWorkflowId]: [...(prev[currentWorkflowId] || []), tempWorkflowNode]
       }));
 
       const flowNode: Node = {
@@ -267,7 +554,7 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
       };
       setNodes((nds) => [...nds, flowNode]);
     },
-    [adapterConfigs, nodes.length, selectedWorkflowId, tempNodes, setNodes]
+    [adapterConfigs, nodes.length, selectedWorkflowId, tempNodes, setNodes, createWorkflow, onChange]
   );
 
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
@@ -276,7 +563,7 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
 
   const handleDeleteNode = useCallback(
     async (nodeId: string) => {
-      if (nodeId.startsWith('temp_') && selectedWorkflowId) {
+      if (nodeId.startsWith('draft_') && selectedWorkflowId) {
         setTempNodes(prev => ({
           ...prev,
           [selectedWorkflowId]: (prev[selectedWorkflowId] || []).filter(n => n.id !== nodeId)
@@ -304,176 +591,6 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
     [setNodes, setEdges, selectedWorkflowId]
   );
 
-  const handleUpdateNode = useCallback(
-    async (nodeId: string, updates: Record<string, any>) => {
-      if (nodeId.startsWith('temp_') && selectedWorkflowId) {
-        setTempNodes(prev => {
-          const workflowTempNodes = [...(prev[selectedWorkflowId] || [])];
-          const nodeIndex = workflowTempNodes.findIndex(n => n.id === nodeId);
-          if (nodeIndex !== -1) {
-            workflowTempNodes[nodeIndex] = {
-              ...workflowTempNodes[nodeIndex],
-              ...updates
-            };
-          }
-          return { ...prev, [selectedWorkflowId]: workflowTempNodes };
-        });
-
-        setNodes((nds) =>
-          nds.map((n) =>
-            n.id === nodeId
-              ? {
-                ...n,
-                data: {
-                  ...n.data,
-                  workflowNode: { ...n.data.workflowNode, ...updates },
-                },
-              }
-              : n
-          )
-        );
-      } else if (selectedWorkflowId) {
-        setUpdatedNodes(prev => ({
-          ...prev,
-          [selectedWorkflowId]: {
-            ...prev[selectedWorkflowId],
-            [nodeId]: {
-              ...prev[selectedWorkflowId]?.[nodeId],
-              ...updates
-            }
-          }
-        }));
-
-        setNodes((nds) =>
-          nds.map((n) =>
-            n.id === nodeId
-              ? {
-                ...n,
-                data: {
-                  ...n.data,
-                  workflowNode: { ...n.data.workflowNode, ...updates },
-                },
-              }
-              : n
-          )
-        );
-      }
-    },
-    [setNodes, selectedWorkflowId]
-  );
-
-  const saveAllChanges = useCallback(async () => {
-    if (!selectedWorkflowId) return;
-
-    const unsavedNodes = tempNodes[selectedWorkflowId] || [];
-    const nodesToDelete = deletedNodes[selectedWorkflowId] || [];
-    const nodesToUpdate = updatedNodes[selectedWorkflowId] || {};
-
-    if (unsavedNodes.length === 0 && nodesToDelete.length === 0 && Object.keys(nodesToUpdate).length === 0) {
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const toCreate: BatchCreateNode[] = unsavedNodes.map(tempNode => ({
-        tempId: tempNode.id,
-        adapterConfigId: tempNode.adapterConfigId,
-        stepOrder: tempNode.stepOrder,
-        inputMapping: tempNode.inputMapping,
-        nextNodeId: tempNode.nextNodeId || null,
-      }));
-
-      const toUpdate: BatchUpdateNode[] = Object.entries(nodesToUpdate).map(([id, updates]) => ({
-        id,
-        updates
-      }));
-
-      const result: SaveNodesResponse = await saveAllWorkflowNodes(selectedWorkflowId, {
-        toCreate,
-        toUpdate,
-        toDelete: nodesToDelete,
-      });
-
-      if (result.created && result.created.length > 0) {
-        const tempToRealMap = new Map<string, any>();
-        result.created.forEach(saved => {
-          tempToRealMap.set(saved.tempId, saved);
-        });
-
-        setNodes((nds) =>
-          nds.map((n) => {
-            const savedNode = tempToRealMap.get(n.id);
-            if (savedNode) {
-              return {
-                ...n,
-                id: savedNode.id,
-                data: {
-                  ...n.data,
-                  workflowNode: savedNode,
-                  isTemp: false,
-                },
-              };
-            }
-            return n;
-          })
-        );
-
-        setEdges((eds) =>
-          eds.map((e) => {
-            const sourceNode = tempToRealMap.get(e.source);
-            const targetNode = tempToRealMap.get(e.target);
-
-            if (sourceNode || targetNode) {
-              const newSource = sourceNode ? sourceNode.id : e.source;
-              const newTarget = targetNode ? targetNode.id : e.target;
-              return {
-                ...e,
-                source: newSource,
-                target: newTarget,
-                id: `e-${newSource}-${newTarget}`,
-              };
-            }
-            return e;
-          })
-        );
-      }
-
-      if (result.updated && result.updated.length > 0) {
-        setNodes((nds) =>
-          nds.map((n) => {
-            const updatedNode = result.updated.find((u: any) => u.id === n.id);
-            if (updatedNode) {
-              return {
-                ...n,
-                data: {
-                  ...n.data,
-                  workflowNode: updatedNode,
-                },
-              };
-            }
-            return n;
-          })
-        );
-      }
-
-      if (result.deleted && result.deleted.length > 0) {
-        setNodes((nds) => nds.filter(n => !result.deleted.includes(n.id)));
-        setEdges((eds) => eds.filter(e =>
-          !result.deleted.includes(e.source) && !result.deleted.includes(e.target)
-        ));
-      }
-
-      setTempNodes(prev => ({ ...prev, [selectedWorkflowId]: [] }));
-      setDeletedNodes(prev => ({ ...prev, [selectedWorkflowId]: [] }));
-      setUpdatedNodes(prev => ({ ...prev, [selectedWorkflowId]: {} }));
-
-    } catch (error) {
-      console.error("Failed to save changes:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [selectedWorkflowId, tempNodes, deletedNodes, updatedNodes, setNodes, setEdges]);
 
   const hasChanges = useCallback(() => {
     if (!selectedWorkflowId) return false;
@@ -481,13 +598,6 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
       deletedNodes[selectedWorkflowId]?.length > 0 ||
       Object.keys(updatedNodes[selectedWorkflowId] || {}).length > 0);
   }, [selectedWorkflowId, tempNodes, deletedNodes, updatedNodes]);
-
-  const getChangesCount = () => {
-    if (!selectedWorkflowId) return 0;
-    return (tempNodes[selectedWorkflowId]?.length || 0) +
-      (deletedNodes[selectedWorkflowId]?.length || 0) +
-      Object.keys(updatedNodes[selectedWorkflowId] || {}).length;
-  };
 
   if (isInitialLoading) {
     return (
@@ -501,42 +611,39 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
   }
 
   return (
-    <div className="flex h-[600px] gap-4 relative">
-      {/* Left Sidebar */}
-      {isSidebarOpen && (
-        <div className="w-64 border-r pr-4 flex flex-col gap-4 transition-all duration-300">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-sm">WORKFLOWS</h3>
-              <Button variant="ghost" size="sm" onClick={() => setShowNewInput(true)}>
-                <Plus className="h-4 w-4" />
-              </Button>
+    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
+      <div className={`flex gap-4 relative ${isFullscreen ? 'h-screen' : 'h-[600px]'}`}>
+        {/* Fullscreen Toggle Button */}
+        {onToggleFullscreen && (
+          <button
+            onClick={onToggleFullscreen}
+            className="absolute top-2 right-2 z-20 bg-background border rounded-md p-1.5 hover:bg-muted transition-colors"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
+          </button>
+        )}
+
+        {/* Left Sidebar */}
+        {isSidebarOpen && (
+          <div className="w-64 border-r pr-4 flex flex-col gap-4 transition-all duration-300 p-2">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-sm">WORKFLOWS</h3>
+              </div>
+
+              <WorkflowList
+                workflows={workflows}
+                selectedId={selectedWorkflowId}
+                onSelect={handleSelectWorkflow}
+                onDelete={deleteWorkflow}
+                loading={workflowLoading}
+              />
             </div>
 
-            {showNewInput && (
-              <div className="flex gap-2 mb-2">
-                <Input
-                  placeholder="Nama workflow"
-                  value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreateWorkflow()}
-                  autoFocus
-                  className="text-sm"
-                />
-                <Button type="button" size="sm" onClick={handleCreateWorkflow}>OK</Button>
-              </div>
-            )}
-
-            <WorkflowList
-              workflows={workflows}
-              selectedId={selectedWorkflowId}
-              onSelect={handleSelectWorkflow}
-              onDelete={deleteWorkflow}
-              loading={workflowLoading}
-            />
-          </div>
-
-          {selectedWorkflowId && (
             <div className="mt-4">
               <button
                 onClick={() => setIsDragSectionExpanded(!isDragSectionExpanded)}
@@ -563,52 +670,86 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
                     {adapterConfigs.map((config) => (
                       <div
                         key={config.id}
-                        className="bg-muted rounded px-2 py-1.5 text-xs cursor-grab hover:bg-primary/10 transition-colors"
+                        className="group bg-muted rounded px-2 py-1.5 text-xs cursor-grab hover:bg-primary/10 transition-colors flex items-center justify-between"
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData("adapterConfigId", config.id);
                           e.dataTransfer.effectAllowed = "move";
                         }}
                       >
-                        <span className="font-mono font-bold text-primary">{config.httpMethod}</span>{" "}
-                        <span className="truncate">{config.endpointPath}</span>
+                        <span className="truncate">
+                          <span className="font-mono font-bold text-primary">{config.httpMethod}</span>{" "}
+                          <span className="truncate">{config.endpointPath}</span>
+                        </span>
+                        <div className="hidden group-hover:flex gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditAdapter(config);
+                            }}
+                            className="text-slate-500 hover:text-slate-700"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteAdapter(config.id);
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
 
-                  {hasChanges() && (
-                    <Button
-                      size="sm"
-                      className="mt-4 w-full"
-                      onClick={saveAllChanges}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? "Saving..." : `Save All Changes (${getChangesCount()})`}
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 w-full"
+                    onClick={() => {
+                      setEditingAdapter(null);
+                      setNewAdapter({
+                        endpointPath: "",
+                        httpMethod: "POST",
+                        customHeaders: "{}",
+                        fieldMapping: "{}",
+                        responseMapping: {},
+                        metaConfig: "{}",
+                        sitemapConfig: "{}",
+                        timeoutSeconds: 30,
+                        retryCount: 3,
+                      });
+                      setShowAdapterModal(true);
+                    }}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Tambah Adapter
+                  </Button>
                 </>
               )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Toggle Sidebar Button */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background border rounded-r-md p-1 hover:bg-muted transition-colors"
-        style={{ left: isSidebarOpen ? '256px' : '0px' }}
-      >
-        {isSidebarOpen ? (
-          <ChevronLeft className="h-4 w-4" />
-        ) : (
-          <ChevronRightIcon className="h-4 w-4" />
+          </div>
         )}
-      </button>
 
-      {/* Canvas */}
-      <div className="flex-1 border rounded-lg" ref={reactFlowWrapper}>
-        {selectedWorkflowId ? (
+        {/* Toggle Sidebar Button */}
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background border rounded-r-md p-1 hover:bg-muted transition-colors"
+          style={{ left: isSidebarOpen ? '256px' : '0px' }}
+        >
+          {isSidebarOpen ? (
+            <ChevronLeft className="h-4 w-4" />
+          ) : (
+            <ChevronRightIcon className="h-4 w-4" />
+          )}
+        </button>
+
+        {/* Canvas */}
+        <div className="flex-1 border rounded-lg" ref={reactFlowWrapper}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -626,29 +767,77 @@ export function WorkflowBuilder({ productId, adapterConfigs, onChange, initialWo
             }}
           >
             <Controls />
-            <MiniMap />
+
             <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
           </ReactFlow>
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            Pilih atau buat workflow untuk mulai
+        </div>
+
+        {/* Right Panel */}
+        {selectedNode && (
+          <div className="w-150 border-l pl-4 overflow-y-auto">
+            <NodePanel
+              node={selectedNode}
+              allNodes={nodes}
+              adapterConfigs={adapterConfigs}
+              product={product}
+              onClose={() => setSelectedNode(null)}
+              onDelete={handleDeleteNode}
+              onUpdate={handleUpdateNode}
+            />
           </div>
         )}
-      </div>
 
-      {/* Right Panel */}
-      {selectedNode && (
-        <div className="w-150 border-l pl-4 overflow-y-auto">
-          <NodePanel
-            node={selectedNode}
-            allNodes={nodes}
-            adapterConfigs={adapterConfigs}
-            onClose={() => setSelectedNode(null)}
-            onDelete={handleDeleteNode}
-            onUpdate={handleUpdateNode}
-          />
-        </div>
-      )}
+        {/* Modal Add/Edit Adapter */}
+        <Dialog open={showAdapterModal} onOpenChange={setShowAdapterModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingAdapter ? "Edit Adapter" : "Tambah Adapter Baru"}</DialogTitle>
+              <DialogDescription>
+                Definisikan endpoint API yang akan digunakan di workflow
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>HTTP Method</Label>
+                <Select
+                  value={newAdapter.httpMethod as string}
+                  onValueChange={(v) => setNewAdapter({ ...newAdapter, httpMethod: v as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GET">GET</SelectItem>
+                    <SelectItem value="POST">POST</SelectItem>
+                    <SelectItem value="PUT">PUT</SelectItem>
+                    <SelectItem value="PATCH">PATCH</SelectItem>
+                    <SelectItem value="DELETE">DELETE</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Endpoint Path</Label>
+                <Input
+                  placeholder="/posts"
+                  value={newAdapter.endpointPath}
+                  onChange={(e) => setNewAdapter({ ...newAdapter, endpointPath: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Contoh: /posts, /media, /categories
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowAdapterModal(false)}>
+                  Batal
+                </Button>
+                <Button onClick={handleSaveAdapter}>
+                  Simpan
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }

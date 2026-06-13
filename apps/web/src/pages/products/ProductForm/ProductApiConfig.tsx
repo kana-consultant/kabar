@@ -34,7 +34,7 @@ interface HeaderItem {
     value: string;
 }
 
-type AuthType = 'none' | 'xapiKey' | 'bearer' | 'apiKey' | 'custom';
+type AuthType = 'none' | 'apiKey';
 type AuthPrefix = 'Bearer' | 'ApiKey' | 'Basic' | 'custom';
 
 // Daftar placeholder yang tersedia
@@ -60,7 +60,7 @@ export function ProductApiConfig({
 }: ProductApiConfigProps) {
   
     const [headers, setHeaders] = useState<HeaderItem[]>([]);
-    const [authType, setAuthType] = useState<AuthType>('bearer');
+    const [authType, setAuthType] = useState<AuthType>('apiKey');
     const [authPrefix, setAuthPrefix] = useState<AuthPrefix>('ApiKey');
     const [customAuthPrefix, setCustomAuthPrefix] = useState<string>('');
     const [initialized, setInitialized] = useState(false);
@@ -73,10 +73,8 @@ export function ProductApiConfig({
 
     // convert object -> list (hanya saat mount)
     useEffect(() => {
-        // if (initialized) return;
-
         let obj: Record<string, string> = {};
-        console.log(config)
+        
         if (config.customHeaders) {
             if (typeof config.customHeaders === 'string') {
                 try {
@@ -88,16 +86,13 @@ export function ProductApiConfig({
                 obj = config.customHeaders as Record<string, string>;
             }
         }
-        
 
         // Parse authorization header
         const authHeader = obj['Authorization'] || obj['authorization'] || '';
-        console.log(authHeader)
         
         if (authHeader) {
-            // Deteksi prefix
             if (authHeader.toLowerCase().startsWith('bearer ')) {
-                setAuthType('bearer');
+                setAuthType('apiKey');
                 setAuthPrefix('Bearer');
             } else if (authHeader.toLowerCase().startsWith('apikey ')) {
                 setAuthType('apiKey');
@@ -105,19 +100,13 @@ export function ProductApiConfig({
             } else if (authHeader.toLowerCase().startsWith('basic ')) {
                 setAuthType('apiKey');
                 setAuthPrefix('Basic');
-            } else if (authHeader.includes('{{api_key}}') || authHeader.includes('{{api_token}}')) {
-                // Custom prefix
+            } else if (authHeader.includes('{{api_key}}')) {
                 setAuthType('apiKey');
                 setAuthPrefix('custom');
                 const customPrefix = authHeader.split(' ')[0];
                 setCustomAuthPrefix(customPrefix);
-            } else {
-                // No placeholder, but has auth header
-                setAuthType('bearer');
-                setAuthPrefix('Bearer');
             }
         } else {
-            // Default: ApiKey
             setAuthType('apiKey');
             setAuthPrefix('ApiKey');
         }
@@ -152,7 +141,6 @@ export function ProductApiConfig({
         currentAuthPrefix: AuthPrefix,
         currentCustomPrefix: string,
     ) => {
-        // Tandai bahwa ini adalah update internal
         internalUpdateRef.current = true;
         
         const allHeaders: Record<string, string> = {};
@@ -164,7 +152,6 @@ export function ProductApiConfig({
 
         // custom headers
         currentHeaders.forEach(item => {
-            console.log(item.key.trim())
             if (item.key.trim() && item.key.toLowerCase() !== 'authorization') {
                 allHeaders[item.key.trim()] = item.value;
             }
@@ -174,7 +161,6 @@ export function ProductApiConfig({
             customHeaders: JSON.stringify(allHeaders)
         });
         
-        // Reset flag setelah update
         setTimeout(() => {
             internalUpdateRef.current = false;
         }, 0);
@@ -187,11 +173,7 @@ export function ProductApiConfig({
 
     const updateAuthType = useCallback((newType: AuthType) => {
         setAuthType(newType);
-        if (newType === 'none') {
-            updateFullConfig(headers, newType, authPrefix, customAuthPrefix);
-        } else {
-            updateFullConfig(headers, newType, authPrefix, customAuthPrefix);
-        }
+        updateFullConfig(headers, newType, authPrefix, customAuthPrefix);
     }, [headers, authPrefix, customAuthPrefix, updateFullConfig]);
 
     const updateAuthPrefix = useCallback((newPrefix: AuthPrefix) => {
@@ -216,7 +198,6 @@ export function ProductApiConfig({
         updateHeaders(updated.length ? updated : [{ key: "", value: "" }]);
     }, [headers, updateHeaders]);
 
-    // Handler untuk memilih placeholder dari popover
     const handlePlaceholderSelect = useCallback((index: number, placeholder: string) => {
         const updated = [...headers];
         updated[index].value = placeholder;
@@ -234,16 +215,6 @@ export function ProductApiConfig({
 
             <CardContent className="space-y-4">
 
-                {/* ENDPOINT */}
-                <div className="space-y-2">
-                    <Label>Endpoint Path</Label>
-                    <Input
-                        value={config.endpointPath || ""}
-                        onChange={(e: any) => onUpdate({ endpointPath: e.target.value })}
-                        placeholder="/api/v1/products"
-                    />
-                </div>
-
                 {/* METHOD */}
                 <div className="space-y-2">
                     <Label>HTTP Method</Label>
@@ -259,6 +230,7 @@ export function ProductApiConfig({
                             <SelectItem value="POST">POST</SelectItem>
                             <SelectItem value="PUT">PUT</SelectItem>
                             <SelectItem value="PATCH">PATCH</SelectItem>
+                            <SelectItem value="DELETE">DELETE</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
