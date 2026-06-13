@@ -124,8 +124,9 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	log.Println("Decoding request body...")
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-
 		log.Printf("Failed decode request body: %v\n", err)
+		h.writeJSON(w, map[string]string{"error": "Invalid request body"}, http.StatusBadRequest)
+		return
 	}
 
 	// FULL REQUEST
@@ -142,16 +143,74 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	log.Println("========== ADAPTER CONFIG ==========")
 
 	if req.AdapterConfig != nil {
-
 		log.Printf("EndpointPath: %v\n", req.AdapterConfig.EndpointPath)
 		log.Printf("HTTPMethod: %v\n", req.AdapterConfig.HTTPMethod)
 		log.Printf("CustomHeaders: %+v\n", req.AdapterConfig.CustomHeaders)
 		log.Printf("FieldMapping: %v\n", req.AdapterConfig.FieldMapping)
+		log.Printf("ResponseMapping: %+v\n", req.AdapterConfig.ResponseMapping)
+		log.Printf("MetaConfig: %v\n", req.AdapterConfig.MetaConfig)
+		log.Printf("SitemapConfig: %v\n", req.AdapterConfig.SitemapConfig)
 		log.Printf("TimeoutSeconds: %v\n", req.AdapterConfig.TimeoutSeconds)
 		log.Printf("RetryCount: %v\n", req.AdapterConfig.RetryCount)
-
 	} else {
 		log.Println("AdapterConfig is NIL")
+	}
+
+	// DEBUG: TAMBAHKAN INI UNTUK ADAPTERCONFIGS
+	log.Println("========== ADAPTERCONFIGS (ARRAY) ==========")
+	log.Printf("Length of AdapterConfigs: %d\n", len(req.AdapterConfigs))
+
+	if len(req.AdapterConfigs) > 0 {
+		for i, config := range req.AdapterConfigs {
+			log.Printf("--- AdapterConfig[%d] ---", i)
+			log.Printf("  ID: %s", config.ID)
+			log.Printf("  ProductID: %s", config.ProductID)
+			log.Printf("  EndpointPath: %s", config.EndpointPath)
+			log.Printf("  HTTPMethod: %s", config.HTTPMethod)
+			log.Printf("  CustomHeaders: %s", config.CustomHeaders)
+			log.Printf("  FieldMapping: %s", config.FieldMapping)
+			log.Printf("  ResponseMapping: %+v", config.ResponseMapping)
+			log.Printf("  MetaConfig: %s", config.MetaConfig)
+			log.Printf("  SitemapConfig: %s", config.SitemapConfig)
+			log.Printf("  TimeoutSeconds: %d", config.TimeoutSeconds)
+			log.Printf("  RetryCount: %d", config.RetryCount)
+			log.Printf("  CreatedAt: %v", config.CreatedAt)
+			log.Printf("  UpdatedAt: %v", config.UpdatedAt)
+		}
+	} else {
+		log.Println("AdapterConfigs is EMPTY or NIL")
+	}
+
+	// DEBUG: TAMPILKAN JUGA WORKFLOWS
+	log.Println("========== WORKFLOWS ==========")
+	if len(req.Workflows) > 0 {
+		log.Printf("Number of workflows: %d\n", len(req.Workflows))
+		for i, wf := range req.Workflows {
+			log.Printf("Workflow[%d]: ID=%s, Name=%s\n", i, wf.ID, wf.Name)
+		}
+	} else {
+		log.Println("Workflows is EMPTY or NIL")
+	}
+
+	// Validasi request
+	if req.Name == "" {
+		h.writeJSON(w, map[string]string{"error": "Product name is required"}, http.StatusBadRequest)
+		return
+	}
+
+	if req.Platform == "" {
+		h.writeJSON(w, map[string]string{"error": "Platform is required"}, http.StatusBadRequest)
+		return
+	}
+
+	if req.APIEndpoint == "" {
+		h.writeJSON(w, map[string]string{"error": "API endpoint is required"}, http.StatusBadRequest)
+		return
+	}
+
+	if req.APIKey == "" {
+		h.writeJSON(w, map[string]string{"error": "API key is required"}, http.StatusBadRequest)
+		return
 	}
 
 	// Get user context from auth middleware
@@ -166,14 +225,17 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 		userCtx.GetRole(),
 	)
 
+	if userCtx.GetUserID() == "" {
+		h.writeJSON(w, map[string]string{"error": "Unauthorized: User ID not found"}, http.StatusUnauthorized)
+		return
+	}
+
 	// Call application service
 	log.Println("Calling ProductService.CreateProduct...")
 
 	productID, err := h.service.CreateProduct(ctx, req, userCtx)
 	if err != nil {
-
 		log.Printf("CreateProduct failed: %v\n", err)
-
 		h.writeError(w, err)
 		return
 	}
@@ -425,21 +487,4 @@ func buildArgsFromRequest(r *http.Request) []interface{} {
 	}
 
 	return args
-}
-
-// =======================
-// REGISTER ROUTES
-// =======================
-func (h *ProductHandler) RegisterRoutes(r chi.Router) {
-	r.Route("/products", func(r chi.Router) {
-		// Basic CRUD
-		r.Post("/", h.Create)
-		r.Get("/", h.GetAll)
-		r.Get("/{id}", h.GetByID)
-		r.Put("/{id}", h.Update)
-		r.Delete("/{id}", h.Delete)
-
-		// Additional endpoints
-		r.Patch("/{id}/connection", h.UpdateConnectionStatus)
-	})
 }

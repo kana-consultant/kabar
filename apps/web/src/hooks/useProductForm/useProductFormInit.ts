@@ -8,7 +8,7 @@ export function useProductFormInit(
 ) {
     useEffect(() => {
         if (isEdit && initialData) {
-            let fieldMappingValue = initialData.adapterConfig?.fieldMapping || "[]";
+            let fieldMappingValue = initialData.adapter_config?.field_mapping || "[]";
 
             if (typeof fieldMappingValue === 'object') {
                 fieldMappingValue = JSON.stringify(fieldMappingValue, null, 2);
@@ -21,10 +21,10 @@ export function useProductFormInit(
             setProduct({
                 ...initialData,
                 adapterConfig: {
-                    ...initialData.adapterConfig,
-                    endpointPath: initialData.adapterConfig?.endpointPath || "",
-                    httpMethod: initialData.adapterConfig?.httpMethod || "POST",
-                    customHeaders: initialData.adapterConfig?.customHeaders || { "Content-Type": "application/json" },
+                    ...initialData.adapter_config,
+                    endpointPath: initialData.adapter_config?.endpoint_path || "",
+                    httpMethod: initialData.adapter_config?.http_method || "POST",
+                    customHeaders: initialData.adapter_config?.custom_headers || { "Content-Type": "application/json" },
                     fieldMapping: fieldMappingValue,
                 },
             });

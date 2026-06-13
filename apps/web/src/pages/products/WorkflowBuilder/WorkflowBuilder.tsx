@@ -667,9 +667,9 @@ export function WorkflowBuilder({
               {isDragSectionExpanded && (
                 <>
                   <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {adapterConfigs.map((config) => (
+                    {adapterConfigs.map((config, index) => (
                       <div
-                        key={config.id}
+                        key={config.id || `adapter-${index}`}
                         className="group bg-muted rounded px-2 py-1.5 text-xs cursor-grab hover:bg-primary/10 transition-colors flex items-center justify-between"
                         draggable
                         onDragStart={(e) => {

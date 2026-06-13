@@ -29,7 +29,7 @@ const createEmptyProduct = (): Product => ({
     updatedAt: "",
     adapterConfig: undefined,
     workflow_id: "",
-    adapterConfigs: [createEmptyAdapterConfig() as AdapterConfig],
+    adapterConfigs: [],
     workflows: [],
 });
 

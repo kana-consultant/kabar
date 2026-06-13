@@ -11,7 +11,6 @@ export async function createProduct(req: CreateProductRequest): Promise<{ id: st
 /**
  * Add new product with full response
  */
-// Add new product with full response
 export async function addProduct(req: CreateProductRequest): Promise<AddProductResponse> {
     const response = await apiClient.post<{ id: string; message: string }>('/products', req);
     
@@ -26,29 +25,6 @@ export async function addProduct(req: CreateProductRequest): Promise<AddProductR
     return {
         id: response.id,
         message: response.message,
-        product: fullProduct || {
-            id: response.id,
-            name: req.name,
-            platform: req.platform as any,
-            apiEndpoint: req.apiEndpoint,
-            status: 'pending',
-            syncStatus: 'idle',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            apiKey: req.apiKey,
-            teamId: req.teamId,
-            adapterConfig: req.adapterConfig ? {
-                endpointPath: req.adapterConfig.endpointPath,
-                httpMethod: req.adapterConfig.httpMethod,
-                // 🔥 Ubah: Konversi Record<string,string> ke string JSON
-                customHeaders: JSON.stringify(req.adapterConfig.customHeaders),
-                fieldMapping: req.adapterConfig.fieldMapping,
-                timeoutSeconds: req.adapterConfig.timeoutSeconds || 30,
-                retryCount: req.adapterConfig.retryCount || 3,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            } : undefined,
-        },
     };
 }
 
