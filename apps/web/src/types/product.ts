@@ -31,7 +31,8 @@ export interface Product {
     userId?: string;
     createdAt: string;
     updatedAt: string;
-    
+    adapterConfig?: AdapterConfig;  // semua adapter milik product
+    workflow_id: string;
     // Relations
     adapterConfigs?: AdapterConfig[];  // semua adapter milik product
     workflows?: WorkflowDefinition[];   // semua workflow milik product
@@ -43,7 +44,7 @@ export interface AdapterConfig {
     productId: string;
     endpointPath: string;
     httpMethod: 'POST' | 'PUT' | 'PATCH' | 'GET' | 'DELETE';
-    customHeaders: Record<string, string> | string;
+    customHeaders: string;
     fieldMapping: string;  // JSON string
     responseMapping: Record<string, any> | string;  // JSON string untuk extract response
     metaConfig?: string;
@@ -72,7 +73,7 @@ export interface WorkflowNode {
     inputMapping: Record<string, any>;
     nextNodeId?: string | null;
     createdAt: string;
-    
+
     // Relations (dari join)
     adapterConfig?: AdapterConfig;
 }
