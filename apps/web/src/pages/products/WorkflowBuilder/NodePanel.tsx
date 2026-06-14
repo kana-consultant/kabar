@@ -177,6 +177,55 @@ export function NodePanel({
     };
 
     // Execute node
+    // Execute node - MODIFIED VERSION
+  
+
+    // Save node changes - FIXED VERSION with proper typing
+    // Save node changes - FIXED VERSION dengan type yang benar
+    const handleSave = async () => {
+        if (!endpointPath) {
+            toast.error("Please enter an endpoint path");
+            return;
+        }
+
+        setSaving(true);
+        try {
+            // Parse custom headers - langsung sebagai string, tidak perlu JSON.stringify lagi
+            const adapterConfigUpdates: Partial<AdapterConfig> = {
+                endpoint_path: endpointPath,
+                http_method: httpMethod,
+                timeout_seconds: timeoutSeconds,
+                retry_count: retryCount,
+                updated_at: new Date().toISOString(),
+            };
+
+            // Prepare workflow node updates
+            const nodeUpdates: Partial<WorkflowNode> = {
+                input_mapping: inputMapping,
+            };
+
+            console.log("📦 Saving node with updates:", {
+                nodeUpdates,
+                adapterConfigUpdates
+            });
+
+            // Combine updates dan kirim ke onUpdate
+            onUpdate(node.id, {
+                ...nodeUpdates,
+                adapter_config: adapterConfigUpdates as any
+            });
+
+            toast.success("Node configuration saved");
+            onClose();
+        } catch (error) {
+            console.error("Save error:", error);
+            toast.error("Failed to save node configuration");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Execute node - dengan menyimpan response ke node
     const handleExecute = async () => {
         setExecuting(true);
         setExecutionResult(null);
@@ -196,7 +245,8 @@ export function NodePanel({
                 'Content-Type': 'application/json'
             };
 
-            if (customHeaders && customHeaders.trim() !== "") {
+            // Parse custom headers dari string JSON
+            if (customHeaders && customHeaders.trim() !== "" && customHeaders !== "{}") {
                 try {
                     const customHeadersObj = JSON.parse(customHeaders);
                     headers = { ...headers, ...customHeadersObj };
@@ -252,6 +302,22 @@ export function NodePanel({
             console.log("Response Data:", data);
             console.groupEnd();
 
+            // SAVE RESPONSE DATA TO NODE untuk placeholder
+            if (response.ok && data) {
+                console.log("💾 Saving response data to node for placeholders...");
+
+                // Update node dengan response data
+                onUpdate(node.id, {
+                    last_execution: {
+                        data: data,
+                        status: response.status,
+                        timestamp: new Date().toISOString()
+                    }
+                } as any);
+
+                toast.success(`Response data saved! You can now use it as placeholder in next nodes.`);
+            }
+
             setExecutionResult({
                 success: response.ok,
                 status: response.status,
@@ -284,61 +350,6 @@ export function NodePanel({
             setExecuting(false);
         }
     };
-
-    // Save node changes - FIXED VERSION with proper typing
-    const handleSave = async () => {
-        if (!endpointPath) {
-            toast.error("Please enter an endpoint path");
-            return;
-        }
-
-        if (!validateHeaders(customHeaders)) {
-            toast.error("Invalid custom headers JSON");
-            return;
-        }
-
-        setSaving(true);
-        try {
-            // Parse custom headers
-            let headersObj: string = "{}";
-            if (customHeaders && customHeaders.trim() !== "") {
-                try {
-                    headersObj = JSON.stringify(customHeaders);
-                } catch (e) {
-                    console.error("Failed to parse custom headers", e);
-                }
-            }
-
-            // Prepare adapter config updates (tanpa duplikasi)
-            const adapterConfigUpdates: Partial<AdapterConfig> = {
-                endpoint_path: endpointPath,
-                http_method: httpMethod,
-                timeout_seconds: timeoutSeconds,
-                retry_count: retryCount,
-                custom_headers: headersObj,
-                updated_at: new Date().toISOString(),
-            };
-
-            // Prepare workflow node updates
-            const nodeUpdates: Partial<WorkflowNode> = {
-                input_mapping: inputMapping,
-            };
-
-            // Combine updates dan kirim ke onUpdate
-            onUpdate(node.id, {
-                ...nodeUpdates,
-                adapter_config: adapterConfigUpdates as any
-            });
-
-            toast.success("Node configuration saved");
-            onClose();
-        } catch (error) {
-            console.error("Save error:", error);
-            toast.error("Failed to save node configuration");
-        } finally {
-            setSaving(false);
-        }
-    };
     // Delete node
     const handleDelete = () => {
         if (confirm("Are you sure you want to delete this node?")) {
@@ -361,14 +372,14 @@ export function NodePanel({
                 <DialogHeader>
                     <DialogTitle className="flex items-center justify-between">
                         <span>Configure Node - Step {currentNodeStepOrder}</span>
-                        <Button
+                        {/* <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleDelete}
                             className="text-red-500 hover:text-red-700"
                         >
                             <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </Button> */}
                     </DialogTitle>
                     <DialogDescription>
                         Configure the endpoint and input mapping for this workflow step
@@ -440,27 +451,6 @@ export function NodePanel({
                                     onChange={(e) => setRetryCount(parseInt(e.target.value) || 3)}
                                 />
                             </div>
-                        </div>
-
-                        {/* Custom Headers */}
-                        <div className="space-y-2">
-                            <Label>Custom Headers (JSON)</Label>
-                            <Textarea
-                                placeholder='{"Authorization": "Bearer token", "X-Custom": "value"}'
-                                value={customHeaders}
-                                onChange={(e) => {
-                                    setCustomHeaders(e.target.value);
-                                    validateHeaders(e.target.value);
-                                }}
-                                rows={3}
-                                className="font-mono text-sm"
-                            />
-                            {headersError && (
-                                <p className="text-xs text-red-500">{headersError}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                                Enter custom headers as JSON object. Content-Type is automatically added.
-                            </p>
                         </div>
 
                         {/* URL Preview */}

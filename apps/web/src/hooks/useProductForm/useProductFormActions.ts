@@ -131,66 +131,66 @@ export function useProductFormActions(
 
     // Update node in workflow
     // Update node in workflow
+    // Update node in workflow
     const updateNodeInWorkflow = (
         workflowId: string,
         nodeId: string,
         updates: Partial<WorkflowNode> & { adapter_config?: Partial<AdapterConfig> }
     ) => {
-        console.log("🚀 updateNodeInWorkflow CALLED with:", { workflowId, nodeId, updates });
-        console.trace(); // Untuk melihat stack trace siapa yang memanggil
+        console.log(`🔄 updateNodeInWorkflow:`, { workflowId, nodeId, updates });
 
         setProduct((prev: Partial<Product>) => {
-            console.log("📦 Inside setProduct, current workflows:", prev.workflows?.length);
-
-            const updatedWorkflows = prev.workflows?.map(workflow => {
-                console.log(`  Checking workflow: ${workflow.id} === ${workflowId}?`, workflow.id === workflowId);
-
-                if (workflow.id === workflowId) {
-                    console.log(`  ✅ Found target workflow: ${workflow.name}`);
-
-                    const updatedNodes = workflow.nodes?.map(node => {
-                        console.log(`    Checking node: ${node.id} === ${nodeId}?`, node.id === nodeId);
-
-                        if (node.id === nodeId) {
-                            console.log(`    ✅ Found target node`);
-
-                            const { adapter_config, ...nodeUpdates } = updates;
-                            console.log(`    Node updates:`, nodeUpdates);
-                            console.log(`    Adapter config updates:`, adapter_config);
-
-                            let updatedNode = {
-                                ...node,
-                                ...nodeUpdates,
-                                updated_at: new Date().toISOString()
-                            };
-
-                            if (adapter_config) {
-                                console.log(`    📡 Updating adapter_config`);
-                                updatedNode = {
-                                    ...updatedNode,
-                                    adapter_config: {
-                                        ...node.adapter_config,
-                                        ...adapter_config,
-                                        updated_at: new Date().toISOString()
-                                    } as AdapterConfig
-                                };
-                            }
-
-                            return updatedNode;
-                        }
-                        return node;
-                    }) || [];
-
-                    return {
+            const updatedWorkflows = prev.workflows?.map(workflow =>
+                workflow.id === workflowId
+                    ? {
                         ...workflow,
-                        nodes: updatedNodes,
-                        updated_at: new Date().toISOString(),
-                    };
-                }
-                return workflow;
-            }) || [];
+                        nodes: workflow.nodes?.map(node => {
+                            if (node.id === nodeId) {
+                                // Ambil adapter_config dari updates
+                                const { adapter_config, ...nodeUpdates } = updates;
 
-            console.log("✅ Updated workflows:", updatedWorkflows.length);
+                                // Update node
+                                let updatedNode = {
+                                    ...node,
+                                    ...nodeUpdates,
+                                    updated_at: new Date().toISOString()
+                                };
+
+                                // Update adapter_config jika ada
+                                if (adapter_config) {
+                                    console.log("📡 Updating adapter_config:", adapter_config);
+
+                                    // Pastikan custom_headers tetap sebagai string
+                                    let customHeadersStr = adapter_config.custom_headers;
+                                    if (customHeadersStr && typeof customHeadersStr === 'object') {
+                                        customHeadersStr = JSON.stringify(customHeadersStr);
+                                    }
+
+                                    updatedNode = {
+                                        ...updatedNode,
+                                        adapter_config: {
+                                            ...node.adapter_config,
+                                            ...adapter_config,
+                                            custom_headers: customHeadersStr || node.adapter_config?.custom_headers,
+                                            updated_at: new Date().toISOString()
+                                        } as AdapterConfig
+                                    };
+                                }
+
+                                console.log(`✅ Node ${nodeId} updated:`, {
+                                    nodeUpdates,
+                                    hasAdapterConfig: !!adapter_config,
+                                    step_order: updatedNode.step_order,
+                                });
+
+                                return updatedNode;
+                            }
+                            return node;
+                        }) || [],
+                        updated_at: new Date().toISOString(),
+                    }
+                    : workflow
+            ) || [];
 
             return {
                 ...prev,
