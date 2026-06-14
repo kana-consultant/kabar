@@ -32,8 +32,8 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     </Label>
                     <Input
                         id="name"
-                        value={product.name}
-                        onChange={(e : any) => onUpdate({ name: e.target.value })}
+                        value={product.name || ''}  // ← FIX: default empty string
+                        onChange={(e) => onUpdate({ name: e.target.value })}
                         placeholder="Contoh: Toko Saya"
                         className="h-10"
                     />
@@ -44,8 +44,8 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                         Platform
                     </Label>
                     <Select
-                        value={product.platform}
-                        onValueChange={(v : any) => onUpdate({ platform: v as any })}
+                        value={product.platform || ''}  // ← FIX: default empty string
+                        onValueChange={(v) => onUpdate({ platform: v as any })}
                     >
                         <SelectTrigger className="h-10">
                             <SelectValue placeholder="Pilih platform" />
@@ -64,8 +64,8 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     </Label>
                     <Input
                         id="apiEndpoint"
-                        value={product.apiEndpoint}
-                        onChange={(e : any) => onUpdate({ apiEndpoint: e.target.value })}
+                        value={product.api_endpoint || ''}  // ← FIX: default empty string
+                        onChange={(e) => onUpdate({ api_endpoint: e.target.value })}
                         placeholder="https://domain.com/wp-json/wp/v2"
                         className="h-10 font-mono text-sm"
                     />
@@ -81,8 +81,8 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     <Input
                         id="apiKey"
                         type="password"
-                        value={product.apiKey}
-                        onChange={(e : any) => onUpdate({ apiKey: e.target.value })}
+                        value={product.api_key || ''}  // ← FIX: default empty string
+                        onChange={(e) => onUpdate({ api_key: e.target.value })}
                         placeholder="Masukkan API Key"
                         className="h-10"
                     />
@@ -96,7 +96,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     <Button
                         type="button"
                         onClick={onTestConnection}
-                        disabled={isTesting}
+                        disabled={isTesting || !product.api_endpoint}  // ← FIX: disable if no endpoint
                         className="w-full"
                         variant="outline"
                     >

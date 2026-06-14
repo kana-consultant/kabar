@@ -1,11 +1,7 @@
 // src/services/workflowService.ts
 
 import { apiClient } from '../api';
-import type {
-  WorkflowDefinition,
-  WorkflowNode,
-  WorkflowWithNodes,
-} from '../../types/workflow';
+import type { WorkflowDefinition, WorkflowNode } from '@/types/product';
 
 // ==================== Workflow Definitions ====================
 
@@ -99,10 +95,18 @@ export async function updateWorkflowNodesBatch(
   await apiClient.put(`/workflows/${workflowId}/nodes/batch`, { updates });
 }
 
+// NEW: Simplified updateWorkflowNodes function (alias for updateWorkflowNodesBatch)
+export async function updateWorkflowNodes(
+  workflowId: string,
+  updates: BatchUpdateNode[]
+): Promise<WorkflowNode[]> {
+  const response = await apiClient.put<WorkflowNode[]>(`/workflows/${workflowId}/nodes/batch`, { updates });
+  return response;
+}
+
 // Batch delete workflow nodes
 export async function deleteWorkflowNodesBatch(
   workflowId: string,
-  nodeIds: string[]
 ): Promise<void> {
   await apiClient.delete(`/workflows/${workflowId}/nodes/batch`);
 }
@@ -126,14 +130,4 @@ export async function saveAllWorkflowNodes(
 ): Promise<SaveNodesResponse> {
   const response = await apiClient.post<SaveNodesResponse>(`/workflows/${workflowId}/nodes`, payload);
   return response;
-}
-
-// ==================== Full Workflow with Nodes ====================
-
-export async function getWorkflowWithNodes(workflowId: string): Promise<WorkflowWithNodes> {
-  const [workflow, nodes] = await Promise.all([
-    getWorkflowById(workflowId),
-    getWorkflowNodes(workflowId),
-  ]);
-  return { ...workflow, nodes };
 }

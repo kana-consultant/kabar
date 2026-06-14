@@ -22,7 +22,7 @@ export function WorkflowList({
         return <div className="text-sm text-muted-foreground">Loading...</div>;
     }
 
-    if (workflows.length === 0) {
+    if (workflows?.length === 0) {
         return (
             <div className="text-sm text-muted-foreground">
                 Belum ada workflow
@@ -32,7 +32,7 @@ export function WorkflowList({
 
     return (
         <div className="space-y-1">
-            {workflows.map((wf) => (
+            {workflows?.map((wf) => (
                 <div
                     key={wf.id}
                     className={`flex items-center justify-between p-2 rounded cursor-pointer text-sm ${selectedId === wf.id

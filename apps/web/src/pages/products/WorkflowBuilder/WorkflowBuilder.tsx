@@ -1,7 +1,7 @@
 // src/pages/products/WorkflowBuilder/WorkflowBuilder.tsx
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Plus, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Pencil, Trash2, Maximize2, Minimize2 } from "lucide-react";
-import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kana-consultant/ui-kit";
+import { ChevronLeft, ChevronRight as ChevronRightIcon, Pencil, Trash2, Maximize2, Minimize2 } from "lucide-react";
+import { Button } from "@kana-consultant/ui-kit";
 import ReactFlow, {
   Controls,
   Background,
@@ -12,607 +12,383 @@ import ReactFlow, {
 } from "reactflow";
 import type { Connection, Node, Edge } from "reactflow";
 import "reactflow/dist/style.css";
-import { useWorkflow } from "@/hooks/useWorkflow";
 import { WorkflowList } from "./WorkflowList";
 import { NodePanel } from "./NodePanel";
-import { AdapterNode } from "./AdapterNode";
-import { getWorkflowNodes } from "@/services/workflow/workflowService";
-import type { AdapterConfig, Product } from "@/types/product";
+import { WorkflowNode as WorkflowNodeComponent } from "./WorkflowNode";
+import type { Product, WorkflowDefinition, WorkflowNode as WorkflowNodeType, AdapterConfig } from "@/types/product";
 
 interface WorkflowBuilderProps {
   productId: string;
-  adapterConfigs: AdapterConfig[];
   product: Product;
-  onUpdateAdapterConfigs?: (adapterConfigs: AdapterConfig[]) => void;
+  selectedWorkflowId?: string;
+  onWorkflowSelect: (workflowId: string) => void;
+  onWorkflowDelete: (workflowId: string) => void;
+  onWorkflowCreate: (name: string) => void;
+  onNodeAdd: (node: WorkflowNodeType) => void;
+  onNodeUpdate: (nodeId: string, updates: Partial<WorkflowNodeType>) => void;
+  onNodeDelete: (nodeId: string) => void;
   onChange?: (workflowId: string) => void;
-  initialWorkflowId?: string;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 }
 
-const nodeTypes = {
-  adapterNode: AdapterNode,
-};
-
-interface TempWorkflowNode {
-  id: string;
-  workflowId: string;
-  adapterConfigId: string;
-  stepOrder: number;
-  inputMapping: Record<string, any>;
-  previousNodeIds?: string[];
-  nextNodeId?: string | null;
-  createdAt: string;
-  updatedAt: string;
+interface FlowNodeData {
+  label: string;
+  workflowNode: WorkflowNodeType;
+  adapterConfig: AdapterConfig;
 }
+
+type FlowNode = Node<FlowNodeData>;
+
+const nodeTypes = {
+  workflowNode: WorkflowNodeComponent,
+};
 
 export function WorkflowBuilder({
   productId,
-  adapterConfigs,
   product,
-  onUpdateAdapterConfigs,
+  selectedWorkflowId: externalSelectedWorkflowId,
+  onWorkflowSelect,
+  onWorkflowDelete,
+  onWorkflowCreate,
+  onNodeAdd,
+  onNodeUpdate,
+  onNodeDelete,
   onChange,
-  initialWorkflowId,
   isFullscreen = false,
   onToggleFullscreen
 }: WorkflowBuilderProps) {
-  const {
-    workflows,
-    loading: workflowLoading,
-    createWorkflow,
-    deleteWorkflow,
-  } = useWorkflow(productId);
-
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(initialWorkflowId || null);
-  const [workflowName, setWorkflowName] = useState("");
-  const [showNewInput, setShowNewInput] = useState(false);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [isDragSectionExpanded, setIsDragSectionExpanded] = useState(true);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(externalSelectedWorkflowId || null);
+  const [selectedNode, setSelectedNode] = useState<FlowNode | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isInitialLoading, setIsInitialLoading] = useState(false);
-  const [showAdapterModal, setShowAdapterModal] = useState(false);
-  const [editingAdapter, setEditingAdapter] = useState<AdapterConfig | null>(null);
-  const [newAdapter, setNewAdapter] = useState<Partial<AdapterConfig>>({
-    endpointPath: "",
-    httpMethod: "POST",
-    customHeaders: "{}",
-    fieldMapping: "{}",
-    responseMapping: {},
-    metaConfig: "{}",
-    sitemapConfig: "{}",
-    timeoutSeconds: 30,
-    retryCount: 3,
-  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-  const [tempNodes, setTempNodes] = useState<Record<string, TempWorkflowNode[]>>({});
-  const [deletedNodes, setDeletedNodes] = useState<Record<string, string[]>>({});
-  const [updatedNodes, setUpdatedNodes] = useState<Record<string, Record<string, any>>>({});
+  // Get current workflow from product
+  const currentWorkflow = product.workflows?.find(w => w.id === selectedWorkflowId);
 
-  // Helper function to generate readable temporary node ID
-  const generateTempId = (endpointPath: string = "node") => {
-    const cleanName = endpointPath
-      .replace(/^\//, '') // Remove leading slash
-      .replace(/[^a-zA-Z0-9]/g, '_') // Replace special chars with underscore
-      .substring(0, 20); // Limit length
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substr(2, 4);
-    return `draft_${cleanName}_${timestamp}_${random}`;
-  };
-
-  // Handle save adapter
-  const handleSaveAdapter = () => {
-    if (!newAdapter.endpointPath) return;
-
-    if (editingAdapter) {
-      const updated = adapterConfigs.map(a =>
-        a.id === editingAdapter.id
-          ? { ...a, ...newAdapter, id: a.id } as AdapterConfig
-          : a
-      );
-      onUpdateAdapterConfigs?.(updated);
-    } else {
-      const adapter: AdapterConfig = {
-        id: `adapter_${Date.now()}`,
-        productId,
-        endpointPath: newAdapter.endpointPath || "",
-        httpMethod: newAdapter.httpMethod as any || "POST",
-        customHeaders: newAdapter.customHeaders || "{}",
-        fieldMapping: newAdapter.fieldMapping || "{}",
-        responseMapping: newAdapter.responseMapping || {},
-        metaConfig: newAdapter.metaConfig || "{}",
-        sitemapConfig: newAdapter.sitemapConfig || "{}",
-        timeoutSeconds: newAdapter.timeoutSeconds || 30,
-        retryCount: newAdapter.retryCount || 3,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      onUpdateAdapterConfigs?.([...adapterConfigs, adapter]);
-    }
-
-    setShowAdapterModal(false);
-    setEditingAdapter(null);
-    setNewAdapter({
-      endpointPath: "",
-      httpMethod: "POST",
-      customHeaders: "{}",
-      fieldMapping: "{}",
-      responseMapping: {},
-      metaConfig: "{}",
-      sitemapConfig: "{}",
-      timeoutSeconds: 30,
-      retryCount: 3,
-    });
-  };
-
-  const handleEditAdapter = (adapter: AdapterConfig) => {
-    setEditingAdapter(adapter);
-    setNewAdapter(adapter);
-    setShowAdapterModal(true);
-  };
-
-  const handleDeleteAdapter = (id: string) => {
-    onUpdateAdapterConfigs?.(adapterConfigs.filter(a => a.id !== id));
-  };
-
-  // Load initial workflow jika ada initialWorkflowId
+  // Sync selected workflow dengan external
   useEffect(() => {
-    if (initialWorkflowId && workflows.length > 0) {
-      const workflowExists = workflows.some(w => w.id === initialWorkflowId);
-      if (workflowExists) {
-        setSelectedWorkflowId(initialWorkflowId);
-        const workflow = workflows.find(w => w.id === initialWorkflowId);
-        if (workflow) {
-          setWorkflowName(workflow.name);
-        }
-        loadWorkflowNodes(initialWorkflowId);
-      }
+    if (externalSelectedWorkflowId) {
+      setSelectedWorkflowId(externalSelectedWorkflowId);
     }
-  }, [initialWorkflowId, workflows]);
+  }, [externalSelectedWorkflowId]);
 
-  const loadWorkflowNodes = useCallback(async (workflowId: string) => {
-    setIsInitialLoading(true);
-    try {
-      const backendNodes = await getWorkflowNodes(workflowId);
-      if (!backendNodes) return;
-
-      const flowNodes: Node[] = backendNodes.map((wn: any, index: number) => ({
-        id: wn.id,
-        type: "adapterNode",
-        position: { x: 250, y: index * 150 + 50 },
-        data: {
-          label: `Node ${wn.stepOrder}`,
-          workflowNode: wn,
-          adapterConfig: adapterConfigs.find((c) => c.id === wn.adapterConfigId),
-          isTemp: false,
-        },
-      }));
-      setNodes(flowNodes);
-
-      const edgeMap = new Map<string, Edge>();
-
-      backendNodes.forEach((node: any) => {
-        // ===== RELASI DARI nextNodeId =====
-        if (node.nextNodeId) {
-          const edgeId = `e-${node.id}-${node.nextNodeId}`;
-
-          edgeMap.set(edgeId, {
-            id: edgeId,
-            source: node.id,
-            target: node.nextNodeId,
-            sourceHandle: null,
-            targetHandle: null,
-            animated: true,
-          });
-        }
-
-        // ===== RELASI DARI previousNodeIds =====
-        if (
-          Array.isArray(node.previousNodeIds) &&
-          node.previousNodeIds.length > 0
-        ) {
-          node.previousNodeIds.forEach((prevId: string) => {
-            const edgeId = `e-${prevId}-${node.id}`;
-
-            edgeMap.set(edgeId, {
-              id: edgeId,
-              source: prevId,
-              target: node.id,
-              sourceHandle: null,
-              targetHandle: null,
-              animated: true,
-            });
-          });
-        }
-      });
-
-      const flowEdges = Array.from(edgeMap.values());
-
-      setEdges(flowEdges);
-
-      setTempNodes(prev => ({ ...prev, [workflowId]: [] }));
-      setDeletedNodes(prev => ({ ...prev, [workflowId]: [] }));
-      setUpdatedNodes(prev => ({ ...prev, [workflowId]: {} }));
-    } catch (error) {
-      console.error("Failed to load workflow nodes:", error);
-    } finally {
-      setIsInitialLoading(false);
+  // Load workflow nodes dari product
+  useEffect(() => {
+    if (!selectedWorkflowId || !currentWorkflow) {
+      setNodes([]);
+      setEdges([]);
+      return;
     }
-  }, [adapterConfigs, setNodes, setEdges]);
 
-  const handleSelectWorkflow = async (workflowId: string) => {
-    setSelectedWorkflowId(workflowId);
-    const workflow = workflows.find(w => w.id === workflowId);
-    if (workflow) {
-      setWorkflowName(workflow.name);
-    }
-    await loadWorkflowNodes(workflowId);
+    const workflowNodes = currentWorkflow.nodes || [];
 
-    if (onChange) {
-      onChange(workflowId);
-    }
-  };
-
-  const handleCreateWorkflow = async () => {
-    if (!workflowName.trim()) return;
-    const wf = await createWorkflow(workflowName.trim());
-    if (wf) {
-      setWorkflowName("");
-      setShowNewInput(false);
-      setSelectedWorkflowId(wf.id);
-      setTempNodes(prev => ({ ...prev, [wf.id]: [] }));
-
-      if (onChange) {
-        onChange(wf.id);
-      }
-    }
-  };
-
-  const handleUpdateNode = useCallback(
-    async (nodeId: string, updates: Record<string, any>) => {
-      console.log("📝 Updating node:", nodeId, updates); // ← DEBUG
-
-      if (nodeId.startsWith('draft_') && selectedWorkflowId) {
-        setTempNodes(prev => {
-          const workflowTempNodes = [...(prev[selectedWorkflowId] || [])];
-          const nodeIndex = workflowTempNodes.findIndex(n => n.id === nodeId);
-          if (nodeIndex !== -1) {
-            workflowTempNodes[nodeIndex] = {
-              ...workflowTempNodes[nodeIndex],
-              ...updates
-            };
-          }
-          return { ...prev, [selectedWorkflowId]: workflowTempNodes };
-        });
-      } else if (selectedWorkflowId) {
-        // Update real node
-        setUpdatedNodes(prev => ({
-          ...prev,
-          [selectedWorkflowId]: {
-            ...prev[selectedWorkflowId],
-            [nodeId]: {
-              ...prev[selectedWorkflowId]?.[nodeId],
-              ...updates
-            }
-          }
-        }));
-      }
-
-      // 🔥 UPDATE NODE DI STATE LANGSUNG
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId
-            ? {
-              ...n,
-              data: {
-                ...n.data,
-                workflowNode: {
-                  ...n.data.workflowNode,
-                  ...updates
-                },
-              },
-            }
-            : n
-        )
-      );
-    },
-    [setNodes, selectedWorkflowId]
-  );
-
-  const updateNodeRelationship = (
-    sourceId: string,
-    targetId: string
-  ) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        const workflowNode = node.data.workflowNode || {};
-
-        if (node.id === sourceId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              workflowNode: {
-                ...workflowNode,
-                nextNodeId: targetId,
-              },
-            },
-          };
-        }
-
-        if (node.id === targetId) {
-          const prevIds = workflowNode.previousNodeIds || [];
-
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              workflowNode: {
-                ...workflowNode,
-                previousNodeIds: prevIds.includes(sourceId)
-                  ? prevIds
-                  : [...prevIds, sourceId],
-              },
-            },
-          };
-        }
-
-        return node;
-      })
-    );
-  };
-
-
-  const updateRealNodeRelationship = (
-    workflowId: string,
-    sourceId: string,
-    targetId: string
-  ) => {
-    setUpdatedNodes((prev) => ({
-      ...prev,
-      [workflowId]: {
-        ...prev[workflowId],
-
-        [sourceId]: {
-          ...prev[workflowId]?.[sourceId],
-          nextNodeId: targetId,
-        },
-
-        [targetId]: {
-          ...prev[workflowId]?.[targetId],
-          previousNodeIds: [
-            ...(prev[workflowId]?.[targetId]
-              ?.previousNodeIds || []),
-            sourceId,
-          ].filter(
-            (v, i, arr) => arr.indexOf(v) === i
-          ),
-        },
-      },
-    }));
-  };
-
-
-  const updateTempNodeRelationship = (
-    workflowId: string,
-    sourceId: string,
-    targetId: string
-  ) => {
-    setTempNodes((prev) => {
-      const workflowTempNodes = [
-        ...(prev[workflowId] || [])
-      ];
-
-      const updated = workflowTempNodes.map((node) => {
-        if (node.id === sourceId) {
-          return {
-            ...node,
-            nextNodeId: targetId,
-          };
-        }
-
-        if (node.id === targetId) {
-          return {
-            ...node,
-            previousNodeIds: [
-              ...(node.previousNodeIds || []),
-              sourceId,
-            ].filter(
-              (v, i, arr) => arr.indexOf(v) === i
-            ),
-          };
-        }
-
-        return node;
-      });
+    // Transform WorkflowNode ke FlowNode
+    const flowNodes: FlowNode[] = workflowNodes.map((node, index) => {
+      const adapterConfig = node.adapter_config!;
 
       return {
-        ...prev,
-        [workflowId]: updated,
+        id: node.id,
+        type: "workflowNode",
+        position: { x: 250, y: index * 150 + 50 },
+        data: {
+          label: `Step ${node.step_order}: ${adapterConfig.endpoint_path}`,
+          workflowNode: node,
+          adapterConfig: adapterConfig,
+        },
+        draggable: true,
+        selectable: true,
       };
     });
+
+    setNodes(flowNodes);
+
+    // Create edges from node relationships
+    const flowEdges: Edge[] = [];
+    workflowNodes.forEach((node) => {
+      if (node.next_node_id) {
+        flowEdges.push({
+          id: `e-${node.id}-${node.next_node_id}`,
+          source: node.id,
+          target: node.next_node_id,
+          animated: true,
+        });
+      }
+    });
+
+    setEdges(flowEdges);
+  }, [selectedWorkflowId, currentWorkflow, setNodes, setEdges]);
+
+  const handleSelectWorkflow = (workflowId: string) => {
+    setSelectedWorkflowId(workflowId);
+    onWorkflowSelect(workflowId);
+    onChange?.(workflowId);
   };
 
+  const handleCreateWorkflow = () => {
+    const name = `Workflow ${new Date().toLocaleDateString()}`;
+    onWorkflowCreate(name);
+  };
+
+  // Update node data
+  const handleUpdateNode = useCallback(async (nodeId: string, updates: Partial<WorkflowNodeType> & { adapter_config?: Partial<AdapterConfig> }) => {
+    console.log(`🔄 handleUpdateNode called:`, { nodeId, updates });
+
+    const nodeToUpdate = nodes.find(n => n.id === nodeId);
+    if (!nodeToUpdate) {
+      console.warn(`Node ${nodeId} not found`);
+      return;
+    }
+
+    // Pisahkan adapter_config dari updates
+    const { adapter_config, ...nodeUpdates } = updates;
+
+    console.log("📦 Updates breakdown:", {
+      nodeUpdates,
+      adapter_config
+    });
+
+    // Update local state immediately
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id === nodeId) {
+          let updatedNode = { ...n.data.workflowNode, ...nodeUpdates };
+          let updatedAdapterConfig = n.data.adapterConfig;
+          let endpointPath = n.data.adapterConfig?.endpoint_path || '/unknown';
+
+          // Update adapter config if provided
+          if (adapter_config) {
+            updatedAdapterConfig = {
+              ...n.data.adapterConfig,
+              ...adapter_config,
+              updated_at: new Date().toISOString()
+            };
+            endpointPath = adapter_config.endpoint_path || endpointPath;
+            console.log("✅ Adapter config updated:", updatedAdapterConfig);
+          }
+
+          const newLabel = `Step ${updatedNode.step_order}: ${endpointPath}`;
+
+          console.log("✅ Node updated:", {
+            step_order: updatedNode.step_order,
+            endpoint: endpointPath,
+            label: newLabel,
+            input_mapping: updatedNode.input_mapping
+          });
+
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              workflowNode: updatedNode,
+              adapterConfig: updatedAdapterConfig,
+              label: newLabel,
+            },
+          };
+        }
+        return n;
+      })
+    );
+
+    // Call parent handler - kirim kedua updates
+    if (adapter_config) {
+      // Jika ada adapter_config, update melalui onNodeUpdate dengan kedua data
+      onNodeUpdate(nodeId, {
+        ...nodeUpdates,
+        adapter_config: adapter_config
+      });
+    } else {
+      // Jika hanya node updates
+      onNodeUpdate(nodeId, nodeUpdates);
+    }
+
+    console.log(`✅ Update complete for node ${nodeId}`);
+  }, [nodes, onNodeUpdate]);
+
+  // Handle connection between nodes
   const onConnect = useCallback(
-    (connection: Connection) => {
-      if (!connection.source || !connection.target) return;
+    async (connection: Connection) => {
+      if (!connection.source || !connection.target || !selectedWorkflowId) return;
 
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...connection,
-            id: `e-${connection.source}-${connection.target}`,
-            animated: true,
-          },
-          eds
-        )
+      const edgeExists = edges.some(
+        e => e.source === connection.source && e.target === connection.target
       );
 
-      // ReactFlow state
-      updateNodeRelationship(
-        connection.source,
-        connection.target
-      );
-
-      if (!selectedWorkflowId) return;
-
-      const sourceIsTemp =
-        connection.source.startsWith("draft_");
-
-      const targetIsTemp =
-        connection.target.startsWith("draft_");
-
-      if (sourceIsTemp || targetIsTemp) {
-        updateTempNodeRelationship(
-          selectedWorkflowId,
-          connection.source,
-          connection.target
-        );
+      if (edgeExists) {
+        setError("Connection already exists between these nodes");
+        return;
       }
 
-      updateRealNodeRelationship(
-        selectedWorkflowId,
-        connection.source,
-        connection.target
-      );
-    },
-    [selectedWorkflowId]
-  );
+      const newEdge = {
+        id: `e-${connection.source}-${connection.target}`,
+        source: connection.source,
+        target: connection.target,
+        animated: true,
+      };
 
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }, []);
+      setEdges((eds) => addEdge(newEdge, eds));
 
-  const onDrop = useCallback(
-    async (event: React.DragEvent) => {
-      event.preventDefault();
-      const adapterConfigId = event.dataTransfer.getData("adapterConfigId");
-      if (!adapterConfigId || !reactFlowWrapper.current) return;
+      // Update source node's next_node_id
+      await handleUpdateNode(connection.source, { next_node_id: connection.target });
 
-      const config = adapterConfigs.find((c) => c.id === adapterConfigId);
-      if (!config) return;
-
-      let currentWorkflowId = selectedWorkflowId;
-
-      if (!currentWorkflowId) {
-        const defaultWorkflowName = `Workflow ${new Date().toLocaleString()}`;
-        const newWorkflow = await createWorkflow(defaultWorkflowName);
-        if (newWorkflow) {
-          currentWorkflowId = newWorkflow.id;
-          setSelectedWorkflowId(newWorkflow.id);
-          setWorkflowName(defaultWorkflowName);
-          setTempNodes(prev => ({ ...prev, [newWorkflow.id]: [] }));
-
-          if (onChange) {
-            onChange(newWorkflow.id);
-          }
-        } else {
-          return;
+      // Update target node's previous_node_ids
+      const targetNode = nodes.find(n => n.id === connection.target);
+      if (targetNode) {
+        const currentPrevIds = targetNode.data.workflowNode.previous_node_ids || [];
+        if (!currentPrevIds.includes(connection.source)) {
+          await handleUpdateNode(connection.target, {
+            previous_node_ids: [...currentPrevIds, connection.source]
+          });
         }
       }
-
-      const rect = reactFlowWrapper.current.getBoundingClientRect();
-      const position = {
-        x: event.clientX - rect.left - 75,
-        y: event.clientY - rect.top - 25,
-      };
-
-      const tempId = generateTempId(config.endpointPath);
-      const stepOrder = nodes.filter(n => !n.id.startsWith('draft_')).length +
-        (tempNodes[currentWorkflowId]?.length || 0) + 1;
-
-      const tempWorkflowNode: TempWorkflowNode = {
-        id: tempId,
-        workflowId: currentWorkflowId,
-        adapterConfigId,
-        stepOrder,
-        inputMapping: {},
-        previousNodeIds: [], // 
-        nextNodeId: null,    // 
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setTempNodes(prev => ({
-        ...prev,
-        [currentWorkflowId]: [...(prev[currentWorkflowId] || []), tempWorkflowNode]
-      }));
-
-      const flowNode: Node = {
-        id: tempId,
-        type: "adapterNode",
-        position,
-        data: {
-          label: config.endpointPath || `Node ${stepOrder}`,
-          workflowNode: tempWorkflowNode,
-          adapterConfig: config,
-          isTemp: true,
-        },
-      };
-      setNodes((nds) => [...nds, flowNode]);
     },
-    [adapterConfigs, nodes.length, selectedWorkflowId, tempNodes, setNodes, createWorkflow, onChange]
+    [handleUpdateNode, nodes, selectedWorkflowId, setEdges, edges]
   );
 
-  const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+  const handleNodeClick = useCallback((_event: React.MouseEvent, node: FlowNode) => {
     setSelectedNode(node);
   }, []);
 
   const handleDeleteNode = useCallback(
     async (nodeId: string) => {
-      if (nodeId.startsWith('draft_') && selectedWorkflowId) {
-        setTempNodes(prev => ({
-          ...prev,
-          [selectedWorkflowId]: (prev[selectedWorkflowId] || []).filter(n => n.id !== nodeId)
-        }));
-      } else if (selectedWorkflowId) {
-        setDeletedNodes(prev => ({
-          ...prev,
-          [selectedWorkflowId]: [...(prev[selectedWorkflowId] || []), nodeId]
-        }));
+      if (!selectedWorkflowId) return;
 
-        setUpdatedNodes(prev => {
-          const currentUpdates = prev[selectedWorkflowId] || {};
-          const { [nodeId]: _, ...rest } = currentUpdates;
-          return {
-            ...prev,
-            [selectedWorkflowId]: rest
-          };
-        });
-      }
+      const connectedEdges = edges.filter(e => e.source === nodeId || e.target === nodeId);
 
+      // Remove from UI immediately
       setNodes((nds) => nds.filter((n) => n.id !== nodeId));
       setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-      setSelectedNode(null);
+
+      if (selectedNode?.id === nodeId) {
+        setSelectedNode(null);
+      }
+
+      // Update connected nodes - remove references from previous_node_ids
+      for (const edge of connectedEdges) {
+        if (edge.target && edge.target !== nodeId) {
+          const targetNode = nodes.find(n => n.id === edge.target);
+          if (targetNode && targetNode.data.workflowNode.previous_node_ids) {
+            const updatedPrevIds = targetNode.data.workflowNode.previous_node_ids.filter(id => id !== nodeId);
+            await handleUpdateNode(edge.target, { previous_node_ids: updatedPrevIds });
+          }
+        }
+      }
+
+      // Call parent handler
+      onNodeDelete(nodeId);
     },
-    [setNodes, setEdges, selectedWorkflowId]
+    [selectedWorkflowId, setNodes, setEdges, nodes, edges, selectedNode, handleUpdateNode, onNodeDelete]
   );
 
+  // Handle tambah node - langsung dari product
+  const handleAddNode = async () => {
+    if (!selectedWorkflowId) {
+      setError("Pilih atau buat workflow terlebih dahulu");
+      return;
+    }
 
-  const hasChanges = useCallback(() => {
-    if (!selectedWorkflowId) return false;
-    return (tempNodes[selectedWorkflowId]?.length > 0 ||
-      deletedNodes[selectedWorkflowId]?.length > 0 ||
-      Object.keys(updatedNodes[selectedWorkflowId] || {}).length > 0);
-  }, [selectedWorkflowId, tempNodes, deletedNodes, updatedNodes]);
+    if (!currentWorkflow) {
+      setError("Workflow tidak ditemukan");
+      return;
+    }
 
-  if (isInitialLoading) {
-    return (
-      <div className="flex h-[600px] items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-sm text-muted-foreground">Loading workflow...</p>
-        </div>
-      </div>
-    );
-  }
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      const stepOrder = (currentWorkflow.nodes?.length || 0) + 1;
+      const nodeId = `temp-node-${Date.now()}-${Math.random()}`;
+      const adapterConfigId = `temp-adapter-${Date.now()}-${Math.random()}`;
+
+      // Default adapter config
+      const newAdapterConfig: AdapterConfig = {
+        id: adapterConfigId,
+        product_id: productId,
+        endpoint_path: "/api/default",
+        http_method: "GET",
+        timeout_seconds: 30,
+        retry_count: 3,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Default workflow node
+      const newNode: WorkflowNodeType = {
+        id: nodeId,
+        workflow_id: selectedWorkflowId,
+        adapter_config_id: adapterConfigId,
+        step_order: stepOrder,
+        input_mapping: {},
+        next_node_id: null,
+        previous_node_ids: [],
+        created_at: new Date().toISOString(),
+        adapter_config: newAdapterConfig,
+      };
+
+      // Call parent handler to add node to product
+      onNodeAdd(newNode);
+
+      // Tambahkan node ke React Flow state
+      const flowNode: FlowNode = {
+        id: nodeId,
+        type: "workflowNode",
+        position: {
+          x: 250,
+          y: (nodes.length || 0) * 120 + 50,
+        },
+        data: {
+          label: `Step ${stepOrder}: ${newAdapterConfig.endpoint_path}`,
+          workflowNode: newNode,
+          adapterConfig: newAdapterConfig,
+        },
+      };
+
+      setNodes(nds => [...nds, flowNode]);
+
+    } catch (err) {
+      console.error(err);
+      setError("Gagal membuat node");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Get workflows from product
+  const workflows = product.workflows || [];
 
   return (
     <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className={`flex gap-4 relative ${isFullscreen ? 'h-screen' : 'h-[600px]'}`}>
+        {/* Error Alert */}
+        {error && (
+          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-50 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded shadow-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="ml-2 text-red-700 hover:text-red-900"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading Overlay */}
+        {isSaving && (
+          <div className="absolute inset-0 bg-background/50 z-50 flex items-center justify-center">
+            <div className="bg-background rounded-lg shadow-lg p-4 flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+              <span className="text-sm">Menyimpan...</span>
+            </div>
+          </div>
+        )}
+
         {/* Fullscreen Toggle Button */}
         {onToggleFullscreen && (
           <button
@@ -633,59 +409,71 @@ export function WorkflowBuilder({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-sm">WORKFLOWS</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCreateWorkflow}
+                  className="h-6 px-2 text-xs"
+                >
+                  + Baru
+                </Button>
               </div>
-
               <WorkflowList
-                workflows={workflows}
+                workflows={product.workflows as WorkflowDefinition[]}
                 selectedId={selectedWorkflowId}
                 onSelect={handleSelectWorkflow}
-                onDelete={deleteWorkflow}
-                loading={workflowLoading}
+                onDelete={onWorkflowDelete}
+                loading={false}
               />
             </div>
 
-            <div className="mt-4">
-              <button
-                onClick={() => setIsDragSectionExpanded(!isDragSectionExpanded)}
-                className="flex items-center justify-between w-full text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-2"
-              >
-                <div className="flex items-center gap-1">
-                  {isDragSectionExpanded ? (
-                    <ChevronDown className="h-3 w-3" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3" />
-                  )}
-                  <span>DRAG TO CANVAS</span>
-                </div>
-                {!isDragSectionExpanded && (
-                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                    {adapterConfigs.length} items
-                  </span>
-                )}
-              </button>
+            {/* Tombol Tambah Node */}
+            <Button
+              onClick={handleAddNode}
+              className="w-full"
+              size="sm"
+              disabled={!selectedWorkflowId}
+            >
+              + Tambah Node
+            </Button>
+            {!selectedWorkflowId && (
+              <p className="text-xs text-muted-foreground text-center -mt-2">
+                Pilih atau buat workflow terlebih dahulu
+              </p>
+            )}
 
-              {isDragSectionExpanded && (
-                <>
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {adapterConfigs.map((config, index) => (
+            {/* Workflow Nodes List */}
+            {selectedWorkflowId && currentWorkflow && currentWorkflow.nodes && currentWorkflow.nodes.length > 0 && (
+              <div className="pt-3 border-t">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-sm">WORKFLOW NODES</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {currentWorkflow.nodes.length} nodes
+                  </span>
+                </div>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {nodes.map((node) => {
+                    const workflowNode = node.data.workflowNode;
+                    const endpointPath = node.data.adapterConfig?.endpoint_path || '/unknown';
+
+                    return (
                       <div
-                        key={config.id || `adapter-${index}`}
-                        className="group bg-muted rounded px-2 py-1.5 text-xs cursor-grab hover:bg-primary/10 transition-colors flex items-center justify-between"
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("adapterConfigId", config.id);
-                          e.dataTransfer.effectAllowed = "move";
-                        }}
+                        key={node.id}
+                        className={`group rounded px-2 py-1.5 text-xs cursor-pointer hover:bg-primary/10 transition-colors flex items-center justify-between ${selectedNode?.id === node.id ? 'bg-primary/20 border border-primary/50' : 'bg-muted'
+                          }`}
+                        onClick={() => handleNodeClick({} as React.MouseEvent, node)}
                       >
-                        <span className="truncate">
-                          <span className="font-mono font-bold text-primary">{config.httpMethod}</span>{" "}
-                          <span className="truncate">{config.endpointPath}</span>
+                        <span className="truncate flex items-center gap-1 flex-1">
+                          <span className="font-mono font-bold text-primary min-w-[20px]">
+                            {workflowNode.step_order}
+                          </span>
+                          <span className="truncate">{endpointPath}</span>
                         </span>
                         <div className="hidden group-hover:flex gap-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleEditAdapter(config);
+                              setSelectedNode(node);
                             }}
                             className="text-slate-500 hover:text-slate-700"
                           >
@@ -694,7 +482,7 @@ export function WorkflowBuilder({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteAdapter(config.id);
+                              handleDeleteNode(node.id);
                             }}
                             className="text-red-500 hover:text-red-700"
                           >
@@ -702,36 +490,11 @@ export function WorkflowBuilder({
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 w-full"
-                    onClick={() => {
-                      setEditingAdapter(null);
-                      setNewAdapter({
-                        endpointPath: "",
-                        httpMethod: "POST",
-                        customHeaders: "{}",
-                        fieldMapping: "{}",
-                        responseMapping: {},
-                        metaConfig: "{}",
-                        sitemapConfig: "{}",
-                        timeoutSeconds: 30,
-                        retryCount: 3,
-                      });
-                      setShowAdapterModal(true);
-                    }}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Tambah Adapter
-                  </Button>
-                </>
-              )}
-            </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -756,18 +519,15 @@ export function WorkflowBuilder({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
             onNodeClick={handleNodeClick}
             nodeTypes={nodeTypes}
             fitView
             deleteKeyCode="Delete"
-            onNodesDelete={(deletedNodes) => {
-              deletedNodes.forEach((n) => handleDeleteNode(n.id));
+            onNodesDelete={(deleted) => {
+              deleted.forEach((n) => handleDeleteNode(n.id));
             }}
           >
             <Controls />
-
             <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
           </ReactFlow>
         </div>
@@ -778,7 +538,6 @@ export function WorkflowBuilder({
             <NodePanel
               node={selectedNode}
               allNodes={nodes}
-              adapterConfigs={adapterConfigs}
               product={product}
               onClose={() => setSelectedNode(null)}
               onDelete={handleDeleteNode}
@@ -786,57 +545,6 @@ export function WorkflowBuilder({
             />
           </div>
         )}
-
-        {/* Modal Add/Edit Adapter */}
-        <Dialog open={showAdapterModal} onOpenChange={setShowAdapterModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingAdapter ? "Edit Adapter" : "Tambah Adapter Baru"}</DialogTitle>
-              <DialogDescription>
-                Definisikan endpoint API yang akan digunakan di workflow
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>HTTP Method</Label>
-                <Select
-                  value={newAdapter.httpMethod as string}
-                  onValueChange={(v) => setNewAdapter({ ...newAdapter, httpMethod: v as any })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="GET">GET</SelectItem>
-                    <SelectItem value="POST">POST</SelectItem>
-                    <SelectItem value="PUT">PUT</SelectItem>
-                    <SelectItem value="PATCH">PATCH</SelectItem>
-                    <SelectItem value="DELETE">DELETE</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Endpoint Path</Label>
-                <Input
-                  placeholder="/posts"
-                  value={newAdapter.endpointPath}
-                  onChange={(e) => setNewAdapter({ ...newAdapter, endpointPath: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Contoh: /posts, /media, /categories
-                </p>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowAdapterModal(false)}>
-                  Batal
-                </Button>
-                <Button onClick={handleSaveAdapter}>
-                  Simpan
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

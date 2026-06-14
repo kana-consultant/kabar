@@ -1,35 +1,18 @@
 import { useState } from "react";
-import type { Product, AdapterConfig } from "@/services/product";
-
-const createEmptyAdapterConfig = (): Omit<AdapterConfig, 'id' | 'productId'> => ({
-    endpointPath: "",
-    httpMethod: "POST",
-    customHeaders: JSON.stringify({ "Content-Type": "application/json" }),
-    fieldMapping: "{}",
-    responseMapping: {},
-    metaConfig: "{}",
-    sitemapConfig: "{}",
-    timeoutSeconds: 30,
-    retryCount: 3,
-});
+import type { Product } from "@/services/product";
 
 const createEmptyProduct = (): Product => ({
     id: "",
     name: "",
     platform: "wordpress",
-    apiEndpoint: "",
-    apiKey: "",
+    api_endpoint: "",
+    sync_status : "idle",
+    created_at : "", 
+    updated_at : "",
+    api_key: "",
     status: "pending",
-    syncStatus: "idle",
-    lastSync: undefined,
-    createdBy: undefined,
-    teamId: undefined,
-    userId: undefined,
-    createdAt: "",
-    updatedAt: "",
-    adapterConfig: undefined,
+    adapter_config: undefined,
     workflow_id: "",
-    adapterConfigs: [],
     workflows: [],
 });
 

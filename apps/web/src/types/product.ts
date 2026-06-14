@@ -32,7 +32,6 @@ export interface Product {
   updated_at: string;
   adapter_config?: AdapterConfig;
   workflow_id: string;
-  adapter_configs?: AdapterConfig[];
   workflows?: WorkflowDefinition[];
 }
 
@@ -41,8 +40,8 @@ export interface AdapterConfig {
   product_id: string;
   endpoint_path: string;
   http_method: 'POST' | 'PUT' | 'PATCH' | 'GET' | 'DELETE';
-  custom_headers: string;
-  field_mapping: string;
+  custom_headers?: string;
+  field_mapping?: string;
   response_mapping?: Record<string, any> | string;
   meta_config?: string;
   sitemap_config?: string;
@@ -65,6 +64,7 @@ export interface WorkflowNode {
   id: string;
   workflow_id: string;
   adapter_config_id: string;
+  previous_node_ids : string[] | null;
   step_order: number;
   input_mapping: Record<string, any>;
   next_node_id?: string | null;

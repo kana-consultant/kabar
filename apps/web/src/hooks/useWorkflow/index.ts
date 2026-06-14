@@ -3,8 +3,6 @@
 import { useState, useCallback } from "react";
 import {
   getWorkflowsByProductId,
-  getWorkflowWithNodes,
-  createWorkflow,
   updateWorkflow,
   deleteWorkflow,
   getWorkflowNodes,
@@ -12,17 +10,14 @@ import {
   updateWorkflowNode,
   deleteWorkflowNode,
   reorderWorkflowNodes,
+  updateWorkflowNodes as updateWorkflowNodesService,
 } from "@/services/workflow/workflowService";
-import type {
-  WorkflowDefinition,
-  WorkflowNode,
-  WorkflowWithNodes,
-} from "@/types/workflow";
+import type { WorkflowDefinition, WorkflowNode } from "@/types/product";
 import { useToast } from "../use-toast";
 
 export function useWorkflow(productId: string) {
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
-  const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowWithNodes | null>(null);
+  const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowDefinition | null>(null);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
 
@@ -36,89 +31,77 @@ export function useWorkflow(productId: string) {
     } finally {
       setLoading(false);
     }
-  }, [productId]);
+  }, [productId, toast]);
 
-  const fetchWorkflowWithNodes = useCallback(async (workflowId: string) => {
-    setLoading(true);
-    try {
-      const data = await getWorkflowWithNodes(workflowId);
-      setCurrentWorkflow(data);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to fetch workflow");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // const create = useCallback(async (name: string) => {
-  //   setLoading(true);
-  //   try {
-  //     const data = await createWorkflow({ productId, name });
-  //     setWorkflows((prev) => [...prev, data]);
-  //     toast.success("Workflow created");
-  //     return data;
-  //   } catch (error: any) {
-  //     toast.error(error.message || "Failed to create workflow");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }, [productId]);
-
+  // Hapus fetchWorkflowWithNodes karena tidak menggunakan getWorkflowWithNodes
 
   const create = useCallback(async (name: string) => {
     setLoading(true);
     try {
       // Create temporary workflow object
       const tempId = `temp_wf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const tempWorkflow = {
+      const tempWorkflow: WorkflowDefinition = {
         id: tempId,
-        productId: productId,
+        product_id: productId,
         name: name,
-        isActive: false,
-        isTemp: true, // Mark as temporary
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        nodes: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
-
-      // Add to local state without API call
       setWorkflows((prev) => [...prev, tempWorkflow]);
       toast.success("Workflow created locally");
-
-      // Optional: Initialize temp nodes storage for this workflow
-      // You might want to add this to a separate temp storage system
-      // For example: setTempWorkflows(prev => ({ ...prev, [tempId]: tempWorkflow }));
 
       return tempWorkflow;
     } catch (error: any) {
       toast.error(error.message || "Failed to create workflow locally");
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [productId]);
+  }, [productId, toast]);
+
   const update = useCallback(async (id: string, updates: Partial<WorkflowDefinition>) => {
     setLoading(true);
     try {
       await updateWorkflow(id, updates);
+      // Update local state
+      setWorkflows((prev) => 
+        prev.map((w) => w.id === id ? { ...w, ...updates, updated_at: new Date().toISOString() } : w)
+      );
+      // Also update currentWorkflow if it's the one being updated
+      setCurrentWorkflow((prev) => 
+        prev?.id === id ? { ...prev, ...updates, updated_at: new Date().toISOString() } : prev
+      );
       toast.success("Workflow updated");
-      fetchWorkflows();
+      return true;
     } catch (error: any) {
       toast.error(error.message || "Failed to update workflow");
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [fetchWorkflows]);
+  }, [toast]);
 
   const remove = useCallback(async (id: string) => {
     setLoading(true);
     try {
       await deleteWorkflow(id);
       setWorkflows((prev) => prev.filter((w) => w.id !== id));
+      // Clear currentWorkflow if it's the one being deleted
+      setCurrentWorkflow((prev) => prev?.id === id ? null : prev);
       toast.success("Workflow deleted");
+      return true;
     } catch (error: any) {
       toast.error(error.message || "Failed to delete workflow");
+      return false;
     } finally {
       setLoading(false);
     }
+  }, [toast]);
+
+  // Optional: Set current workflow manually (without fetching nodes)
+  const setCurrentWorkflowById = useCallback((workflow: WorkflowDefinition | null) => {
+    setCurrentWorkflow(workflow);
   }, []);
 
   return {
@@ -126,10 +109,10 @@ export function useWorkflow(productId: string) {
     currentWorkflow,
     loading,
     fetchWorkflows,
-    fetchWorkflowWithNodes,
     createWorkflow: create,
     updateWorkflow: update,
     deleteWorkflow: remove,
+    setCurrentWorkflow: setCurrentWorkflowById,
   };
 }
 
@@ -149,7 +132,7 @@ export function useWorkflowNodes(workflowId: string) {
     } finally {
       setLoading(false);
     }
-  }, [workflowId]);
+  }, [workflowId, toast]);
 
   const createNode = useCallback(async (data: Partial<WorkflowNode>) => {
     setLoading(true);
@@ -160,23 +143,29 @@ export function useWorkflowNodes(workflowId: string) {
       return node;
     } catch (error: any) {
       toast.error(error.message || "Failed to add node");
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [workflowId]);
+  }, [workflowId, toast]);
 
   const updateNode = useCallback(async (nodeId: string, updates: Partial<WorkflowNode>) => {
     setLoading(true);
     try {
       await updateWorkflowNode(nodeId, updates);
+      // Update local state
+      setNodes((prev) => 
+        prev.map((n) => n.id === nodeId ? { ...n, ...updates } : n)
+      );
       toast.success("Node updated");
-      fetchNodes();
+      return true;
     } catch (error: any) {
       toast.error(error.message || "Failed to update node");
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [fetchNodes]);
+  }, [toast]);
 
   const removeNode = useCallback(async (nodeId: string) => {
     setLoading(true);
@@ -184,24 +173,91 @@ export function useWorkflowNodes(workflowId: string) {
       await deleteWorkflowNode(nodeId);
       setNodes((prev) => prev.filter((n) => n.id !== nodeId));
       toast.success("Node deleted");
+      return true;
     } catch (error: any) {
       toast.error(error.message || "Failed to delete node");
+      return false;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   const reorderNodes = useCallback(async (nodeIds: string[]) => {
     setLoading(true);
     try {
       await reorderWorkflowNodes(workflowId, nodeIds);
-      fetchNodes();
+      // Reorder local state
+      setNodes((prev) => {
+        const orderedNodes: WorkflowNode[] = [];
+        nodeIds.forEach(id => {
+          const node = prev.find(n => n.id === id);
+          if (node) orderedNodes.push(node);
+        });
+        return orderedNodes;
+      });
+      toast.success("Nodes reordered");
+      return true;
     } catch (error: any) {
       toast.error(error.message || "Failed to reorder nodes");
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [workflowId, fetchNodes]);
+  }, [workflowId, toast]);
+
+  // Batch update multiple nodes
+  const updateWorkflowNodes = useCallback(async (
+    updates: Array<{ id: string; updates: Partial<WorkflowNode> }>
+  ) => {
+    setLoading(true);
+    try {
+      const updatedNodes = await updateWorkflowNodesService(workflowId, updates);
+      
+      // Update local state
+      setNodes((prevNodes) => {
+        const updatedMap = new Map(updatedNodes.map(node => [node.id, node]));
+        return prevNodes.map(node => updatedMap.get(node.id) || node);
+      });
+      
+      toast.success(`${updates.length} node(s) updated successfully`);
+      return updatedNodes;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update nodes");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [workflowId, toast]);
+
+  // Update same property for multiple nodes
+  const updateNodesProperty = useCallback(async (
+    nodeIds: string[],
+    property: keyof WorkflowNode,
+    value: any
+  ) => {
+    setLoading(true);
+    try {
+      const updates = nodeIds.map(id => ({
+        id,
+        updates: { [property]: value } as Partial<WorkflowNode>
+      }));
+      
+      const updatedNodes = await updateWorkflowNodesService(workflowId, updates);
+      
+      setNodes((prevNodes) => {
+        const updatedMap = new Map(updatedNodes.map(node => [node.id, node]));
+        return prevNodes.map(node => updatedMap.get(node.id) || node);
+      });
+      
+      toast.success(`Updated ${nodeIds.length} node(s)`);
+      return updatedNodes;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update nodes");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [workflowId, toast]);
 
   return {
     nodes,
@@ -211,5 +267,7 @@ export function useWorkflowNodes(workflowId: string) {
     updateNode,
     deleteNode: removeNode,
     reorderNodes,
+    updateWorkflowNodes,    // Batch update
+    updateNodesProperty,     // Update property for multiple nodes
   };
 }

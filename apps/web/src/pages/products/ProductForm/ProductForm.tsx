@@ -22,8 +22,7 @@ import {
 } from "@kana-consultant/ui-kit";
 import { useToast } from "@/hooks/use-toast";
 import { WorkflowBuilder } from "../WorkflowBuilder/WorkflowBuilder";
-import type { AdapterConfig } from "@/types/product";
-import type { Product } from "@/types/product";
+import type { Product, WorkflowDefinition, WorkflowNode, AdapterConfig } from "@/types/product";
 
 interface ProductFormProps {
     isEdit: boolean;
@@ -42,11 +41,18 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         updateMetaConfig,
         updateSitemapConfig,
         updateWorkflowId,
+        addWorkflow,
+        deleteWorkflow,
+        setActiveWorkflow,
+        addNodeToWorkflow,
+        updateNodeInWorkflow,
+        deleteNodeFromWorkflow,
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
 
     const toast = useToast();
+    const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(product?.workflow_id || null);
 
     // Modal test state
     const [showModal, setShowModal] = useState(false);
@@ -134,26 +140,65 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         }
     };
 
-    const adapterConfigs: AdapterConfig[] = product.adapterConfigs
-        ? product.adapterConfigs.map(config => ({
-            id: config.id,
-            productId: config.productId,
-            endpointPath: config.endpointPath,
-            httpMethod: config.httpMethod,
-            customHeaders: config.customHeaders,
-            fieldMapping: config.fieldMapping,
-            responseMapping: config.responseMapping,
-            metaConfig: config.metaConfig,
-            sitemapConfig: config.sitemapConfig,
-            timeoutSeconds: config.timeoutSeconds,
-            retryCount: config.retryCount,
-            createdAt: config.createdAt,
-            updatedAt: config.updatedAt,
-        }))
-        : [];
+    // Workflow handlers
+    const handleWorkflowSelect = (workflowId: string) => {
+        setSelectedWorkflowId(workflowId);
+        updateWorkflowId(workflowId);
+        setActiveWorkflow(workflowId);
+    };
 
-    console.log("HASIL AKHIR")
-    console.log(product)
+    const handleWorkflowDelete = (workflowId: string) => {
+        deleteWorkflow(workflowId);
+
+        if (selectedWorkflowId === workflowId) {
+            setSelectedWorkflowId(null);
+            updateWorkflowId("");
+        }
+
+        toast.success("Workflow berhasil dihapus");
+    };
+
+    const handleWorkflowCreate = (name: string) => {
+        const newWorkflow: WorkflowDefinition = {
+            id: `temp-workflow-${Date.now()}-${Math.random()}`,
+            product_id: product.id || "",
+            name: name,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            nodes: [],
+        };
+
+        addWorkflow(newWorkflow);
+        setSelectedWorkflowId(newWorkflow.id);
+        updateWorkflowId(newWorkflow.id);
+        setActiveWorkflow(newWorkflow.id);
+
+        toast.success(`Workflow "${name}" berhasil dibuat`);
+    };
+
+    // ProductForm.tsx
+    const handleNodeUpdate = (nodeId: string, updates: Partial<WorkflowNode> & { adapter_config?: Partial<AdapterConfig> }) => {
+        if (!selectedWorkflowId) return;
+
+        console.log("📝 ProductForm handleNodeUpdate:", {
+            selectedWorkflowId,
+            nodeId,
+            updates
+        });
+
+        // Pastikan ini memanggil updateNodeInWorkflow dari hook
+        updateNodeInWorkflow(selectedWorkflowId, nodeId, updates);
+
+        // Tambahkan log setelah pemanggilan
+        console.log("✅ Called updateNodeInWorkflow");
+    };
+
+    const handleNodeDelete = (nodeId: string) => {
+        if (!selectedWorkflowId) return;
+        deleteNodeFromWorkflow(selectedWorkflowId, nodeId);
+    };
+
+    console.log("PRODUCT WORKFLOWS", product.workflows);
 
     return (
         <div className="max-w-full mx-auto space-y-6">
@@ -187,17 +232,17 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                         isTesting={testing}
                     />
                     <ProductApiConfig
-                        config={product.adapterConfig || {}}
+                        config={product.adapter_config || {}}
                         onUpdate={updateAdapterConfig}
                     />
                 </div>
 
                 <div>
                     <ProductFieldMapping
-                        domain={product?.apiEndpoint as string || ""}
+                        domain={product?.api_endpoint as string || ""}
                         fieldMapping={(() => {
                             try {
-                                const parsed = JSON.parse(product.adapterConfig?.fieldMapping || "{}");
+                                const parsed = JSON.parse(product.adapter_config?.field_mapping || "{}");
                                 return parsed;
                             } catch (e) {
                                 return {};
@@ -205,22 +250,22 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                         })()}
                         metaConfig={(() => {
                             try {
-                                return JSON.parse(product.adapterConfig?.metaConfig || "{}");
+                                return JSON.parse(product.adapter_config?.meta_config || "{}");
                             } catch (e) {
                                 return {};
                             }
                         })()}
                         sitemapConfig={(() => {
                             try {
-                                return JSON.parse(product.adapterConfig?.sitemapConfig || "{}");
+                                return JSON.parse(product.adapter_config?.sitemap_config || "{}");
                             } catch (e) {
                                 return {};
                             }
                         })()}
                         onChange={(fieldMapping, metaConfig, sitemapConfig) => {
-                            updateFieldMapping(fieldMapping);
-                            if (metaConfig) updateMetaConfig(metaConfig);
-                            if (sitemapConfig) updateSitemapConfig(sitemapConfig);
+                            updateFieldMapping(JSON.stringify(fieldMapping));
+                            if (metaConfig) updateMetaConfig(JSON.stringify(metaConfig));
+                            if (sitemapConfig) updateSitemapConfig(JSON.stringify(sitemapConfig));
                         }}
                     />
                 </div>
@@ -231,26 +276,33 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 <div className="mb-4">
                     <h3 className="text-lg font-semibold">Workflow Builder</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Buat workflow multi-step dengan menghubungkan beberapa adapter
+                        Buat workflow multi-step dengan menghubungkan beberapa node
                     </p>
                 </div>
 
                 <WorkflowBuilder
                     productId={product.id || ""}
-                    adapterConfigs={adapterConfigs}
-                    product={product}  // ← tambahkan ini
-                    onUpdateAdapterConfigs={(newAdapterConfigs) => {
-                        updateProductInfo({ adapterConfigs: newAdapterConfigs });
-                    }}
+                    product={product}
+                    selectedWorkflowId={selectedWorkflowId || undefined}
+                    onWorkflowSelect={handleWorkflowSelect}
+                    onWorkflowDelete={handleWorkflowDelete}
+                    onWorkflowCreate={handleWorkflowCreate}
+                    onNodeAdd={addNodeToWorkflow}
+                    onNodeUpdate={handleNodeUpdate}
+                    onNodeDelete={handleNodeDelete}
                     onChange={(workflowId) => {
                         updateWorkflowId(workflowId);
+                        setActiveWorkflow(workflowId);
                     }}
                 />
             </div>
+
             {/* Save Button */}
             <ProductFormActions
                 onCancel={handleCancel}
-                onSave={handleSave}
+                onSave={() => {
+                    handleSave(product);
+                }}
                 isSaving={loading}
             />
 

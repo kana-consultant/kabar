@@ -30,10 +30,10 @@ export function useProductFormHandlers(
             const result = await testConnection(product as any);
             if (result) {
                 toast.success("Koneksi berhasil");
-                setProduct((prev: Partial<Product>) => ({ 
-                    ...prev, 
-                    status: "connected", 
-                    last_sync: new Date().toISOString() 
+                setProduct((prev: Partial<Product>) => ({
+                    ...prev,
+                    status: "connected",
+                    last_sync: new Date().toISOString()
                 }));
             } else {
                 toast.error("Koneksi gagal");
@@ -45,8 +45,11 @@ export function useProductFormHandlers(
         }
     };
 
-    const handleSave = async () => {
-        if (!product.name || !product.api_endpoint) {
+    const handleSave = async (productWithWorkflows?: Product) => {
+        // Gunakan productWithWorkflows jika ada (dari WorkflowBuilder),否则 pakai product state
+        const productToSaveRaw = productWithWorkflows || product;
+
+        if (!productToSaveRaw.name || !productToSaveRaw.api_endpoint) {
             toast.error("Isi nama produk dan API endpoint");
             return;
         }
@@ -55,27 +58,27 @@ export function useProductFormHandlers(
 
         try {
             // Prepare field mapping
-            const fieldMappingValue = typeof product.adapter_config?.field_mapping === "string"
-                ? product.adapter_config.field_mapping
-                : JSON.stringify(product.adapter_config?.field_mapping ?? [], null, 2);
+            const fieldMappingValue = typeof productToSaveRaw.adapter_config?.field_mapping === "string"
+                ? productToSaveRaw.adapter_config.field_mapping
+                : JSON.stringify(productToSaveRaw.adapter_config?.field_mapping ?? [], null, 2);
 
             // Prepare custom headers
-            const customHeadersValue = typeof product.adapter_config?.custom_headers === "string"
-                ? product.adapter_config.custom_headers
-                : JSON.stringify(product.adapter_config?.custom_headers ?? {});
+            const customHeadersValue = typeof productToSaveRaw.adapter_config?.custom_headers === "string"
+                ? productToSaveRaw.adapter_config.custom_headers
+                : JSON.stringify(productToSaveRaw.adapter_config?.custom_headers ?? {});
 
             // Prepare response mapping
-            const responseMappingValue = product.adapter_config?.response_mapping
-                ? typeof product.adapter_config.response_mapping === "string"
-                    ? product.adapter_config.response_mapping
-                    : JSON.stringify(product.adapter_config.response_mapping)
+            const responseMappingValue = productToSaveRaw.adapter_config?.response_mapping
+                ? typeof productToSaveRaw.adapter_config.response_mapping === "string"
+                    ? productToSaveRaw.adapter_config.response_mapping
+                    : JSON.stringify(productToSaveRaw.adapter_config.response_mapping)
                 : undefined;
 
             // Update product with prepared values
             const productToSave = {
-                ...product,
-                adapter_config: product.adapter_config ? {
-                    ...product.adapter_config,
+                ...productToSaveRaw,
+                adapter_config: productToSaveRaw.adapter_config ? {
+                    ...productToSaveRaw.adapter_config,
                     field_mapping: fieldMappingValue,
                     custom_headers: customHeadersValue,
                     response_mapping: responseMappingValue,

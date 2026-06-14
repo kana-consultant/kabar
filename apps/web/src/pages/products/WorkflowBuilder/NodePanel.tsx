@@ -1,23 +1,23 @@
 // src/pages/products/WorkflowBuilder/NodePanel.tsx
 import { useState, useEffect, useMemo } from "react";
-import { Trash2, Play, X } from "lucide-react";
-import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@kana-consultant/ui-kit";
+import { Trash2, Play, Save } from "lucide-react";
+import { Button, Label, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Textarea } from "@kana-consultant/ui-kit";
 import type { Node } from "reactflow";
 import { SimpleJsonBuilder } from "../SimpleJsonBuilder";
 import { useToast } from "@/hooks/use-toast";
+import type { AdapterConfig, WorkflowNode } from "@/types/product";
 
 interface NodePanelProps {
     node: Node;
-    adapterConfigs: any[];
     allNodes: Node[];
     product: {
         id: string | undefined;
-        apiEndpoint: string;
-        apiKey?: string;
+        api_endpoint: string;
+        api_key?: string;
     };
     onClose: () => void;
     onDelete: (nodeId: string) => void;
-    onUpdate: (nodeId: string, updates: Record<string, any>) => void;
+    onUpdate: (nodeId: string, updates: Partial<WorkflowNode> & { adapter_config?: Partial<AdapterConfig> }) => void;
 }
 
 interface PlaceholderItem {
@@ -28,56 +28,74 @@ interface PlaceholderItem {
 
 export function NodePanel({
     node,
-    adapterConfigs,
     allNodes,
     product,
     onClose,
     onDelete,
     onUpdate
 }: NodePanelProps) {
-    const [selectedAdapterId, setSelectedAdapterId] = useState(
-        node.data.workflowNode?.adapterConfigId || ""
-    );
-    const [inputMapping, setInputMapping] = useState<any>(
-        node.data.workflowNode?.inputMapping || {}
-    );
+    const [endpointPath, setEndpointPath] = useState<string>("");
+    const [httpMethod, setHttpMethod] = useState<AdapterConfig['http_method']>("GET");
+    const [customHeaders, setCustomHeaders] = useState<string>("{}");
+    const [timeoutSeconds, setTimeoutSeconds] = useState<number>(30);
+    const [retryCount, setRetryCount] = useState<number>(3);
+    const [inputMapping, setInputMapping] = useState<Record<string, any>>({});
     const [saving, setSaving] = useState(false);
     const [executing, setExecuting] = useState(false);
     const [executionResult, setExecutionResult] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(true);
-    const [tempSelectedAdapterId, setTempSelectedAdapterId] = useState("");
-    const [tempInputMapping, setTempInputMapping] = useState<string>("");
+    const [headersError, setHeadersError] = useState<string | null>(null);
 
     const toast = useToast();
 
-    const currentNodeStepOrder = node.data.workflowNode?.stepOrder;
+    const workflowNode = node.data.workflowNode as WorkflowNode;
+    const adapterConfig = node.data.adapterConfig as AdapterConfig;
+    const currentNodeStepOrder = workflowNode?.step_order;
     const isFirstNode = currentNodeStepOrder === 1;
 
+    // Initialize state from node data
     useEffect(() => {
-        setSelectedAdapterId(node.data.workflowNode?.adapterConfigId || "");
-        setInputMapping(node.data.workflowNode?.inputMapping || {});
-        setTempSelectedAdapterId(node.data.workflowNode?.adapterConfigId || "");
-        setTempInputMapping(node.data.workflowNode?.inputMapping || {});
-    }, [node.id, node.data.workflowNode]);
+        if (adapterConfig) {
+            setEndpointPath(adapterConfig.endpoint_path || "");
+            setHttpMethod(adapterConfig.http_method || "GET");
 
-    const selectedAdapter = adapterConfigs.find((c) => c.id === tempSelectedAdapterId);
+            // Handle custom_headers (bisa string atau object)
+            let headersStr = "{}";
+            if (typeof adapterConfig.custom_headers === 'string') {
+                headersStr = adapterConfig.custom_headers;
+            } else if (adapterConfig.custom_headers && typeof adapterConfig.custom_headers === 'object') {
+                headersStr = JSON.stringify(adapterConfig.custom_headers, null, 2);
+            }
+            setCustomHeaders(headersStr);
 
-    // ==================== GENERATE PLACEHOLDERS FROM PREVIOUS NODES ====================
+            setTimeoutSeconds(adapterConfig.timeout_seconds || 30);
+            setRetryCount(adapterConfig.retry_count || 3);
+        }
 
+        if (workflowNode) {
+            setInputMapping(workflowNode.input_mapping || {});
+        }
+    }, [adapterConfig, workflowNode]);
+
+    // Get previous nodes
     const previousNodes = useMemo(() => {
-        const previousIds = node.data.workflowNode?.previousNodeIds || [];
-        const result = allNodes.filter(n => previousIds.includes(n.id));
-        return result;
-    }, [allNodes, node.data.workflowNode?.previousNodeIds, node.id]);
+        const previousIds = workflowNode?.previous_node_ids || [];
+        return allNodes.filter(n => previousIds.includes(n.id));
+    }, [allNodes, workflowNode?.previous_node_ids]);
 
+    // Generate placeholders from previous nodes
     const generateNodePlaceholders = (prevNode: Node): PlaceholderItem[] => {
-        const nodeName = prevNode.data.workflowNode?.name || `Node ${prevNode.data.workflowNode?.stepOrder}`;
+        const prevWorkflowNode = prevNode.data.workflowNode as WorkflowNode;
+        const nodeName = prevWorkflowNode?.step_order
+            ? `Step ${prevWorkflowNode.step_order}`
+            : `Node ${prevNode.id.substring(0, 6)}`;
         const nodeId = prevNode.id;
 
-        const responseExample =
-            prevNode.data.workflowNode?.responseExample ||
-            prevNode.data.workflowNode?.lastExecution?.data ||
-            prevNode.data.workflowNode?.responseData;
+        // Get response data from last execution or response example
+        const responseData =
+            prevNode.data.responseExample ||
+            prevNode.data.lastExecution?.data ||
+            prevNode.data.workflowNode?.last_execution?.data;
 
         const placeholders: PlaceholderItem[] = [];
 
@@ -91,17 +109,33 @@ export function NodePanel({
                 if (value && typeof value === "object" && !Array.isArray(value)) {
                     generateNestedPlaceholders(value, fullPath);
                 } else {
+                    let label = fullPath;
+                    let group = `📦 ${nodeName}`;
+
+                    // Format array access
+                    if (Array.isArray(value)) {
+                        label = `${fullPath}[]`;
+                    }
+
+                    // Add value preview
+                    const valuePreview = typeof value === 'string' && value.length > 30
+                        ? value.substring(0, 30) + '...'
+                        : String(value);
+                    if (valuePreview && valuePreview !== '[object Object]') {
+                        label = `${fullPath} (${valuePreview})`;
+                    }
+
                     placeholders.push({
                         value: placeholderValue,
-                        label: fullPath,
-                        group: `🔗 ${nodeName}`
+                        label: label,
+                        group: group
                     });
                 }
             });
         };
 
-        if (responseExample && typeof responseExample === "object") {
-            generateNestedPlaceholders(responseExample, "");
+        if (responseData && typeof responseData === "object") {
+            generateNestedPlaceholders(responseData, "");
         }
 
         return placeholders;
@@ -120,135 +154,196 @@ export function NodePanel({
             }
         });
         return placeholders;
-    }, [previousNodes, isFirstNode, node.id]);
+    }, [previousNodes, isFirstNode]);
 
-    const allPlaceholders = useMemo(() => {
-        return nodePlaceholders;
-    }, [nodePlaceholders]);
-
-    // ==================== EXECUTE NODE ====================
-    const handleExecute = async () => {
-        if (!selectedAdapter) {
-            toast.error("Pilih endpoint terlebih dahulu");
-            return;
+    // Validate custom headers JSON
+    const validateHeaders = (headersStr: string): boolean => {
+        try {
+            if (headersStr.trim() === "") {
+                setHeadersError(null);
+                return true;
+            }
+            const parsed = JSON.parse(headersStr);
+            if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+                setHeadersError("Headers must be a JSON object");
+                return false;
+            }
+            setHeadersError(null);
+            return true;
+        } catch (e) {
+            setHeadersError("Invalid JSON format");
+            return false;
         }
+    };
 
+    // Execute node
+    const handleExecute = async () => {
         setExecuting(true);
         setExecutionResult(null);
 
         try {
-            const baseUrl = product.apiEndpoint?.replace(/\/$/, '') || '';
-            const endpointPath = selectedAdapter.endpointPath?.startsWith('/')
-                ? selectedAdapter.endpointPath
-                : `/${selectedAdapter.endpointPath || ''}`;
-            const fullUrl = `${baseUrl}${endpointPath}`;
+            const baseUrl = product.api_endpoint?.replace(/\/$/, '') || '';
+            const fullPath = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
+            const fullUrl = `${baseUrl}${fullPath}`;
 
-            if (!fullUrl || fullUrl === '/') {
-                toast.error("URL tidak valid. Periksa Base URL dan Endpoint Path");
-                setExecuting(false);
-                return;
-            }
+            console.group("🚀 EXECUTE REQUEST");
+            console.log("Base URL:", baseUrl);
+            console.log("Endpoint Path:", endpointPath);
+            console.log("Full URL:", fullUrl);
+            console.log("Method:", httpMethod);
 
             let headers: Record<string, string> = {
                 'Content-Type': 'application/json'
             };
 
-            if (selectedAdapter.customHeaders) {
-                if (typeof selectedAdapter.customHeaders === 'string') {
-                    try {
-                        const parsed = JSON.parse(selectedAdapter.customHeaders);
-                        headers = { ...headers, ...parsed };
-                    } catch (e) {
-                        // ignore
-                    }
-                } else {
-                    headers = { ...headers, ...selectedAdapter.customHeaders };
+            if (customHeaders && customHeaders.trim() !== "") {
+                try {
+                    const customHeadersObj = JSON.parse(customHeaders);
+                    headers = { ...headers, ...customHeadersObj };
+                } catch (e) {
+                    console.error("Failed to parse custom headers", e);
                 }
             }
 
-            if (product.apiKey) {
-                headers['X-API-Key'] = product.apiKey;
+            if (product.api_key) {
+                headers['X-API-Key'] = product.api_key;
             }
+
+            console.log("Headers:", headers);
 
             let body = null;
-            if (selectedAdapter.httpMethod !== 'GET' && selectedAdapter.httpMethod !== 'DELETE') {
-                body = JSON.stringify(tempInputMapping);
+
+            if (httpMethod !== 'GET' && httpMethod !== 'DELETE') {
+                body = JSON.stringify(inputMapping);
             }
 
+            console.log("Request Body:", body);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(
+                () => controller.abort(),
+                timeoutSeconds * 1000
+            );
+
+            console.log("Sending request...");
+
             const response = await fetch(fullUrl, {
-                method: selectedAdapter.httpMethod,
+                method: httpMethod,
                 headers,
                 body,
+                signal: controller.signal,
             });
 
-            let data;
+            clearTimeout(timeoutId);
+
+            console.log("Response Status:", response.status);
+            console.log("Response Status Text:", response.statusText);
+
             const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
+            console.log("Content Type:", contentType);
+
+            let data;
+            if (contentType?.includes('application/json')) {
                 data = await response.json();
             } else {
                 data = await response.text();
             }
 
-            if (response.ok) {
-                toast.success(`Success: ${response.status}`);
+            console.log("Response Data:", data);
+            console.groupEnd();
 
-                onUpdate(node.id, {
-                    responseExample: data,
-                    lastExecution: {
-                        status: response.status,
-                        statusText: response.statusText,
-                        timestamp: new Date().toISOString(),
-                        data
-                    }
-                });
-
-                setExecutionResult({
-                    status: response.status,
-                    statusText: response.statusText,
-                    data,
-                });
-            } else {
-                toast.error(`Error: ${response.status} ${response.statusText}`);
-                setExecutionResult({
-                    status: response.status,
-                    statusText: response.statusText,
-                    data,
-                    error: true,
-                });
-            }
-        } catch (error: any) {
-            console.error("Execution error:", error);
-            toast.error(error.message);
             setExecutionResult({
-                error: true,
-                message: error.message,
+                success: response.ok,
+                status: response.status,
+                statusText: response.statusText,
+                data: data,
+                error: !response.ok
             });
+
+            if (response.ok) {
+                toast.success(`Request successful: ${response.status} ${response.statusText}`);
+            } else {
+                toast.error(`Request failed: ${response.status} ${response.statusText}`);
+            }
+
+        } catch (error: any) {
+            console.group("❌ EXECUTION ERROR");
+            console.error("Error Message:", error?.message);
+            console.error("Full Error:", error);
+            console.groupEnd();
+
+            setExecutionResult({
+                success: false,
+                error: true,
+                message: error?.message || "Unknown error occurred",
+                data: null
+            });
+
+            toast.error(error?.message || "Failed to execute request");
         } finally {
             setExecuting(false);
         }
     };
 
+    // Save node changes - FIXED VERSION with proper typing
     const handleSave = async () => {
+        if (!endpointPath) {
+            toast.error("Please enter an endpoint path");
+            return;
+        }
+
+        if (!validateHeaders(customHeaders)) {
+            toast.error("Invalid custom headers JSON");
+            return;
+        }
+
         setSaving(true);
         try {
-            const adapter = adapterConfigs.find((c) => c.id === tempSelectedAdapterId);
+            // Parse custom headers
+            let headersObj: string = "{}";
+            if (customHeaders && customHeaders.trim() !== "") {
+                try {
+                    headersObj = JSON.stringify(customHeaders);
+                } catch (e) {
+                    console.error("Failed to parse custom headers", e);
+                }
+            }
+
+            // Prepare adapter config updates (tanpa duplikasi)
+            const adapterConfigUpdates: Partial<AdapterConfig> = {
+                endpoint_path: endpointPath,
+                http_method: httpMethod,
+                timeout_seconds: timeoutSeconds,
+                retry_count: retryCount,
+                custom_headers: headersObj,
+                updated_at: new Date().toISOString(),
+            };
+
+            // Prepare workflow node updates
+            const nodeUpdates: Partial<WorkflowNode> = {
+                input_mapping: inputMapping,
+            };
+
+            // Combine updates dan kirim ke onUpdate
             onUpdate(node.id, {
-                inputMapping: tempInputMapping,
-                adapterConfigId: tempSelectedAdapterId,
-                ...(adapter && node.data.label !== adapter.endpointPath && {
-                    label: adapter.endpointPath
-                })
+                ...nodeUpdates,
+                adapter_config: adapterConfigUpdates as any
             });
 
-            setSelectedAdapterId(tempSelectedAdapterId);
-            setInputMapping(tempInputMapping);
-
-            toast.success("Node saved");
+            toast.success("Node configuration saved");
             onClose();
         } catch (error) {
-            toast.error("Failed to save node");
+            console.error("Save error:", error);
+            toast.error("Failed to save node configuration");
         } finally {
             setSaving(false);
+        }
+    };
+    // Delete node
+    const handleDelete = () => {
+        if (confirm("Are you sure you want to delete this node?")) {
+            onDelete(node.id);
+            onClose();
         }
     };
 
@@ -257,86 +352,158 @@ export function NodePanel({
         onClose();
     };
 
-    const previousNodesCount = previousNodes.length;
     const hasPlaceholders = nodePlaceholders.length > 0;
+    const hasPreviousNodes = previousNodes.length > 0;
 
     return (
         <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center justify-between">
-                        <span>Node Configuration - Step {currentNodeStepOrder}</span>
+                        <span>Configure Node - Step {currentNodeStepOrder}</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleDelete}
+                            className="text-red-500 hover:text-red-700"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     </DialogTitle>
                     <DialogDescription>
-                        Configure endpoint and input mapping for this workflow node
+                        Configure the endpoint and input mapping for this workflow step
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 mt-4">
+                <div className="space-y-6 mt-4">
                     {/* Step Order Info */}
                     <div className="bg-muted/50 p-3 rounded-lg">
-                        <Label className="text-xs text-muted-foreground">Step Order</Label>
+                        <Label className="text-xs text-muted-foreground uppercase">Step Order</Label>
                         <p className="text-lg font-semibold mt-1">{currentNodeStepOrder}</p>
+                        {isFirstNode && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                                This is the first node in the workflow
+                            </p>
+                        )}
                     </div>
 
-                    {/* Adapter Config Selector */}
-                    <div className="space-y-2">
-                        <Label className="text-sm font-semibold">Select Endpoint</Label>
-                        <Select
-                            value={tempSelectedAdapterId}
-                            onValueChange={setTempSelectedAdapterId}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select endpoint" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {adapterConfigs.map((config) => (
-                                    <SelectItem key={config.id} value={config.id}>
-                                        {config.httpMethod} {config.endpointPath}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    {/* Endpoint Configuration */}
+                    <div className="space-y-4">
+                        <Label className="text-sm font-semibold">Endpoint Configuration</Label>
 
-                    {/* Adapter Info */}
-                    {selectedAdapter && (
-                        <div className="text-xs text-muted-foreground space-y-1 bg-muted p-3 rounded-lg">
-                            <p><strong>Method:</strong> {selectedAdapter.httpMethod}</p>
-                            <p><strong>Path:</strong> {selectedAdapter.endpointPath}</p>
-                            <p><strong>Base URL:</strong> {product.apiEndpoint}</p>
-                            <p><strong>Full URL:</strong> {product.apiEndpoint?.replace(/\/$/, '')}{selectedAdapter.endpointPath?.startsWith('/') ? selectedAdapter.endpointPath : `/${selectedAdapter.endpointPath}`}</p>
-                            <p><strong>Timeout:</strong> {selectedAdapter.timeoutSeconds || 30}s</p>
-                            <p><strong>Retry:</strong> {selectedAdapter.retryCount || 3}x</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>HTTP Method</Label>
+                                <Select value={httpMethod} onValueChange={(v) => setHttpMethod(v as AdapterConfig['http_method'])}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="GET">GET</SelectItem>
+                                        <SelectItem value="POST">POST</SelectItem>
+                                        <SelectItem value="PUT">PUT</SelectItem>
+                                        <SelectItem value="PATCH">PATCH</SelectItem>
+                                        <SelectItem value="DELETE">DELETE</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Endpoint Path</Label>
+                                <Input
+                                    placeholder="/api/posts"
+                                    value={endpointPath}
+                                    onChange={(e) => setEndpointPath(e.target.value)}
+                                />
+                            </div>
                         </div>
-                    )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Timeout (seconds)</Label>
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={300}
+                                    value={timeoutSeconds}
+                                    onChange={(e) => setTimeoutSeconds(parseInt(e.target.value) || 30)}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Retry Count</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={10}
+                                    value={retryCount}
+                                    onChange={(e) => setRetryCount(parseInt(e.target.value) || 3)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Custom Headers */}
+                        <div className="space-y-2">
+                            <Label>Custom Headers (JSON)</Label>
+                            <Textarea
+                                placeholder='{"Authorization": "Bearer token", "X-Custom": "value"}'
+                                value={customHeaders}
+                                onChange={(e) => {
+                                    setCustomHeaders(e.target.value);
+                                    validateHeaders(e.target.value);
+                                }}
+                                rows={3}
+                                className="font-mono text-sm"
+                            />
+                            {headersError && (
+                                <p className="text-xs text-red-500">{headersError}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                                Enter custom headers as JSON object. Content-Type is automatically added.
+                            </p>
+                        </div>
+
+                        {/* URL Preview */}
+                        <div className="bg-muted p-2 rounded text-xs">
+                            <span className="text-muted-foreground">Full URL: </span>
+                            <span className="font-mono">
+                                {product.api_endpoint?.replace(/\/$/, '') || ''}
+                                {endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`}
+                            </span>
+                        </div>
+                    </div>
 
                     {/* Input Mapping */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <Label className="text-sm font-semibold">Input Mapping</Label>
+                            <Label className="text-sm font-semibold">Input Mapping (Request Body)</Label>
                             {!isFirstNode && (
                                 <span className="text-xs text-muted-foreground">
                                     {hasPlaceholders
-                                        ? `✅ ${nodePlaceholders.length} placeholders available`
-                                        : `⚠️ Execute previous node first to get placeholders`}
+                                        ? `✓ ${nodePlaceholders.length} placeholder(s) available from ${previousNodes.length} previous node(s)`
+                                        : hasPreviousNodes
+                                            ? `⚠️ Execute previous node first to get placeholders`
+                                            : `No previous nodes available`}
                                 </span>
                             )}
                         </div>
+
                         <div className="border rounded-lg p-4 bg-muted/30">
                             <SimpleJsonBuilder
-                                value={tempInputMapping}
-                                onChange={setTempInputMapping}
-                                placeholders={allPlaceholders}
+                                value={inputMapping}
+                                onChange={setInputMapping}
+                                placeholders={nodePlaceholders}
                             />
                         </div>
+
                         <p className="text-xs text-muted-foreground">
                             {isFirstNode
-                                ? "First node has no placeholders from previous nodes"
+                                ? "First node doesn't have access to previous node responses"
                                 : hasPlaceholders
-                                    ? `Click 📋 button to select placeholders from ${previousNodesCount} previous node(s)`
-                                    : "Execute previous nodes first to get response placeholders"
-                            }
+                                    ? "Click the 📋 button to insert response data from previous nodes"
+                                    : hasPreviousNodes
+                                        ? "Execute the previous node(s) first to make their response data available as placeholders"
+                                        : "Add previous nodes to this workflow to access their responses"}
                         </p>
                     </div>
 
@@ -345,31 +512,51 @@ export function NodePanel({
                         <Button
                             type="button"
                             onClick={handleExecute}
-                            disabled={executing || !selectedAdapter}
+                            disabled={executing}
                             className="w-full"
                             variant="outline"
                         >
                             <Play className="h-4 w-4 mr-2" />
-                            {executing ? "Executing..." : "Test Execute Node"}
+                            {executing ? "Executing..." : "Test Execute Endpoint"}
                         </Button>
+                        <p className="text-xs text-muted-foreground text-center">
+                            Test the endpoint with current input mapping
+                        </p>
                     </div>
 
                     {/* Execution Result */}
                     {executionResult && (
-                        <div className={`space-y-2 p-3 rounded-lg ${executionResult.error ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
-                            <Label className="text-xs font-semibold">Execution Result:</Label>
-                            <pre className="text-xs overflow-auto max-h-40 p-2 bg-white dark:bg-slate-900 rounded">
-                                {JSON.stringify(executionResult, null, 2)}
+                        <div className={`space-y-2 p-3 rounded-lg ${!executionResult.success
+                            ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                            : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                            }`}>
+                            <Label className="text-xs font-semibold flex items-center gap-2">
+                                <span>Execution Result:</span>
+                                {executionResult.success && (
+                                    <span className="text-green-600 dark:text-green-400">
+                                        {executionResult.status} {executionResult.statusText}
+                                    </span>
+                                )}
+                                {!executionResult.success && executionResult.status && (
+                                    <span className="text-red-600 dark:text-red-400">
+                                        {executionResult.status} {executionResult.statusText}
+                                    </span>
+                                )}
+                            </Label>
+                            <pre className="text-xs overflow-auto max-h-60 p-3 bg-background rounded">
+                                {JSON.stringify(executionResult.data || executionResult, null, 2)}
                             </pre>
                         </div>
                     )}
                 </div>
 
-                <div className="flex justify-end gap-2 mt-6">
+                {/* Actions */}
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
                     <Button variant="outline" onClick={handleCloseModal}>
                         Cancel
                     </Button>
                     <Button onClick={handleSave} disabled={saving}>
+                        <Save className="h-4 w-4 mr-2" />
                         {saving ? "Saving..." : "Save Node"}
                     </Button>
                 </div>

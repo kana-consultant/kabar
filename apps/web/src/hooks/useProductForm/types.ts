@@ -1,13 +1,11 @@
-import type { Product, AdapterConfig } from "@/services/product";
-
 export interface ProductFormState {
     name: string;
     platform: string;
-    apiEndpoint: string;
-    apiKey: string;
+    api_endpoint: string;
+    api_key: string;
     status: string;
     lastSync: string;
-    adapterConfig: {
+    adapter_config: {
         endpointPath: string;
         httpMethod: string;
         customHeaders: Record<string, string>;

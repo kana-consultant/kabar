@@ -14,16 +14,31 @@ export function useProductForm(isEdit: boolean, productId?: string, initialData?
     useProductFormInit(isEdit, initialData, setProduct);
 
     const {
+        // Product info
         updateProductInfo,
         updateAdapterConfig,
         updateFieldMapping,
         updateMetaConfig,
         updateSitemapConfig,
+        
         // Workflow actions
         updateWorkflowId,
-        addAdapterConfig,
-        updateAdapterConfigs,
-        removeAdapterConfig,
+        addWorkflow,
+        updateWorkflow,
+        deleteWorkflow,
+        setActiveWorkflow,
+        setWorkflows,
+        clearWorkflows,
+        
+        // Node actions
+        addNodeToWorkflow,
+        updateNodeInWorkflow,
+        deleteNodeFromWorkflow,
+        updateNodeConnections,
+        reorderWorkflowNodes,
+        
+       
+        setAdapterConfigs,
     } = useProductFormActions(setProduct);
 
     const {
@@ -36,20 +51,36 @@ export function useProductForm(isEdit: boolean, productId?: string, initialData?
     );
 
     return {
+        // State
         product,
         loading,
         testing,
-        // Product info
+        
+        // Product info actions
         updateProductInfo,
         updateAdapterConfig,
         updateFieldMapping,
         updateMetaConfig,
         updateSitemapConfig,
-        // Workflow
+        
+        // Workflow actions
         updateWorkflowId,
-        addAdapterConfig,
-        updateAdapterConfigs,
-        removeAdapterConfig,
+        addWorkflow,
+        updateWorkflow,
+        deleteWorkflow,
+        setActiveWorkflow,
+        setWorkflows,
+        clearWorkflows,
+        
+        // Node actions
+        addNodeToWorkflow,
+        updateNodeInWorkflow,
+        deleteNodeFromWorkflow,
+        updateNodeConnections,
+        reorderWorkflowNodes,
+        
+        setAdapterConfigs,
+        
         // Handlers
         handleTestConnection,
         handleSave,
