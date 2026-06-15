@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kana-consultant/ui-kit";
 import { Button } from "@kana-consultant/ui-kit";
 import { Input } from "@kana-consultant/ui-kit";
-import { Textarea } from "@kana-consultant/ui-kit";
 import { Label } from "@kana-consultant/ui-kit";
 import { Switch } from "@kana-consultant/ui-kit";
 import {
@@ -682,17 +681,7 @@ export function ProductFieldMapping({
         onChange(JSON.stringify(previewObject, null, 2), JSON.stringify(metaConfig, null, 2), JSON.stringify(newSitemap, null, 2));
     };
 
-    const saveRawJson = () => {
-        try {
-            const parsed = JSON.parse(rawJson);
-            setPreviewObject(parsed);
-            onChange(rawJson, JSON.stringify(metaConfig, null, 2), JSON.stringify(sitemapConfig, null, 2));
-            setActiveTab("form");
-        } catch {
-            alert("JSON tidak valid!");
-        }
-    };
-
+  
     return (
         <div className="border rounded-xl p-5 space-y-6">
             <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v as any)}>

@@ -198,7 +198,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         deleteNodeFromWorkflow(selectedWorkflowId, nodeId);
     };
 
-    console.log("PRODUCT WORKFLOWS", product.workflows);
+    console.log("PRODUCT WORKFLOWS", product.adapter_config);
 
     return (
         <div className="max-w-full mx-auto space-y-6">

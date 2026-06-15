@@ -33,8 +33,6 @@ export const mapProductToCreateRequest = (product: Partial<Product>): CreateProd
     let workflows = undefined;
     if (product.workflows && product.workflows.length > 0) {
         workflows = product.workflows.map(workflow => ({
-            id: workflow.id,
-            product_id: workflow.product_id || product.id || "",
             name: workflow.name,
             nodes: workflow.nodes?.map(node => ({
                 id: node.id,
@@ -71,6 +69,10 @@ export const mapProductToCreateRequest = (product: Partial<Product>): CreateProd
         }));
     }
 
+
+    console.log("adapter")
+    console.log(adapterConfig)
+
     return {
         name: product.name!,
         platform: product.platform!,
@@ -83,6 +85,9 @@ export const mapProductToCreateRequest = (product: Partial<Product>): CreateProd
         sync_status: product.sync_status || "idle",
         last_sync: product.last_sync,
         created_by: product.created_by,
+        // ✅ Tambahkan ini
+        adapter_config: adapterConfig ,
+        ...(workflows && { workflows }),
     };
 };
 
@@ -120,7 +125,7 @@ export const mapProductToUpdateRequest = (product: Partial<Product>): UpdateProd
             id: workflow.id,
             product_id: workflow.product_id || product.id || "",
             name: workflow.name,
-           
+
             nodes: workflow.nodes?.map(node => ({
                 id: node.id,
                 workflow_id: node.workflow_id || workflow.id,
@@ -152,7 +157,7 @@ export const mapProductToUpdateRequest = (product: Partial<Product>): UpdateProd
                     timeout_seconds: node.adapter_config.timeout_seconds || 30,
                     retry_count: node.adapter_config.retry_count || 3,
                 } : undefined,
-               
+
             })) || [],
         }));
     }
@@ -164,7 +169,7 @@ export const mapProductToUpdateRequest = (product: Partial<Product>): UpdateProd
         api_key: product.api_key,
         status: product.status,
         sync_status: product.sync_status,
-       
+
         team_id: product.team_id,
         user_id: product.user_id,
         created_by: product.created_by,

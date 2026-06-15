@@ -12,6 +12,7 @@ export async function createProduct(req: CreateProductRequest): Promise<{ id: st
  * Add new product with full response
  */
 export async function addProduct(req: CreateProductRequest): Promise<AddProductResponse> {
+    console.log("payload :",req)
     const response = await apiClient.post<{ id: string; message: string }>('/products', req);
     
     // Fetch product yang baru dibuat untuk data lengkap

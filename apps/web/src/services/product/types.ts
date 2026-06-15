@@ -30,21 +30,24 @@ export interface CreateProductRequest {
     last_sync?: Product["last_sync"];
     created_by?: Product["created_by"];
     
-    // Adapter config tanpa required id dan created_at
-    adapter_config?: Omit<AdapterConfig, 'id' | 'created_at'> & {
+    adapter_config?: Omit<AdapterConfig, 'id' | 'created_at' | 'updated_at'> & {
         id?: string;
         created_at?: string;
+        updated_at?: string;
     };
     
     adapter_configs?: Partial<AdapterConfig>[];
     
-    // Workflow tanpa required created_at
-    workflows?: (Omit<WorkflowDefinition, 'created_at'> & {
+    workflows?: (Omit<WorkflowDefinition, "id" |  "created_at" | "updated_at"> & {
+        id? : string
         created_at?: string;
-        nodes?: (Omit<WorkflowNode, 'created_at'> & {
+        updated_at?: string;
+        nodes?: (Omit<WorkflowNode, "id" | "created_at" | "updated_at"> & {
             created_at?: string;
-            adapter_config?: Omit<AdapterConfig, 'created_at'> & {
+            updated_at?: string;
+            adapter_config?: Omit<AdapterConfig, "created_at" | "updated_at"> & {
                 created_at?: string;
+                updated_at?: string;
             };
         })[];
     })[];
