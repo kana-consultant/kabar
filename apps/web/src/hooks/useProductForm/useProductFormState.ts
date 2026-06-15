@@ -2,19 +2,11 @@ import { useState } from "react";
 import type { Product, AdapterConfig } from "@/services/product";
 
 const createEmptyAdapterConfig = (): AdapterConfig => ({
-    id: "",
-    product_id: "",
     endpoint_path: "",
     http_method: "POST",
-    custom_headers: "",
-    field_mapping: "",
-    response_mapping: "",
-    meta_config: "",
-    sitemap_config: "",
-    timeout_seconds: 30,
-    retry_count: 3,
-    created_at: "",
-    updated_at: "",
+    custom_headers: JSON.stringify({
+        "Content-Type": "application/json",
+    }),
 });
 
 const createEmptyProduct = (): Product => ({

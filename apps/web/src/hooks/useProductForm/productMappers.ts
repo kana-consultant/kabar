@@ -7,17 +7,9 @@ export const mapProductToCreateRequest = (product: Partial<Product>): CreateProd
     let adapterConfig = undefined;
     if (product.adapter_config) {
         adapterConfig = {
-            endpoint_path: product.adapter_config.endpoint_path || "",
-            http_method: product.adapter_config.http_method || "GET",
             custom_headers: typeof product.adapter_config.custom_headers === 'string'
                 ? product.adapter_config.custom_headers
                 : JSON.stringify(product.adapter_config.custom_headers || {}),
-            field_mapping: typeof product.adapter_config.field_mapping === 'string'
-                ? product.adapter_config.field_mapping
-                : JSON.stringify(product.adapter_config.field_mapping || {}),
-            response_mapping: typeof product.adapter_config.response_mapping === 'string'
-                ? product.adapter_config.response_mapping
-                : JSON.stringify(product.adapter_config.response_mapping || {}),
             meta_config: typeof product.adapter_config.meta_config === 'string'
                 ? product.adapter_config.meta_config
                 : JSON.stringify(product.adapter_config.meta_config || {}),
@@ -35,33 +27,16 @@ export const mapProductToCreateRequest = (product: Partial<Product>): CreateProd
         workflows = product.workflows.map(workflow => ({
             name: workflow.name,
             nodes: workflow.nodes?.map(node => ({
-                id: node.id,
                 workflow_id: node.workflow_id || workflow.id,
-                adapter_config_id: node.adapter_config_id,
                 step_order: node.step_order,
-                input_mapping: node.input_mapping || {},
                 next_node_id: node.next_node_id,
-                previous_node_ids: node.previous_node_ids || [],
                 adapter_config: node.adapter_config ? {
                     id: node.adapter_config.id,
-                    product_id: node.adapter_config.product_id || product.id || "",
                     endpoint_path: node.adapter_config.endpoint_path,
                     http_method: node.adapter_config.http_method,
-                    custom_headers: typeof node.adapter_config.custom_headers === 'string'
-                        ? node.adapter_config.custom_headers
-                        : JSON.stringify(node.adapter_config.custom_headers || {}),
-                    field_mapping: typeof node.adapter_config.field_mapping === 'string'
-                        ? node.adapter_config.field_mapping
-                        : JSON.stringify(node.adapter_config.field_mapping || {}),
-                    response_mapping: typeof node.adapter_config.response_mapping === 'string'
-                        ? node.adapter_config.response_mapping
-                        : JSON.stringify(node.adapter_config.response_mapping || {}),
-                    meta_config: typeof node.adapter_config.meta_config === 'string'
-                        ? node.adapter_config.meta_config
-                        : JSON.stringify(node.adapter_config.meta_config || {}),
-                    sitemap_config: typeof node.adapter_config.sitemap_config === 'string'
-                        ? node.adapter_config.sitemap_config
-                        : JSON.stringify(node.adapter_config.sitemap_config || {}),
+                    field_mapping: typeof node.input_mapping === 'string'
+                        ? node.input_mapping
+                        : JSON.stringify(node.input_mapping || {}),
                     timeout_seconds: node.adapter_config.timeout_seconds || 30,
                     retry_count: node.adapter_config.retry_count || 3,
                 } : undefined,

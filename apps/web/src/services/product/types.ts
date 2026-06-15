@@ -30,19 +30,18 @@ export interface CreateProductRequest {
     last_sync?: Product["last_sync"];
     created_by?: Product["created_by"];
     
-    adapter_config?: Omit<AdapterConfig, 'id' | 'created_at' | 'updated_at'> & {
+    adapter_config?: Omit<AdapterConfig,'endpoint_path' | 'http_method' |'id' | 'created_at' | 'updated_at'> & {
+        http_method?: string;
         id?: string;
         created_at?: string;
         updated_at?: string;
     };
     
-    adapter_configs?: Partial<AdapterConfig>[];
-    
-    workflows?: (Omit<WorkflowDefinition, "id" |  "created_at" | "updated_at"> & {
+    workflows?: (Omit<WorkflowDefinition, "input_mapping" | "id" |  "created_at" | "updated_at"> & {
         id? : string
         created_at?: string;
         updated_at?: string;
-        nodes?: (Omit<WorkflowNode, "id" | "created_at" | "updated_at"> & {
+        nodes?: (Omit<WorkflowNode, "adapter_config_idt"| "adapter_config_idts" | "id" | "created_at" | "updated_at"> & {
             created_at?: string;
             updated_at?: string;
             adapter_config?: Omit<AdapterConfig, "created_at" | "updated_at"> & {

@@ -17,7 +17,7 @@ export function useProductFormActions(
     const updateFieldMapping = (value: string) => {
         setProduct((prev: Partial<Product>) => ({
             ...prev,
-            adapterConfig: {
+            adapter_config: {
                 ...prev.adapter_config,
                 fieldMapping: value,
             } as AdapterConfig,
@@ -27,9 +27,9 @@ export function useProductFormActions(
     const updateMetaConfig = (metaConfig: string) => {
         setProduct((prev: Partial<Product>) => ({
             ...prev,
-            adapterConfig: {
+            adapter_config: {
                 ...prev.adapter_config,
-                metaConfig: metaConfig,
+                meta_config: metaConfig,
             } as AdapterConfig,
         }));
     };
@@ -37,9 +37,9 @@ export function useProductFormActions(
     const updateSitemapConfig = (sitemapConfig: string) => {
         setProduct((prev: Partial<Product>) => ({
             ...prev,
-            adapterConfig: {
+            adapter_config: {
                 ...prev.adapter_config,
-                sitemapConfig: sitemapConfig,
+                sitemap_config: sitemapConfig,
             } as AdapterConfig,
         }));
     };
@@ -179,7 +179,7 @@ export function useProductFormActions(
 
                                 console.log(`✅ Node ${nodeId} updated:`, {
                                     nodeUpdates,
-                                    hasAdapterConfig: !!adapter_config,
+                                    hasadapter_config: !!adapter_config,
                                     step_order: updatedNode.step_order,
                                 });
 

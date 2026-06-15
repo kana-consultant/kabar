@@ -72,14 +72,9 @@ export function useProductFormHandlers(
                     endpoint_path: ac.endpoint_path || "",
                     http_method: ac.http_method || "GET",
                     custom_headers: toJsonString(ac.custom_headers || (ac as any).customHeaders),
-                    field_mapping: toJsonString(ac.field_mapping),
-                    response_mapping: ac.response_mapping ? toJsonString(ac.response_mapping) : undefined,
                     meta_config: ac.meta_config ? toJsonString(ac.meta_config) : undefined,
                     sitemap_config: ac.sitemap_config ? toJsonString(ac.sitemap_config) : undefined,
                     timeout_seconds: ac.timeout_seconds || 30,
-                    retry_count: ac.retry_count || 3,
-                    created_at: ac.created_at || new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
                 };
             }
 

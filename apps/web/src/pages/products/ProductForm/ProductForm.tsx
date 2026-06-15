@@ -198,7 +198,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         deleteNodeFromWorkflow(selectedWorkflowId, nodeId);
     };
 
-    console.log("PRODUCT WORKFLOWS", product.adapter_config);
+    console.log("PRODUCT WORKFLOWS", product);
 
     return (
         <div className="max-w-full mx-auto space-y-6">
@@ -240,14 +240,6 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 <div>
                     <ProductFieldMapping
                         domain={product?.api_endpoint as string || ""}
-                        fieldMapping={(() => {
-                            try {
-                                const parsed = JSON.parse(product.adapter_config?.field_mapping || "{}");
-                                return parsed;
-                            } catch (e) {
-                                return {};
-                            }
-                        })()}
                         metaConfig={(() => {
                             try {
                                 return JSON.parse(product.adapter_config?.meta_config || "{}");
@@ -262,8 +254,9 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                                 return {};
                             }
                         })()}
-                        onChange={(fieldMapping, metaConfig, sitemapConfig) => {
-                            updateFieldMapping(JSON.stringify(fieldMapping));
+                        onChange={(metaConfig, sitemapConfig) => {
+                            console.log("product form")
+                            console.log(metaConfig)
                             if (metaConfig) updateMetaConfig(JSON.stringify(metaConfig));
                             if (sitemapConfig) updateSitemapConfig(JSON.stringify(sitemapConfig));
                         }}

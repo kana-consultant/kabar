@@ -20,16 +20,14 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@kana-consultant/ui-kit";
-import { SimpleJsonBuilder } from "./SimpleJsonBuilder";
 import { Eye, Send, Copy, Plus, Trash2, Check } from "lucide-react";
 
 // ==================== TYPES ====================
 interface ProductFieldMappingProps {
     domain: string | undefined;
-    fieldMapping: any;
-    metaConfig?: any;
+    metaConfig?: MetaConfig;
     sitemapConfig?: any;
-    onChange: (fieldMapping: string, metaConfig?: string, sitemapConfig?: string) => void;
+    onChange: (metaConfig?: string, sitemapConfig?: string) => void;
 }
 
 interface MetaConfig {
@@ -123,7 +121,6 @@ function MetaTagManager({
     initialConfig,
     onChange,
 }: {
-    fieldMapping?: any;
     initialConfig?: MetaConfig;
     onChange: (config: MetaConfig) => void;
 }) {
@@ -457,12 +454,10 @@ function MetaTagManager({
 
 // ==================== SITEMAP MANAGER (DENGAN SELECT PLACEHOLDER) ====================
 function SitemapManager({
-    fieldMapping,
     initialConfig,
     baseUrl = "https://domainanda.com",
     onChange,
 }: {
-    fieldMapping?: any;
     initialConfig?: SitemapConfig;
     baseUrl?: string;
     onChange: (config: SitemapConfig) => void;
@@ -477,10 +472,9 @@ function SitemapManager({
     const [copied, setCopied] = useState(false);
 
     const selectOptions = useMemo(() => {
-        const fields = extractFields(getObjectValue(fieldMapping));
         const defaults = ["0.7", "0.8", "0.9", "1.0", "weekly", "daily", "monthly", "image_url", "updated_at", "created_at"];
-        return [...new Set([...defaults, ...fields])].sort();
-    }, [fieldMapping]);
+        return defaults.sort();
+    }, []);
 
     const sitemapXml = useMemo(() => {
         const staticXml = config.staticUrls.map(url => `
@@ -642,46 +636,27 @@ function SitemapManager({
 // ==================== MAIN COMPONENT ====================
 export function ProductFieldMapping({
     domain,
-    fieldMapping,
     metaConfig: initialMetaConfig,
     sitemapConfig: initialSitemapConfig,
     onChange,
 }: ProductFieldMappingProps) {
     const [activeTab, setActiveTab] = useState<"meta" | "sitemap" | "payload">("meta");
-    const [rawJson, setRawJson] = useState(() => JSON.stringify(getObjectValue(fieldMapping), null, 2));
-    const [previewObject, setPreviewObject] = useState(getObjectValue(fieldMapping));
 
     const [metaConfig, setMetaConfig] = useState<MetaConfig>(() => ({ ...defaultMetaConfig, ...getObjectValue(initialMetaConfig) }));
     const [sitemapConfig, setSitemapConfig] = useState<SitemapConfig>(() => ({ ...defaultSitemapConfig, ...getObjectValue(initialSitemapConfig) }));
 
     const [userInput, setUserInput] = useState({ title: "", topic: "" });
 
-    useEffect(() => {
-        const obj = getObjectValue(fieldMapping);
-        setRawJson(JSON.stringify(obj, null, 2));
-        setPreviewObject(obj);
-    }, [fieldMapping]);
-
-    const handleBuilderChange = (newValue: any) => {
-        setPreviewObject(newValue);
-        onChange(
-            JSON.stringify(newValue, null, 2),
-            JSON.stringify(metaConfig, null, 2),
-            JSON.stringify(sitemapConfig, null, 2)
-        );
-    };
-
     const handleMetaChange = (newMeta: MetaConfig) => {
         setMetaConfig(newMeta);
-        onChange(JSON.stringify(previewObject, null, 2), JSON.stringify(newMeta, null, 2), JSON.stringify(sitemapConfig, null, 2));
+        onChange(JSON.stringify(newMeta, null, 2), JSON.stringify(sitemapConfig, null, 2));
     };
 
     const handleSitemapChange = (newSitemap: SitemapConfig) => {
         setSitemapConfig(newSitemap);
-        onChange(JSON.stringify(previewObject, null, 2), JSON.stringify(metaConfig, null, 2), JSON.stringify(newSitemap, null, 2));
+        onChange(JSON.stringify(metaConfig, null, 2), JSON.stringify(newSitemap, null, 2));
     };
 
-  
     return (
         <div className="border rounded-xl p-5 space-y-6">
             <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v as any)}>
@@ -691,31 +666,20 @@ export function ProductFieldMapping({
                     <TabsTrigger value="payload">🚀 Payload</TabsTrigger>
                 </TabsList>
                 <TabsContent value="meta" className="pt-4">
-                    <MetaTagManager fieldMapping={fieldMapping} initialConfig={metaConfig} onChange={handleMetaChange} />
+                    <MetaTagManager initialConfig={metaConfig} onChange={handleMetaChange} />
                 </TabsContent>
 
                 <TabsContent value="sitemap" className="pt-4">
                     <SitemapManager
-                        fieldMapping={fieldMapping}   // ← WAJIB
-                        baseUrl={domain}             // ← opsional, default "https://domainanda.com"
+                        baseUrl={domain}
                         onChange={handleSitemapChange}
                     />
                 </TabsContent>
 
                 <TabsContent value="payload" className="pt-4">
-                    <PayloadPreview fieldMapping={fieldMapping} metaConfig={metaConfig} sitemapConfig={sitemapConfig} userInput={userInput} />
+                    <PayloadPreview metaConfig={metaConfig} sitemapConfig={sitemapConfig} userInput={userInput} />
                 </TabsContent>
             </Tabs>
-
-            {/* <div className="border-t pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                    <Eye className="w-4 h-4" />
-                    <h4 className="font-medium">Preview JSON Structure</h4>
-                </div>
-                <pre className="bg-slate-100 dark:bg-slate-900 p-4 rounded-lg text-xs overflow-auto max-h-60 font-mono">
-                    {JSON.stringify(previewObject, null, 2)}
-                </pre>
-            </div> */}
         </div>
     );
 }
