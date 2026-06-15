@@ -44,10 +44,6 @@ export const mapProductToCreateRequest = (product: Partial<Product>): CreateProd
         }));
     }
 
-
-    console.log("adapter")
-    console.log(adapterConfig)
-
     return {
         name: product.name!,
         platform: product.platform!,
@@ -60,7 +56,6 @@ export const mapProductToCreateRequest = (product: Partial<Product>): CreateProd
         sync_status: product.sync_status || "idle",
         last_sync: product.last_sync,
         created_by: product.created_by,
-        // ✅ Tambahkan ini
         adapter_config: adapterConfig ,
         ...(workflows && { workflows }),
     };

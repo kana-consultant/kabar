@@ -61,7 +61,7 @@ func (r *provider_repositories) clearProviderCacheByID(ctx context.Context, id s
 	r.redisClient.Del(ctx, key1)
 
 	// Hapus cache berdasarkan nama
-	key2 := fmt.Sprintf("api_provider:name:*")
+	key2 := "api_provider:name:*"
 	r.deleteKeysByPattern(ctx, key2)
 
 	// Hapus cache list (broad)

@@ -3,24 +3,36 @@ package product
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 
 	"seo-backend/internal/domain/adapter"
 	"seo-backend/internal/domain/product"
+	"seo-backend/internal/domain/workflow"
+	"seo-backend/internal/domain/workflow_node"
 	"seo-backend/internal/models"
+
+	"github.com/google/uuid"
 )
 
 type ProductService struct {
 	productRepo       product.ProductRepository
 	adapterConfigRepo adapter.AdapterConfigRepository
+	workflowRepo      workflow.WorkflowDefinitionRepository
+	workflowNodeRepo  workflow_node.WorkflowNodeRepository
 }
 
-func NewProductService(db *sql.DB, productRepo product.ProductRepository, adapterConfigRepo adapter.AdapterConfigRepository) product.ProductService {
+func NewProductService(db *sql.DB, productRepo product.ProductRepository,
+	adapterConfigRepo adapter.AdapterConfigRepository,
+	WorkflowDefinitionRepository workflow.WorkflowDefinitionRepository,
+	WorkflowNodeRepository workflow_node.WorkflowNodeRepository) product.ProductService {
 	return &ProductService{
 		productRepo:       productRepo,
 		adapterConfigRepo: adapterConfigRepo,
+		workflowRepo:      WorkflowDefinitionRepository,
+		workflowNodeRepo:  WorkflowNodeRepository,
 	}
 }
 
@@ -32,8 +44,6 @@ func (s *ProductService) CreateProduct(
 ) (string, error) {
 
 	log.Println("========== CREATE PRODUCT ==========")
-
-	// REQUEST LOG
 	log.Printf("Request Payload: %+v\n", req)
 
 	// Business validation
@@ -43,6 +53,61 @@ func (s *ProductService) CreateProduct(
 		return "", err
 	}
 	log.Println("Validation success")
+
+	// Generate IDs untuk semua entity
+	log.Println("Generating IDs...")
+
+	productID := generateID()
+	log.Printf("Generated ProductID: %s\n", productID)
+
+	// Generate IDs untuk adapter configs
+	adapterConfigTempIDs := make(map[string]string)     // tempID (from request) -> real ID
+	adapterConfigEndpointMap := make(map[string]string) // endpoint -> real ID
+
+	// Single adapter config
+	if req.AdapterConfig != nil {
+		realID := generateID()
+		if req.AdapterConfig.ID != "" {
+			adapterConfigTempIDs[req.AdapterConfig.ID] = realID
+		}
+		adapterConfigEndpointMap[req.AdapterConfig.EndpointPath] = realID
+		req.AdapterConfig.ID = realID // set real ID ke request
+		log.Printf("Generated AdapterConfig ID: %s for endpoint: %s\n", realID, req.AdapterConfig.EndpointPath)
+	}
+
+	// Batch adapter configs
+	for i := range req.AdapterConfigs {
+		realID := generateID()
+		if req.AdapterConfigs[i].ID != "" {
+			adapterConfigTempIDs[req.AdapterConfigs[i].ID] = realID
+		}
+		adapterConfigEndpointMap[req.AdapterConfigs[i].EndpointPath] = realID
+		req.AdapterConfigs[i].ID = realID // set real ID ke request
+		log.Printf("Generated AdapterConfig ID: %s for endpoint: %s\n", realID, req.AdapterConfigs[i].EndpointPath)
+	}
+
+	// Generate IDs untuk workflows dan nodes
+	workflowTempIDs := make(map[string]string) // tempID -> real ID
+	for wfIdx := range req.Workflows {
+		workflowRealID := generateID()
+		if req.Workflows[wfIdx].ID != "" {
+			workflowTempIDs[req.Workflows[wfIdx].ID] = workflowRealID
+		}
+		req.Workflows[wfIdx].ID = workflowRealID
+		log.Printf("Generated Workflow ID: %s for workflow: %s\n", workflowRealID, req.Workflows[wfIdx].Name)
+
+		// Generate IDs untuk nodes dalam workflow ini
+		for nodeIdx := range req.Workflows[wfIdx].Nodes {
+			nodeRealID := generateID()
+			if req.Workflows[wfIdx].Nodes[nodeIdx].ID != "" {
+				// Simpan mapping temp ID ke real ID untuk resolve next_node_id nanti
+				// Bisa disimpan di context atau map terpisah
+			}
+			req.Workflows[wfIdx].Nodes[nodeIdx].ID = nodeRealID
+			log.Printf("Generated Node ID: %s for workflow %s step %d\n",
+				nodeRealID, workflowRealID, req.Workflows[wfIdx].Nodes[nodeIdx].StepOrder)
+		}
+	}
 
 	// Begin transaction
 	log.Println("Starting database transaction...")
@@ -57,23 +122,18 @@ func (s *ProductService) CreateProduct(
 		tx.Rollback()
 	}()
 
-	TeamId := userCtx.GetTeamID()
-
-	// Prepare repository request
+	// Insert product
 	repoReq := product.CreateProductRequest{
 		Name:        req.Name,
-		Platform:    req.Platform,
 		APIEndpoint: req.APIEndpoint,
 		APIKey:      req.APIKey,
-		TeamID:      TeamId,
 	}
 
 	log.Printf("Repository Request: %+v\n", repoReq)
-
-	// Insert product via repository
 	log.Println("Inserting product into database...")
 
-	productID, err := s.productRepo.InsertProductWithTx(ctx, tx, repoReq)
+	// Gunakan productID yang sudah digenerate
+	err = s.productRepo.InsertProductWithTx(ctx, tx, productID, repoReq)
 	if err != nil {
 		log.Printf("Failed insert product: %v\n", err)
 		return "", fmt.Errorf("failed to insert product: %w", err)
@@ -81,41 +141,218 @@ func (s *ProductService) CreateProduct(
 
 	log.Printf("Product inserted successfully. ProductID: %s\n", productID)
 
-	// INSERT ADAPTER CONFIG IF PROVIDED IN PAYLOAD
+	// ─── INSERT ADAPTER CONFIGS ───────────────────────────────────────────────
+	// Map: EndpointPath → real AdapterConfig ID (untuk resolve workflow nodes)
+	adapterConfigIDMap := make(map[string]string)
+
+	// Single adapter config (legacy field)
 	if req.AdapterConfig != nil {
-
-		log.Println("AdapterConfig detected")
-
+		log.Println("Single AdapterConfig detected")
 		log.Printf("AdapterConfig Payload: %+v\n", req.AdapterConfig)
 
 		cfg := product.AdapterConfig{
+			ID:             req.AdapterConfig.ID, // Gunakan ID yang sudah digenerate
 			ProductID:      productID,
 			EndpointPath:   req.AdapterConfig.EndpointPath,
 			HTTPMethod:     req.AdapterConfig.HTTPMethod,
 			CustomHeaders:  req.AdapterConfig.CustomHeaders,
 			FieldMapping:   req.AdapterConfig.FieldMapping,
-			MetaConfig:     req.AdapterConfig.MetaConfig,    // ✅ ADDED
-			SitemapConfig:  req.AdapterConfig.SitemapConfig, // ✅ ADDED
+			MetaConfig:     req.AdapterConfig.MetaConfig,
+			SitemapConfig:  req.AdapterConfig.SitemapConfig,
 			TimeoutSeconds: req.AdapterConfig.TimeoutSeconds,
 			RetryCount:     req.AdapterConfig.RetryCount,
 		}
 
 		log.Printf("Prepared AdapterConfig: %+v\n", cfg)
+		log.Println("Inserting single adapter config...")
 
-		log.Println("Inserting adapter config...")
-
-		if err := s.adapterConfigRepo.InsertWithTx(ctx, tx, productID, &cfg); err != nil {
+		if err := s.adapterConfigRepo.InsertWithTx(ctx, tx, cfg.ProductID, &cfg); err != nil {
 			log.Printf("Failed insert adapter config: %v\n", err)
 			return "", fmt.Errorf("failed to insert adapter config: %w", err)
 		}
 
-		log.Println("Adapter config inserted successfully")
+		log.Printf("Single adapter config inserted. ID: %s\n", cfg.ID)
+		adapterConfigIDMap[cfg.EndpointPath] = cfg.ID
+		if req.AdapterConfig.ID != "" {
+			adapterConfigIDMap[req.AdapterConfig.ID] = cfg.ID
+		}
 
 	} else {
-		log.Println("AdapterConfig is nil, skipping insert")
+		log.Println("Single AdapterConfig is nil, skipping")
 	}
 
-	// Commit transaction
+	// Batch adapter configs
+	if len(req.AdapterConfigs) > 0 {
+		log.Printf("Batch AdapterConfigs detected: %d configs\n", len(req.AdapterConfigs))
+
+		for i, ac := range req.AdapterConfigs {
+			cfg := product.AdapterConfig{
+				ID:             ac.ID, // Gunakan ID yang sudah digenerate
+				ProductID:      productID,
+				EndpointPath:   ac.EndpointPath,
+				HTTPMethod:     ac.HTTPMethod,
+				CustomHeaders:  ac.CustomHeaders,
+				FieldMapping:   ac.FieldMapping,
+				MetaConfig:     ac.MetaConfig,
+				SitemapConfig:  ac.SitemapConfig,
+				TimeoutSeconds: ac.TimeoutSeconds,
+				RetryCount:     ac.RetryCount,
+			}
+
+			log.Printf("Inserting AdapterConfig[%d]: %+v\n", i, cfg)
+
+			if err := s.adapterConfigRepo.InsertWithTx(ctx, tx, cfg.ProductID, &cfg); err != nil {
+				log.Printf("Failed insert adapter config[%d]: %v\n", i, err)
+				return "", fmt.Errorf("failed to insert adapter config[%d]: %w", i, err)
+			}
+
+			log.Printf("AdapterConfig[%d] inserted. ID: %s, EndpointPath: %s\n", i, cfg.ID, cfg.EndpointPath)
+
+			// Map original ID (dari payload) dan EndpointPath → real ID
+			if ac.ID != "" {
+				adapterConfigIDMap[ac.ID] = cfg.ID
+			}
+			adapterConfigIDMap[cfg.EndpointPath] = cfg.ID
+		}
+	} else {
+		log.Println("No batch AdapterConfigs, skipping")
+	}
+
+	log.Printf("AdapterConfig ID Map: %+v\n", adapterConfigIDMap)
+
+	// ─── INSERT WORKFLOWS & NODES ─────────────────────────────────────────────
+	if len(req.Workflows) > 0 {
+		log.Printf("Workflows detected: %d workflows\n", len(req.Workflows))
+
+		for wfIdx, wfDef := range req.Workflows {
+			log.Printf("Processing Workflow[%d]: ID=%s, Name=%s\n", wfIdx, wfDef.ID, wfDef.Name)
+
+			// Insert workflow definition dengan ID yang sudah digenerate
+			newWorkflow := workflow.WorkflowDefinition{
+				ID:        wfDef.ID, // Gunakan ID yang sudah digenerate
+				ProductID: productID,
+				Name:      wfDef.Name,
+			}
+
+			err := s.workflowRepo.InsertWithTx(ctx, tx, &newWorkflow)
+			if err != nil {
+				log.Printf("Failed insert workflow[%d]: %v\n", wfIdx, err)
+				return "", fmt.Errorf("failed to insert workflow[%d] %q: %w", wfIdx, wfDef.Name, err)
+			}
+
+			log.Printf("Workflow[%d] inserted. WorkflowID: %s\n", wfIdx, newWorkflow.ID)
+
+			if len(wfDef.Nodes) == 0 {
+				log.Printf("Workflow[%d] has no nodes, skipping node insert\n", wfIdx)
+				continue
+			}
+
+			// ── Prepare nodes ──────────────────────────────────────────────
+			// Map: tempID (dari payload) → real ID (sudah digenerate)
+			tempIDToRealID := make(map[string]string)
+			nodes := make([]workflow_node.WorkflowNode, 0, len(wfDef.Nodes))
+
+			for nIdx, n := range wfDef.Nodes {
+				log.Printf("Preparing Node[%d]: ID=%s, AdapterConfigID=%s, StepOrder=%d\n",
+					nIdx, n.ID, n.AdapterConfigID, n.StepOrder)
+
+				// Resolve AdapterConfigID: payload ID → real DB ID
+				realAdapterCfgID := n.AdapterConfigID
+				if mapped, ok := adapterConfigIDMap[n.AdapterConfigID]; ok {
+					realAdapterCfgID = mapped
+					log.Printf("Node[%d] AdapterConfigID resolved: %s → %s\n", nIdx, n.AdapterConfigID, realAdapterCfgID)
+				}
+
+				// Validasi wajib
+				if realAdapterCfgID == "" {
+					log.Printf("Node[%d] skipped: AdapterConfigID is empty\n", nIdx)
+					continue
+				}
+				if n.StepOrder <= 0 {
+					log.Printf("Node[%d] skipped: StepOrder must be > 0 (got %d)\n", nIdx, n.StepOrder)
+					continue
+				}
+
+				inputMappingJSON, err := json.Marshal(n.InputMapping)
+				if err != nil {
+					log.Printf("Node[%d] failed to marshal InputMapping: %v\n", nIdx, err)
+					return "", fmt.Errorf("workflow[%d] node[%d]: failed to marshal input mapping: %w", wfIdx, nIdx, err)
+				}
+
+				// Simpan mapping temp ID ke real ID (node ID sudah digenerate)
+				if n.ID != "" {
+					tempIDToRealID[n.ID] = n.ID // ID sudah real karena digenerate di awal
+				}
+
+				// Resolve NextNodeID jika menggunakan temp ID
+				var nextNodeIDPtr *string
+				if n.NextNodeID != nil && *n.NextNodeID != "" {
+					// Cek apakah NextNodeID adalah temp ID yang perlu di-resolve
+					// Karena semua ID sudah digenerate, NextNodeID harusnya sudah real
+					nextNodeIDPtr = n.NextNodeID
+				}
+
+				nodes = append(nodes, workflow_node.WorkflowNode{
+					ID:              n.ID, // Gunakan ID yang sudah digenerate
+					WorkflowID:      newWorkflow.ID,
+					AdapterConfigID: realAdapterCfgID,
+					StepOrder:       n.StepOrder,
+					InputMapping:    inputMappingJSON,
+					NextNodeID:      nextNodeIDPtr,
+					PreviousNodeIDs: n.PreviousNodeIDs,
+				})
+			}
+
+			if len(nodes) == 0 {
+				log.Printf("Workflow[%d] has no valid nodes after filtering\n", wfIdx)
+				continue
+			}
+
+			// ── Insert nodes (batch, fallback ke satu-satu) ────────────────
+			log.Printf("Inserting %d nodes for Workflow[%d]...\n", len(nodes), wfIdx)
+
+			createdNodes, err := s.workflowNodeRepo.InsertBatchWithTx(ctx, tx, nodes)
+			if err != nil {
+				log.Printf("Batch insert failed for Workflow[%d], falling back to single insert: %v\n", wfIdx, err)
+
+				createdNodes = make([]workflow_node.WorkflowNode, 0, len(nodes))
+				for nIdx, node := range nodes {
+					nodeCopy := node
+					if err := s.workflowNodeRepo.InsertWithTx(ctx, tx, &nodeCopy); err != nil {
+						log.Printf("Failed insert single node[%d] for Workflow[%d]: %v\n", nIdx, wfIdx, err)
+						return "", fmt.Errorf("workflow[%d] node[%d]: failed to insert: %w", wfIdx, nIdx, err)
+					}
+					createdNodes = append(createdNodes, nodeCopy)
+				}
+			}
+
+			log.Printf("Workflow[%d]: %d nodes inserted\n", wfIdx, len(createdNodes))
+
+			// ── Resolve nextNodeID jika masih menggunakan temp ID ───────────
+			for _, created := range createdNodes {
+				if created.NextNodeID == nil {
+					continue
+				}
+
+				nextID := *created.NextNodeID
+				// Cek apakah nextID adalah temp ID yang perlu di-resolve
+				if realID, ok := tempIDToRealID[nextID]; ok && realID != nextID {
+					log.Printf("Updating NextNodeID for node %s: %s → %s\n", created.ID, nextID, realID)
+
+					if err := s.workflowNodeRepo.UpdateWithTx(ctx, tx, created.ID, map[string]interface{}{
+						"next_node_id": realID,
+					}); err != nil {
+						log.Printf("Failed update nextNodeID for node %s: %v\n", created.ID, err)
+						return "", fmt.Errorf("workflow[%d]: failed to update nextNodeID for node %s: %w", wfIdx, created.ID, err)
+					}
+				}
+			}
+		}
+	} else {
+		log.Println("No Workflows in payload, skipping")
+	}
+
+	// ─── COMMIT ───────────────────────────────────────────────────────────────
 	log.Println("Committing transaction...")
 
 	if err := tx.Commit(); err != nil {
@@ -128,6 +365,11 @@ func (s *ProductService) CreateProduct(
 	log.Println("====================================")
 
 	return productID, nil
+}
+
+// Helper function untuk generate ID
+func generateID() string {
+	return uuid.New().String()
 }
 
 // setDefaultAdapterConfigValues - set default values for missing fields
@@ -357,9 +599,6 @@ func (s *ProductService) UpdateConnectionStatus(
 func (s *ProductService) validateCreateRequest(req product.CreateProductRequest) error {
 	if req.Name == "" {
 		return errors.New("product name is required")
-	}
-	if req.Platform == "" {
-		return errors.New("platform is required")
 	}
 	if req.APIEndpoint == "" {
 		return errors.New("API endpoint is required")

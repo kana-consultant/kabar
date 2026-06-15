@@ -21,7 +21,9 @@ type ProductRepository interface {
 	GetProductBasicInfoWithTx(ctx context.Context, tx *sql.Tx, id string) (*ProductBasicInfo, error)
 
 	// Write operations
-	InsertProductWithTx(ctx context.Context, tx *sql.Tx, req CreateProductRequest) (string, error)
+	InsertProduct(ctx context.Context, req CreateProductRequest) error
+	InsertProductWithTx(ctx context.Context, tx *sql.Tx, id string, req CreateProductRequest) error
+	UpdateProduct(ctx context.Context, id string, updates map[string]interface{}) error
 	UpdateProductWithTx(ctx context.Context, tx *sql.Tx, id string, updates map[string]interface{}) error
 	Delete(ctx context.Context, id string) error
 	DeleteWithTx(ctx context.Context, tx *sql.Tx, id string) error

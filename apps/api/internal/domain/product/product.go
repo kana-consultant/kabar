@@ -109,28 +109,6 @@ type AdapterConfig struct {
 	UpdatedAt       time.Time   `json:"updatedAt,omitempty"`
 }
 
-// WorkflowDefinition untuk definisi workflow
-type WorkflowDefinition struct {
-	ID        string         `json:"id"`
-	ProductID string         `json:"productId"`
-	Name      string         `json:"name"`
-	CreatedAt time.Time      `json:"createdAt"`
-	UpdatedAt time.Time      `json:"updatedAt"`
-	Nodes     []WorkflowNode `json:"nodes,omitempty"`
-}
-
-// WorkflowNode untuk node dalam workflow
-type WorkflowNode struct {
-	ID              string                 `json:"id"`
-	WorkflowID      string                 `json:"workflowId"`
-	AdapterConfigID string                 `json:"adapterConfigId"`
-	StepOrder       int                    `json:"stepOrder"`
-	InputMapping    map[string]interface{} `json:"inputMapping"`
-	NextNodeID      *string                `json:"nextNodeId,omitempty"`
-	CreatedAt       time.Time              `json:"createdAt"`
-	AdapterConfig   *AdapterConfig         `json:"adapterConfig,omitempty"`
-}
-
 // Product struct utama
 type Product struct {
 	ID              string                        `json:"id"`
@@ -162,11 +140,11 @@ type ProductWithDetails struct {
 
 // Request/Response types
 type CreateProductRequest struct {
+	ID            string                      `json:"id"`
 	Name          string                      `json:"name"`
 	Platform      string                      `json:"platform"`
-	APIEndpoint   string                      `json:"apiEndpoint"`
-	APIKey        string                      `json:"apiKey"`
-	TeamID        string                      `json:"teamId,omitempty"`
+	APIEndpoint   string                      `json:"api_endpoint"`
+	APIKey        string                      `json:"api_key"`
 	AdapterConfig *CreateAdapterConfigRequest `json:"adapterConfig,omitempty"`
 
 	// TAMBAHKAN FIELD INI UNTUK DEBUG
@@ -175,6 +153,7 @@ type CreateProductRequest struct {
 }
 
 type CreateAdapterConfigRequest struct {
+	ID              string      `json:"id"`
 	EndpointPath    string      `json:"endpointPath"`
 	HTTPMethod      string      `json:"httpMethod"`
 	CustomHeaders   string      `json:"customHeaders"`

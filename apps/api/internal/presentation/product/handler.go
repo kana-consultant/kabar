@@ -135,7 +135,6 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// DETAIL PRODUCT
 	log.Println("========== PRODUCT ==========")
 	log.Printf("Name: %v\n", req.Name)
-	log.Printf("Platform: %v\n", req.Platform)
 	log.Printf("APIEndpoint: %v\n", req.APIEndpoint)
 	log.Printf("APIKey: %v\n", req.APIKey)
 
@@ -195,11 +194,6 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Validasi request
 	if req.Name == "" {
 		h.writeJSON(w, map[string]string{"error": "Product name is required"}, http.StatusBadRequest)
-		return
-	}
-
-	if req.Platform == "" {
-		h.writeJSON(w, map[string]string{"error": "Platform is required"}, http.StatusBadRequest)
 		return
 	}
 
