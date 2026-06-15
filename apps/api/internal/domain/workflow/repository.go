@@ -10,10 +10,10 @@ import (
 
 type WorkflowDefinition struct {
 	ID        string                       `json:"id"`
-	ProductID string                       `json:"productId"`
+	ProductID string                       `json:"product_id"` // fix: snake_case
 	Name      string                       `json:"name"`
-	CreatedAt time.Time                    `json:"createdAt"`
-	UpdatedAt time.Time                    `json:"updatedAt"`
+	CreatedAt time.Time                    `json:"created_at"` // fix: snake_case
+	UpdatedAt time.Time                    `json:"updated_at"` // fix: snake_case
 	Nodes     []workflow_node.WorkflowNode `json:"nodes"`
 }
 

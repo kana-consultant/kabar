@@ -228,17 +228,20 @@ func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, 
 
 	query := `
 		INSERT INTO adapter_configs (
+			id,
 			product_id, endpoint_path, http_method,
 			custom_headers, field_mapping, response_mapping, meta_config, sitemap_config, timeout_seconds, retry_count,
 			created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+		RETURNING id
 	`
 
-	_, err := tx.ExecContext(ctx, query,
+	err := tx.QueryRowContext(ctx, query,
+		config.ID,
 		productID, config.EndpointPath, config.HTTPMethod,
 		customHeadersJSON, fieldMappingJSON, responseMappingJSON, metaConfigJSON, sitemapConfigJSON,
 		timeoutSeconds, retryCount,
-	)
+	).Scan(&config.ID)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert adapter config: %w", err)
@@ -246,7 +249,6 @@ func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, 
 
 	return nil
 }
-
 func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, productID string, updates map[string]interface{}) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is required for UpdateWithTx")

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"seo-backend/internal/domain/workflow_node"
 	"strings"
 
@@ -322,70 +323,133 @@ func (r *WorkflowNodeRepository) ReorderNodes(ctx context.Context, workflowID st
 // ============ TRANSACTION METHODS ============
 
 // InsertBatchWithTx inserts multiple workflow nodes within a transaction
-func (r *WorkflowNodeRepository) InsertBatchWithTx(ctx context.Context, tx *sql.Tx, nodes []workflow_node.WorkflowNode) ([]workflow_node.WorkflowNode, error) {
-	query := `
-		INSERT INTO workflow_nodes (workflow_id, adapter_config_id, step_order, 
-			input_mapping, next_node_id, previous_node_ids, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
-		RETURNING id, created_at
+func (r *WorkflowNodeRepository) InsertBatchWithTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	nodes []workflow_node.WorkflowNode,
+) ([]workflow_node.WorkflowNode, error) {
+
+	log.Println("========== InsertBatchWithTx ==========")
+	log.Printf("Total nodes to insert: %d\n", len(nodes))
+
+	// ── TAHAP 1: Insert semua node tanpa next_node_id ──────────────────────
+	insertQuery := `
+		INSERT INTO workflow_nodes (
+			id,
+			workflow_id,
+			adapter_config_id,
+			step_order,
+			input_mapping,
+			next_node_id,
+			previous_node_ids,
+			created_at
+		)
+		VALUES ($1, $2, $3, $4, $5, NULL, $6, NOW())
+		RETURNING created_at
 	`
 
 	var savedNodes []workflow_node.WorkflowNode
 
-	for _, node := range nodes {
-		inputMappingJSON, err := json.Marshal(node.InputMapping)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal input mapping: %w", err)
-		}
+	for idx, node := range nodes {
+		log.Printf("--- Inserting node[%d/%d] ID=%s ---\n", idx+1, len(nodes), node.ID)
 
-		var nextNodeID interface{}
-		if node.NextNodeID != nil {
-			nextNodeID = *node.NextNodeID
+		// Handle input_mapping
+		var inputMappingJSON []byte
+		switch {
+		case len(node.InputMapping) == 0,
+			string(node.InputMapping) == "null",
+			string(node.InputMapping) == "[]":
+			inputMappingJSON = []byte(`{}`)
+		default:
+			inputMappingJSON = node.InputMapping
 		}
+		log.Printf("InputMapping JSON: %s\n", string(inputMappingJSON))
 
-		var previousNodeIDs interface{}
-		if len(node.PreviousNodeIDs) > 0 {
-			previousNodeIDs = pq.Array(node.PreviousNodeIDs)
+		// Handle previous_node_ids
+		var previousNodeIDsJSON []byte
+		if len(node.PreviousNodeIDs) == 0 {
+			previousNodeIDsJSON = []byte(`[]`)
 		} else {
-			previousNodeIDs = pq.Array([]string{})
+			b, err := json.Marshal(node.PreviousNodeIDs)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal previous_node_ids for node %s: %w", node.ID, err)
+			}
+			previousNodeIDsJSON = b
 		}
+		log.Printf("PreviousNodeIDs JSON: %s\n", string(previousNodeIDsJSON))
 
-		var savedNode workflow_node.WorkflowNode
-		savedNode.WorkflowID = node.WorkflowID
-		savedNode.AdapterConfigID = node.AdapterConfigID
-		savedNode.StepOrder = node.StepOrder
-		savedNode.InputMapping = node.InputMapping
-		savedNode.NextNodeID = node.NextNodeID
-		savedNode.PreviousNodeIDs = node.PreviousNodeIDs
-
-		err = tx.QueryRowContext(ctx, query,
-			node.WorkflowID, node.AdapterConfigID, node.StepOrder,
-			inputMappingJSON, nextNodeID, previousNodeIDs,
-		).Scan(&savedNode.ID, &savedNode.CreatedAt)
+		savedNode := node
+		err := tx.QueryRowContext(
+			ctx,
+			insertQuery,
+			savedNode.ID,
+			savedNode.WorkflowID,
+			savedNode.AdapterConfigID,
+			savedNode.StepOrder,
+			inputMappingJSON,
+			previousNodeIDsJSON,
+		).Scan(&savedNode.CreatedAt)
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to insert workflow node: %w", err)
+			log.Printf("❌ Failed to insert node %s: %v\n", savedNode.ID, err)
+			return nil, fmt.Errorf("failed to insert workflow node %s: %w", savedNode.ID, err)
 		}
 
+		log.Printf("✅ Node inserted (without next_node_id): %s\n", savedNode.ID)
 		savedNodes = append(savedNodes, savedNode)
 	}
+
+	// ── TAHAP 2: Update next_node_id setelah semua node ter-insert ─────────
+	updateQuery := `UPDATE workflow_nodes SET next_node_id = $1 WHERE id = $2`
+
+	for _, node := range nodes {
+		if node.NextNodeID == nil || *node.NextNodeID == "" {
+			continue
+		}
+
+		log.Printf("Updating next_node_id for node %s -> %s\n", node.ID, *node.NextNodeID)
+
+		_, err := tx.ExecContext(ctx, updateQuery, *node.NextNodeID, node.ID)
+		if err != nil {
+			log.Printf("❌ Failed to update next_node_id for node %s: %v\n", node.ID, err)
+			return nil, fmt.Errorf("failed to update next_node_id for node %s: %w", node.ID, err)
+		}
+
+		// Update savedNodes juga supaya return value akurat
+		for i := range savedNodes {
+			if savedNodes[i].ID == node.ID {
+				savedNodes[i].NextNodeID = node.NextNodeID
+				break
+			}
+		}
+
+		log.Printf("✅ next_node_id updated for node %s\n", node.ID)
+	}
+
+	log.Printf("✅ All %d nodes inserted successfully\n", len(savedNodes))
+	log.Println("=====================================")
 
 	return savedNodes, nil
 }
 
 // InsertWithTx inserts a single workflow node within a transaction
 func (r *WorkflowNodeRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, node *workflow_node.WorkflowNode) error {
-	inputMappingJSON, err := json.Marshal(node.InputMapping)
-	if err != nil {
-		return fmt.Errorf("failed to marshal input mapping: %w", err)
-	}
 
+	// ✅ Tambahkan id ke query
 	query := `
-		INSERT INTO workflow_nodes (workflow_id, adapter_config_id, step_order, 
-			input_mapping, next_node_id, previous_node_ids, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
-		RETURNING id, created_at
-	`
+        INSERT INTO workflow_nodes (
+            id, 
+            workflow_id, 
+            adapter_config_id, 
+            step_order, 
+            input_mapping, 
+            next_node_id, 
+            previous_node_ids, 
+            created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING created_at
+    `
 
 	var nextNodeID interface{}
 	if node.NextNodeID != nil {
@@ -399,10 +463,16 @@ func (r *WorkflowNodeRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, n
 		previousNodeIDs = pq.Array([]string{})
 	}
 
-	err = tx.QueryRowContext(ctx, query,
-		node.WorkflowID, node.AdapterConfigID, node.StepOrder,
-		inputMappingJSON, nextNodeID, previousNodeIDs,
-	).Scan(&node.ID, &node.CreatedAt)
+	// ✅ Gunakan node.ID yang sudah digenerate
+	err := tx.QueryRowContext(ctx, query,
+		node.ID, // Tambahkan ini
+		node.WorkflowID,
+		node.AdapterConfigID,
+		node.StepOrder,
+		node.InputMapping,
+		nextNodeID,
+		previousNodeIDs,
+	).Scan(&node.CreatedAt)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert workflow node with tx: %w", err)

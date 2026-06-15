@@ -62,7 +62,7 @@ export interface WorkflowDefinition {
 
 export interface WorkflowNode {
   id?: string;
-  workflow_id: string;
+  workflow_id?: string;
   adapter_config_id?: string;
   previous_node_ids?: string[] | null;
   step_order: number;

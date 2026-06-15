@@ -157,28 +157,6 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// DEBUG: TAMBAHKAN INI UNTUK ADAPTERCONFIGS
 	log.Println("========== ADAPTERCONFIGS (ARRAY) ==========")
-	log.Printf("Length of AdapterConfigs: %d\n", len(req.AdapterConfigs))
-
-	if len(req.AdapterConfigs) > 0 {
-		for i, config := range req.AdapterConfigs {
-			log.Printf("--- AdapterConfig[%d] ---", i)
-			log.Printf("  ID: %s", config.ID)
-			log.Printf("  ProductID: %s", config.ProductID)
-			log.Printf("  EndpointPath: %s", config.EndpointPath)
-			log.Printf("  HTTPMethod: %s", config.HTTPMethod)
-			log.Printf("  CustomHeaders: %s", config.CustomHeaders)
-			log.Printf("  FieldMapping: %s", config.FieldMapping)
-			log.Printf("  ResponseMapping: %+v", config.ResponseMapping)
-			log.Printf("  MetaConfig: %s", config.MetaConfig)
-			log.Printf("  SitemapConfig: %s", config.SitemapConfig)
-			log.Printf("  TimeoutSeconds: %d", config.TimeoutSeconds)
-			log.Printf("  RetryCount: %d", config.RetryCount)
-			log.Printf("  CreatedAt: %v", config.CreatedAt)
-			log.Printf("  UpdatedAt: %v", config.UpdatedAt)
-		}
-	} else {
-		log.Println("AdapterConfigs is EMPTY or NIL")
-	}
 
 	// DEBUG: TAMPILKAN JUGA WORKFLOWS
 	log.Println("========== WORKFLOWS ==========")

@@ -93,7 +93,7 @@ export function WorkflowBuilder({
       const adapterConfig = node.adapter_config!;
 
       return {
-        id: node.id,
+        id: node.id as string,
         type: "workflowNode",
         position: { x: 250, y: index * 150 + 50 },
         data: {
@@ -114,7 +114,7 @@ export function WorkflowBuilder({
       if (node.next_node_id) {
         flowEdges.push({
           id: `e-${node.id}-${node.next_node_id}`,
-          source: node.id,
+          source: node.id as string,
           target: node.next_node_id,
           animated: true,
         });

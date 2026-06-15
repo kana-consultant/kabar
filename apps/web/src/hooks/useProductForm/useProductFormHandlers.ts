@@ -87,7 +87,7 @@ export function useProductFormHandlers(
                 updated_at: new Date().toISOString(),
                 nodes: (workflow.nodes || []).map(node => ({
                     ...node,
-                    workflow_id: node.workflow_id || workflow.id,
+                    workflow_id:  workflow.id,
                     updated_at: new Date().toISOString(),
                     adapter_config: node.adapter_config
                         ? {

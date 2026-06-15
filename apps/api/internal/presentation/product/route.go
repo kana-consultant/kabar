@@ -20,7 +20,9 @@ type Route struct {
 func NewRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache) *Route {
 	productRepo := repositories.NewProductRepository(db)
 	adapterConfigRepo := repositories.NewAdapterConfigRepository(db)
-	productService := productApp.NewProductService(db, productRepo, adapterConfigRepo)
+	WorkflowDefinitionRepository := repositories.NewWorkflowDefinitionRepository(db)
+	WorkflowNodeRepository := repositories.NewWorkflowNodeRepository(db)
+	productService := productApp.NewProductService(db, productRepo, adapterConfigRepo, WorkflowDefinitionRepository, WorkflowNodeRepository)
 	ProductHandler := NewProductHandler(productService)
 
 	return &Route{

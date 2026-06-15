@@ -145,11 +145,9 @@ type CreateProductRequest struct {
 	Platform      string                      `json:"platform"`
 	APIEndpoint   string                      `json:"api_endpoint"`
 	APIKey        string                      `json:"api_key"`
-	AdapterConfig *CreateAdapterConfigRequest `json:"adapterConfig,omitempty"`
+	AdapterConfig *CreateAdapterConfigRequest `json:"adapter_config,omitempty"`
 
-	// TAMBAHKAN FIELD INI UNTUK DEBUG
-	AdapterConfigs []AdapterConfig               `json:"adapterConfigs,omitempty"`
-	Workflows      []workflow.WorkflowDefinition `json:"workflows,omitempty"`
+	Workflows []workflow.WorkflowDefinition `json:"workflows,omitempty"`
 }
 
 type CreateAdapterConfigRequest struct {

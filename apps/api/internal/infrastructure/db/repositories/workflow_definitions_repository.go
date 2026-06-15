@@ -154,23 +154,20 @@ func (r *WorkflowDefinitionRepository) Delete(ctx context.Context, id string) er
 	return nil
 }
 
-// InsertWithTx inserts a workflow definition within a transaction
 func (r *WorkflowDefinitionRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, wf *workflow.WorkflowDefinition) error {
 	query := `
-		INSERT INTO workflow_definitions (product_id, name, created_at, updated_at)
-		VALUES ($1, $2, NOW(), NOW())
-		RETURNING id, created_at, updated_at
-	`
+        INSERT INTO workflow_definitions (id, product_id, name, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+        RETURNING id, created_at, updated_at
+    `
 
-	var id string
-	err := tx.QueryRowContext(ctx, query, wf.ProductID, wf.Name).Scan(
-		&id, &wf.CreatedAt, &wf.UpdatedAt,
+	err := tx.QueryRowContext(ctx, query, wf.ID, wf.ProductID, wf.Name).Scan(
+		&wf.ID, &wf.CreatedAt, &wf.UpdatedAt,
 	)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert workflow definition with tx: %w", err)
 	}
 
-	return err
-
+	return nil
 }

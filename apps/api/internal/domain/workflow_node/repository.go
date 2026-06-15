@@ -9,30 +9,30 @@ import (
 
 type WorkflowNode struct {
 	ID              string          `json:"id"`
-	WorkflowID      string          `json:"workflowId"`
-	AdapterConfigID string          `json:"adapterConfigId"`
-	PreviousNodeIDs []string        `json:"previousNodeIds,omitempty"`
-	StepOrder       int             `json:"stepOrder"`
-	InputMapping    json.RawMessage `json:"inputMapping"`
-	NextNodeID      *string         `json:"nextNodeId"`
-	CreatedAt       time.Time       `json:"createdAt"`
-	AdapterConfig   *AdapterConfig  `json:"adapterConfig,omitempty"` // optional, for joined data
+	WorkflowID      string          `json:"workflow_id"`
+	AdapterConfigID string          `json:"adapter_config_id"`
+	PreviousNodeIDs []string        `json:"previous_node_ids,omitempty"`
+	StepOrder       int             `json:"step_order"`
+	InputMapping    json.RawMessage `json:"input_mapping"`
+	NextNodeID      *string         `json:"next_node_id"`
+	CreatedAt       time.Time       `json:"created_at"`
+	AdapterConfig   *AdapterConfig  `json:"adapter_config,omitempty"` // optional, for joined data
 }
 
 type AdapterConfig struct {
 	ID              string          `json:"id"`
-	ProductID       string          `json:"productId"`
-	EndpointPath    string          `json:"endpointPath"`
-	HTTPMethod      string          `json:"httpMethod"`
-	CustomHeaders   string          `json:"customHeaders"`
-	FieldMapping    string          `json:"fieldMapping"`
-	ResponseMapping json.RawMessage `json:"responseMapping"`
-	MetaConfig      string          `json:"metaConfig"`
-	SitemapConfig   string          `json:"sitemapConfig"`
-	TimeoutSeconds  int             `json:"timeoutSeconds"`
-	RetryCount      int             `json:"retryCount"`
-	CreatedAt       time.Time       `json:"createdAt"`
-	UpdatedAt       time.Time       `json:"updatedAt"`
+	ProductID       string          `json:"product_id"`
+	EndpointPath    string          `json:"endpoint_path"`
+	HTTPMethod      string          `json:"http_method"`
+	CustomHeaders   string          `json:"custom_headers"`
+	FieldMapping    string          `json:"field_mapping"`
+	ResponseMapping json.RawMessage `json:"response_mapping"`
+	MetaConfig      string          `json:"meta_config"`
+	SitemapConfig   string          `json:"sitemap_config"`
+	TimeoutSeconds  int             `json:"timeout_seconds"`
+	RetryCount      int             `json:"retry_count"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 type WorkflowNodeRepository interface {

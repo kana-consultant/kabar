@@ -25,11 +25,14 @@ export const mapProductToCreateRequest = (product: Partial<Product>): CreateProd
     let workflows = undefined;
     if (product.workflows && product.workflows.length > 0) {
         workflows = product.workflows.map(workflow => ({
+        
             name: workflow.name,
             nodes: workflow.nodes?.map(node => ({
+                id : node.id,
                 workflow_id: node.workflow_id || workflow.id,
                 step_order: node.step_order,
                 next_node_id: node.next_node_id,
+                previous_node_ids : node.previous_node_ids,
                 adapter_config: node.adapter_config ? {
                     id: node.adapter_config.id,
                     endpoint_path: node.adapter_config.endpoint_path,

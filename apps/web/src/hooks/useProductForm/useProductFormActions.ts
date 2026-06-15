@@ -108,7 +108,7 @@ export function useProductFormActions(
                     ...prev,
                     workflows: [
                         {
-                            id: node.workflow_id,
+                            id: node.id,
                             name: "Default Workflow",
                             product_id: prev.id || "",
                             created_at: new Date().toISOString(),
