@@ -91,7 +91,7 @@ func (h *ProductHandler) writeError(w http.ResponseWriter, err error) {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param request body product.CreateProductRequest true "Product data"
+// @Param request body product.ProductRequest true "Product data"
 // @Success 201 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -103,7 +103,7 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Method: %s | URL: %s\n", r.Method, r.URL.Path)
 
 	// Parse request body
-	var req product.CreateProductRequest
+	var req product.ProductRequest
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -300,9 +300,9 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
-	// Parse request body
-	var updates map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	// Parse request body ke UpdateProductRequest struct
+	var req product.ProductRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeJSON(w, map[string]string{"error": "Invalid request body"}, http.StatusBadRequest)
 		return
 	}
@@ -311,7 +311,7 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userCtx := auth.GetUserContext(r)
 
 	// Call application service
-	if err := h.service.UpdateProduct(ctx, id, updates, userCtx); err != nil {
+	if err := h.service.UpdateProduct(ctx, id, req, userCtx); err != nil {
 		h.writeError(w, err)
 		return
 	}

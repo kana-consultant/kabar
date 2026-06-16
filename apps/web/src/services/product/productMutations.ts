@@ -1,17 +1,17 @@
 import { apiClient } from '../api';
 import type { Product } from '@/services/product';
-import type { CreateProductRequest, UpdateProductRequest, AddProductResponse } from './types';
+import type { ProductRequest, UpdateProductRequest, AddProductResponse } from './types';
 import { getProductById } from './productQueries';
 
 // Create product (basic)
-export async function createProduct(req: CreateProductRequest): Promise<{ id: string; message: string }> {
+export async function createProduct(req: ProductRequest): Promise<{ id: string; message: string }> {
     return apiClient.post('/products', req);
 }
 
 /**
  * Add new product with full response
  */
-export async function addProduct(req: CreateProductRequest): Promise<AddProductResponse> {
+export async function addProduct(req: ProductRequest): Promise<AddProductResponse> {
     console.log("payload :",req)
     const response = await apiClient.post<{ id: string; message: string }>('/products', req);
     

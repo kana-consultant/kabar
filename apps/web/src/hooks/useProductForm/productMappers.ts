@@ -1,8 +1,8 @@
 // productMappers.ts
 import type { Product } from "@/services/product";
-import type { CreateProductRequest, UpdateProductRequest } from "@/services/product";
+import type { ProductRequest, UpdateProductRequest } from "@/services/product";
 
-export const mapProductToCreateRequest = (product: Partial<Product>): CreateProductRequest => {
+export const mapProductToCreateRequest = (product: Partial<Product>): ProductRequest => {
     // Prepare adapter_config
     let adapterConfig = undefined;
     if (product.adapter_config) {

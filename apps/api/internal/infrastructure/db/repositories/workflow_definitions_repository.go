@@ -171,3 +171,25 @@ func (r *WorkflowDefinitionRepository) InsertWithTx(ctx context.Context, tx *sql
 
 	return nil
 }
+
+func (r *WorkflowDefinitionRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, wf *workflow.WorkflowDefinition) error {
+	query := `
+        INSERT INTO workflow_definitions (id, product_id, name, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+        ON CONFLICT (id) DO UPDATE SET
+            product_id = EXCLUDED.product_id,
+            name       = EXCLUDED.name,
+            updated_at = NOW()
+        RETURNING id, created_at, updated_at
+    `
+
+	err := tx.QueryRowContext(ctx, query, wf.ID, wf.ProductID, wf.Name).Scan(
+		&wf.ID, &wf.CreatedAt, &wf.UpdatedAt,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to upsert workflow definition with tx: %w", err)
+	}
+
+	return nil
+}

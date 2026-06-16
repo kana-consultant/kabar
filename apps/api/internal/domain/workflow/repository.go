@@ -24,4 +24,5 @@ type WorkflowDefinitionRepository interface {
 	Update(ctx context.Context, id string, updates map[string]interface{}) error
 	Delete(ctx context.Context, id string) error
 	InsertWithTx(ctx context.Context, tx *sql.Tx, node *WorkflowDefinition) error
+	UpsertWithTx(ctx context.Context, tx *sql.Tx, wf *WorkflowDefinition) error
 }

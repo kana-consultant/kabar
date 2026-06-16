@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -34,17 +35,17 @@ func (s *AdapterConfigService) GetAdapterConfig(ctx context.Context, productID s
 }
 
 // UpdateAdapterConfig - update adapter configuration
-func (s *AdapterConfigService) UpdateAdapterConfig(ctx context.Context, productID string, updates map[string]interface{}) error {
+func (s *AdapterConfigService) UpdateAdapterConfig(ctx context.Context, productID string, config *product.AdapterConfig) error {
 	if productID == "" {
 		return errors.New("product id is required")
 	}
 
-	if len(updates) == 0 {
-		return errors.New("no updates provided")
+	if config == nil {
+		return errors.New("config is required")
 	}
 
 	// Business validation
-	if err := s.validateUpdates(updates); err != nil {
+	if err := s.validateConfig(config); err != nil {
 		return err
 	}
 
@@ -53,13 +54,26 @@ func (s *AdapterConfigService) UpdateAdapterConfig(ctx context.Context, productI
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
+	defer tx.Rollback()
 
-	// Update config
-	if err := s.adapterRepo.UpdateWithTx(ctx, tx, productID, updates); err != nil {
-		return fmt.Errorf("failed to update adapter config: %w", err)
+	// Check if exists
+	existingConfig, err := s.adapterRepo.GetByProductID(ctx, productID)
+	if err != nil {
+		return fmt.Errorf("failed to get existing config: %w", err)
 	}
 
-	// Commit transaction
+	if existingConfig == nil {
+		// Insert new config
+		if err := s.adapterRepo.InsertWithTx(ctx, tx, productID, config); err != nil {
+			return fmt.Errorf("failed to insert adapter config: %w", err)
+		}
+	} else {
+		// Update existing config - pass entire config object
+		if err := s.adapterRepo.UpdateWithTx(ctx, tx, productID, *config); err != nil {
+			return fmt.Errorf("failed to update adapter config: %w", err)
+		}
+	}
+
 	return tx.Commit()
 }
 
@@ -97,9 +111,8 @@ func (s *AdapterConfigService) CreateOrUpdateAdapterConfig(ctx context.Context, 
 			return fmt.Errorf("failed to insert adapter config: %w", err)
 		}
 	} else {
-		// Build updates map from config
-		updates := s.configToUpdates(config)
-		if err := s.adapterRepo.UpdateWithTx(ctx, tx, productID, updates); err != nil {
+		// Update existing config - pass entire config object
+		if err := s.adapterRepo.UpdateWithTx(ctx, tx, productID, *config); err != nil {
 			return fmt.Errorf("failed to update adapter config: %w", err)
 		}
 	}
@@ -117,41 +130,6 @@ func (s *AdapterConfigService) LoadConfigForProduct(ctx context.Context, product
 }
 
 // Helper methods
-func (s *AdapterConfigService) validateUpdates(updates map[string]interface{}) error {
-	// Validate timeout seconds
-	if timeout, ok := updates["timeoutSeconds"]; ok {
-		if t, ok := timeout.(int); ok {
-			if t < 1 || t > 300 {
-				return errors.New("timeout seconds must be between 1 and 300")
-			}
-		}
-	}
-
-	// Validate retry count
-	if retry, ok := updates["retryCount"]; ok {
-		if r, ok := retry.(int); ok {
-			if r < 0 || r > 10 {
-				return errors.New("retry count must be between 0 and 10")
-			}
-		}
-	}
-
-	// Validate HTTP method
-	if method, ok := updates["httpMethod"]; ok {
-		if m, ok := method.(string); ok {
-			validMethods := map[string]bool{
-				"GET": true, "POST": true, "PUT": true,
-				"DELETE": true, "PATCH": true,
-			}
-			if !validMethods[m] {
-				return errors.New("invalid HTTP method")
-			}
-		}
-	}
-
-	return nil
-}
-
 func (s *AdapterConfigService) validateConfig(config *product.AdapterConfig) error {
 	if config.TimeoutSeconds < 1 || config.TimeoutSeconds > 300 {
 		return errors.New("timeout seconds must be between 1 and 300")
@@ -165,34 +143,69 @@ func (s *AdapterConfigService) validateConfig(config *product.AdapterConfig) err
 		"GET": true, "POST": true, "PUT": true,
 		"DELETE": true, "PATCH": true,
 	}
-	if !validMethods[config.HTTPMethod] {
+	if config.HTTPMethod != "" && !validMethods[config.HTTPMethod] {
 		return errors.New("invalid HTTP method")
 	}
 
 	return nil
 }
 
-func (s *AdapterConfigService) configToUpdates(config *product.AdapterConfig) map[string]interface{} {
+func (s *AdapterConfigService) configToUpdates(config *product.AdapterConfig) (map[string]interface{}, error) {
 	updates := make(map[string]interface{})
 
+	// Basic fields
 	if config.EndpointPath != "" {
 		updates["endpointPath"] = config.EndpointPath
 	}
+
 	if config.HTTPMethod != "" {
 		updates["httpMethod"] = config.HTTPMethod
 	}
-	if len(config.CustomHeaders) > 0 {
-		updates["customHeaders"] = config.CustomHeaders
-	}
-	if len(config.FieldMapping) > 0 {
-		updates["fieldMapping"] = config.FieldMapping
-	}
+
 	if config.TimeoutSeconds > 0 {
 		updates["timeoutSeconds"] = config.TimeoutSeconds
 	}
+
 	if config.RetryCount > 0 {
 		updates["retryCount"] = config.RetryCount
 	}
 
-	return updates
+	// JSON fields - handle unmarshaling from string
+	if config.CustomHeaders != "" {
+		var headers interface{}
+		if err := json.Unmarshal([]byte(config.CustomHeaders), &headers); err != nil {
+			return nil, fmt.Errorf("invalid customHeaders JSON: %w", err)
+		}
+		updates["customHeaders"] = headers
+	}
+
+	if config.FieldMapping != "" {
+		var mapping interface{}
+		if err := json.Unmarshal([]byte(config.FieldMapping), &mapping); err != nil {
+			return nil, fmt.Errorf("invalid fieldMapping JSON: %w", err)
+		}
+		updates["fieldMapping"] = mapping
+	}
+
+	if config.ResponseMapping != nil {
+		updates["responseMapping"] = config.ResponseMapping
+	}
+
+	if config.MetaConfig != "" {
+		var meta interface{}
+		if err := json.Unmarshal([]byte(config.MetaConfig), &meta); err != nil {
+			return nil, fmt.Errorf("invalid metaConfig JSON: %w", err)
+		}
+		updates["metaConfig"] = meta
+	}
+
+	if config.SitemapConfig != "" {
+		var sitemap interface{}
+		if err := json.Unmarshal([]byte(config.SitemapConfig), &sitemap); err != nil {
+			return nil, fmt.Errorf("invalid sitemapConfig JSON: %w", err)
+		}
+		updates["sitemapConfig"] = sitemap
+	}
+
+	return updates, nil
 }

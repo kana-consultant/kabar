@@ -1,6 +1,6 @@
 // Types
 export type { 
-    CreateProductRequest, 
+    ProductRequest, 
     UpdateProductRequest, 
     AddProductResponse,
     Product,

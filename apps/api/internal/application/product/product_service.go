@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"seo-backend/internal/domain/adapter"
 	"seo-backend/internal/domain/product"
@@ -38,7 +39,7 @@ func NewProductService(db *sql.DB, productRepo product.ProductRepository,
 
 func (s *ProductService) CreateProduct(
 	ctx context.Context,
-	req product.CreateProductRequest,
+	req product.ProductRequest,
 	userCtx models.UserContext,
 ) (string, error) {
 
@@ -195,7 +196,7 @@ func (s *ProductService) CreateProduct(
 	// Insert product
 	log.Println("Inserting product...")
 
-	repoReq := product.CreateProductRequest{
+	repoReq := product.ProductRequest{
 		Name:        req.Name,
 		APIEndpoint: req.APIEndpoint,
 		APIKey:      req.APIKey,
@@ -309,7 +310,7 @@ func (s *ProductService) CreateProduct(
 	return productID, nil
 }
 
-func (s *ProductService) validateCreateRequest(req product.CreateProductRequest) error {
+func (s *ProductService) validateCreateRequest(req product.ProductRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("product name is required")
 	}
@@ -354,11 +355,18 @@ func (s *ProductService) setDefaultAdapterConfigValues(config *product.AdapterCo
 	}
 }
 
+// Helper untuk deteksi temp ID dari frontend
+func isTempID(id string) bool {
+	// Sesuaikan dengan format temp ID frontend kamu
+	// Contoh: return strings.HasPrefix(id, "temp-")
+	return strings.HasPrefix(id, "temp-")
+}
+
 // UpdateProduct - Application mengelola transaction
 func (s *ProductService) UpdateProduct(
 	ctx context.Context,
 	id string,
-	req product.UpdateProductRequest,
+	req product.ProductRequest,
 	userCtx models.UserContext,
 ) error {
 
@@ -369,11 +377,6 @@ func (s *ProductService) UpdateProduct(
 	// ========== BUSINESS VALIDATION ==========
 	if id == "" {
 		return errors.New("product id is required")
-	}
-
-	if err := s.validateUpdateRequest(req); err != nil {
-		log.Printf("Validation failed: %v\n", err)
-		return err
 	}
 
 	// ========== 1. GENERATE ALL REAL IDs ==========
@@ -518,9 +521,7 @@ func (s *ProductService) UpdateProduct(
 
 	// Business rule: cannot update active product's critical fields
 	if existingProduct.Status == "active" {
-		if req.Status != "" {
-			return errors.New("cannot update status of active product")
-		}
+
 		if req.Platform != "" {
 			return errors.New("cannot update platform of active product")
 		}
@@ -551,7 +552,7 @@ func (s *ProductService) UpdateProduct(
 			RetryCount:     req.AdapterConfig.RetryCount,
 		}
 
-		if err := s.adapterConfigRepo.UpdateWithTx(ctx, tx, id, &cfg); err != nil {
+		if err := s.adapterConfigRepo.UpdateWithTx(ctx, tx, id, cfg); err != nil {
 			return fmt.Errorf("failed to update adapter config: %w", err)
 		}
 		log.Printf("AdapterConfig updated: ID=%s, Endpoint=%s\n", cfg.ID, cfg.EndpointPath)
@@ -581,7 +582,7 @@ func (s *ProductService) UpdateProduct(
 			}
 
 			// Prepare nodes
-			nodes := make([]workflow_node.WorkflowNodeCreate, 0, len(wfDef.Nodes))
+			nodes := make([]workflow_node.WorkflowNode, 0, len(wfDef.Nodes))
 
 			for nIdx, n := range wfDef.Nodes {
 				if n.AdapterConfigID == "" {
@@ -594,13 +595,12 @@ func (s *ProductService) UpdateProduct(
 				log.Printf("  Preparing node[%d:%d]: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeID=%v\n",
 					wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeID)
 
-				nodes = append(nodes, workflow_node.WorkflowNodeCreate{
+				nodes = append(nodes, workflow_node.WorkflowNode{
 					ID:              n.ID,
 					WorkflowID:      updatedWorkflow.ID,
 					AdapterConfigID: n.AdapterConfigID,
-					EndpointPath:    &n.AdapterConfig.EndpointPath,
 					StepOrder:       n.StepOrder,
-					InputMapping:    json.RawMessage(n.AdapterConfig.FieldMapping),
+					AdapterConfig:   n.AdapterConfig,
 					NextNodeID:      n.NextNodeID,
 					PreviousNodeIDs: n.PreviousNodeIDs,
 				})
@@ -609,16 +609,9 @@ func (s *ProductService) UpdateProduct(
 			// Upsert nodes: existing node di-update, node baru di-insert
 			log.Printf("Upserting %d nodes for workflow[%d]...\n", len(nodes), wfIdx)
 
-			upsertedNodes, err := s.workflowNodeRepo.UpsertBatchWithTx(ctx, tx, nodes)
+			err := s.workflowNodeRepo.UpsertWithTx(ctx, tx, nodes)
 			if err != nil {
 				return fmt.Errorf("failed to upsert nodes for workflow[%d]: %w", wfIdx, err)
-			}
-
-			log.Printf("Workflow[%d]: %d nodes upserted successfully\n", wfIdx, len(upsertedNodes))
-
-			for _, node := range upsertedNodes {
-				log.Printf("  ✅ Node: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeID=%v, PrevIDs=%v\n",
-					node.ID, node.StepOrder, node.AdapterConfigID, node.NextNodeID, node.PreviousNodeIDs)
 			}
 		}
 	}
@@ -684,7 +677,7 @@ func (s *ProductService) GetByID(
 	ctx context.Context,
 	productID string,
 	userCtx models.UserContext,
-) (*product.CreateProductRequest, error) {
+) (*product.ProductRequest, error) {
 
 	log.Println("========== GET PRODUCT BY ID ==========")
 	log.Printf("ProductID: %s\n", productID)
@@ -777,7 +770,7 @@ func (s *ProductService) GetByID(
 	// ========== 6. ASSEMBLE RESPONSE ==========
 	log.Println("Step 6: Assembling response...")
 
-	result := &product.CreateProductRequest{
+	result := &product.ProductRequest{
 		ID:            productID,
 		Name:          prod.Name,
 		Platform:      prod.Platform,

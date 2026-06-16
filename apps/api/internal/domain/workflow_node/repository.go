@@ -63,6 +63,7 @@ type WorkflowNodeRepository interface {
 	Delete(ctx context.Context, id string) error
 	DeleteByWorkflowID(ctx context.Context, workflowID string) error
 	ReorderNodes(ctx context.Context, workflowID string, nodeIDs []string) error
+	UpsertWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNode) error
 
 	// Methods with transaction support
 	InsertBatchWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNodeCreate) ([]WorkflowNodeCreate, error)

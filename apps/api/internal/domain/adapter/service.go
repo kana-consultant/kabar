@@ -12,7 +12,7 @@ type AdapterConfigService interface {
 	GetAdapterConfig(ctx context.Context, productID string) (*product.AdapterConfig, error)
 
 	// UpdateAdapterConfig updates adapter configuration
-	UpdateAdapterConfig(ctx context.Context, productID string, updates map[string]interface{}) error
+	UpdateAdapterConfig(ctx context.Context, productID string, config *product.AdapterConfig) error
 
 	// CreateOrUpdateAdapterConfig creates or updates full config
 	CreateOrUpdateAdapterConfig(ctx context.Context, productID string, config *product.AdapterConfig) error

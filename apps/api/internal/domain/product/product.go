@@ -139,7 +139,7 @@ type ProductWithDetails struct {
 }
 
 // Request/Response types
-type CreateProductRequest struct {
+type ProductRequest struct {
 	ID            string         `json:"id"`
 	Name          string         `json:"name"`
 	Platform      string         `json:"platform"`

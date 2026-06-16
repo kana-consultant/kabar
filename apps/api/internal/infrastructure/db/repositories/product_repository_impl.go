@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -206,7 +207,7 @@ func (r *ProductRepository) GetProductBasicInfoWithTx(ctx context.Context, tx *s
 // =======================
 // WRITE OPERATIONS
 // =======================
-func (r *ProductRepository) InsertProduct(ctx context.Context, req product.CreateProductRequest) error {
+func (r *ProductRepository) InsertProduct(ctx context.Context, req product.ProductRequest) error {
 	query := `
 		INSERT INTO products (
 			id, name, platform, api_endpoint, api_key_encrypted,
@@ -226,7 +227,7 @@ func (r *ProductRepository) InsertProduct(ctx context.Context, req product.Creat
 	return nil
 }
 
-func (r *ProductRepository) InsertProductWithTx(ctx context.Context, tx *sql.Tx, id string, req product.CreateProductRequest) error {
+func (r *ProductRepository) InsertProductWithTx(ctx context.Context, tx *sql.Tx, id string, req product.ProductRequest) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is required for InsertProductWithTx")
 	}
@@ -249,37 +250,66 @@ func (r *ProductRepository) InsertProductWithTx(ctx context.Context, tx *sql.Tx,
 	return nil
 }
 
-func (r *ProductRepository) UpdateProduct(ctx context.Context, id string, updates map[string]interface{}) error {
+func (r *ProductRepository) UpdateProduct(ctx context.Context, id string, updates product.ProductRequest) error {
 	return r.UpdateProductWithTx(ctx, nil, id, updates)
 }
 
-func (r *ProductRepository) UpdateProductWithTx(ctx context.Context, tx *sql.Tx, id string, updates map[string]interface{}) error {
-	if len(updates) == 0 {
-		return nil
-	}
+func (r *ProductRepository) UpdateProductWithTx(ctx context.Context, tx *sql.Tx, id string, updates product.ProductRequest) error {
 
 	setClauses := make([]string, 0)
 	args := make([]interface{}, 0)
 	argIndex := 1
 
-	// Field mapping: application field -> database column
-	fieldMap := map[string]string{
-		"name":          "name",
-		"platform":      "platform",
-		"apiEndpoint":   "api_endpoint",
-		"status":        "status",
-		"syncStatus":    "sync_status",
-		"apiKey":        "api_key_encrypted",
-		"metaConfig":    "meta_config",
-		"sitemapConfig": "sitemap_config",
+	// Process regular fields
+	if updates.Name != "" {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIndex))
+		args = append(args, updates.Name)
+		argIndex++
 	}
 
-	for key, value := range updates {
-		if dbField, ok := fieldMap[key]; ok {
-			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
-			args = append(args, value)
-			argIndex++
+	if updates.Platform != "" {
+		setClauses = append(setClauses, fmt.Sprintf("platform = $%d", argIndex))
+		args = append(args, updates.Platform)
+		argIndex++
+	}
+
+	if updates.APIEndpoint != "" {
+		setClauses = append(setClauses, fmt.Sprintf("api_endpoint = $%d", argIndex))
+		args = append(args, updates.APIEndpoint)
+		argIndex++
+	}
+
+	if updates.APIKey != "" {
+		// Encrypt API key before storing
+		encryptedKey, err := encryptAPIKey(updates.APIKey)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt API key: %w", err)
 		}
+		setClauses = append(setClauses, fmt.Sprintf("api_key_encrypted = $%d", argIndex))
+		args = append(args, encryptedKey)
+		argIndex++
+	}
+
+	// Handle AdapterConfig (JSON field)
+	if updates.AdapterConfig != nil {
+		adapterConfigJSON, err := json.Marshal(updates.AdapterConfig)
+		if err != nil {
+			return fmt.Errorf("failed to marshal adapter_config: %w", err)
+		}
+		setClauses = append(setClauses, fmt.Sprintf("adapter_config = $%d", argIndex))
+		args = append(args, adapterConfigJSON)
+		argIndex++
+	}
+
+	// Handle Workflows (JSON field)
+	if updates.Workflows != nil {
+		workflowsJSON, err := json.Marshal(updates.Workflows)
+		if err != nil {
+			return fmt.Errorf("failed to marshal workflows: %w", err)
+		}
+		setClauses = append(setClauses, fmt.Sprintf("workflows = $%d", argIndex))
+		args = append(args, workflowsJSON)
+		argIndex++
 	}
 
 	// Always update timestamp
@@ -292,18 +322,36 @@ func (r *ProductRepository) UpdateProductWithTx(ctx context.Context, tx *sql.Tx,
 	query := fmt.Sprintf("UPDATE products SET %s WHERE id = $%d",
 		strings.Join(setClauses, ", "), argIndex)
 
+	var result sql.Result
 	var err error
 	if tx != nil {
-		_, err = tx.ExecContext(ctx, query, args...)
+		result, err = tx.ExecContext(ctx, query, args...)
 	} else {
-		_, err = r.db.ExecContext(ctx, query, args...)
+		result, err = r.db.ExecContext(ctx, query, args...)
 	}
 
 	if err != nil {
 		return fmt.Errorf("failed to update product: %w", err)
 	}
 
+	// Check if product was found
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("product with id %s not found", id)
+	}
+
 	return nil
+}
+
+// Helper function to encrypt API key (placeholder - implement actual encryption)
+func encryptAPIKey(apiKey string) (string, error) {
+	// Implement your encryption logic here
+	// For example, using AES encryption
+	return apiKey, nil // Placeholder
 }
 
 func (r *ProductRepository) Delete(ctx context.Context, id string) error {

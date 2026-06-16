@@ -17,7 +17,7 @@ export type {
 };
 
 // Reuse type dari Product dan WorkflowDefinition
-export interface CreateProductRequest {
+export interface ProductRequest {
     name: Product["name"];
     platform: Product["platform"];
     api_endpoint: Product["api_endpoint"];

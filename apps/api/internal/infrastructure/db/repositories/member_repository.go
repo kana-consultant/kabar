@@ -1,4 +1,3 @@
-// internal/infrastructure/repository/team/member_repository.go
 package repositories
 
 import (

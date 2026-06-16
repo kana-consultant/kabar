@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"seo-backend/internal/domain/adapter"
@@ -249,67 +248,61 @@ func (r *AdapterConfigRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, 
 
 	return nil
 }
-func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, productID string, updates map[string]interface{}) error {
+func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, productID string, cfg product.AdapterConfig) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is required for UpdateWithTx")
 	}
 
-	if len(updates) == 0 {
-		return nil
+	query := `
+		UPDATE adapter_configs 
+		SET 
+			endpoint_path = $1,
+			http_method = $2,
+			custom_headers = $3,
+			field_mapping = $4,
+			meta_config = $5,
+			sitemap_config = $6,
+			timeout_seconds = $7,
+			retry_count = $8,
+			updated_at = $9
+		WHERE product_id = $10 AND id = $11
+	`
+
+	// Marshal JSON fields
+	customHeadersJSON, err := json.Marshal(cfg.CustomHeaders)
+	if err != nil {
+		return fmt.Errorf("failed to marshal custom_headers: %w", err)
 	}
 
-	setClauses := make([]string, 0)
-	args := make([]interface{}, 0)
-	argIndex := 1
-
-	fieldMap := map[string]string{
-		"endpointPath":    "endpoint_path",
-		"httpMethod":      "http_method",
-		"customHeaders":   "custom_headers",
-		"fieldMapping":    "field_mapping",
-		"responseMapping": "response_mapping",
-		"metaConfig":      "meta_config",
-		"sitemapConfig":   "sitemap_config",
-		"timeoutSeconds":  "timeout_seconds",
-		"retryCount":      "retry_count",
+	fieldMappingJSON, err := json.Marshal(cfg.FieldMapping)
+	if err != nil {
+		return fmt.Errorf("failed to marshal field_mapping: %w", err)
 	}
 
-	jsonFields := map[string]bool{
-		"customHeaders":   true,
-		"fieldMapping":    true,
-		"responseMapping": true,
-		"metaConfig":      true,
-		"sitemapConfig":   true,
+	metaConfigJSON, err := json.Marshal(cfg.MetaConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal meta_config: %w", err)
 	}
 
-	for key, value := range updates {
-		if dbField, ok := fieldMap[key]; ok {
-			if jsonFields[key] {
-				jsonValue, err := json.Marshal(value)
-				if err != nil {
-					return fmt.Errorf("failed to marshal %s: %w", key, err)
-				}
-				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
-				args = append(args, jsonValue)
-			} else {
-				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbField, argIndex))
-				args = append(args, value)
-			}
-			argIndex++
-		}
+	sitemapConfigJSON, err := json.Marshal(cfg.SitemapConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal sitemap_config: %w", err)
 	}
 
-	if len(setClauses) == 0 {
-		return nil
+	// Prepare arguments
+	args := []interface{}{
+		cfg.EndpointPath,
+		cfg.HTTPMethod,
+		customHeadersJSON,
+		fieldMappingJSON,
+		metaConfigJSON,
+		sitemapConfigJSON,
+		cfg.TimeoutSeconds,
+		cfg.RetryCount,
+		helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
+		productID,
+		cfg.ID,
 	}
-
-	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, helper.ParseWIBTime(time.Now().Format(time.RFC3339)))
-	argIndex++
-
-	args = append(args, productID)
-	query := fmt.Sprintf("UPDATE adapter_configs SET %s WHERE product_id = $%d",
-		strings.Join(setClauses, ", "), argIndex)
 
 	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -322,12 +315,11 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("adapter config for product %s not found", productID)
+		return fmt.Errorf("adapter config for product %s with ID %s not found", productID, cfg.ID)
 	}
 
 	return nil
 }
-
 func (r *AdapterConfigRepository) DeleteWithTx(ctx context.Context, tx *sql.Tx, productID string) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is required for DeleteWithTx")
