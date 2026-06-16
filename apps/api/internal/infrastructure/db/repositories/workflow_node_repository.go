@@ -47,7 +47,7 @@ func (r *WorkflowNodeRepository) GetByID(ctx context.Context, id string) (*workf
 	}
 
 	if len(inputMappingJSON) > 0 {
-		json.Unmarshal(inputMappingJSON, &node.InputMapping)
+		json.Unmarshal(inputMappingJSON, node.AdapterConfig.FieldMapping)
 	}
 
 	if nextNodeID.Valid {
@@ -61,10 +61,11 @@ func (r *WorkflowNodeRepository) GetByID(ctx context.Context, id string) (*workf
 
 func (r *WorkflowNodeRepository) GetByWorkflowID(ctx context.Context, workflowID string) ([]*workflow_node.WorkflowNode, error) {
 	query := `
-		SELECT id, workflow_id, adapter_config_id, step_order, 
-			input_mapping, next_node_id, previous_node_ids, created_at
+    SELECT id, workflow_id, adapter_config_id, step_order, 
+			input_mapping, next_node_id, previous_node_ids,
+			created_at
 		FROM workflow_nodes 
-		WHERE workflow_id = $1
+		WHERE workflow_id = ANY($1)
 		ORDER BY step_order ASC
 	`
 
@@ -91,7 +92,7 @@ func (r *WorkflowNodeRepository) GetByWorkflowID(ctx context.Context, workflowID
 		}
 
 		if len(inputMappingJSON) > 0 {
-			json.Unmarshal(inputMappingJSON, &node.InputMapping)
+			json.Unmarshal(inputMappingJSON, node.AdapterConfig.FieldMapping)
 		}
 
 		if nextNodeID.Valid {
@@ -106,8 +107,64 @@ func (r *WorkflowNodeRepository) GetByWorkflowID(ctx context.Context, workflowID
 	return nodes, nil
 }
 
+func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowIDs []string) ([]*workflow_node.WorkflowNodeCreate, error) {
+	query := `
+		SELECT id, workflow_id, adapter_config_id, step_order, 
+			input_mapping, next_node_id, previous_node_ids, created_at,endpoint_path
+		FROM workflow_nodes 
+		WHERE workflow_id = ANY($1)
+		ORDER BY step_order ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(workflowIDs))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workflow nodes: %w", err)
+	}
+	defer rows.Close()
+
+	var nodes []*workflow_node.WorkflowNodeCreate
+	for rows.Next() {
+		var node workflow_node.WorkflowNodeCreate
+		var inputMappingJSON []byte
+		var previousNodeIDsJSON []byte
+		var nextNodeID sql.NullString
+		var EndpointPath sql.NullString
+
+		err := rows.Scan(
+			&node.ID, &node.WorkflowID, &node.AdapterConfigID,
+			&node.StepOrder, &inputMappingJSON, &nextNodeID,
+			&previousNodeIDsJSON, &node.CreatedAt, &EndpointPath,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan workflow node: %w", err)
+		}
+
+		if len(inputMappingJSON) > 0 {
+			json.Unmarshal(inputMappingJSON, &node.InputMapping)
+		}
+
+		if nextNodeID.Valid {
+			node.NextNodeID = &nextNodeID.String
+		}
+
+		if EndpointPath.Valid {
+			node.EndpointPath = &EndpointPath.String
+		}
+
+		if len(previousNodeIDsJSON) > 0 {
+			json.Unmarshal(previousNodeIDsJSON, &node.PreviousNodeIDs)
+		} else {
+			node.PreviousNodeIDs = []string{}
+		}
+
+		nodes = append(nodes, &node)
+	}
+
+	return nodes, nil
+}
+
 func (r *WorkflowNodeRepository) Insert(ctx context.Context, node *workflow_node.WorkflowNode) error {
-	inputMappingJSON, err := json.Marshal(node.InputMapping)
+	inputMappingJSON, err := json.Marshal(node.AdapterConfig.FieldMapping)
 	if err != nil {
 		return fmt.Errorf("failed to marshal input mapping: %w", err)
 	}
@@ -160,7 +217,7 @@ func (r *WorkflowNodeRepository) InsertBatch(ctx context.Context, nodes []workfl
 	var savedNodes []workflow_node.WorkflowNode
 
 	for _, node := range nodes {
-		inputMappingJSON, err := json.Marshal(node.InputMapping)
+		inputMappingJSON, err := json.Marshal(node.AdapterConfig.FieldMapping)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal input mapping: %w", err)
 		}
@@ -181,7 +238,7 @@ func (r *WorkflowNodeRepository) InsertBatch(ctx context.Context, nodes []workfl
 		savedNode.WorkflowID = node.WorkflowID
 		savedNode.AdapterConfigID = node.AdapterConfigID
 		savedNode.StepOrder = node.StepOrder
-		savedNode.InputMapping = node.InputMapping
+		savedNode.AdapterConfig.FieldMapping = node.AdapterConfig.FieldMapping
 		savedNode.NextNodeID = node.NextNodeID
 		savedNode.PreviousNodeIDs = node.PreviousNodeIDs
 
@@ -326,8 +383,8 @@ func (r *WorkflowNodeRepository) ReorderNodes(ctx context.Context, workflowID st
 func (r *WorkflowNodeRepository) InsertBatchWithTx(
 	ctx context.Context,
 	tx *sql.Tx,
-	nodes []workflow_node.WorkflowNode,
-) ([]workflow_node.WorkflowNode, error) {
+	nodes []workflow_node.WorkflowNodeCreate,
+) ([]workflow_node.WorkflowNodeCreate, error) {
 
 	log.Println("========== InsertBatchWithTx ==========")
 	log.Printf("Total nodes to insert: %d\n", len(nodes))
@@ -342,13 +399,14 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			input_mapping,
 			next_node_id,
 			previous_node_ids,
+			endpoint_path,
 			created_at
 		)
 		VALUES ($1, $2, $3, $4, $5, NULL, $6, NOW())
 		RETURNING created_at
 	`
 
-	var savedNodes []workflow_node.WorkflowNode
+	var savedNodes []workflow_node.WorkflowNodeCreate
 
 	for idx, node := range nodes {
 		log.Printf("--- Inserting node[%d/%d] ID=%s ---\n", idx+1, len(nodes), node.ID)
@@ -388,6 +446,7 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			savedNode.StepOrder,
 			inputMappingJSON,
 			previousNodeIDsJSON,
+			savedNode.EndpointPath,
 		).Scan(&savedNode.CreatedAt)
 
 		if err != nil {
@@ -469,7 +528,7 @@ func (r *WorkflowNodeRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, n
 		node.WorkflowID,
 		node.AdapterConfigID,
 		node.StepOrder,
-		node.InputMapping,
+		node.AdapterConfig.FieldMapping,
 		nextNodeID,
 		previousNodeIDs,
 	).Scan(&node.CreatedAt)
@@ -544,6 +603,86 @@ func (r *WorkflowNodeRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, i
 
 	if rowsAffected == 0 {
 		return fmt.Errorf("workflow node %s not found", id)
+	}
+
+	return nil
+}
+
+// UpsertWithTx upserts a workflow node within a transaction
+func (r *WorkflowNodeRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, id string, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	fieldMap := map[string]string{
+		"adapterConfigId": "adapter_config_id",
+		"stepOrder":       "step_order",
+		"inputMapping":    "input_mapping",
+		"nextNodeId":      "next_node_id",
+		"previousNodeIds": "previous_node_ids",
+	}
+
+	setClauses := make([]string, 0)
+	insertColumns := []string{"id"}
+	insertPlaceholders := []string{"$1"}
+	args := []interface{}{id}
+	argIndex := 2
+
+	for key, value := range updates {
+		dbField, ok := fieldMap[key]
+		if !ok {
+			continue
+		}
+
+		var arg interface{}
+		switch key {
+		case "inputMapping":
+			jsonValue, err := json.Marshal(value)
+			if err != nil {
+				return fmt.Errorf("failed to marshal input mapping: %w", err)
+			}
+			arg = jsonValue
+		case "previousNodeIds":
+			prevIDs, ok := value.([]string)
+			if !ok {
+				return fmt.Errorf("previousNodeIds must be []string")
+			}
+			arg = pq.Array(prevIDs)
+		default:
+			arg = value
+		}
+
+		insertColumns = append(insertColumns, dbField)
+		insertPlaceholders = append(insertPlaceholders, fmt.Sprintf("$%d", argIndex))
+		setClauses = append(setClauses, fmt.Sprintf("%s = EXCLUDED.%s", dbField, dbField))
+		args = append(args, arg)
+		argIndex++
+	}
+
+	if len(setClauses) == 0 {
+		return nil
+	}
+
+	query := fmt.Sprintf(
+		`INSERT INTO workflow_nodes (%s) VALUES (%s)
+		ON CONFLICT (id) DO UPDATE SET %s`,
+		strings.Join(insertColumns, ", "),
+		strings.Join(insertPlaceholders, ", "),
+		strings.Join(setClauses, ", "),
+	)
+
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to upsert workflow node with tx: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("upsert workflow node %s had no effect", id)
 	}
 
 	return nil

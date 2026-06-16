@@ -19,7 +19,7 @@ type ProductService interface {
 	DeleteProduct(ctx context.Context, id string) error
 
 	// GetByID retrieves a product by ID with its adapter config
-	GetByID(ctx context.Context, id string) (*Product, error)
+	GetByID(ctx context.Context, productID string, userCtx models.UserContext) (*CreateProductRequest, error)
 
 	// GetAllProducts retrieves all products with filters
 	GetAllProducts(ctx context.Context, userCtx models.UserContext) ([]Product, error)

@@ -7,16 +7,34 @@ import (
 	"time"
 )
 
+type NodeAdapterConfig struct {
+	EndpointPath string `json:"endpoint_path"`
+	HTTPMethod   string `json:"http_method"`
+	FieldMapping string `json:"field_mapping"`
+}
+
 type WorkflowNode struct {
-	ID              string          `json:"id"`
-	WorkflowID      string          `json:"workflow_id"`
-	AdapterConfigID string          `json:"adapter_config_id"`
-	PreviousNodeIDs []string        `json:"previous_node_ids,omitempty"`
-	StepOrder       int             `json:"step_order"`
-	InputMapping    json.RawMessage `json:"input_mapping"`
-	NextNodeID      *string         `json:"next_node_id"`
-	CreatedAt       time.Time       `json:"created_at"`
-	AdapterConfig   *AdapterConfig  `json:"adapter_config,omitempty"` // optional, for joined data
+	ID              string   `json:"id"`
+	WorkflowID      string   `json:"workflow_id"`
+	AdapterConfigID string   `json:"adapter_config_id"`
+	PreviousNodeIDs []string `json:"previous_node_ids,omitempty"`
+	StepOrder       int      `json:"step_order"`
+
+	NextNodeID    *string            `json:"next_node_id"`
+	CreatedAt     time.Time          `json:"created_at"`
+	AdapterConfig *NodeAdapterConfig `json:"adapter_config,omitempty"`
+}
+
+type WorkflowNodeCreate struct {
+	ID              string
+	WorkflowID      string
+	AdapterConfigID string
+	PreviousNodeIDs []string
+	StepOrder       int
+	InputMapping    json.RawMessage
+	NextNodeID      *string
+	CreatedAt       time.Time
+	EndpointPath    *string
 }
 
 type AdapterConfig struct {
@@ -38,6 +56,7 @@ type AdapterConfig struct {
 type WorkflowNodeRepository interface {
 	GetByID(ctx context.Context, id string) (*WorkflowNode, error)
 	GetByWorkflowID(ctx context.Context, workflowID string) ([]*WorkflowNode, error)
+	GetByWorkflowIDs(ctx context.Context, workflowIDs []string) ([]*WorkflowNodeCreate, error)
 	Insert(ctx context.Context, node *WorkflowNode) error
 	InsertBatch(ctx context.Context, nodes []WorkflowNode) ([]WorkflowNode, error)
 	Update(ctx context.Context, id string, updates map[string]interface{}) error
@@ -46,7 +65,7 @@ type WorkflowNodeRepository interface {
 	ReorderNodes(ctx context.Context, workflowID string, nodeIDs []string) error
 
 	// Methods with transaction support
-	InsertBatchWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNode) ([]WorkflowNode, error)
+	InsertBatchWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNodeCreate) ([]WorkflowNodeCreate, error)
 	InsertWithTx(ctx context.Context, tx *sql.Tx, node *WorkflowNode) error
 	UpdateWithTx(ctx context.Context, tx *sql.Tx, id string, updates map[string]interface{}) error
 }

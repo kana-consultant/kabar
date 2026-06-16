@@ -140,12 +140,12 @@ type ProductWithDetails struct {
 
 // Request/Response types
 type CreateProductRequest struct {
-	ID            string                      `json:"id"`
-	Name          string                      `json:"name"`
-	Platform      string                      `json:"platform"`
-	APIEndpoint   string                      `json:"api_endpoint"`
-	APIKey        string                      `json:"api_key"`
-	AdapterConfig *CreateAdapterConfigRequest `json:"adapter_config,omitempty"`
+	ID            string         `json:"id"`
+	Name          string         `json:"name"`
+	Platform      string         `json:"platform"`
+	APIEndpoint   string         `json:"api_endpoint"`
+	APIKey        string         `json:"api_key"`
+	AdapterConfig *AdapterConfig `json:"adapter_config,omitempty"`
 
 	Workflows []workflow.WorkflowDefinition `json:"workflows,omitempty"`
 }

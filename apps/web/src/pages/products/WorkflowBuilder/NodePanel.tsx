@@ -103,8 +103,8 @@ export function NodePanel({
             if (!obj || typeof obj !== "object") return;
 
             Object.entries(obj).forEach(([key, value]) => {
-                const fullPath = currentPath ? `${currentPath}.${key}` : key;
-                const placeholderValue = `{{node_${nodeId}.response.${fullPath}}}`;
+                const fullPath = currentPath ? `${key}` : key;
+                const placeholderValue = `{{response.${fullPath}}}`;
 
                 if (value && typeof value === "object" && !Array.isArray(value)) {
                     generateNestedPlaceholders(value, fullPath);

@@ -3,7 +3,7 @@ package workflow_node
 
 import (
 	"context"
-	"encoding/json"
+
 	"fmt"
 	"seo-backend/internal/domain/workflow_node"
 )
@@ -151,21 +151,10 @@ func (s *WorkflowNodeService) SaveBatch(ctx context.Context, workflowID string, 
 		for i, n := range req.ToCreate {
 			tempIDMap[i] = n.TempID
 
-			inputMappingJSON, err := json.Marshal(n.InputMapping)
-			if err != nil {
-				result.Errors = append(result.Errors, workflow_node.BatchError{
-					Operation: "create",
-					ID:        n.TempID,
-					Message:   fmt.Sprintf("failed to marshal input mapping: %v", err),
-				})
-				continue
-			}
-
 			nodes[i] = workflow_node.WorkflowNode{
 				WorkflowID:      workflowID,
 				AdapterConfigID: n.AdapterConfigID,
 				StepOrder:       n.StepOrder,
-				InputMapping:    inputMappingJSON,
 				NextNodeID:      n.NextNodeID,
 			}
 		}

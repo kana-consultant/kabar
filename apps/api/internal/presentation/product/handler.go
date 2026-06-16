@@ -241,9 +241,10 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
+	useCtx := auth.GetUserContext(r)
 
 	// Call application service
-	product, err := h.service.GetByID(ctx, id)
+	product, err := h.service.GetByID(ctx, id, useCtx)
 	if err != nil {
 		h.writeError(w, err)
 		return
