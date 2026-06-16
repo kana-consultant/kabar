@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -287,28 +286,6 @@ func (r *ProductRepository) UpdateProductWithTx(ctx context.Context, tx *sql.Tx,
 		}
 		setClauses = append(setClauses, fmt.Sprintf("api_key_encrypted = $%d", argIndex))
 		args = append(args, encryptedKey)
-		argIndex++
-	}
-
-	// Handle AdapterConfig (JSON field)
-	if updates.AdapterConfig != nil {
-		adapterConfigJSON, err := json.Marshal(updates.AdapterConfig)
-		if err != nil {
-			return fmt.Errorf("failed to marshal adapter_config: %w", err)
-		}
-		setClauses = append(setClauses, fmt.Sprintf("adapter_config = $%d", argIndex))
-		args = append(args, adapterConfigJSON)
-		argIndex++
-	}
-
-	// Handle Workflows (JSON field)
-	if updates.Workflows != nil {
-		workflowsJSON, err := json.Marshal(updates.Workflows)
-		if err != nil {
-			return fmt.Errorf("failed to marshal workflows: %w", err)
-		}
-		setClauses = append(setClauses, fmt.Sprintf("workflows = $%d", argIndex))
-		args = append(args, workflowsJSON)
 		argIndex++
 	}
 

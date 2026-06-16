@@ -265,7 +265,7 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 			timeout_seconds = $7,
 			retry_count = $8,
 			updated_at = $9
-		WHERE product_id = $10 AND id = $11
+		WHERE product_id = $10 
 	`
 
 	// Marshal JSON fields
@@ -301,7 +301,6 @@ func (r *AdapterConfigRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, 
 		cfg.RetryCount,
 		helper.ParseWIBTime(time.Now().Format(time.RFC3339)),
 		productID,
-		cfg.ID,
 	}
 
 	result, err := tx.ExecContext(ctx, query, args...)

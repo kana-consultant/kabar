@@ -10,6 +10,7 @@ import (
 	"seo-backend/internal/domain/workflow_node"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
@@ -610,59 +611,120 @@ func (r *WorkflowNodeRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, i
 // UpsertWithTx upserts multiple workflow nodes within a transaction
 func (r *WorkflowNodeRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, nodes []workflow_node.WorkflowNode) error {
 	if len(nodes) == 0 {
+		log.Println("[WorkflowNodeRepository.UpsertWithTx] no nodes to upsert, skipping")
 		return nil
 	}
 
+	log.Printf("[WorkflowNodeRepository.UpsertWithTx] upserting %d nodes", len(nodes))
+
 	placeholders := make([]string, 0, len(nodes))
-	args := make([]interface{}, 0, len(nodes)*6)
+	args := make([]interface{}, 0, len(nodes)*8) // 8 fields
 	argIndex := 1
 
 	for _, node := range nodes {
-		inputMappingJSON, err := json.Marshal(node.AdapterConfig.EndpointPath)
+		// Marshal input mapping
+		inputMappingJSON, err := sanitizeJSON(node.AdapterConfig.FieldMapping)
 		if err != nil {
-			return fmt.Errorf("failed to marshal input mapping for node %s: %w", node.ID, err)
+			log.Printf("[WorkflowNodeRepository.UpsertWithTx] failed to sanitize input_mapping for node %s: %v", node.ID, err)
+			return fmt.Errorf("failed to sanitize input_mapping for node %s: %w", node.ID, err)
 		}
 
-		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d,$%d)",
-			argIndex, argIndex+1, argIndex+2, argIndex+3, argIndex+4, argIndex+5, argIndex+6,
+		// Dalam loop
+		if !isValidUUID(node.ID) {
+			return fmt.Errorf("invalid UUID format for node ID: %s", node.ID)
+		}
+		if !isValidUUID(node.WorkflowID) {
+			return fmt.Errorf("invalid UUID format for workflow ID: %s", node.WorkflowID)
+		}
+		if !isValidUUID(node.AdapterConfigID) {
+			return fmt.Errorf("invalid UUID format for adapter config ID: %s", node.AdapterConfigID)
+		}
+
+		// Marshal previous node IDs
+		previousNodeIDs := node.PreviousNodeIDs
+		if previousNodeIDs == nil {
+			previousNodeIDs = []string{}
+		}
+		previousNodeIDsJSON, err := json.Marshal(previousNodeIDs)
+		if err != nil {
+			return fmt.Errorf("failed to marshal previous_node_ids for node %s: %w", node.ID, err)
+		}
+
+		// 8 placeholders untuk 8 fields
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			argIndex, argIndex+1, argIndex+2, argIndex+3, argIndex+4, argIndex+5, argIndex+6, argIndex+7,
 		))
+
 		args = append(args,
-			node.ID,
-			node.WorkflowID,
-			node.AdapterConfigID,
-			pq.Array(node.PreviousNodeIDs),
-			node.StepOrder,
-			node.NextNodeID,
-			inputMappingJSON,
+			node.ID,                         // $1 - uuid
+			node.WorkflowID,                 // $2 - uuid
+			node.AdapterConfigID,            // $3 - uuid
+			previousNodeIDsJSON,             // $4 - jsonb
+			node.StepOrder,                  // $5 - integer
+			node.NextNodeID,                 // $6 - uuid (bisa null)
+			node.AdapterConfig.EndpointPath, // $7 - text
+			inputMappingJSON,                // $8 - jsonb
 		)
-		argIndex += 6
+
+		log.Printf("[WorkflowNodeRepository.UpsertWithTx] preparing node id=%s workflow_id=%s adapter_config_id=%s step_order=%d",
+			node.ID, node.WorkflowID, node.AdapterConfigID, node.StepOrder)
+
+		argIndex += 8 // Increment by 8 karena ada 8 fields
 	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO workflow_nodes (id, workflow_id, adapter_config_id, previous_node_ids, step_order, next_node_id,input_mapping)
+		INSERT INTO workflow_nodes (
+			id, 
+			workflow_id, 
+			adapter_config_id, 
+			previous_node_ids, 
+			step_order, 
+			next_node_id,
+			endpoint_path,
+			input_mapping
+		)
 		VALUES %s
 		ON CONFLICT (id) DO UPDATE SET
-			workflow_id       = EXCLUDED.workflow_id,
+			workflow_id = EXCLUDED.workflow_id,
 			adapter_config_id = EXCLUDED.adapter_config_id,
 			previous_node_ids = EXCLUDED.previous_node_ids,
-			step_order        = EXCLUDED.step_order,
-			next_node_id      = EXCLUDED.next_node_id,
-			input_mapping =  EXCLUDED.input_mapping,
+			step_order = EXCLUDED.step_order,
+			next_node_id = EXCLUDED.next_node_id,
+			endpoint_path = EXCLUDED.endpoint_path,
+			input_mapping = EXCLUDED.input_mapping
 	`, strings.Join(placeholders, ", "))
+
+	log.Printf("[WorkflowNodeRepository.UpsertWithTx] executing query with %d args", len(args))
 
 	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
+		log.Printf("[WorkflowNodeRepository.UpsertWithTx] failed to upsert: %v", err)
 		return fmt.Errorf("failed to upsert workflow nodes: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		log.Printf("[WorkflowNodeRepository.UpsertWithTx] failed to get rows affected: %v", err)
 		return fmt.Errorf("failed to check rows affected: %w", err)
 	}
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("upsert workflow nodes had no effect")
-	}
+	log.Printf("[WorkflowNodeRepository.UpsertWithTx] successfully upserted %d rows", rowsAffected)
 
 	return nil
+}
+
+// Validasi UUID sebelum insert
+func isValidUUID(id string) bool {
+	_, err := uuid.Parse(id)
+	return err == nil
+}
+
+func sanitizeJSON(raw string) (json.RawMessage, error) {
+	if raw == "" {
+		return json.RawMessage("{}"), nil
+	}
+	if !json.Valid([]byte(raw)) {
+		return nil, fmt.Errorf("invalid json: %s", raw)
+	}
+	return json.RawMessage(raw), nil
 }

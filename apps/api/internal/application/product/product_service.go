@@ -756,7 +756,7 @@ func (s *ProductService) GetByID(
 				NextNodeID:      n.NextNodeID,
 				CreatedAt:       n.CreatedAt,
 				AdapterConfig: &workflow_node.NodeAdapterConfig{
-					EndpointPath: adapterCfg.EndpointPath,
+					EndpointPath: *n.EndpointPath,
 					HTTPMethod:   adapterCfg.HTTPMethod,
 					FieldMapping: string(n.InputMapping), // dari input_mapping node
 				},
