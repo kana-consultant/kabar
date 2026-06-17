@@ -313,6 +313,301 @@ func (s *ProductService) CreateProduct(
 	return productID, nil
 }
 
+// UpdateProduct - Application mengelola transaction
+func (s *ProductService) UpdateProduct(
+	ctx context.Context,
+	id string,
+	req product.ProductRequest,
+	userCtx models.UserContext,
+) error {
+
+	log.Println("========== UPDATE PRODUCT ==========")
+	log.Printf("Product ID: %s\n", id)
+	log.Printf("Request Payload: %+v\n", req)
+
+	if id == "" {
+		return errors.New("product id is required")
+	}
+
+	// ========== 1. GENERATE ALL REAL IDs ==========
+	log.Println("Step 1: Generating real IDs for all entities...")
+
+	if req.AdapterConfig != nil {
+		if req.AdapterConfig.ID != "" && !isTempID(req.AdapterConfig.ID) {
+			// Frontend kirim real ID yang valid — pakai langsung
+			log.Printf("AdapterConfig ID from request (real): %s\n", req.AdapterConfig.ID)
+		} else {
+			// Kosong atau temp — tandai, resolve dari DB nanti
+			log.Printf("AdapterConfig ID is empty/temp (%s), will resolve from DB\n", req.AdapterConfig.ID)
+			req.AdapterConfig.ID = "" // kosongkan agar tahu harus fetch
+		}
+	}
+	nodeTempToReal := make(map[string]string)
+
+	if req.Workflows != nil {
+		for wfIdx := range req.Workflows {
+			// [FIX Gap 1] Generate real workflow ID jika temp atau kosong
+			if req.Workflows[wfIdx].ID == "" || isTempID(req.Workflows[wfIdx].ID) {
+				realWfID := generateID()
+				log.Printf("Workflow[%d] mapping: temp=%s -> real=%s\n", wfIdx, req.Workflows[wfIdx].ID, realWfID)
+				req.Workflows[wfIdx].ID = realWfID
+			}
+			log.Printf("Workflow[%d] ID: %s\n", wfIdx, req.Workflows[wfIdx].ID)
+
+			for nodeIdx := range req.Workflows[wfIdx].Nodes {
+				node := &req.Workflows[wfIdx].Nodes[nodeIdx]
+
+				// Skip jika node sudah punya real ID (existing node)
+				if node.ID != "" && !isTempID(node.ID) {
+					log.Printf("Node[%d:%d] using existing ID: %s\n", wfIdx, nodeIdx, node.ID)
+					continue
+				}
+
+				nodeRealID := generateID()
+				tempWorkflowID := req.Workflows[wfIdx].ID // sudah real di sini
+
+				// Case 1: frontend kirim temp node ID di field ID
+				if node.ID != "" {
+					nodeTempToReal[node.ID] = nodeRealID
+					log.Printf("Node[%d:%d] mapping from node.ID: temp=%s -> real=%s\n",
+						wfIdx, nodeIdx, node.ID, nodeRealID)
+				}
+
+				// [FIX Gap 5] Case 2: frontend salah kirim temp node ID di field WorkflowID
+				if node.WorkflowID != "" && node.WorkflowID != tempWorkflowID && isTempID(node.WorkflowID) {
+					nodeTempToReal[node.WorkflowID] = nodeRealID
+					log.Printf("Node[%d:%d] mapping from node.WorkflowID: temp=%s -> real=%s\n",
+						wfIdx, nodeIdx, node.WorkflowID, nodeRealID)
+				}
+
+				node.ID = nodeRealID
+				log.Printf("Node[%d:%d] real ID assigned: %s\n", wfIdx, nodeIdx, nodeRealID)
+			}
+		}
+	}
+
+	log.Printf("Node Temp to Real Mapping: %+v\n", nodeTempToReal)
+
+	// ========== 2. RESOLVE ALL RELATIONSHIPS ==========
+	log.Println("Step 2: Resolving relationships...")
+
+	if req.Workflows != nil {
+		for wfIdx := range req.Workflows {
+			for nodeIdx := range req.Workflows[wfIdx].Nodes {
+				node := &req.Workflows[wfIdx].Nodes[nodeIdx]
+
+				log.Printf("Resolving node[%d:%d] real ID: %s\n", wfIdx, nodeIdx, node.ID)
+
+				// [FIX Gap 3] Set WorkflowID ke real workflow ID, konsisten dengan CreateProduct
+				node.WorkflowID = req.Workflows[wfIdx].ID
+				log.Printf("  WorkflowID set to: %s\n", node.WorkflowID)
+
+				// Resolve AdapterConfigID dari existing product
+				if req.AdapterConfig != nil && req.AdapterConfig.ID != "" {
+					node.AdapterConfigID = req.AdapterConfig.ID
+					log.Printf("  AdapterConfigID set to: %s\n", node.AdapterConfigID)
+				}
+
+				// Resolve NextNodeIDs
+				if len(node.NextNodeIDs) > 0 {
+					resolvedNextIDs := make([]string, 0, len(node.NextNodeIDs))
+					for _, tempNextID := range node.NextNodeIDs {
+						log.Printf("  Resolving NextNodeID: '%s'\n", tempNextID)
+						if realNextID, ok := nodeTempToReal[tempNextID]; ok {
+							resolvedNextIDs = append(resolvedNextIDs, realNextID)
+							log.Printf("  ✅ NextNodeID resolved: %s -> %s\n", tempNextID, realNextID)
+						} else {
+							// Bisa jadi sudah real ID (existing node)
+							resolvedNextIDs = append(resolvedNextIDs, tempNextID)
+							log.Printf("  ℹ️ NextNodeID '%s' kept as-is (assumed real ID)\n", tempNextID)
+						}
+					}
+					node.NextNodeIDs = resolvedNextIDs
+				}
+
+				// Resolve PreviousNodeIDs
+				if len(node.PreviousNodeIDs) > 0 {
+					resolvedPrevIDs := make([]string, 0, len(node.PreviousNodeIDs))
+					for _, tempPrevID := range node.PreviousNodeIDs {
+						log.Printf("  Resolving PreviousNodeID: '%s'\n", tempPrevID)
+						if realPrevID, ok := nodeTempToReal[tempPrevID]; ok {
+							resolvedPrevIDs = append(resolvedPrevIDs, realPrevID)
+							log.Printf("  ✅ PreviousNodeID resolved: %s -> %s\n", tempPrevID, realPrevID)
+						} else {
+							resolvedPrevIDs = append(resolvedPrevIDs, tempPrevID)
+							log.Printf("  ℹ️ PreviousNodeID '%s' kept as-is (assumed real ID)\n", tempPrevID)
+						}
+					}
+					node.PreviousNodeIDs = resolvedPrevIDs
+				}
+			}
+		}
+	}
+
+	// ========== 3. VALIDATE NODE RELATIONSHIPS ==========
+	// [FIX Gap 4] Validasi strict: semua next/prev ID harus ada di workflow yang sama
+	log.Println("Step 3: Validating node relationships...")
+
+	if req.Workflows != nil {
+		for wfIdx, wf := range req.Workflows {
+			nodeIDSet := make(map[string]bool)
+			for _, node := range wf.Nodes {
+				nodeIDSet[node.ID] = true
+			}
+
+			for _, node := range wf.Nodes {
+				for _, nextID := range node.NextNodeIDs {
+					if !nodeIDSet[nextID] {
+						// [FIX Gap 4] Strict seperti CreateProduct — return error, bukan skip
+						return fmt.Errorf("workflow[%d] node[%s]: NextNodeID %s not found in same workflow",
+							wfIdx, node.ID, nextID)
+					}
+					log.Printf("  ✅ Node %s -> NextNode: %s\n", node.ID, nextID)
+				}
+
+				for _, prevID := range node.PreviousNodeIDs {
+					if !nodeIDSet[prevID] {
+						return fmt.Errorf("workflow[%d] node[%s]: PreviousNodeID %s not found in same workflow",
+							wfIdx, node.ID, prevID)
+					}
+					log.Printf("  ✅ Node %s <- PrevNode: %s\n", node.ID, prevID)
+				}
+			}
+		}
+	}
+
+	// ========== 4. DATABASE TRANSACTION ==========
+	log.Println("Step 4: Starting database transaction...")
+
+	tx, err := s.productRepo.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	log.Println("Fetching existing product with lock...")
+	existingProduct, err := s.productRepo.GetByIDWithTx(ctx, tx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get product: %w", err)
+	}
+	log.Printf("Existing product fetched: %+v\n", existingProduct)
+
+	if existingProduct.Status == "active" {
+		if req.Platform != "" {
+			return errors.New("cannot update platform of active product")
+		}
+	}
+
+	// [FIX] Resolve AdapterConfig ID dari DB jika tidak ada di request
+	if req.AdapterConfig != nil && req.AdapterConfig.ID == "" {
+		existingCfg, err := s.adapterConfigRepo.GetByProductID(ctx, id)
+		if err != nil {
+			return fmt.Errorf("failed to get existing adapter config: %w", err)
+		}
+		req.AdapterConfig.ID = existingCfg.ID
+		log.Printf("AdapterConfig ID resolved from DB: %s\n", req.AdapterConfig.ID)
+	}
+
+	// [FIX] Backfill AdapterConfigID ke semua node setelah ID diketahui
+	if req.AdapterConfig != nil && req.Workflows != nil {
+		for wfIdx := range req.Workflows {
+			for nodeIdx := range req.Workflows[wfIdx].Nodes {
+				node := &req.Workflows[wfIdx].Nodes[nodeIdx]
+				if node.AdapterConfigID == "" {
+					node.AdapterConfigID = req.AdapterConfig.ID
+					log.Printf("Node[%d:%d] AdapterConfigID backfilled: %s\n", wfIdx, nodeIdx, node.AdapterConfigID)
+				}
+			}
+		}
+	}
+
+	log.Println("Updating product...")
+	if err := s.productRepo.UpdateProductWithTx(ctx, tx, id, req); err != nil {
+		return fmt.Errorf("failed to update product: %w", err)
+	}
+	log.Printf("Product updated: %s\n", id)
+
+	if req.AdapterConfig != nil {
+		log.Println("Updating adapter config...")
+		cfg := product.AdapterConfig{
+			ID:             req.AdapterConfig.ID,
+			ProductID:      id,
+			EndpointPath:   req.AdapterConfig.EndpointPath,
+			HTTPMethod:     req.AdapterConfig.HTTPMethod,
+			CustomHeaders:  req.AdapterConfig.CustomHeaders,
+			FieldMapping:   req.AdapterConfig.FieldMapping,
+			MetaConfig:     req.AdapterConfig.MetaConfig,
+			SitemapConfig:  req.AdapterConfig.SitemapConfig,
+			TimeoutSeconds: req.AdapterConfig.TimeoutSeconds,
+			RetryCount:     req.AdapterConfig.RetryCount,
+		}
+		if err := s.adapterConfigRepo.UpdateWithTx(ctx, tx, id, cfg); err != nil {
+			return fmt.Errorf("failed to update adapter config: %w", err)
+		}
+		log.Printf("AdapterConfig updated: ID=%s, Endpoint=%s\n", cfg.ID, cfg.EndpointPath)
+	}
+
+	if req.Workflows != nil {
+		log.Println("Updating workflows and nodes...")
+		for wfIdx, wfDef := range req.Workflows {
+			log.Printf("Processing workflow[%d]: ID=%s, Name=%s\n", wfIdx, wfDef.ID, wfDef.Name)
+
+			updatedWorkflow := workflow.WorkflowDefinition{
+				ID:        wfDef.ID,
+				ProductID: id,
+				Name:      wfDef.Name,
+			}
+
+			if err := s.workflowRepo.UpsertWithTx(ctx, tx, &updatedWorkflow); err != nil {
+				return fmt.Errorf("failed to upsert workflow[%d]: %w", wfIdx, err)
+			}
+			log.Printf("Workflow[%d] upserted: %s\n", wfIdx, updatedWorkflow.ID)
+
+			if len(wfDef.Nodes) == 0 {
+				log.Printf("Workflow[%d] has no nodes, skipping\n", wfIdx)
+				continue
+			}
+
+			nodes := make([]workflow_node.WorkflowNode, 0, len(wfDef.Nodes))
+			for nIdx, n := range wfDef.Nodes {
+
+				if n.StepOrder <= 0 {
+					return fmt.Errorf("workflow[%d] node[%d] StepOrder must be > 0", wfIdx, nIdx)
+				}
+
+				log.Printf("  Preparing node[%d:%d]: ID=%s, WorkflowID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeIDs=%v\n",
+					wfIdx, nIdx, n.ID, n.WorkflowID, n.StepOrder, req.AdapterConfig.ID, n.NextNodeIDs)
+
+				nodes = append(nodes, workflow_node.WorkflowNode{
+					ID:              n.ID,
+					WorkflowID:      updatedWorkflow.ID,
+					AdapterConfigID: req.AdapterConfig.ID,
+					StepOrder:       n.StepOrder,
+					AdapterConfig:   n.AdapterConfig,
+					NextNodeIDs:     n.NextNodeIDs,
+					PreviousNodeIDs: n.PreviousNodeIDs,
+				})
+			}
+
+			log.Printf("Upserting %d nodes for workflow[%d]...\n", len(nodes), wfIdx)
+			if err := s.workflowNodeRepo.UpsertWithTx(ctx, tx, nodes); err != nil {
+				return fmt.Errorf("failed to upsert nodes for workflow[%d]: %w", wfIdx, err)
+			}
+		}
+	}
+
+	// ========== 5. COMMIT ==========
+	log.Println("Step 5: Committing transaction...")
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	log.Printf("✅ UpdateProduct SUCCESS. ProductID: %s\n", id)
+	log.Println("====================================")
+
+	return nil
+}
+
 func (s *ProductService) validateCreateRequest(req product.ProductRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("product name is required")
@@ -363,278 +658,6 @@ func isTempID(id string) bool {
 	// Sesuaikan dengan format temp ID frontend kamu
 	// Contoh: return strings.HasPrefix(id, "temp-")
 	return strings.HasPrefix(id, "temp-")
-}
-
-// UpdateProduct - Application mengelola transaction
-func (s *ProductService) UpdateProduct(
-	ctx context.Context,
-	id string,
-	req product.ProductRequest,
-	userCtx models.UserContext,
-) error {
-
-	log.Println("========== UPDATE PRODUCT ==========")
-	log.Printf("Product ID: %s\n", id)
-	log.Printf("Request Payload: %+v\n", req)
-
-	// ========== BUSINESS VALIDATION ==========
-	if id == "" {
-		return errors.New("product id is required")
-	}
-
-	// ========== 1. GENERATE ALL REAL IDs ==========
-	log.Println("Step 1: Generating real IDs for all entities...")
-
-	// Mapping node temp ID -> real ID
-	nodeTempToReal := make(map[string]string)
-
-	if req.Workflows != nil {
-		for wfIdx := range req.Workflows {
-			for nodeIdx := range req.Workflows[wfIdx].Nodes {
-				node := &req.Workflows[wfIdx].Nodes[nodeIdx]
-
-				// Skip jika node sudah punya real ID (existing node)
-				if node.ID != "" && !isTempID(node.ID) {
-					log.Printf("Node[%d:%d] using existing ID: %s\n", wfIdx, nodeIdx, node.ID)
-					continue
-				}
-
-				nodeRealID := generateID()
-				tempWorkflowID := req.Workflows[wfIdx].ID
-
-				// Case 1: frontend kirim temp node ID di field ID
-				if node.ID != "" {
-					nodeTempToReal[node.ID] = nodeRealID
-					log.Printf("Node[%d:%d] mapping from node.ID: temp=%s -> real=%s\n",
-						wfIdx, nodeIdx, node.ID, nodeRealID)
-				}
-
-				// Case 2: frontend salah kirim temp node ID di field WorkflowID
-				if node.WorkflowID != "" && node.WorkflowID != tempWorkflowID {
-					nodeTempToReal[node.WorkflowID] = nodeRealID
-					log.Printf("Node[%d:%d] mapping from node.WorkflowID: temp=%s -> real=%s\n",
-						wfIdx, nodeIdx, node.WorkflowID, nodeRealID)
-				}
-
-				node.ID = nodeRealID
-				log.Printf("Node[%d:%d] real ID assigned: %s\n", wfIdx, nodeIdx, nodeRealID)
-			}
-		}
-	}
-
-	log.Printf("Node Temp to Real Mapping: %+v\n", nodeTempToReal)
-
-	// ========== 2. RESOLVE ALL RELATIONSHIPS ==========
-	log.Println("Step 2: Resolving relationships...")
-
-	if req.Workflows != nil {
-		for wfIdx := range req.Workflows {
-			for nodeIdx := range req.Workflows[wfIdx].Nodes {
-				node := &req.Workflows[wfIdx].Nodes[nodeIdx]
-
-				log.Printf("Resolving node[%d:%d] real ID: %s\n", wfIdx, nodeIdx, node.ID)
-
-				// Resolve AdapterConfigID dari existing product
-				if req.AdapterConfig != nil && req.AdapterConfig.ID != "" {
-					node.AdapterConfigID = req.AdapterConfig.ID
-					log.Printf("  AdapterConfigID set to: %s\n", node.AdapterConfigID)
-				}
-
-				// Resolve NextNodeIDs
-				if len(node.NextNodeIDs) > 0 {
-					resolvedNextIDs := make([]string, 0, len(node.NextNodeIDs))
-					for _, tempNextID := range node.NextNodeIDs {
-						log.Printf("  Resolving NextNodeID: '%s'\n", tempNextID)
-
-						if realNextID, ok := nodeTempToReal[tempNextID]; ok {
-							resolvedNextIDs = append(resolvedNextIDs, realNextID)
-							log.Printf("  ✅ NextNodeID resolved: %s -> %s\n", tempNextID, realNextID)
-						} else {
-							// Bisa jadi sudah real ID (existing node)
-							resolvedNextIDs = append(resolvedNextIDs, tempNextID)
-							log.Printf("  ℹ️ NextNodeID '%s' kept as-is (assumed real ID)\n", tempNextID)
-						}
-					}
-					node.NextNodeIDs = resolvedNextIDs
-				}
-
-				// Resolve PreviousNodeIDs
-				if len(node.PreviousNodeIDs) > 0 {
-					resolvedPrevIDs := make([]string, 0, len(node.PreviousNodeIDs))
-					for _, tempPrevID := range node.PreviousNodeIDs {
-						log.Printf("  Resolving PreviousNodeID: '%s'\n", tempPrevID)
-
-						if realPrevID, ok := nodeTempToReal[tempPrevID]; ok {
-							resolvedPrevIDs = append(resolvedPrevIDs, realPrevID)
-							log.Printf("  ✅ PreviousNodeID resolved: %s -> %s\n", tempPrevID, realPrevID)
-						} else {
-							// Bisa jadi sudah real ID (existing node)
-							resolvedPrevIDs = append(resolvedPrevIDs, tempPrevID)
-							log.Printf("  ℹ️ PreviousNodeID '%s' kept as-is (assumed real ID)\n", tempPrevID)
-						}
-					}
-					node.PreviousNodeIDs = resolvedPrevIDs
-				}
-			}
-		}
-	}
-
-	// ========== 3. VALIDATE NODE RELATIONSHIPS ==========
-	log.Println("Step 3: Validating node relationships...")
-
-	if req.Workflows != nil {
-		for wfIdx, wf := range req.Workflows {
-			nodeIDSet := make(map[string]bool)
-			for _, node := range wf.Nodes {
-				nodeIDSet[node.ID] = true
-			}
-
-			for _, node := range wf.Nodes {
-				for _, nextID := range node.NextNodeIDs {
-					if !nodeIDSet[nextID] {
-						return fmt.Errorf("workflow[%d] node[%s]: NextNodeID %s not found in same workflow",
-							wfIdx, node.ID, nextID)
-					}
-					log.Printf("  ✅ Node %s -> NextNode: %s\n", node.ID, nextID)
-				}
-
-				for _, prevID := range node.PreviousNodeIDs {
-					if !nodeIDSet[prevID] {
-						return fmt.Errorf("workflow[%d] node[%s]: PreviousNodeID %s not found in same workflow",
-							wfIdx, node.ID, prevID)
-					}
-					log.Printf("  ✅ Node %s <- PrevNode: %s\n", node.ID, prevID)
-				}
-			}
-		}
-	}
-
-	// ========== 4. DATABASE TRANSACTION ==========
-	log.Println("Step 4: Starting database transaction...")
-
-	tx, err := s.productRepo.BeginTx(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Get existing product with lock (FOR UPDATE)
-	log.Println("Fetching existing product with lock...")
-
-	existingProduct, err := s.productRepo.GetByIDWithTx(ctx, tx, id)
-	if err != nil {
-		return fmt.Errorf("failed to get product: %w", err)
-	}
-	log.Printf("Existing product fetched: %+v\n", existingProduct)
-
-	// Business rule: cannot update active product's critical fields
-	if existingProduct.Status == "active" {
-
-		if req.Platform != "" {
-			return errors.New("cannot update platform of active product")
-		}
-	}
-
-	// Update product
-	log.Println("Updating product...")
-
-	if err := s.productRepo.UpdateProductWithTx(ctx, tx, id, req); err != nil {
-		return fmt.Errorf("failed to update product: %w", err)
-	}
-	log.Printf("Product updated: %s\n", id)
-
-	// Update AdapterConfig jika ada
-	if req.AdapterConfig != nil {
-		log.Println("Updating adapter config...")
-
-		cfg := product.AdapterConfig{
-			ID:             req.AdapterConfig.ID,
-			ProductID:      id,
-			EndpointPath:   req.AdapterConfig.EndpointPath,
-			HTTPMethod:     req.AdapterConfig.HTTPMethod,
-			CustomHeaders:  req.AdapterConfig.CustomHeaders,
-			FieldMapping:   req.AdapterConfig.FieldMapping,
-			MetaConfig:     req.AdapterConfig.MetaConfig,
-			SitemapConfig:  req.AdapterConfig.SitemapConfig,
-			TimeoutSeconds: req.AdapterConfig.TimeoutSeconds,
-			RetryCount:     req.AdapterConfig.RetryCount,
-		}
-
-		if err := s.adapterConfigRepo.UpdateWithTx(ctx, tx, id, cfg); err != nil {
-			return fmt.Errorf("failed to update adapter config: %w", err)
-		}
-		log.Printf("AdapterConfig updated: ID=%s, Endpoint=%s\n", cfg.ID, cfg.EndpointPath)
-	}
-
-	// ========== UPDATE WORKFLOWS & NODES ==========
-	if req.Workflows != nil {
-		log.Println("Updating workflows and nodes...")
-
-		for wfIdx, wfDef := range req.Workflows {
-			log.Printf("Processing workflow[%d]: ID=%s, Name=%s\n", wfIdx, wfDef.ID, wfDef.Name)
-
-			updatedWorkflow := workflow.WorkflowDefinition{
-				ID:        wfDef.ID,
-				ProductID: id,
-				Name:      wfDef.Name,
-			}
-
-			if err := s.workflowRepo.UpsertWithTx(ctx, tx, &updatedWorkflow); err != nil {
-				return fmt.Errorf("failed to upsert workflow[%d]: %w", wfIdx, err)
-			}
-			log.Printf("Workflow[%d] upserted: %s\n", wfIdx, updatedWorkflow.ID)
-
-			if len(wfDef.Nodes) == 0 {
-				log.Printf("Workflow[%d] has no nodes, skipping\n", wfIdx)
-				continue
-			}
-
-			// Prepare nodes
-			nodes := make([]workflow_node.WorkflowNode, 0, len(wfDef.Nodes))
-
-			for nIdx, n := range wfDef.Nodes {
-				if n.AdapterConfigID == "" {
-					return fmt.Errorf("workflow[%d] node[%d] has empty AdapterConfigID after resolution", wfIdx, nIdx)
-				}
-				if n.StepOrder <= 0 {
-					return fmt.Errorf("workflow[%d] node[%d] StepOrder must be > 0", wfIdx, nIdx)
-				}
-
-				log.Printf("  Preparing node[%d:%d]: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeIDs=%v\n",
-					wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeIDs)
-
-				nodes = append(nodes, workflow_node.WorkflowNode{
-					ID:              n.ID,
-					WorkflowID:      updatedWorkflow.ID,
-					AdapterConfigID: n.AdapterConfigID,
-					StepOrder:       n.StepOrder,
-					AdapterConfig:   n.AdapterConfig,
-					NextNodeIDs:     n.NextNodeIDs,
-					PreviousNodeIDs: n.PreviousNodeIDs,
-				})
-			}
-
-			// Upsert nodes: existing node di-update, node baru di-insert
-			log.Printf("Upserting %d nodes for workflow[%d]...\n", len(nodes), wfIdx)
-
-			err := s.workflowNodeRepo.UpsertWithTx(ctx, tx, nodes)
-			if err != nil {
-				return fmt.Errorf("failed to upsert nodes for workflow[%d]: %w", wfIdx, err)
-			}
-		}
-	}
-
-	// ========== 5. COMMIT ==========
-	log.Println("Step 5: Committing transaction...")
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	log.Printf("✅ UpdateProduct SUCCESS. ProductID: %s\n", id)
-	log.Println("====================================")
-
-	return nil
 }
 
 // DeleteProduct - Application mengelola transaction

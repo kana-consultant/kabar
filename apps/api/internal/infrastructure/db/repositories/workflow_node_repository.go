@@ -61,7 +61,7 @@ func (r *WorkflowNodeRepository) GetByID(ctx context.Context, id string) (*workf
 func (r *WorkflowNodeRepository) GetByWorkflowID(ctx context.Context, workflowID string) ([]*workflow_node.WorkflowNode, error) {
 	query := `
     SELECT id, workflow_id, adapter_config_id, step_order, 
-			input_mapping, next_node_id, previous_node_ids,
+			input_mapping, next_node_ids, previous_node_ids,
 			created_at
 		FROM workflow_nodes 
 		WHERE workflow_id = ANY($1)
@@ -107,7 +107,7 @@ func (r *WorkflowNodeRepository) GetByWorkflowID(ctx context.Context, workflowID
 func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowIDs []string) ([]*workflow_node.WorkflowNodeCreate, error) {
 	query := `
 		SELECT id, workflow_id, adapter_config_id, step_order, 
-			input_mapping, next_node_id, previous_node_ids, created_at,endpoint_path,http_method
+			input_mapping, next_node_ids, previous_node_ids, created_at,endpoint_path,http_method
 		FROM workflow_nodes 
 		WHERE workflow_id = ANY($1)
 		ORDER BY step_order ASC
@@ -124,12 +124,12 @@ func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowI
 		var node workflow_node.WorkflowNodeCreate
 		var inputMappingJSON []byte
 		var previousNodeIDsJSON []byte
-		var nextNodeID []byte
+		var nextNodeIDs []byte
 		var EndpointPath sql.NullString
 
 		err := rows.Scan(
 			&node.ID, &node.WorkflowID, &node.AdapterConfigID,
-			&node.StepOrder, &inputMappingJSON, &nextNodeID,
+			&node.StepOrder, &inputMappingJSON, &nextNodeIDs,
 			&previousNodeIDsJSON, &node.CreatedAt, &EndpointPath, &node.HTTPMethod,
 		)
 		if err != nil {
@@ -144,8 +144,8 @@ func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowI
 			node.EndpointPath = &EndpointPath.String
 		}
 
-		if len(nextNodeID) > 0 {
-			json.Unmarshal(nextNodeID, &node.NextNodeIDs)
+		if len(nextNodeIDs) > 0 {
+			json.Unmarshal(nextNodeIDs, &node.NextNodeIDs)
 		} else {
 			node.NextNodeIDs = []string{}
 		}
