@@ -58,16 +58,10 @@ type WorkflowNodeRepository interface {
 	GetByID(ctx context.Context, id string) (*WorkflowNode, error)
 	GetByWorkflowID(ctx context.Context, workflowID string) ([]*WorkflowNode, error)
 	GetByWorkflowIDs(ctx context.Context, workflowIDs []string) ([]*WorkflowNodeCreate, error)
-	Insert(ctx context.Context, node *WorkflowNode) error
-	InsertBatch(ctx context.Context, nodes []WorkflowNode) ([]WorkflowNode, error)
-	Update(ctx context.Context, id string, updates map[string]interface{}) error
-	Delete(ctx context.Context, id string) error
 	DeleteByWorkflowID(ctx context.Context, workflowID string) error
 	ReorderNodes(ctx context.Context, workflowID string, nodeIDs []string) error
 	UpsertWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNode) error
 
 	// Methods with transaction support
 	InsertBatchWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNodeCreate) ([]WorkflowNodeCreate, error)
-	InsertWithTx(ctx context.Context, tx *sql.Tx, node *WorkflowNode) error
-	UpdateWithTx(ctx context.Context, tx *sql.Tx, id string, updates map[string]interface{}) error
 }

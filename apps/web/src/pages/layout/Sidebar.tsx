@@ -4,8 +4,7 @@ import { Button } from "@kana-consultant/ui-kit";
 import {
     LayoutDashboard, FileText, Settings, History,
     Package, FileStack, Calendar, Menu, X,
-    Sparkles, Rocket, ChevronLeft, ChevronRight,
-    Brain, Cpu
+    Sparkles, Rocket, ChevronLeft, ChevronRight, Cpu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Can } from "@/components/ui/Can"

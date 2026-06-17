@@ -29,7 +29,6 @@ import (
 	schemasHandler "seo-backend/internal/presentation/request_schema"
 	teamHandler "seo-backend/internal/presentation/team"
 	userHandler "seo-backend/internal/presentation/user"
-	workflowNodeDefineHandler "seo-backend/internal/presentation/workflow"
 
 	// Utilities
 
@@ -117,7 +116,6 @@ func NewContainer(
 		aimodelHandler.NewRoute(db, protected, redisClient).SetupRoute()
 		schemasHandler.NewRoute(db, protected, redisClient).SetupRoutes()
 		familiesHandler.NewRoute(db, protected, redisClient).SetupRoute()
-		workflowNodeDefineHandler.NewRoute(db, protected).SetupRoutes()
 	})
 
 	return &Container{
