@@ -35,6 +35,7 @@ type WorkflowNodeCreate struct {
 	NextNodeID      *string
 	CreatedAt       time.Time
 	EndpointPath    *string
+	HTTPMethod      string
 }
 
 type AdapterConfig struct {

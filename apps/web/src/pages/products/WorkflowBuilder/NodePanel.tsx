@@ -73,7 +73,7 @@ export function NodePanel({
         }
 
         if (workflowNode) {
-            setInputMapping(workflowNode.input_mapping || {});
+            setInputMapping(JSON.parse(workflowNode.adapter_config?.field_mapping || "{}"));
         }
     }, [adapterConfig, workflowNode]);
 
@@ -178,7 +178,7 @@ export function NodePanel({
 
     // Execute node
     // Execute node - MODIFIED VERSION
-  
+
 
     // Save node changes - FIXED VERSION with proper typing
     // Save node changes - FIXED VERSION dengan type yang benar

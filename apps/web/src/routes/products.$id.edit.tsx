@@ -19,6 +19,8 @@ export default function ProductEditWrapper() {
             try {
                 const existing = await getProductById(id);
                 if (existing) {
+                    console.log("Existing")
+                    console.log(existing)
                     setProduct(existing as any);
                 } else {
                     toast.error("Produk tidak ditemukan");

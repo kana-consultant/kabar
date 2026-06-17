@@ -278,6 +278,7 @@ func (s *ProductService) CreateProduct(
 				InputMapping:    json.RawMessage(n.AdapterConfig.FieldMapping),
 				NextNodeID:      n.NextNodeID,
 				PreviousNodeIDs: n.PreviousNodeIDs,
+				HTTPMethod:      n.AdapterConfig.HTTPMethod,
 			})
 		}
 
@@ -757,7 +758,7 @@ func (s *ProductService) GetByID(
 				CreatedAt:       n.CreatedAt,
 				AdapterConfig: &workflow_node.NodeAdapterConfig{
 					EndpointPath: *n.EndpointPath,
-					HTTPMethod:   adapterCfg.HTTPMethod,
+					HTTPMethod:   n.HTTPMethod,
 					FieldMapping: string(n.InputMapping), // dari input_mapping node
 				},
 			})

@@ -20,13 +20,6 @@ export function useProductFormInit(
 
             setProduct({
                 ...initialData,
-                adapterConfig: {
-                    ...initialData.adapter_config,
-                    endpointPath: initialData.adapter_config?.endpoint_path || "",
-                    httpMethod: initialData.adapter_config?.http_method || "POST",
-                    customHeaders: initialData.adapter_config?.custom_headers || { "Content-Type": "application/json" },
-                    fieldMapping: fieldMappingValue,
-                },
             });
         }
     }, [isEdit, initialData]);

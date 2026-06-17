@@ -58,9 +58,9 @@ export const mapProductToCreateRequest = (product: Partial<Product>): ProductReq
 };
 
 export const mapProductToUpdateRequest = (product: Partial<Product>): UpdateProductRequest => {
-    let adapterConfig = undefined;
+    let adapter_config = undefined;
     if (product.adapter_config) {
-        adapterConfig = {
+        adapter_config = {
             endpoint_path: product.adapter_config.endpoint_path,
             http_method: product.adapter_config.http_method,
             custom_headers: toJsonString(product.adapter_config.custom_headers),
@@ -106,7 +106,7 @@ export const mapProductToUpdateRequest = (product: Partial<Product>): UpdateProd
         user_id: product.user_id,
         created_by: product.created_by,
         workflow_id: product.workflow_id,
-        adapter_config: adapterConfig,
+        adapter_config: adapter_config,
         workflows: workflows as any,
     };
 };

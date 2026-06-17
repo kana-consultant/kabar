@@ -25,7 +25,7 @@ func NewWorkflowNodeRepository(db *sql.DB) workflow_node.WorkflowNodeRepository 
 func (r *WorkflowNodeRepository) GetByID(ctx context.Context, id string) (*workflow_node.WorkflowNode, error) {
 	query := `
 		SELECT id, workflow_id, adapter_config_id, step_order, 
-			input_mapping, next_node_id, previous_node_ids, created_at
+			input_mapping, next_node_id, previous_node_ids,http_method, created_at
 		FROM workflow_nodes WHERE id = $1
 	`
 
@@ -37,7 +37,7 @@ func (r *WorkflowNodeRepository) GetByID(ctx context.Context, id string) (*workf
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&node.ID, &node.WorkflowID, &node.AdapterConfigID,
 		&node.StepOrder, &inputMappingJSON, &nextNodeID,
-		&previousNodeIDs, &node.CreatedAt,
+		&previousNodeIDs, &node.AdapterConfig.HTTPMethod, &node.CreatedAt,
 	)
 
 	if err != nil {
@@ -110,7 +110,7 @@ func (r *WorkflowNodeRepository) GetByWorkflowID(ctx context.Context, workflowID
 func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowIDs []string) ([]*workflow_node.WorkflowNodeCreate, error) {
 	query := `
 		SELECT id, workflow_id, adapter_config_id, step_order, 
-			input_mapping, next_node_id, previous_node_ids, created_at,endpoint_path
+			input_mapping, next_node_id, previous_node_ids, created_at,endpoint_path,http_method
 		FROM workflow_nodes 
 		WHERE workflow_id = ANY($1)
 		ORDER BY step_order ASC
@@ -133,7 +133,7 @@ func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowI
 		err := rows.Scan(
 			&node.ID, &node.WorkflowID, &node.AdapterConfigID,
 			&node.StepOrder, &inputMappingJSON, &nextNodeID,
-			&previousNodeIDsJSON, &node.CreatedAt, &EndpointPath,
+			&previousNodeIDsJSON, &node.CreatedAt, &EndpointPath, &node.HTTPMethod,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan workflow node: %w", err)
@@ -400,9 +400,10 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			next_node_id,
 			previous_node_ids,
 			endpoint_path,
+			http_method,
 			created_at
 		)
-		VALUES ($1, $2, $3, $4, $5, NULL, $6, NOW())
+		VALUES ($1, $2, $3, $4, $5, NULL, $6,$7, NOW())
 		RETURNING created_at
 	`
 
@@ -446,6 +447,7 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			savedNode.StepOrder,
 			inputMappingJSON,
 			previousNodeIDsJSON,
+			savedNode.HTTPMethod,
 			savedNode.EndpointPath,
 		).Scan(&savedNode.CreatedAt)
 
@@ -556,6 +558,7 @@ func (r *WorkflowNodeRepository) UpdateWithTx(ctx context.Context, tx *sql.Tx, i
 		"inputMapping":    "input_mapping",
 		"nextNodeId":      "next_node_id",
 		"previousNodeIds": "previous_node_ids",
+		"http_method":     "http_method",
 	}
 
 	for key, value := range updates {
@@ -617,19 +620,14 @@ func (r *WorkflowNodeRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, n
 
 	log.Printf("[WorkflowNodeRepository.UpsertWithTx] upserting %d nodes", len(nodes))
 
+	const fieldsPerNode = 9
+
 	placeholders := make([]string, 0, len(nodes))
-	args := make([]interface{}, 0, len(nodes)*8) // 8 fields
+	args := make([]interface{}, 0, len(nodes)*fieldsPerNode)
 	argIndex := 1
 
 	for _, node := range nodes {
-		// Marshal input mapping
-		inputMappingJSON, err := sanitizeJSON(node.AdapterConfig.FieldMapping)
-		if err != nil {
-			log.Printf("[WorkflowNodeRepository.UpsertWithTx] failed to sanitize input_mapping for node %s: %v", node.ID, err)
-			return fmt.Errorf("failed to sanitize input_mapping for node %s: %w", node.ID, err)
-		}
-
-		// Dalam loop
+		// Validate UUIDs first, before doing any marshaling work
 		if !isValidUUID(node.ID) {
 			return fmt.Errorf("invalid UUID format for node ID: %s", node.ID)
 		}
@@ -638,6 +636,13 @@ func (r *WorkflowNodeRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, n
 		}
 		if !isValidUUID(node.AdapterConfigID) {
 			return fmt.Errorf("invalid UUID format for adapter config ID: %s", node.AdapterConfigID)
+		}
+
+		// Marshal input mapping
+		inputMappingJSON, err := sanitizeJSON(node.AdapterConfig.FieldMapping)
+		if err != nil {
+			log.Printf("[WorkflowNodeRepository.UpsertWithTx] failed to sanitize input_mapping for node %s: %v", node.ID, err)
+			return fmt.Errorf("failed to sanitize input_mapping for node %s: %w", node.ID, err)
 		}
 
 		// Marshal previous node IDs
@@ -650,26 +655,27 @@ func (r *WorkflowNodeRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, n
 			return fmt.Errorf("failed to marshal previous_node_ids for node %s: %w", node.ID, err)
 		}
 
-		// 8 placeholders untuk 8 fields
-		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-			argIndex, argIndex+1, argIndex+2, argIndex+3, argIndex+4, argIndex+5, argIndex+6, argIndex+7,
+		// 9 placeholders for 9 fields
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			argIndex, argIndex+1, argIndex+2, argIndex+3, argIndex+4, argIndex+5, argIndex+6, argIndex+7, argIndex+8,
 		))
 
 		args = append(args,
-			node.ID,                         // $1 - uuid
-			node.WorkflowID,                 // $2 - uuid
-			node.AdapterConfigID,            // $3 - uuid
-			previousNodeIDsJSON,             // $4 - jsonb
-			node.StepOrder,                  // $5 - integer
-			node.NextNodeID,                 // $6 - uuid (bisa null)
-			node.AdapterConfig.EndpointPath, // $7 - text
-			inputMappingJSON,                // $8 - jsonb
+			node.ID,                           // uuid
+			node.WorkflowID,                   // uuid
+			node.AdapterConfigID,              // uuid
+			previousNodeIDsJSON,               // jsonb
+			node.StepOrder,                    // integer
+			node.NextNodeID,                   // uuid (nullable)
+			node.AdapterConfig.EndpointPath,   // text
+			node.AdapterConfig.HTTPMethod,     // text
+			json.RawMessage(inputMappingJSON), // jsonb
 		)
 
 		log.Printf("[WorkflowNodeRepository.UpsertWithTx] preparing node id=%s workflow_id=%s adapter_config_id=%s step_order=%d",
 			node.ID, node.WorkflowID, node.AdapterConfigID, node.StepOrder)
 
-		argIndex += 8 // Increment by 8 karena ada 8 fields
+		argIndex += fieldsPerNode // advance by 9, not 1
 	}
 
 	query := fmt.Sprintf(`
@@ -681,6 +687,7 @@ func (r *WorkflowNodeRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, n
 			step_order, 
 			next_node_id,
 			endpoint_path,
+			http_method,
 			input_mapping
 		)
 		VALUES %s
@@ -691,6 +698,7 @@ func (r *WorkflowNodeRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, n
 			step_order = EXCLUDED.step_order,
 			next_node_id = EXCLUDED.next_node_id,
 			endpoint_path = EXCLUDED.endpoint_path,
+			http_method = EXCLUDED.http_method,
 			input_mapping = EXCLUDED.input_mapping
 	`, strings.Join(placeholders, ", "))
 
