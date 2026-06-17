@@ -49,7 +49,6 @@ func (r *Route) SetupRoutes() chi.Router {
 
 		// Workflow Nodes (nested under workflow)
 		route.Get("/{id}/nodes", r.WorkflowNodeHandler.GetByWorkflowID)
-		route.Post("/{id}/nodes", r.WorkflowNodeHandler.SaveBatch)
 		route.Put("/{id}/nodes/reorder", r.WorkflowNodeHandler.Reorder)
 	})
 

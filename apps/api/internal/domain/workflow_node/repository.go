@@ -20,7 +20,7 @@ type WorkflowNode struct {
 	PreviousNodeIDs []string `json:"previous_node_ids,omitempty"`
 	StepOrder       int      `json:"step_order"`
 
-	NextNodeID    *string            `json:"next_node_id"`
+	NextNodeIDs   []string           `json:"next_node_ids"`
 	CreatedAt     time.Time          `json:"created_at"`
 	AdapterConfig *NodeAdapterConfig `json:"adapter_config,omitempty"`
 }
@@ -32,7 +32,7 @@ type WorkflowNodeCreate struct {
 	PreviousNodeIDs []string
 	StepOrder       int
 	InputMapping    json.RawMessage
-	NextNodeID      *string
+	NextNodeIDs     []string
 	CreatedAt       time.Time
 	EndpointPath    *string
 	HTTPMethod      string

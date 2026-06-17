@@ -11,7 +11,6 @@ type WorkflowNodeService interface {
 	Update(ctx context.Context, id string, updates map[string]interface{}) error
 	Delete(ctx context.Context, id string) error
 	ReorderNodes(ctx context.Context, workflowID string, nodeIDs []string) error
-	SaveBatch(ctx context.Context, workflowID string, req BatchSaveRequest) (*BatchSaveResult, error)
 }
 
 // BatchSaveRequest represents batch operation request from frontend
@@ -26,7 +25,7 @@ type BatchCreateNode struct {
 	AdapterConfigID string                 `json:"adapterConfigId"`
 	StepOrder       int                    `json:"stepOrder"`
 	InputMapping    map[string]interface{} `json:"inputMapping"`
-	NextNodeID      *string                `json:"nextNodeId"`
+	NextNodeIDs     []string               `json:"nextNodeId"`
 }
 
 type BatchUpdateNode struct {

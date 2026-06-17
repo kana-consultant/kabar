@@ -10,7 +10,7 @@ import ReactFlow, {
   useEdgesState,
   BackgroundVariant,
 } from "reactflow";
-import type { Connection, Node, Edge } from "reactflow";
+import type { Connection, Node, Edge, NodeChange } from "reactflow";
 import "reactflow/dist/style.css";
 import { WorkflowList } from "./WorkflowList";
 import { NodePanel } from "./NodePanel";
@@ -44,6 +44,9 @@ const nodeTypes = {
   workflowNode: WorkflowNodeComponent,
 };
 
+// Key untuk menyimpan posisi node di localStorage
+const getPositionStorageKey = (workflowId: string) => `workflow-node-positions-${workflowId}`;
+
 export function WorkflowBuilder({
   productId,
   product,
@@ -63,7 +66,6 @@ export function WorkflowBuilder({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -73,26 +75,60 @@ export function WorkflowBuilder({
   const workflows = product.workflows || [];
   const currentWorkflow = workflows.find(w => w.id === selectedWorkflowId);
 
-  // Auto-create workflow if none exists
-  useEffect(() => {
-    if (isInitialized) return;
+  // Simpan posisi node ke localStorage
+  const saveNodePositions = useCallback((workflowId: string, currentNodes: FlowNode[]) => {
+    const positions: Record<string, { x: number; y: number }> = {};
+    currentNodes.forEach(node => {
+      positions[node.id] = { x: node.position.x, y: node.position.y };
+    });
+    localStorage.setItem(getPositionStorageKey(workflowId), JSON.stringify(positions));
+  }, []);
+
+  // Ambil posisi node dari localStorage
+  const getNodePositions = useCallback((workflowId: string): Record<string, { x: number; y: number }> => {
+    try {
+      const saved = localStorage.getItem(getPositionStorageKey(workflowId));
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  }, []);
+
+  // Override onNodesChange untuk menyimpan posisi setelah drag
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    onNodesChange(changes);
     
+    const hasPositionChange = changes.some(
+      change => change.type === 'position' && change.dragging === false
+    );
+    
+    if (hasPositionChange && selectedWorkflowId) {
+      setTimeout(() => {
+        setNodes(currentNodes => {
+          saveNodePositions(selectedWorkflowId, currentNodes);
+          return currentNodes;
+        });
+      }, 0);
+    }
+  }, [onNodesChange, selectedWorkflowId, saveNodePositions]);
+
+  // Auto-create workflow on mount
+  useEffect(() => {
     if (!workflows || workflows.length === 0) {
-      // Auto-create default workflow
       const defaultWorkflowName = "Default Workflow";
       onWorkflowCreate(defaultWorkflowName);
-      setIsInitialized(true);
-    } else if (!selectedWorkflowId && workflows.length > 0) {
-      // Auto-select first workflow
+    }
+  }, []);
+
+  // Auto-select first workflow when workflows change
+  useEffect(() => {
+    if (workflows.length > 0 && !selectedWorkflowId) {
       const firstWorkflowId = workflows[0].id;
       setSelectedWorkflowId(firstWorkflowId);
       onWorkflowSelect(firstWorkflowId);
       onChange?.(firstWorkflowId);
-      setIsInitialized(true);
-    } else if (selectedWorkflowId) {
-      setIsInitialized(true);
     }
-  }, [workflows, selectedWorkflowId, isInitialized, onWorkflowCreate, onWorkflowSelect, onChange]);
+  }, [workflows, selectedWorkflowId, onWorkflowSelect, onChange]);
 
   // Sync selected workflow dengan external
   useEffect(() => {
@@ -112,15 +148,26 @@ export function WorkflowBuilder({
     }
 
     const workflowNodes = currentWorkflow.nodes || [];
+    const savedPositions = getNodePositions(selectedWorkflowId);
+
+    // Sort nodes by step_order
+    const sortedNodes = [...workflowNodes].sort((a, b) => (a.step_order || 0) - (b.step_order || 0));
 
     // Transform WorkflowNode ke FlowNode
-    const flowNodes: FlowNode[] = workflowNodes.map((node, index) => {
+    const flowNodes: FlowNode[] = sortedNodes.map((node, index) => {
       const adapterConfig = node.adapter_config!;
+      
+      const defaultPosition = {
+        x: index * 350 + 100,
+        y: 100,
+      };
+      
+      const position = savedPositions[node.id as string] || defaultPosition;
 
       return {
         id: node.id as string,
         type: "workflowNode",
-        position: { x: 250, y: index * 150 + 50 },
+        position: position,
         data: {
           label: `Step ${node.step_order}: ${adapterConfig.endpoint_path}`,
           workflowNode: node,
@@ -134,20 +181,43 @@ export function WorkflowBuilder({
     setNodes(flowNodes);
 
     // Create edges from node relationships
+    // ONLY use next_node_ids and previous_node_ids (MULTIPLE)
     const flowEdges: Edge[] = [];
-    workflowNodes.forEach((node) => {
-      if (node.next_node_id) {
-        flowEdges.push({
-          id: `e-${node.id}-${node.next_node_id}`,
-          source: node.id as string,
-          target: node.next_node_id,
-          animated: true,
+    
+    sortedNodes.forEach((node) => {
+      // Create edges from next_node_ids (MULTIPLE)
+      if (node.next_node_ids && node.next_node_ids.length > 0) {
+        node.next_node_ids.forEach(nextNodeId => {
+          const edgeId = `e-${node.id}-${nextNodeId}`;
+          if (!flowEdges.some(e => e.id === edgeId)) {
+            flowEdges.push({
+              id: edgeId,
+              source: node.id as string,
+              target: nextNodeId,
+              animated: true,
+            });
+          }
+        });
+      }
+
+      // Create edges from previous_node_ids (MULTIPLE)
+      if (node.previous_node_ids && node.previous_node_ids.length > 0) {
+        node.previous_node_ids.forEach(prevNodeId => {
+          const edgeId = `e-${prevNodeId}-${node.id}`;
+          if (!flowEdges.some(e => e.id === edgeId)) {
+            flowEdges.push({
+              id: edgeId,
+              source: prevNodeId,
+              target: node.id as string,
+              animated: true,
+            });
+          }
         });
       }
     });
 
     setEdges(flowEdges);
-  }, [selectedWorkflowId, currentWorkflow, setNodes, setEdges]);
+  }, [selectedWorkflowId, currentWorkflow, setNodes, setEdges, getNodePositions]);
 
   const handleSelectWorkflow = (workflowId: string) => {
     setSelectedWorkflowId(workflowId);
@@ -157,23 +227,14 @@ export function WorkflowBuilder({
 
   // Update node data
   const handleUpdateNode = useCallback(async (nodeId: string, updates: Partial<WorkflowNodeType> & { adapter_config?: Partial<AdapterConfig> }) => {
-    console.log(`🔄 handleUpdateNode called:`, { nodeId, updates });
-
     const nodeToUpdate = nodes.find(n => n.id === nodeId);
     if (!nodeToUpdate) {
       console.warn(`Node ${nodeId} not found`);
       return;
     }
 
-    // Pisahkan adapter_config dari updates
     const { adapter_config, ...nodeUpdates } = updates;
 
-    console.log("📦 Updates breakdown:", {
-      nodeUpdates,
-      adapter_config
-    });
-
-    // Update local state immediately
     setNodes((nds) =>
       nds.map((n) => {
         if (n.id === nodeId) {
@@ -181,7 +242,6 @@ export function WorkflowBuilder({
           let updatedAdapterConfig = n.data.adapterConfig;
           let endpointPath = n.data.adapterConfig?.endpoint_path || '/unknown';
 
-          // Update adapter config if provided
           if (adapter_config) {
             updatedAdapterConfig = {
               ...n.data.adapterConfig,
@@ -189,17 +249,9 @@ export function WorkflowBuilder({
               updated_at: new Date().toISOString()
             };
             endpointPath = adapter_config.endpoint_path || endpointPath;
-            console.log("✅ Adapter config updated:", updatedAdapterConfig);
           }
 
           const newLabel = `Step ${updatedNode.step_order}: ${endpointPath}`;
-
-          console.log("✅ Node updated:", {
-            step_order: updatedNode.step_order,
-            endpoint: endpointPath,
-            label: newLabel,
-            input_mapping: updatedNode.input_mapping
-          });
 
           return {
             ...n,
@@ -215,19 +267,14 @@ export function WorkflowBuilder({
       })
     );
 
-    // Call parent handler - kirim kedua updates
     if (adapter_config) {
-      // Jika ada adapter_config, update melalui onNodeUpdate dengan kedua data
       onNodeUpdate(nodeId, {
         ...nodeUpdates,
         adapter_config: adapter_config
       });
     } else {
-      // Jika hanya node updates
       onNodeUpdate(nodeId, nodeUpdates);
     }
-
-    console.log(`✅ Update complete for node ${nodeId}`);
   }, [nodes, onNodeUpdate]);
 
   // Handle connection between nodes
@@ -235,6 +282,7 @@ export function WorkflowBuilder({
     async (connection: Connection) => {
       if (!connection.source || !connection.target || !selectedWorkflowId) return;
 
+      // Cek apakah edge sudah ada
       const edgeExists = edges.some(
         e => e.source === connection.source && e.target === connection.target
       );
@@ -253,10 +301,19 @@ export function WorkflowBuilder({
 
       setEdges((eds) => addEdge(newEdge, eds));
 
-      // Update source node's next_node_id
-      await handleUpdateNode(connection.source, { next_node_id: connection.target });
+      // Update source node's next_node_ids (MULTIPLE)
+      const sourceNode = nodes.find(n => n.id === connection.source);
+      if (sourceNode) {
+        const currentNextIds = sourceNode.data.workflowNode.next_node_ids || [];
+        
+        if (!currentNextIds.includes(connection.target)) {
+          await handleUpdateNode(connection.source, {
+            next_node_ids: [...currentNextIds, connection.target]
+          });
+        }
+      }
 
-      // Update target node's previous_node_ids
+      // Update target node's previous_node_ids (MULTIPLE)
       const targetNode = nodes.find(n => n.id === connection.target);
       if (targetNode) {
         const currentPrevIds = targetNode.data.workflowNode.previous_node_ids || [];
@@ -288,24 +345,40 @@ export function WorkflowBuilder({
         setSelectedNode(null);
       }
 
-      // Update connected nodes - remove references from previous_node_ids
+      // Update connected nodes
       for (const edge of connectedEdges) {
-        if (edge.target && edge.target !== nodeId) {
+        // If this node was the source, remove from target's previous_node_ids
+        if (edge.source === nodeId && edge.target) {
           const targetNode = nodes.find(n => n.id === edge.target);
-          if (targetNode && targetNode.data.workflowNode.previous_node_ids) {
+          if (targetNode?.data.workflowNode.previous_node_ids) {
             const updatedPrevIds = targetNode.data.workflowNode.previous_node_ids.filter(id => id !== nodeId);
             await handleUpdateNode(edge.target, { previous_node_ids: updatedPrevIds });
           }
         }
+        
+        // If this node was the target, remove from source's next_node_ids
+        if (edge.target === nodeId && edge.source) {
+          const sourceNode = nodes.find(n => n.id === edge.source);
+          if (sourceNode?.data.workflowNode.next_node_ids) {
+            const updatedNextIds = sourceNode.data.workflowNode.next_node_ids.filter(id => id !== nodeId);
+            await handleUpdateNode(edge.source, { next_node_ids: updatedNextIds });
+          }
+        }
       }
 
-      // Call parent handler
+      // Cleanup posisi yang disimpan di localStorage
+      if (selectedWorkflowId) {
+        const savedPositions = getNodePositions(selectedWorkflowId);
+        delete savedPositions[nodeId];
+        localStorage.setItem(getPositionStorageKey(selectedWorkflowId), JSON.stringify(savedPositions));
+      }
+
       onNodeDelete(nodeId);
     },
-    [selectedWorkflowId, setNodes, setEdges, nodes, edges, selectedNode, handleUpdateNode, onNodeDelete]
+    [selectedWorkflowId, setNodes, setEdges, nodes, edges, selectedNode, handleUpdateNode, onNodeDelete, getNodePositions]
   );
 
-  // Handle tambah node - langsung dari product
+  // Handle tambah node
   const handleAddNode = async () => {
     if (!selectedWorkflowId) {
       setError("Pilih workflow terlebih dahulu");
@@ -325,7 +398,6 @@ export function WorkflowBuilder({
       const nodeId = `temp-node-${Date.now()}-${Math.random()}`;
       const adapterConfigId = `temp-adapter-${Date.now()}-${Math.random()}`;
 
-      // Default adapter config
       const newAdapterConfig: AdapterConfig = {
         id: adapterConfigId,
         product_id: productId,
@@ -337,29 +409,30 @@ export function WorkflowBuilder({
         updated_at: new Date().toISOString(),
       };
 
-      // Default workflow node
       const newNode: WorkflowNodeType = {
         id: nodeId,
         workflow_id: selectedWorkflowId,
         adapter_config_id: adapterConfigId,
         step_order: stepOrder,
         input_mapping: {},
-        next_node_id: null,
+        next_node_ids: [],
         previous_node_ids: [],
         created_at: new Date().toISOString(),
         adapter_config: newAdapterConfig,
       };
 
-      // Call parent handler to add node to product
       onNodeAdd(newNode);
 
-      // Tambahkan node ke React Flow state
+      const horizontalSpacing = 350;
+      const startX = 100;
+      const defaultY = 100;
+
       const flowNode: FlowNode = {
         id: nodeId,
         type: "workflowNode",
         position: {
-          x: 250,
-          y: (nodes.length || 0) * 120 + 50,
+          x: startX + (nodes.length * horizontalSpacing),
+          y: defaultY,
         },
         data: {
           label: `Step ${stepOrder}: ${newAdapterConfig.endpoint_path}`,
@@ -377,6 +450,31 @@ export function WorkflowBuilder({
       setIsSaving(false);
     }
   };
+
+  // Handle delete edge
+  const handleEdgeDelete = useCallback(
+    async (edgeId: string) => {
+      const edgeToDelete = edges.find(e => e.id === edgeId);
+      if (!edgeToDelete) return;
+
+      // Update source node - hapus dari next_node_ids
+      const sourceNode = nodes.find(n => n.id === edgeToDelete.source);
+      if (sourceNode?.data.workflowNode.next_node_ids) {
+        const updatedNextIds = sourceNode.data.workflowNode.next_node_ids.filter(id => id !== edgeToDelete.target);
+        await handleUpdateNode(edgeToDelete.source, { next_node_ids: updatedNextIds });
+      }
+
+      // Update target node - hapus dari previous_node_ids
+      const targetNode = nodes.find(n => n.id === edgeToDelete.target);
+      if (targetNode?.data.workflowNode.previous_node_ids) {
+        const updatedPrevIds = targetNode.data.workflowNode.previous_node_ids.filter(id => id !== edgeToDelete.source);
+        await handleUpdateNode(edgeToDelete.target, { previous_node_ids: updatedPrevIds });
+      }
+
+      setEdges(eds => eds.filter(e => e.id !== edgeId));
+    },
+    [edges, nodes, handleUpdateNode, setEdges]
+  );
 
   return (
     <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
@@ -436,7 +534,6 @@ export function WorkflowBuilder({
               />
             </div>
 
-            {/* Tombol Tambah Node */}
             <Button
               onClick={handleAddNode}
               className="w-full"
@@ -451,7 +548,6 @@ export function WorkflowBuilder({
               </p>
             )}
 
-            {/* Workflow Nodes List */}
             {selectedWorkflowId && currentWorkflow && currentWorkflow.nodes && currentWorkflow.nodes.length > 0 && (
               <div className="pt-3 border-t">
                 <div className="flex items-center justify-between mb-2">
@@ -525,15 +621,23 @@ export function WorkflowBuilder({
           <ReactFlow
             nodes={nodes}
             edges={edges}
-            onNodesChange={onNodesChange}
+            onNodesChange={handleNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={handleNodeClick}
+            onEdgeClick={(_event, edge) => {
+              if (window.confirm('Hapus koneksi ini?')) {
+                handleEdgeDelete(edge.id);
+              }
+            }}
             nodeTypes={nodeTypes}
             fitView
             deleteKeyCode="Delete"
             onNodesDelete={(deleted) => {
               deleted.forEach((n) => handleDeleteNode(n.id));
+            }}
+            onEdgesDelete={(deleted) => {
+              deleted.forEach((e) => handleEdgeDelete(e.id));
             }}
           >
             <Controls />

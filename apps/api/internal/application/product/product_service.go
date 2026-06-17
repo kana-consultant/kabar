@@ -124,18 +124,20 @@ func (s *ProductService) CreateProduct(
 				log.Printf("  AdapterConfigID set to: %s\n", node.AdapterConfigID)
 			}
 
-			// Resolve NextNodeID
-			if node.NextNodeID != nil && *node.NextNodeID != "" {
-				tempNextID := *node.NextNodeID
-				log.Printf("  Resolving NextNodeID: '%s'\n", tempNextID)
+			// Resolve NextNodeIDs
+			if len(node.NextNodeIDs) > 0 {
+				resolvedNextIDs := make([]string, 0, len(node.NextNodeIDs))
+				for _, tempNextID := range node.NextNodeIDs {
+					log.Printf("  Resolving NextNodeID: '%s'\n", tempNextID)
 
-				if realNextID, ok := nodeTempToReal[tempNextID]; ok {
-					node.NextNodeID = &realNextID
-					log.Printf("  ✅ NextNodeID resolved: %s -> %s\n", tempNextID, realNextID)
-				} else {
-					log.Printf("  ⚠️ NextNodeID '%s' not found in mapping, setting to nil\n", tempNextID)
-					node.NextNodeID = nil
+					if realNextID, ok := nodeTempToReal[tempNextID]; ok {
+						resolvedNextIDs = append(resolvedNextIDs, realNextID)
+						log.Printf("  ✅ NextNodeID resolved: %s -> %s\n", tempNextID, realNextID)
+					} else {
+						log.Printf("  ⚠️ NextNodeID '%s' not found in mapping, skipping\n", tempNextID)
+					}
 				}
+				node.NextNodeIDs = resolvedNextIDs
 			}
 
 			// Resolve PreviousNodeIDs
@@ -166,12 +168,12 @@ func (s *ProductService) CreateProduct(
 		}
 
 		for _, node := range wf.Nodes {
-			if node.NextNodeID != nil && *node.NextNodeID != "" {
-				if !nodeIDSet[*node.NextNodeID] {
+			for _, nextID := range node.NextNodeIDs {
+				if !nodeIDSet[nextID] {
 					return "", fmt.Errorf("workflow[%d] node[%s]: NextNodeID %s not found in same workflow",
-						wfIdx, node.ID, *node.NextNodeID)
+						wfIdx, node.ID, nextID)
 				}
-				log.Printf("  ✅ Node %s -> NextNode: %s\n", node.ID, *node.NextNodeID)
+				log.Printf("  ✅ Node %s -> NextNode: %s\n", node.ID, nextID)
 			}
 
 			for _, prevID := range node.PreviousNodeIDs {
@@ -266,8 +268,8 @@ func (s *ProductService) CreateProduct(
 				return "", fmt.Errorf("workflow[%d] node[%d] StepOrder must be > 0", wfIdx, nIdx)
 			}
 
-			log.Printf("  Preparing node[%d:%d]: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeID=%v\n",
-				wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeID)
+			log.Printf("  Preparing node[%d:%d]: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeIDs=%v\n",
+				wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeIDs)
 
 			nodes = append(nodes, workflow_node.WorkflowNodeCreate{
 				ID:              n.ID,
@@ -276,13 +278,13 @@ func (s *ProductService) CreateProduct(
 				EndpointPath:    &n.AdapterConfig.EndpointPath,
 				StepOrder:       n.StepOrder,
 				InputMapping:    json.RawMessage(n.AdapterConfig.FieldMapping),
-				NextNodeID:      n.NextNodeID,
+				NextNodeIDs:     n.NextNodeIDs,
 				PreviousNodeIDs: n.PreviousNodeIDs,
 				HTTPMethod:      n.AdapterConfig.HTTPMethod,
 			})
 		}
 
-		// Insert nodes: batch dengan 2 tahap (insert dulu tanpa next_node_id, update setelahnya)
+		// Insert nodes: batch dengan 2 tahap (insert dulu tanpa next_node_ids, update setelahnya)
 		log.Printf("Inserting %d nodes for workflow[%d]...\n", len(nodes), wfIdx)
 
 		createdNodes, err := s.workflowNodeRepo.InsertBatchWithTx(ctx, tx, nodes)
@@ -293,8 +295,8 @@ func (s *ProductService) CreateProduct(
 		log.Printf("Workflow[%d]: %d nodes inserted successfully\n", wfIdx, len(createdNodes))
 
 		for _, node := range createdNodes {
-			log.Printf("  ✅ Node: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeID=%v, PrevIDs=%v\n",
-				node.ID, node.StepOrder, node.AdapterConfigID, node.NextNodeID, node.PreviousNodeIDs)
+			log.Printf("  ✅ Node: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeIDs=%v, PrevIDs=%v\n",
+				node.ID, node.StepOrder, node.AdapterConfigID, node.NextNodeIDs, node.PreviousNodeIDs)
 		}
 	}
 
@@ -438,17 +440,22 @@ func (s *ProductService) UpdateProduct(
 					log.Printf("  AdapterConfigID set to: %s\n", node.AdapterConfigID)
 				}
 
-				// Resolve NextNodeID
-				if node.NextNodeID != nil && *node.NextNodeID != "" {
-					tempNextID := *node.NextNodeID
-					log.Printf("  Resolving NextNodeID: '%s'\n", tempNextID)
+				// Resolve NextNodeIDs
+				if len(node.NextNodeIDs) > 0 {
+					resolvedNextIDs := make([]string, 0, len(node.NextNodeIDs))
+					for _, tempNextID := range node.NextNodeIDs {
+						log.Printf("  Resolving NextNodeID: '%s'\n", tempNextID)
 
-					if realNextID, ok := nodeTempToReal[tempNextID]; ok {
-						node.NextNodeID = &realNextID
-						log.Printf("  ✅ NextNodeID resolved: %s -> %s\n", tempNextID, realNextID)
-					} else {
-						log.Printf("  ⚠️ NextNodeID '%s' not found in mapping, keeping as-is\n", tempNextID)
+						if realNextID, ok := nodeTempToReal[tempNextID]; ok {
+							resolvedNextIDs = append(resolvedNextIDs, realNextID)
+							log.Printf("  ✅ NextNodeID resolved: %s -> %s\n", tempNextID, realNextID)
+						} else {
+							// Bisa jadi sudah real ID (existing node)
+							resolvedNextIDs = append(resolvedNextIDs, tempNextID)
+							log.Printf("  ℹ️ NextNodeID '%s' kept as-is (assumed real ID)\n", tempNextID)
+						}
 					}
+					node.NextNodeIDs = resolvedNextIDs
 				}
 
 				// Resolve PreviousNodeIDs
@@ -483,12 +490,12 @@ func (s *ProductService) UpdateProduct(
 			}
 
 			for _, node := range wf.Nodes {
-				if node.NextNodeID != nil && *node.NextNodeID != "" {
-					if !nodeIDSet[*node.NextNodeID] {
+				for _, nextID := range node.NextNodeIDs {
+					if !nodeIDSet[nextID] {
 						return fmt.Errorf("workflow[%d] node[%s]: NextNodeID %s not found in same workflow",
-							wfIdx, node.ID, *node.NextNodeID)
+							wfIdx, node.ID, nextID)
 					}
-					log.Printf("  ✅ Node %s -> NextNode: %s\n", node.ID, *node.NextNodeID)
+					log.Printf("  ✅ Node %s -> NextNode: %s\n", node.ID, nextID)
 				}
 
 				for _, prevID := range node.PreviousNodeIDs {
@@ -593,8 +600,8 @@ func (s *ProductService) UpdateProduct(
 					return fmt.Errorf("workflow[%d] node[%d] StepOrder must be > 0", wfIdx, nIdx)
 				}
 
-				log.Printf("  Preparing node[%d:%d]: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeID=%v\n",
-					wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeID)
+				log.Printf("  Preparing node[%d:%d]: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeIDs=%v\n",
+					wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeIDs)
 
 				nodes = append(nodes, workflow_node.WorkflowNode{
 					ID:              n.ID,
@@ -602,7 +609,7 @@ func (s *ProductService) UpdateProduct(
 					AdapterConfigID: n.AdapterConfigID,
 					StepOrder:       n.StepOrder,
 					AdapterConfig:   n.AdapterConfig,
-					NextNodeID:      n.NextNodeID,
+					NextNodeIDs:     n.NextNodeIDs,
 					PreviousNodeIDs: n.PreviousNodeIDs,
 				})
 			}
@@ -746,7 +753,7 @@ func (s *ProductService) GetByID(
 		nodeDefs := make([]workflow_node.WorkflowNode, 0, len(nodes))
 		for nIdx, n := range nodes {
 			log.Printf("  Node[%d:%d]: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeID=%v, PrevIDs=%v\n",
-				wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeID, n.PreviousNodeIDs)
+				wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeIDs, n.PreviousNodeIDs)
 
 			nodeDefs = append(nodeDefs, workflow_node.WorkflowNode{
 				ID:              n.ID,
@@ -754,7 +761,7 @@ func (s *ProductService) GetByID(
 				AdapterConfigID: n.AdapterConfigID,
 				PreviousNodeIDs: n.PreviousNodeIDs,
 				StepOrder:       n.StepOrder,
-				NextNodeID:      n.NextNodeID,
+				NextNodeIDs:     n.NextNodeIDs,
 				CreatedAt:       n.CreatedAt,
 				AdapterConfig: &workflow_node.NodeAdapterConfig{
 					EndpointPath: *n.EndpointPath,

@@ -193,34 +193,3 @@ func (h *WorkflowNodeHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "reordered"})
 }
-
-// ========== Batch Save Handler ==========
-
-func (h *WorkflowNodeHandler) SaveBatch(w http.ResponseWriter, r *http.Request) {
-	workflowID := chi.URLParam(r, "workflowId")
-	if workflowID == "" {
-		http.Error(w, "workflow ID is required", http.StatusBadRequest)
-		return
-	}
-
-	var req workflow_node.BatchSaveRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	result, err := h.service.SaveBatch(r.Context(), workflowID, req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if len(result.Errors) > 0 {
-		w.WriteHeader(http.StatusMultiStatus)
-	} else {
-		w.WriteHeader(http.StatusOK)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}

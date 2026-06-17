@@ -85,7 +85,7 @@ const getObjectValue = (input: any): any => {
 
 // Default Configs
 const defaultMetaConfig: MetaConfig = {
-    enabled: true,
+    enabled: false,
     defaultTags: {
         charset: "UTF-8",
         viewport: "width=device-width, initial-scale=1.0",
@@ -101,7 +101,7 @@ const defaultMetaConfig: MetaConfig = {
 };
 
 const defaultSitemapConfig: SitemapConfig = {
-    enabled: true,
+    enabled: false,
     staticUrls: [
         { loc: "/", priority: 1.0, changefreq: "daily" },
         { loc: "/privacy", priority: 0.3, changefreq: "yearly" },

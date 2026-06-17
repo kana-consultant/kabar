@@ -67,7 +67,7 @@ export interface WorkflowNode {
   previous_node_ids?: string[] | null;
   step_order: number;
   input_mapping?: Record<string, any>;
-  next_node_id?: string | null;
+  next_node_ids?: string[] | null;
   created_at?: string;
   adapter_config?: AdapterConfig;
 }

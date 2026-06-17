@@ -31,7 +31,7 @@ func (r *WorkflowNodeRepository) GetByID(ctx context.Context, id string) (*workf
 
 	var node workflow_node.WorkflowNode
 	var inputMappingJSON sql.NullString
-	var nextNodeID sql.NullString
+	var nextNodeID pq.StringArray
 	var previousNodeIDs pq.StringArray
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
@@ -51,9 +51,7 @@ func (r *WorkflowNodeRepository) GetByID(ctx context.Context, id string) (*workf
 		node.AdapterConfig.EndpointPath = inputMappingJSON.String
 	}
 
-	if nextNodeID.Valid {
-		node.NextNodeID = &nextNodeID.String
-	}
+	node.NextNodeIDs = nextNodeID
 
 	node.PreviousNodeIDs = previousNodeIDs
 
@@ -80,7 +78,7 @@ func (r *WorkflowNodeRepository) GetByWorkflowID(ctx context.Context, workflowID
 	for rows.Next() {
 		var node workflow_node.WorkflowNode
 		var inputMappingJSON sql.NullString
-		var nextNodeID sql.NullString
+		var nextNodeID pq.StringArray
 		var previousNodeIDs pq.StringArray
 
 		err := rows.Scan(
@@ -95,9 +93,8 @@ func (r *WorkflowNodeRepository) GetByWorkflowID(ctx context.Context, workflowID
 		if inputMappingJSON.Valid {
 			node.AdapterConfig.EndpointPath = inputMappingJSON.String
 		}
-		if nextNodeID.Valid {
-			node.NextNodeID = &nextNodeID.String
-		}
+
+		node.NextNodeIDs = nextNodeID
 
 		node.PreviousNodeIDs = previousNodeIDs
 
@@ -127,7 +124,7 @@ func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowI
 		var node workflow_node.WorkflowNodeCreate
 		var inputMappingJSON []byte
 		var previousNodeIDsJSON []byte
-		var nextNodeID sql.NullString
+		var nextNodeID []byte
 		var EndpointPath sql.NullString
 
 		err := rows.Scan(
@@ -143,12 +140,14 @@ func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowI
 			json.Unmarshal(inputMappingJSON, &node.InputMapping)
 		}
 
-		if nextNodeID.Valid {
-			node.NextNodeID = &nextNodeID.String
-		}
-
 		if EndpointPath.Valid {
 			node.EndpointPath = &EndpointPath.String
+		}
+
+		if len(nextNodeID) > 0 {
+			json.Unmarshal(nextNodeID, &node.NextNodeIDs)
+		} else {
+			node.NextNodeIDs = []string{}
 		}
 
 		if len(previousNodeIDsJSON) > 0 {
@@ -176,9 +175,11 @@ func (r *WorkflowNodeRepository) Insert(ctx context.Context, node *workflow_node
 		RETURNING id, created_at
 	`
 
-	var nextNodeID interface{}
-	if node.NextNodeID != nil {
-		nextNodeID = *node.NextNodeID
+	var NextNodeIDs interface{}
+	if len(node.PreviousNodeIDs) > 0 {
+		NextNodeIDs = pq.Array(node.NextNodeIDs)
+	} else {
+		NextNodeIDs = pq.Array([]string{})
 	}
 
 	var previousNodeIDs interface{}
@@ -190,7 +191,7 @@ func (r *WorkflowNodeRepository) Insert(ctx context.Context, node *workflow_node
 
 	err = r.db.QueryRowContext(ctx, query,
 		node.WorkflowID, node.AdapterConfigID, node.StepOrder,
-		inputMappingJSON, nextNodeID, previousNodeIDs,
+		inputMappingJSON, NextNodeIDs, previousNodeIDs,
 	).Scan(&node.ID, &node.CreatedAt)
 
 	if err != nil {
@@ -222,11 +223,12 @@ func (r *WorkflowNodeRepository) InsertBatch(ctx context.Context, nodes []workfl
 			return nil, fmt.Errorf("failed to marshal input mapping: %w", err)
 		}
 
-		var nextNodeID interface{}
-		if node.NextNodeID != nil {
-			nextNodeID = *node.NextNodeID
+		var nextNodeIDs interface{}
+		if len(node.PreviousNodeIDs) > 0 {
+			nextNodeIDs = pq.Array(node.NextNodeIDs)
+		} else {
+			nextNodeIDs = pq.Array([]string{})
 		}
-
 		var previousNodeIDs interface{}
 		if len(node.PreviousNodeIDs) > 0 {
 			previousNodeIDs = pq.Array(node.PreviousNodeIDs)
@@ -239,12 +241,12 @@ func (r *WorkflowNodeRepository) InsertBatch(ctx context.Context, nodes []workfl
 		savedNode.AdapterConfigID = node.AdapterConfigID
 		savedNode.StepOrder = node.StepOrder
 		savedNode.AdapterConfig.FieldMapping = node.AdapterConfig.FieldMapping
-		savedNode.NextNodeID = node.NextNodeID
+		savedNode.NextNodeIDs = node.NextNodeIDs
 		savedNode.PreviousNodeIDs = node.PreviousNodeIDs
 
 		err = tx.QueryRowContext(ctx, query,
 			node.WorkflowID, node.AdapterConfigID, node.StepOrder,
-			inputMappingJSON, nextNodeID, previousNodeIDs,
+			inputMappingJSON, nextNodeIDs, previousNodeIDs,
 		).Scan(&savedNode.ID, &savedNode.CreatedAt)
 
 		if err != nil {
@@ -464,13 +466,13 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 	updateQuery := `UPDATE workflow_nodes SET next_node_id = $1 WHERE id = $2`
 
 	for _, node := range nodes {
-		if node.NextNodeID == nil || *node.NextNodeID == "" {
+		if node.NextNodeIDs == nil {
 			continue
 		}
 
-		log.Printf("Updating next_node_id for node %s -> %s\n", node.ID, *node.NextNodeID)
+		log.Printf("Updating next_node_id for node %s -> %s\n", node.ID, node.NextNodeIDs)
 
-		_, err := tx.ExecContext(ctx, updateQuery, *node.NextNodeID, node.ID)
+		_, err := tx.ExecContext(ctx, updateQuery, node.NextNodeIDs, node.ID)
 		if err != nil {
 			log.Printf("❌ Failed to update next_node_id for node %s: %v\n", node.ID, err)
 			return nil, fmt.Errorf("failed to update next_node_id for node %s: %w", node.ID, err)
@@ -479,7 +481,7 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 		// Update savedNodes juga supaya return value akurat
 		for i := range savedNodes {
 			if savedNodes[i].ID == node.ID {
-				savedNodes[i].NextNodeID = node.NextNodeID
+				savedNodes[i].NextNodeIDs = node.NextNodeIDs
 				break
 			}
 		}
@@ -513,8 +515,8 @@ func (r *WorkflowNodeRepository) InsertWithTx(ctx context.Context, tx *sql.Tx, n
     `
 
 	var nextNodeID interface{}
-	if node.NextNodeID != nil {
-		nextNodeID = *node.NextNodeID
+	if node.NextNodeIDs != nil {
+		nextNodeID = node.NextNodeIDs
 	}
 
 	var previousNodeIDs interface{}
@@ -666,7 +668,7 @@ func (r *WorkflowNodeRepository) UpsertWithTx(ctx context.Context, tx *sql.Tx, n
 			node.AdapterConfigID,              // uuid
 			previousNodeIDsJSON,               // jsonb
 			node.StepOrder,                    // integer
-			node.NextNodeID,                   // uuid (nullable)
+			node.NextNodeIDs,                  // uuid (nullable)
 			node.AdapterConfig.EndpointPath,   // text
 			node.AdapterConfig.HTTPMethod,     // text
 			json.RawMessage(inputMappingJSON), // jsonb
