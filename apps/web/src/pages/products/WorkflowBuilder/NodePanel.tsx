@@ -77,6 +77,11 @@ export function NodePanel({
         }
     }, [adapterConfig, workflowNode]);
 
+
+    console.log("json")
+    console.log(inputMapping)
+
+
     // Get previous nodes
     const previousNodes = useMemo(() => {
         const previousIds = workflowNode?.previous_node_ids || [];
@@ -195,23 +200,18 @@ export function NodePanel({
                 endpoint_path: endpointPath,
                 http_method: httpMethod,
                 timeout_seconds: timeoutSeconds,
+                field_mapping : JSON.stringify(inputMapping),
                 retry_count: retryCount,
                 updated_at: new Date().toISOString(),
             };
 
-            // Prepare workflow node updates
-            const nodeUpdates: Partial<WorkflowNode> = {
-                input_mapping: inputMapping,
-            };
-
+           
             console.log("📦 Saving node with updates:", {
-                nodeUpdates,
                 adapterConfigUpdates
             });
 
             // Combine updates dan kirim ke onUpdate
             onUpdate(node.id, {
-                ...nodeUpdates,
                 adapter_config: adapterConfigUpdates as any
             });
 

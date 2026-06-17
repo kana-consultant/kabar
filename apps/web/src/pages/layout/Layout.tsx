@@ -6,7 +6,7 @@ import { getToken } from '@/services/auth';
 
 export function Layout() {
     const navigate = useNavigate();
-    const [sidebarExpanded, setSidebarExpanded] = useState(true);
+    const [sidebarExpanded, setSidebarExpanded] = useState(false);
     const [isAuth, setIsAuth] = useState<boolean | null>(null);
 
     useEffect(() => {

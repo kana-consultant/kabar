@@ -63,20 +63,45 @@ export function WorkflowBuilder({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // Get current workflow from product
-  const currentWorkflow = product.workflows?.find(w => w.id === selectedWorkflowId);
+  const workflows = product.workflows || [];
+  const currentWorkflow = workflows.find(w => w.id === selectedWorkflowId);
+
+  // Auto-create workflow if none exists
+  useEffect(() => {
+    if (isInitialized) return;
+    
+    if (!workflows || workflows.length === 0) {
+      // Auto-create default workflow
+      const defaultWorkflowName = "Default Workflow";
+      onWorkflowCreate(defaultWorkflowName);
+      setIsInitialized(true);
+    } else if (!selectedWorkflowId && workflows.length > 0) {
+      // Auto-select first workflow
+      const firstWorkflowId = workflows[0].id;
+      setSelectedWorkflowId(firstWorkflowId);
+      onWorkflowSelect(firstWorkflowId);
+      onChange?.(firstWorkflowId);
+      setIsInitialized(true);
+    } else if (selectedWorkflowId) {
+      setIsInitialized(true);
+    }
+  }, [workflows, selectedWorkflowId, isInitialized, onWorkflowCreate, onWorkflowSelect, onChange]);
 
   // Sync selected workflow dengan external
   useEffect(() => {
-    if (externalSelectedWorkflowId) {
+    if (externalSelectedWorkflowId && externalSelectedWorkflowId !== selectedWorkflowId) {
       setSelectedWorkflowId(externalSelectedWorkflowId);
+      onWorkflowSelect(externalSelectedWorkflowId);
+      onChange?.(externalSelectedWorkflowId);
     }
-  }, [externalSelectedWorkflowId]);
+  }, [externalSelectedWorkflowId, selectedWorkflowId, onWorkflowSelect, onChange]);
 
   // Load workflow nodes dari product
   useEffect(() => {
@@ -128,11 +153,6 @@ export function WorkflowBuilder({
     setSelectedWorkflowId(workflowId);
     onWorkflowSelect(workflowId);
     onChange?.(workflowId);
-  };
-
-  const handleCreateWorkflow = () => {
-    const name = `Workflow ${new Date().toLocaleDateString()}`;
-    onWorkflowCreate(name);
   };
 
   // Update node data
@@ -288,7 +308,7 @@ export function WorkflowBuilder({
   // Handle tambah node - langsung dari product
   const handleAddNode = async () => {
     if (!selectedWorkflowId) {
-      setError("Pilih atau buat workflow terlebih dahulu");
+      setError("Pilih workflow terlebih dahulu");
       return;
     }
 
@@ -358,9 +378,6 @@ export function WorkflowBuilder({
     }
   };
 
-  // Get workflows from product
-  const workflows = product.workflows || [];
-
   return (
     <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className={`flex gap-4 relative ${isFullscreen ? 'h-screen' : 'h-[600px]'}`}>
@@ -409,14 +426,6 @@ export function WorkflowBuilder({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-sm">WORKFLOWS</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCreateWorkflow}
-                  className="h-6 px-2 text-xs"
-                >
-                  + Baru
-                </Button>
               </div>
               <WorkflowList
                 workflows={product.workflows as WorkflowDefinition[]}
@@ -438,7 +447,7 @@ export function WorkflowBuilder({
             </Button>
             {!selectedWorkflowId && (
               <p className="text-xs text-muted-foreground text-center -mt-2">
-                Pilih atau buat workflow terlebih dahulu
+                Pilih workflow terlebih dahulu
               </p>
             )}
 

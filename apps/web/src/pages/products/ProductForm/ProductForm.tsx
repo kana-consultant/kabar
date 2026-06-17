@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@kana-consultant/ui-kit";
 import { ProductBasicInfo } from "./ProductBasicInfo";
 import { ProductApiConfig } from "./ProductApiConfig";
@@ -30,6 +30,51 @@ interface ProductFormProps {
     initialData?: Product | null;
 }
 
+// Custom collapsible section component
+function CollapsibleSection({ 
+    title, 
+    description, 
+    defaultOpen = true, 
+    children 
+}: { 
+    title: string; 
+    description?: string; 
+    defaultOpen?: boolean; 
+    children: React.ReactNode;
+}) {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+
+    return (
+        <div className="border rounded-lg">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors rounded-lg"
+            >
+                <div className="flex items-center gap-3">
+                    {isOpen ? (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div className="text-left">
+                        <h3 className="text-lg font-semibold">{title}</h3>
+                        {description && (
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                {description}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </button>
+            {isOpen && (
+                <div className="px-4 pb-4">
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function ProductForm({ isEdit, productId, initialData }: ProductFormProps) {
     const {
         product,
@@ -53,6 +98,8 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
 
     const toast = useToast();
     const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(product?.workflow_id || null);
+
+
 
     // Modal test state
     const [showModal, setShowModal] = useState(false);
@@ -222,8 +269,11 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 </div>
             </div>
 
-            {/* Single Endpoint Section */}
-            <div className="space-y-6">
+            {/* Basic Info & API Config Section */}
+            <CollapsibleSection 
+                title="Informasi Dasar & Konfigurasi API"
+                description="Atur informasi produk dan konfigurasi API endpoint"
+            >
                 <div className="grid gap-6 lg:grid-cols-2">
                     <ProductBasicInfo
                         product={product}
@@ -236,43 +286,43 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                         onUpdate={updateAdapterConfig}
                     />
                 </div>
+            </CollapsibleSection>
 
-                <div>
-                    <ProductFieldMapping
-                        domain={product?.api_endpoint as string || ""}
-                        metaConfig={(() => {
-                            try {
-                                return JSON.parse(product.adapter_config?.meta_config || "{}");
-                            } catch (e) {
-                                return {};
-                            }
-                        })()}
-                        sitemapConfig={(() => {
-                            try {
-                                return JSON.parse(product.adapter_config?.sitemap_config || "{}");
-                            } catch (e) {
-                                return {};
-                            }
-                        })()}
-                        onChange={(metaConfig, sitemapConfig) => {
-                            console.log("product form")
-                            console.log(metaConfig)
-                            if (metaConfig) updateMetaConfig(JSON.stringify(metaConfig));
-                            if (sitemapConfig) updateSitemapConfig(JSON.stringify(sitemapConfig));
-                        }}
-                    />
-                </div>
-            </div>
+            {/* Field Mapping Section */}
+            <CollapsibleSection 
+                title="Tag Configuration"
+                description="SiteMap & Meta Tag"
+            >
+                <ProductFieldMapping
+                    domain={product?.api_endpoint as string || ""}
+                    metaConfig={(() => {
+                        try {
+                            return JSON.parse(product.adapter_config?.meta_config || "{}");
+                        } catch (e) {
+                            return {};
+                        }
+                    })()}
+                    sitemapConfig={(() => {
+                        try {
+                            return JSON.parse(product.adapter_config?.sitemap_config || "{}");
+                        } catch (e) {
+                            return {};
+                        }
+                    })()}
+                    onChange={(metaConfig, sitemapConfig) => {
+                        console.log("product form")
+                        console.log(metaConfig)
+                        if (metaConfig) updateMetaConfig(JSON.stringify(metaConfig));
+                        if (sitemapConfig) updateSitemapConfig(JSON.stringify(sitemapConfig));
+                    }}
+                />
+            </CollapsibleSection>
 
             {/* Workflow Builder Section */}
-            <div className="border-t pt-6">
-                <div className="mb-4">
-                    <h3 className="text-lg font-semibold">Workflow Builder</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Buat workflow multi-step dengan menghubungkan beberapa node
-                    </p>
-                </div>
-
+            <CollapsibleSection 
+                title="Workflow Builder"
+                description="Buat workflow multi-step dengan menghubungkan beberapa node"
+            >
                 <WorkflowBuilder
                     productId={product.id || ""}
                     product={product}
@@ -288,7 +338,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                         setActiveWorkflow(workflowId);
                     }}
                 />
-            </div>
+            </CollapsibleSection>
 
             {/* Save Button */}
             <ProductFormActions
