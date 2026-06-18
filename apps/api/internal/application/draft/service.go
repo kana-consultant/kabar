@@ -804,13 +804,11 @@ func (s *DraftServiceImpl) enrichDraftWithPreviousResults(draft draft.DraftDataP
 	// Convert draft ke map
 	draftMap := structToMap(draft)
 
-	// ✅ Ambil semua execution results dari config menggunakan GetAllExecutionResults()
 	executionResults := cfg.GetAllExecutionResults()
 	if executionResults != nil && len(executionResults) > 0 {
 		draftMap["previous_results"] = executionResults
 	}
 
-	// ✅ Ambil semua variables dari config menggunakan GetAllVariables()
 	variables := cfg.GetAllVariables()
 	if variables != nil && len(variables) > 0 {
 		draftMap["variables"] = variables
@@ -820,9 +818,6 @@ func (s *DraftServiceImpl) enrichDraftWithPreviousResults(draft draft.DraftDataP
 	return draft
 }
 
-// ============================================================
-// 🔧 HELPER: structToMap - Convert struct ke map
-// ============================================================
 func structToMap(data interface{}) map[string]interface{} {
 	jsonBytes, _ := json.Marshal(data)
 	var result map[string]interface{}
