@@ -50,17 +50,6 @@ type ProductConfig struct {
 	UpdatedAt time.Time `json:"updatedAt,omitempty"`
 }
 
-func (c *ProductConfig) BuildFullURL() string {
-	if c.APIEndpoint == "" {
-		return ""
-	}
-	base := strings.TrimRight(c.APIEndpoint, "/")
-	if c.AdapterEndpoint != "" {
-		return base + "/" + strings.TrimLeft(c.AdapterEndpoint, "/")
-	}
-	return base
-}
-
 func (c *ProductConfig) HasWorkflowNodes() bool {
 	return len(c.WorkflowNodes) > 0
 }
@@ -120,29 +109,83 @@ func (c *ProductConfig) GetVariable(key string) interface{} {
 	return c.Variables[key]
 }
 
-// ============================================================
-// 4. 🔧 UTILITY - Untuk debugging
-// ============================================================
-func (c *ProductConfig) Validate() error {
-	if c.ProductID == "" {
-		return fmt.Errorf("product ID is required")
+func (c *ProductConfig) GetAllExecutionResults() map[string]interface{} {
+	if c.ExecutionResults == nil {
+		return make(map[string]interface{})
 	}
-	if c.APIEndpoint == "" {
-		return fmt.Errorf("API endpoint is required")
-	}
-	return nil
+	return c.ExecutionResults
 }
 
-func (c *ProductConfig) ToMap() map[string]interface{} {
-	return map[string]interface{}{
-		"product_id":        c.ProductID,
-		"api_endpoint":      c.APIEndpoint,
-		"full_url":          c.FullURL,
-		"timeout":           c.Timeout,
-		"retry_count":       c.RetryCount,
-		"has_workflow":      c.HasWorkflowNodes(),
-		"total_nodes":       len(c.WorkflowNodes),
-		"execution_results": c.ExecutionResults,
-		"variables":         c.Variables,
+func (c *ProductConfig) GetAllVariables() map[string]interface{} {
+	if c.Variables == nil {
+		return make(map[string]interface{})
 	}
+	return c.Variables
+}
+
+func (c *ProductConfig) ParseTemplate(template string) (interface{}, error) {
+	if !strings.HasPrefix(template, "{{") || !strings.HasSuffix(template, "}}") {
+		return nil, fmt.Errorf("invalid template format: %s", template)
+	}
+
+	trimmed := strings.TrimPrefix(strings.TrimSuffix(template, "}}"), "{{")
+	parts := strings.SplitN(trimmed, ".", 2)
+
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid template: %s (format: {{node-id.field.path}})", template)
+	}
+
+	nodeID := parts[0]
+	fieldPath := parts[1]
+
+	// Coba ambil dari execution results
+	if c.HasExecutionResult(nodeID) {
+		return c.GetExecutionResultField(nodeID, fieldPath)
+	}
+
+	// Coba ambil dari variables
+	if c.HasVariable(nodeID) {
+		val := c.GetVariable(nodeID)
+		if fieldPath == "" {
+			return val, nil
+		}
+		fieldParts := strings.Split(fieldPath, ".")
+		current := val
+		for _, part := range fieldParts {
+			if currentMap, ok := current.(map[string]interface{}); ok {
+				if v, exists := currentMap[part]; exists {
+					current = v
+				} else {
+					return nil, fmt.Errorf("field '%s' not found", part)
+				}
+			} else {
+				return nil, fmt.Errorf("cannot navigate to '%s'", part)
+			}
+		}
+		return current, nil
+	}
+
+	return nil, fmt.Errorf("node or variable '%s' not found", nodeID)
+}
+
+// ============================================================
+// 11. ✅ DIPAKAI - HasExecutionResult
+// ============================================================
+func (c *ProductConfig) HasExecutionResult(nodeID string) bool {
+	if c.ExecutionResults == nil {
+		return false
+	}
+	_, exists := c.ExecutionResults[nodeID]
+	return exists
+}
+
+// ============================================================
+// 12. ✅ DIPAKAI - HasVariable
+// ============================================================
+func (c *ProductConfig) HasVariable(key string) bool {
+	if c.Variables == nil {
+		return false
+	}
+	_, exists := c.Variables[key]
+	return exists
 }

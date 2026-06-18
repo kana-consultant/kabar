@@ -4,43 +4,63 @@ import (
 	"encoding/json"
 	"fmt"
 	"seo-backend/internal/domain/draft"
+	"seo-backend/internal/domain/product"
 	"seo-backend/internal/domain/workflow_node"
 	"strings"
 )
 
-func BuildRequestBody(cfg *workflow_node.WorkflowNode, draft draft.DraftDataPost) (map[string]interface{}, error) {
+func BuildRequestBody(
+	node *workflow_node.WorkflowNode,
+	draft draft.DraftDataPost,
+	cfg *product.ProductConfig,
+) (map[string]interface{}, error) {
+
 	fmt.Println("========== BUILD REQUEST BODY ==========")
+	fmt.Printf("Node ID: %s, Step: %d\n", node.ID, node.StepOrder)
 
-	// Parse field mapping
+	// 1. PARSE FIELD MAPPING
 	var fieldMapping map[string]interface{}
-	// if *cfg.Nodes.AdapterConfig != "" && cfg.FieldMappingStr != "{}" {
-	// 	if err := parseFieldMapping(cfg.FieldMappingStr, &fieldMapping); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-	fmt.Println("PARSED FIELD MAPPING KEYS:", getMapKeys(fieldMapping))
 
-	// Validate draft
+	// Dari node
+	if node.AdapterConfig.FieldMapping != "" && node.AdapterConfig.FieldMapping != "{}" {
+		if err := json.Unmarshal([]byte(node.AdapterConfig.FieldMapping), &fieldMapping); err != nil {
+			fmt.Printf("[WARN] Failed to parse node field mapping: %v\n", err)
+			fieldMapping = nil
+		} else {
+			fmt.Println("✅ Using node field mapping")
+		}
+	}
+
+	// Dari cfg kalo node kosong
+	if len(fieldMapping) == 0 && cfg.FieldMappingStr != "" && cfg.FieldMappingStr != "{}" {
+		if err := json.Unmarshal([]byte(cfg.FieldMappingStr), &fieldMapping); err != nil {
+			fmt.Printf("[WARN] Failed to parse config field mapping: %v\n", err)
+			fieldMapping = nil
+		} else {
+			fmt.Println("✅ Using config field mapping")
+		}
+	}
+
+	fmt.Printf("FIELD MAPPING KEYS: %v\n", getMapKeys(fieldMapping))
+
+	// 2. VALIDASI DRAFT
 	if strings.TrimSpace(draft.Title) == "" {
-		fmt.Println("ERROR: draft title empty")
 		return nil, fmt.Errorf("draft title is required")
 	}
 	if strings.TrimSpace(draft.Article) == "" {
-		fmt.Println("ERROR: draft article empty")
 		return nil, fmt.Errorf("draft article content is required")
 	}
 
-	fmt.Println("DRAFT TITLE (length):", len(draft.Title), "characters")
-	fmt.Println("DRAFT TOPIC:", draft.Topic)
-	fmt.Println("DRAFT ARTICLE (length):", len(draft.Article), "characters")
+	fmt.Printf("Draft Title: %s\n", draft.Title)
+	fmt.Printf("Draft Topic: %s\n", draft.Topic)
+	fmt.Printf("Draft Article Length: %d\n", len(draft.Article))
 
-	// Build request body from field mapping
-	requestBody := buildFromFieldMapping(fieldMapping, draft)
+	// 3. BUILD REQUEST BODY
+	requestBody := buildPayload(fieldMapping, draft, cfg)
 
-	// ✅ Fallback SEBELUM tambah meta/sitemap
-	// Supaya title/topic/content tetap masuk kalau field mapping kosong
+	// 4. FALLBACK KALO KOSONG
 	if len(requestBody) == 0 {
-		fmt.Println("FIELD MAPPING EMPTY, USING DEFAULT BODY")
+		fmt.Println("⚠️  FIELD MAPPING EMPTY, USING DEFAULT BODY")
 		requestBody = map[string]interface{}{
 			"title":   draft.Title,
 			"topic":   draft.Topic,
@@ -51,17 +71,111 @@ func BuildRequestBody(cfg *workflow_node.WorkflowNode, draft draft.DraftDataPost
 		}
 	}
 
-	// // Add meta tags (seo)
-	// s.addMetaTagsToBody(metaConfig, sitemapConfig, draft, cfg.BaseURL, requestBody)
-
-	// // Add sitemap info
-	// s.addSitemapInfoToBody(sitemapConfig, draft, cfg.BaseURL, requestBody)
-
-	// Log final body (redacted)
-	redactedBody := redactSensitiveFields(requestBody)
-	printJSON("FINAL REQUEST BODY (REDACTED)", redactedBody)
+	printJSON("✅ FINAL REQUEST BODY", requestBody)
 
 	return requestBody, nil
+}
+
+// ============================================================
+// buildPayload - BUILD PAYLOAD DARI FIELD MAPPING
+// ============================================================
+func buildPayload(
+	fieldMapping map[string]interface{},
+	draft draft.DraftDataPost,
+	cfg *product.ProductConfig,
+) map[string]interface{} {
+
+	payload := make(map[string]interface{})
+
+	if len(fieldMapping) == 0 {
+		return payload
+	}
+
+	// Convert draft ke map
+	draftMap := structToMap(draft)
+
+	// Tambahin hasil node sebelumnya
+	if len(cfg.ExecutionResults) > 0 {
+		draftMap["previous_results"] = cfg.ExecutionResults
+	}
+	if len(cfg.Variables) > 0 {
+		draftMap["variables"] = cfg.Variables
+	}
+
+	// Loop mapping
+	for targetField, sourceConfig := range fieldMapping {
+		value := getValue(sourceConfig, draftMap, cfg)
+		if value != nil {
+			payload[targetField] = value
+		}
+	}
+
+	return payload
+}
+
+// ============================================================
+// getValue - AMBIL NILAI DARI SOURCE (SUPPORT TEMPLATE)
+// ============================================================
+func getValue(
+	source interface{},
+	draftMap map[string]interface{},
+	cfg *product.ProductConfig,
+) interface{} {
+
+	switch v := source.(type) {
+	case string:
+		// TEMPLATE: {{node-id.field}}
+		if strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}") {
+			val, err := cfg.ParseTemplate(v)
+			if err != nil {
+				fmt.Printf("[WARN] Template error '%s': %v\n", v, err)
+				return nil
+			}
+			return val
+		}
+
+		// DARI DRAFT
+		if val, exists := draftMap[v]; exists {
+			return val
+		}
+		return nil
+
+	case map[string]interface{}:
+		// NESTED OBJECT
+		result := make(map[string]interface{})
+		for key, sub := range v {
+			if val := getValue(sub, draftMap, cfg); val != nil {
+				result[key] = val
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		return result
+
+	case []interface{}:
+		// ARRAY
+		result := make([]interface{}, 0)
+		for _, item := range v {
+			if val := getValue(item, draftMap, cfg); val != nil {
+				result = append(result, val)
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		return result
+
+	default:
+		return v
+	}
+}
+
+func structToMap(data interface{}) map[string]interface{} {
+	bytes, _ := json.Marshal(data)
+	var result map[string]interface{}
+	json.Unmarshal(bytes, &result)
+	return result
 }
 
 // ─────────────────────────────────────────────
