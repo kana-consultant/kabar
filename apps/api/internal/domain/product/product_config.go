@@ -50,9 +50,6 @@ type ProductConfig struct {
 	UpdatedAt time.Time `json:"updatedAt,omitempty"`
 }
 
-// ============================================================
-// 1. ✅ DIPAKAI - BuildFullURL
-// ============================================================
 func (c *ProductConfig) BuildFullURL() string {
 	if c.APIEndpoint == "" {
 		return ""
@@ -64,16 +61,10 @@ func (c *ProductConfig) BuildFullURL() string {
 	return base
 }
 
-// ============================================================
-// 2. ✅ DIPAKAI - HasWorkflowNodes
-// ============================================================
 func (c *ProductConfig) HasWorkflowNodes() bool {
-	return c.WorkflowNodes != nil && len(c.WorkflowNodes) > 0
+	return len(c.WorkflowNodes) > 0
 }
 
-// ============================================================
-// 3. 🔑 PENTING - Untuk data passing antar nodes (AKAN DIPAKAI)
-// ============================================================
 func (c *ProductConfig) SetExecutionResult(nodeID string, result interface{}) {
 	if c.ExecutionResults == nil {
 		c.ExecutionResults = make(map[string]interface{})
