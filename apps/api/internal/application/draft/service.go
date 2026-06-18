@@ -14,6 +14,8 @@ import (
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
+
+	// "seo-backend/internal/helper"
 	"seo-backend/internal/models"
 	"seo-backend/internal/scheduler"
 
@@ -21,22 +23,22 @@ import (
 )
 
 type DraftServiceImpl struct {
-	repo           draft.Repository
-	redisScheduler *scheduler.RedisScheduler
-	postService    *helper.PostService
-	productService product.ProductRepository
+	repo              draft.Repository
+	redisScheduler    *scheduler.RedisScheduler
+	productController product.ProductService
+	productService    product.ProductRepository
 }
 
 func NewService(
 	repo draft.Repository,
 	redisScheduler *scheduler.RedisScheduler,
-	postService *helper.PostService,
+	productController product.ProductService,
 	productService product.ProductRepository,
 ) draft.Service {
 	return &DraftServiceImpl{
-		repo:           repo,
-		redisScheduler: redisScheduler,
-		postService:    postService,
+		repo:              repo,
+		redisScheduler:    redisScheduler,
+		productController: productController,
 	}
 }
 
@@ -235,7 +237,7 @@ func (s *DraftServiceImpl) PublishContent(
 
 	log.Println("CALLING ProcessDraftProducts...")
 
-	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(req)
+	result, someFailed, allFailed, err := s.ProcessDraftProducts(ctx, req)
 
 	log.Printf("PROCESS RESULT => %+v", result)
 	log.Printf("PROCESS FLAGS => someFailed=%v allFailed=%v", someFailed, allFailed)
@@ -388,7 +390,7 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 		Excerpt:        draftData.Excerpt,
 	}
 
-	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(draftPost)
+	result, someFailed, allFailed, err := s.ProcessDraftProducts(ctx, draftPost)
 	log.Printf("IS ERROR,%v", err)
 
 	if err := s.repo.Delete(ctx, teamID, id); err != nil {
@@ -650,4 +652,179 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft.DraftDataPost) ([]map[string]interface{}, bool, bool, error) {
+	log.Printf("TargetProducts : %v", draft.TargetProducts)
+
+	if len(draft.TargetProducts) == 0 {
+		return nil, false, true, fmt.Errorf("target products is required and cannot be empty")
+	}
+
+	var postResults []map[string]interface{}
+	someFailed := false
+	allFailed := true
+
+	log.Printf("============= PROCESSING DRAFT FOR PRODUCTS =============")
+	log.Printf("Draft Data: %+v", draft)
+
+	for _, productID := range draft.TargetProducts {
+		log.Printf("======================= PROCESSING PRODUCT: %s =======================", productID)
+
+		// Get product config
+		cfg, err := s.productController.GetProductConfig(ctx, productID, draft)
+		if err != nil {
+			errMsg := fmt.Sprintf("failed to get product config for %s: %v", productID, err)
+			log.Printf("[ERROR] %s", errMsg)
+
+			result := map[string]interface{}{
+				"product": productID,
+				"success": false,
+				"error":   errMsg,
+				"synced":  false,
+			}
+			postResults = append(postResults, result)
+			someFailed = true
+			continue
+		}
+
+		log.Printf("Product Config loaded successfully for %s", productID)
+		log.Printf("Full URL: %s", cfg.FullURL)
+		log.Printf("HTTP Method: %s", cfg.HTTPMethod)
+
+		// Process workflow nodes in order
+		// Process workflow nodes in order
+		if cfg.WorkflowNodes != nil && len(cfg.WorkflowNodes) > 0 {
+			log.Printf("Processing %d workflow nodes for product %s", len(cfg.WorkflowNodes), productID)
+
+			// 🔑 KEY: Initialize map to store results from all nodes
+			nodeResults := make(map[string]interface{})
+
+			// Execute nodes in order (already reordered)
+			for _, node := range cfg.WorkflowNodes {
+				log.Printf("Executing node: %s (Step: %d)", node.ID, node.StepOrder)
+
+				// 🔑 STEP 1: Enrich draft with previous node results
+				enrichedDraft := enrichDraftWithPreviousResults(draft, nodeResults)
+
+				// 🔑 STEP 2: Build request body from node and ENRICHED draft
+				requestBody, err := helper.BuildRequestBody(&node, enrichedDraft)
+				if err != nil {
+					errMsg := fmt.Sprintf("failed to build request body for node %s: %v", node.ID, err)
+					log.Printf("[ERROR] %s", errMsg)
+
+					result := map[string]interface{}{
+						"product": productID,
+						"node":    node.ID,
+						"success": false,
+						"error":   errMsg,
+						"synced":  false,
+					}
+					postResults = append(postResults, result)
+					someFailed = true
+					continue
+				}
+
+				log.Printf("Request body built for node %s: %+v", node.ID, requestBody)
+
+				// Send request with retry
+				response, err := s.productController.SendWithRetry(*cfg, requestBody)
+				if err != nil {
+					errMsg := fmt.Sprintf("failed to send request for node %s: %v", node.ID, err)
+					log.Printf("[ERROR] %s", errMsg)
+
+					result := map[string]interface{}{
+						"product": productID,
+						"node":    node.ID,
+						"success": false,
+						"error":   errMsg,
+						"synced":  false,
+					}
+					postResults = append(postResults, result)
+					someFailed = true
+					continue
+				}
+
+				log.Printf("Node %s executed successfully", node.ID)
+
+				// 🔑 STEP 3: STORE response for next nodes
+				nodeResults[node.ID] = map[string]interface{}{
+					"response":  response,
+					"status":    "success",
+					"timestamp": time.Now(),
+				}
+
+				// 🔑 STEP 4: Update config with node result
+				cfg.SetExecutionResult(node.ID, response)
+
+				// Store successful result
+				result := map[string]interface{}{
+					"product":  productID,
+					"node":     node.ID,
+					"success":  true,
+					"response": response,
+					"synced":   false,
+				}
+				postResults = append(postResults, result)
+				allFailed = false
+			}
+
+			// Mark product as synced if all nodes succeeded
+			// if !someFailed {
+			// 	if err := s.productController.MarkProductSynced(cfg.ProductID); err != nil {
+			// 		log.Printf("[WARN] Failed to mark product %s as synced: %v", cfg.ProductID, err)
+			// 		if len(postResults) > 0 {
+			// 			lastResult := postResults[len(postResults)-1]
+			// 			lastResult["synced"] = false
+			// 			lastResult["sync_error"] = err.Error()
+			// 		}
+			// 	} else {
+			// 		log.Printf("Product %s marked as synced", productID)
+			// 		if len(postResults) > 0 {
+			// 			lastResult := postResults[len(postResults)-1]
+			// 			lastResult["synced"] = true
+			// 		}
+			// 	}
+			// }
+		} else {
+			log.Printf("[WARN] No workflow nodes found for product %s", productID)
+			result := map[string]interface{}{
+				"product": productID,
+				"success": false,
+				"error":   "no workflow nodes configured",
+				"synced":  false,
+			}
+			postResults = append(postResults, result)
+			someFailed = true
+		}
+	}
+
+	if allFailed && len(draft.TargetProducts) > 0 {
+		return postResults, someFailed, allFailed, fmt.Errorf("all products failed to process")
+	}
+
+	log.Printf("============= DRAFT PROCESSING COMPLETED =============")
+	log.Printf("Total results: %d, Some failed: %v, All failed: %v", len(postResults), someFailed, allFailed)
+
+	return postResults, someFailed, allFailed, nil
+}
+
+func enrichDraftWithPreviousResults(draft draft.DraftDataPost, nodeResults map[string]interface{}) draft.DraftDataPost {
+	// Convert draft ke map
+	draftMap := structToMap(draft)
+
+	// Tambahkan previous results
+	draftMap["previous_results"] = nodeResults
+
+	// Convert kembali ke struct
+	// Note: Ini memerlukan konversi yang tepat, atau gunakan map langsung
+	return draft
+}
+
+// Helper: struct to map
+func structToMap(data interface{}) map[string]interface{} {
+	jsonBytes, _ := json.Marshal(data)
+	var result map[string]interface{}
+	json.Unmarshal(jsonBytes, &result)
+	return result
 }
