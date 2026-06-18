@@ -111,23 +111,23 @@ type AdapterConfig struct {
 
 // Product struct utama
 type Product struct {
-	ID              string                        `json:"id"`
-	Name            string                        `json:"name"`
-	Platform        string                        `json:"platform"`
-	APIEndpoint     string                        `json:"apiEndpoint"`
-	APIKeyEncrypted string                        `json:"apiKey,omitempty"`
-	Status          ProductStatus                 `json:"status"`
-	LastSync        *time.Time                    `json:"lastSync,omitempty"`
-	SyncStatus      SyncStatus                    `json:"syncStatus"`
-	CreatedBy       *string                       `json:"createdBy,omitempty"`
-	TeamID          *string                       `json:"teamId,omitempty"`
-	UserID          *string                       `json:"userId,omitempty"`
-	CreatedAt       time.Time                     `json:"createdAt"`
-	UpdatedAt       time.Time                     `json:"updatedAt"`
-	WorkflowID      string                        `json:"workflow_id"`
-	AdapterConfig   *AdapterConfig                `json:"adapterConfig,omitempty"`
-	AdapterConfigs  []AdapterConfig               `json:"adapterConfigs,omitempty"`
-	Workflows       []workflow.WorkflowDefinition `json:"workflows,omitempty"`
+	ID              string                      `json:"id"`
+	Name            string                      `json:"name"`
+	Platform        string                      `json:"platform"`
+	APIEndpoint     string                      `json:"apiEndpoint"`
+	APIKeyEncrypted string                      `json:"apiKey,omitempty"`
+	Status          ProductStatus               `json:"status"`
+	LastSync        *time.Time                  `json:"lastSync,omitempty"`
+	SyncStatus      SyncStatus                  `json:"syncStatus"`
+	CreatedBy       *string                     `json:"createdBy,omitempty"`
+	TeamID          *string                     `json:"teamId,omitempty"`
+	UserID          *string                     `json:"userId,omitempty"`
+	CreatedAt       time.Time                   `json:"createdAt"`
+	UpdatedAt       time.Time                   `json:"updatedAt"`
+	WorkflowID      string                      `json:"workflow_id"`
+	AdapterConfig   *AdapterConfig              `json:"adapterConfig,omitempty"`
+	AdapterConfigs  []AdapterConfig             `json:"adapterConfigs,omitempty"`
+	Workflows       workflow.WorkflowDefinition `json:"workflows,omitempty"`
 }
 
 // ProductWithDetails untuk response dengan data lengkap

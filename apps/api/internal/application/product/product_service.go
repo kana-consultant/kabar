@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"seo-backend/internal/domain/adapter"
+	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/domain/workflow"
 	"seo-backend/internal/domain/workflow_node"
@@ -908,4 +910,366 @@ func nullIfEmpty(id string) interface{} {
 		return nil
 	}
 	return id
+}
+
+// services/product_service.go
+func (s *ProductService) GetProductConfig(ctx context.Context, productID string, draft draft.DraftDataPost) (*product.ProductConfig, error) {
+	var cfg product.ProductConfig
+
+	log.Printf("========== GET PRODUCT CONFIG ==========")
+	log.Printf("PRODUCT ID: %s", productID)
+
+	// 1. Get product data from repository
+	productData, err := s.productRepo.GetByID(ctx, productID)
+	if err != nil {
+		log.Printf("[ERROR] Failed to get product: %v", err)
+		return nil, fmt.Errorf("failed to get product %s: %w", productID, err)
+	}
+
+	// 2. Set basic product config
+	cfg.ProductID = productData.ID
+	cfg.APIEndpoint = productData.APIEndpoint
+	cfg.APIKey = productData.APIKeyEncrypted
+
+	log.Printf("PRODUCT FOUND: %s", cfg.ProductID)
+	log.Printf("API ENDPOINT: %s", cfg.APIEndpoint)
+
+	if cfg.APIEndpoint == "" {
+		log.Printf("[ERROR] EMPTY API ENDPOINT")
+		return nil, fmt.Errorf("product %s has empty API endpoint", productID)
+	}
+
+	// 3. Set default config values
+	if productData.AdapterConfig != nil {
+		cfg.Timeout = productData.AdapterConfig.TimeoutSeconds
+		cfg.RetryCount = productData.AdapterConfig.RetryCount
+	} else {
+		cfg.Timeout = 30   // default timeout
+		cfg.RetryCount = 3 // default retry
+	}
+	cfg.CustomHeaders = make(map[string]string)
+	cfg.MetaConfigStr = "{}"
+	cfg.SitemapConfigStr = "{}"
+
+	// 4. Load adapter config if API key exists
+	if cfg.APIKey != "" {
+		if err := s.LoadAdapterConfig(ctx, &cfg); err != nil {
+			return nil, err
+		}
+	} else {
+		log.Printf("[INFO] SKIPPING ADAPTER CONFIGS BECAUSE API KEY EMPTY")
+		cfg.AdapterEndpoint = ""
+		cfg.FieldMappingStr = "{}"
+		cfg.CustomHeadersStr = "{}"
+		cfg.MetaConfigStr = "{}"
+		cfg.SitemapConfigStr = "{}"
+	}
+
+	// 5. Build full URL
+	cfg.FullURL = strings.TrimRight(cfg.APIEndpoint, "/") + "/" + strings.TrimLeft(cfg.AdapterEndpoint, "/")
+	log.Printf("FULL URL: %s", cfg.FullURL)
+
+	// 6. Reorder workflow nodes and store them in config
+	if len(productData.Workflows.Nodes) > 0 {
+		log.Printf("REORDERING WORKFLOW NODES (Total: %d)", len(productData.Workflows.Nodes))
+
+		// Convert to pointer slice for reordering
+		nodes := make([]*workflow_node.WorkflowNode, len(productData.Workflows.Nodes))
+		for i := range productData.Workflows.Nodes {
+			nodes[i] = &productData.Workflows.Nodes[i]
+		}
+
+		// Reorder nodes with batch
+		sortedNodes, levelMap := s.ReorderNodesWithBatch(nodes)
+
+		// Store reordered nodes in config
+		cfg.WorkflowNodes = make([]workflow_node.WorkflowNode, len(sortedNodes))
+		for i, node := range sortedNodes {
+			if node != nil {
+				cfg.WorkflowNodes[i] = *node
+			}
+		}
+
+		// Also store level map for parallel execution if needed
+		cfg.WorkflowLevelMap = levelMap
+
+		// Log batch information
+		log.Printf("NODES REORDERED INTO %d BATCHES", len(levelMap))
+		for level, batch := range levelMap {
+			nodeIDs := make([]string, len(batch))
+			for i, node := range batch {
+				if node != nil {
+					nodeIDs[i] = node.ID
+				}
+			}
+			log.Printf("BATCH %d: %v", level, nodeIDs)
+		}
+	} else {
+		log.Printf("[INFO] NO WORKFLOW NODES TO REORDER")
+		cfg.WorkflowNodes = []workflow_node.WorkflowNode{}
+		cfg.WorkflowLevelMap = make(map[int][]*workflow_node.WorkflowNode)
+	}
+
+	log.Printf("========== PRODUCT CONFIG READY ==========")
+	return &cfg, nil
+}
+
+// Fixed ReorderNodesWithBatch with correct parameter type
+func (s *ProductService) ReorderNodesWithBatch(nodes []*workflow_node.WorkflowNode) ([]*workflow_node.WorkflowNode, map[int][]*workflow_node.WorkflowNode) {
+	if len(nodes) == 0 {
+		return nodes, make(map[int][]*workflow_node.WorkflowNode)
+	}
+
+	// Filter out nil nodes
+	validNodes := make([]*workflow_node.WorkflowNode, 0, len(nodes))
+	for _, node := range nodes {
+		if node != nil {
+			validNodes = append(validNodes, node)
+		}
+	}
+
+	if len(validNodes) == 0 {
+		return nodes, make(map[int][]*workflow_node.WorkflowNode)
+	}
+
+	// Reorder nodes based on level
+	sortedNodes := s.ReorderNodesByLevel(validNodes)
+	if sortedNodes == nil {
+		return nodes, make(map[int][]*workflow_node.WorkflowNode)
+	}
+
+	// Create map for quick access
+	nodeMap := make(map[string]*workflow_node.WorkflowNode)
+	for _, node := range sortedNodes {
+		if node != nil {
+			nodeMap[node.ID] = node
+		}
+	}
+
+	// Calculate levels for each node
+	levels := make(map[string]int)
+	var calculateLevel func(nodeID string) int
+	calculateLevel = func(nodeID string) int {
+		// Check cache
+		if val, ok := levels[nodeID]; ok {
+			return val
+		}
+
+		node := nodeMap[nodeID]
+		if node == nil {
+			levels[nodeID] = 0
+			return 0
+		}
+
+		// Root node (no previous nodes)
+		if len(node.PreviousNodeIDs) == 0 {
+			levels[nodeID] = 0
+			return 0
+		}
+
+		// Calculate maximum level from previous nodes
+		maxLevel := 0
+		for _, prevID := range node.PreviousNodeIDs {
+			if prevID == "" {
+				continue
+			}
+			level := calculateLevel(prevID) + 1
+			if level > maxLevel {
+				maxLevel = level
+			}
+		}
+		levels[nodeID] = maxLevel
+		return maxLevel
+	}
+
+	// Calculate levels for all nodes
+	for _, node := range sortedNodes {
+		if node != nil {
+			calculateLevel(node.ID)
+		}
+	}
+
+	// Group by level
+	levelMap := make(map[int][]*workflow_node.WorkflowNode)
+	for _, node := range sortedNodes {
+		if node != nil {
+			level := levels[node.ID]
+			levelMap[level] = append(levelMap[level], node)
+		}
+	}
+
+	// Update step_order based on sorted order
+	for i, node := range sortedNodes {
+		if node != nil {
+			node.StepOrder = i
+		}
+	}
+
+	return sortedNodes, levelMap
+}
+
+// Helper function: ReorderNodesByLevel
+func (s *ProductService) ReorderNodesByLevel(nodes []*workflow_node.WorkflowNode) []*workflow_node.WorkflowNode {
+	if len(nodes) == 0 {
+		return nodes
+	}
+
+	// Filter nil nodes
+	validNodes := make([]*workflow_node.WorkflowNode, 0, len(nodes))
+	for _, node := range nodes {
+		if node != nil {
+			validNodes = append(validNodes, node)
+		}
+	}
+
+	if len(validNodes) == 0 {
+		return nodes
+	}
+
+	// Create map for quick access
+	nodeMap := make(map[string]*workflow_node.WorkflowNode)
+	for _, node := range validNodes {
+		if node != nil {
+			nodeMap[node.ID] = node
+		}
+	}
+
+	// Calculate level for each node
+	levels := make(map[string]int)
+	var calculateLevel func(nodeID string) int
+	calculateLevel = func(nodeID string) int {
+		if val, ok := levels[nodeID]; ok {
+			return val
+		}
+
+		node := nodeMap[nodeID]
+		if node == nil || len(node.PreviousNodeIDs) == 0 {
+			levels[nodeID] = 0
+			return 0
+		}
+
+		maxLevel := 0
+		for _, prevID := range node.PreviousNodeIDs {
+			if prevID == "" {
+				continue
+			}
+			level := calculateLevel(prevID) + 1
+			if level > maxLevel {
+				maxLevel = level
+			}
+		}
+		levels[nodeID] = maxLevel
+		return maxLevel
+	}
+
+	// Calculate levels for all nodes
+	for _, node := range validNodes {
+		if node != nil {
+			calculateLevel(node.ID)
+		}
+	}
+
+	// Sort by level, if same level sort by step_order
+	sortedNodes := make([]*workflow_node.WorkflowNode, len(validNodes))
+	copy(sortedNodes, validNodes)
+
+	sort.Slice(sortedNodes, func(i, j int) bool {
+		if sortedNodes[i] == nil || sortedNodes[j] == nil {
+			return false
+		}
+		// Sort by level first, then by step_order
+		if levels[sortedNodes[i].ID] != levels[sortedNodes[j].ID] {
+			return levels[sortedNodes[i].ID] < levels[sortedNodes[j].ID]
+		}
+		return sortedNodes[i].StepOrder < sortedNodes[j].StepOrder
+	})
+
+	return sortedNodes
+}
+
+// Add these helper methods if not exist
+func (s *ProductService) LoadAdapterConfig(ctx context.Context, cfg *product.ProductConfig) error {
+	log.Printf("API KEY EXISTS => LOADING ADAPTER CONFIG")
+
+	// Get data from repository
+	adapterData, err := s.adapterConfigRepo.GetByProductID(ctx, cfg.ProductID)
+	if err != nil {
+		log.Printf("[ERROR] FAILED QUERY ADAPTER CONFIG: %v", err)
+		return fmt.Errorf("failed to query adapter config for product %s: %w", cfg.ProductID, err)
+	}
+
+	// Map data to config if found
+	if adapterData != nil {
+		cfg.AdapterEndpoint = adapterData.EndpointPath
+		cfg.HTTPMethod = adapterData.HTTPMethod
+		cfg.CustomHeadersStr = adapterData.CustomHeaders
+		cfg.FieldMappingStr = adapterData.FieldMapping // Add this field
+		cfg.MetaConfigStr = adapterData.MetaConfig
+		cfg.SitemapConfigStr = adapterData.SitemapConfig
+		if adapterData.TimeoutSeconds > 0 {
+			cfg.Timeout = adapterData.TimeoutSeconds
+		}
+		if adapterData.RetryCount > 0 {
+			cfg.RetryCount = adapterData.RetryCount
+		}
+	}
+
+	log.Printf("ADAPTER CONFIG LOADED")
+	log.Printf("HTTP METHOD: %s", cfg.HTTPMethod)
+	log.Printf("FIELD MAPPING: %s", cfg.FieldMappingStr)
+	log.Printf("META CONFIG: %s", cfg.MetaConfigStr)
+	log.Printf("SITEMAP CONFIG: %s", cfg.SitemapConfigStr)
+
+	// Parse custom headers
+	if err := s.ParseCustomHeaders(cfg); err != nil {
+		log.Printf("[WARN] Failed to parse custom headers: %v", err)
+		cfg.CustomHeaders = make(map[string]string)
+	}
+
+	return nil
+}
+
+func (s *ProductService) ParseCustomHeaders(cfg *product.ProductConfig) error {
+	if cfg.CustomHeadersStr == "" || cfg.CustomHeadersStr == "{}" {
+		cfg.CustomHeaders = make(map[string]string)
+		return nil
+	}
+
+	raw := cfg.CustomHeadersStr
+	log.Printf("RAW CUSTOM HEADERS: %s", raw)
+
+	// Try direct object
+	err := json.Unmarshal([]byte(raw), &cfg.CustomHeaders)
+	if err != nil {
+		log.Printf("[WARN] DIRECT PARSE FAILED: %v", err)
+
+		// Try nested string
+		var nested string
+		if err2 := json.Unmarshal([]byte(raw), &nested); err2 == nil {
+			log.Printf("DOUBLE ENCODED CUSTOM HEADERS DETECTED")
+			if err3 := json.Unmarshal([]byte(nested), &cfg.CustomHeaders); err3 != nil {
+				log.Printf("[WARN] FAILED NESTED PARSE CUSTOM HEADERS: %v", err3)
+				return err3
+			}
+		} else {
+			log.Printf("[WARN] FAILED PARSE CUSTOM HEADERS: %v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// sendWithRetry method (if not exists)
+func (s *ProductService) SendWithRetry(cfg product.ProductConfig, requestBody interface{}) (interface{}, error) {
+	// Implement your retry logic here
+	// This is a placeholder
+	return nil, nil
+}
+
+// markProductSynced method (if not exists)
+func (s *ProductService) markProductSynced(productID string) error {
+	// Implement your sync marking logic here
+	// This is a placeholder
+	return nil
 }

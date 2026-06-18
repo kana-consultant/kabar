@@ -4,19 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"seo-backend/internal/domain/draft"
+	"seo-backend/internal/domain/workflow_node"
 	"strings"
 )
 
-func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftDataPost) (map[string]interface{}, error) {
+func BuildRequestBody(cfg *workflow_node.WorkflowNode, draft draft.DraftDataPost) (map[string]interface{}, error) {
 	fmt.Println("========== BUILD REQUEST BODY ==========")
 
 	// Parse field mapping
 	var fieldMapping map[string]interface{}
-	if cfg.FieldMappingStr != "" && cfg.FieldMappingStr != "{}" {
-		if err := parseFieldMapping(cfg.FieldMappingStr, &fieldMapping); err != nil {
-			return nil, err
-		}
-	}
+	// if *cfg.Nodes.AdapterConfig != "" && cfg.FieldMappingStr != "{}" {
+	// 	if err := parseFieldMapping(cfg.FieldMappingStr, &fieldMapping); err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 	fmt.Println("PARSED FIELD MAPPING KEYS:", getMapKeys(fieldMapping))
 
 	// Validate draft
@@ -33,12 +34,8 @@ func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftData
 	fmt.Println("DRAFT TOPIC:", draft.Topic)
 	fmt.Println("DRAFT ARTICLE (length):", len(draft.Article), "characters")
 
-	// Parse config sekali di sini, reuse ke semua fungsi
-	metaConfig := parseConfig(cfg.MetaConfigStr)
-	sitemapConfig := parseConfig(cfg.SitemapConfigStr)
-
 	// Build request body from field mapping
-	requestBody := s.buildFromFieldMapping(fieldMapping, draft)
+	requestBody := buildFromFieldMapping(fieldMapping, draft)
 
 	// ✅ Fallback SEBELUM tambah meta/sitemap
 	// Supaya title/topic/content tetap masuk kalau field mapping kosong
@@ -54,11 +51,11 @@ func (s *PostService) buildRequestBody(cfg *ProductConfig, draft draft.DraftData
 		}
 	}
 
-	// Add meta tags (seo)
-	s.addMetaTagsToBody(metaConfig, sitemapConfig, draft, cfg.BaseURL, requestBody)
+	// // Add meta tags (seo)
+	// s.addMetaTagsToBody(metaConfig, sitemapConfig, draft, cfg.BaseURL, requestBody)
 
-	// Add sitemap info
-	s.addSitemapInfoToBody(sitemapConfig, draft, cfg.BaseURL, requestBody)
+	// // Add sitemap info
+	// s.addSitemapInfoToBody(sitemapConfig, draft, cfg.BaseURL, requestBody)
 
 	// Log final body (redacted)
 	redactedBody := redactSensitiveFields(requestBody)
@@ -97,7 +94,7 @@ func parseFieldMapping(fieldMappingStr string, fieldMapping *map[string]interfac
 // Build request body dari field mapping
 // ─────────────────────────────────────────────
 
-func (s *PostService) buildFromFieldMapping(fieldMapping map[string]interface{}, draft draft.DraftDataPost) map[string]interface{} {
+func buildFromFieldMapping(fieldMapping map[string]interface{}, draft draft.DraftDataPost) map[string]interface{} {
 	requestBody := make(map[string]interface{})
 
 	for key, value := range fieldMapping {
