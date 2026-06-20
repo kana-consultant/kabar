@@ -94,18 +94,10 @@ func buildPayload(
 	// Convert draft ke map
 	draftMap := structToMap(draft)
 
-	// Tambahin hasil node sebelumnya
-	if len(cfg.ExecutionResults) > 0 {
-		draftMap["previous_results"] = cfg.ExecutionResults
-	}
-	if len(cfg.Variables) > 0 {
-		draftMap["variables"] = cfg.Variables
-	}
-
 	// Loop mapping
 	for targetField, sourceConfig := range fieldMapping {
-		value := getValue(sourceConfig, draftMap, cfg)
-		if value != nil {
+		value, found := getValue(sourceConfig, draftMap, cfg)
+		if found {
 			payload[targetField] = value
 		}
 	}
@@ -115,62 +107,78 @@ func buildPayload(
 
 // ============================================================
 // getValue - AMBIL NILAI DARI SOURCE (SUPPORT TEMPLATE)
+// Return (value, found):
+//   - found=false artinya "tidak ada nilai untuk dimasukkan ke payload"
+//     (key tidak ditemukan, template error, atau nested map/array kosong)
+//   - found=true artinya nilai valid untuk dimasukkan, TERMASUK kalau
+//     nilainya nil/false/0/"" secara eksplisit.
+//
 // ============================================================
 func getValue(
 	source interface{},
 	draftMap map[string]interface{},
 	cfg *product.ProductConfig,
-) interface{} {
+) (interface{}, bool) {
 
 	switch v := source.(type) {
 	case string:
 		// TEMPLATE: {{node-id.field}}
 		if strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}") {
+			if cfg == nil {
+				fmt.Printf("[WARN] Template '%s' tidak bisa diproses: cfg nil\n", v)
+				return nil, false
+			}
 			val, err := cfg.ParseTemplate(v)
 			if err != nil {
 				fmt.Printf("[WARN] Template error '%s': %v\n", v, err)
-				return nil
+				return nil, false
 			}
-			return val
+			return val, true
 		}
 
 		// DARI DRAFT
-		if val, exists := draftMap[v]; exists {
-			return val
-		}
-		return nil
+		val, exists := draftMap[v]
+		return val, exists
 
 	case map[string]interface{}:
 		// NESTED OBJECT
 		result := make(map[string]interface{})
+		hasAny := false
 		for key, sub := range v {
-			if val := getValue(sub, draftMap, cfg); val != nil {
+			if val, found := getValue(sub, draftMap, cfg); found {
 				result[key] = val
+				hasAny = true
 			}
 		}
-		if len(result) == 0 {
-			return nil
+		if !hasAny {
+			return nil, false
 		}
-		return result
+		return result, true
 
 	case []interface{}:
 		// ARRAY
-		result := make([]interface{}, 0)
+		result := make([]interface{}, 0, len(v))
+		hasAny := false
 		for _, item := range v {
-			if val := getValue(item, draftMap, cfg); val != nil {
+			if val, found := getValue(item, draftMap, cfg); found {
 				result = append(result, val)
+				hasAny = true
 			}
 		}
-		if len(result) == 0 {
-			return nil
+		if !hasAny {
+			return nil, false
 		}
-		return result
+		return result, true
+
+	case nil:
+		// source literal nil dianggap "tidak ada nilai"
+		return nil, false
 
 	default:
-		return v
+		// literal value (int, float64, bool, dst) -> selalu dianggap ada
+		return v, true
 	}
 }
-
 func structToMap(data interface{}) map[string]interface{} {
 	bytes, _ := json.Marshal(data)
 	var result map[string]interface{}

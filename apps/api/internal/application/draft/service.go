@@ -698,17 +698,13 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 
 			// 🔑 KEY: Initialize ExecutionResults dan Variables di config
 			cfg.ExecutionResults = make(map[string]interface{})
-			cfg.Variables = make(map[string]interface{})
 
 			// Execute nodes in order (already reordered)
 			for _, node := range cfg.WorkflowNodes {
 				log.Printf("Executing node: %s (Step: %d)", node.ID, node.StepOrder)
 
-				// 🔑 STEP 1: Enrich draft with previous node results menggunakan cfg
-				enrichedDraft := s.enrichDraftWithPreviousResults(draft, cfg)
-
 				// 🔑 STEP 2: Build request body from node and ENRICHED draft
-				requestBody, err := helper.BuildRequestBody(&node, enrichedDraft, cfg)
+				requestBody, err := helper.BuildRequestBody(&node, draft, cfg)
 				if err != nil {
 					errMsg := fmt.Sprintf("failed to build request body for node %s: %v", node.ID, err)
 					log.Printf("[ERROR] %s", errMsg)
@@ -750,16 +746,6 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 				// 🔑 STEP 3: STORE response menggunakan SetExecutionResult
 				cfg.SetExecutionResult(node.ID, response)
 
-				// 🔑 STEP 4: Store specific fields as variables menggunakan SetVariable
-				if responseMap, ok := response.(map[string]interface{}); ok {
-					if id, exists := responseMap["id"]; exists {
-						cfg.SetVariable(fmt.Sprintf("%s_id", node.ID), id)
-					}
-					if status, exists := responseMap["status"]; exists {
-						cfg.SetVariable(fmt.Sprintf("%s_status", node.ID), status)
-					}
-				}
-
 				// Store successful result
 				result := map[string]interface{}{
 					"product":  productID,
@@ -800,22 +786,21 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 // ============================================================
 // 🔑 HELPER: Enrich draft dengan previous results dari config
 // ============================================================
-func (s *DraftServiceImpl) enrichDraftWithPreviousResults(draft draft.DraftDataPost, cfg *product.ProductConfig) draft.DraftDataPost {
-	// Convert draft ke map
-	draftMap := structToMap(draft)
+func (s *DraftServiceImpl) enrichDraftWithPreviousResults(
+	draftData draft.DraftDataPost,
+	cfg *product.ProductConfig,
+) (draft.DraftDataPost, map[string]interface{}) {
 
-	executionResults := cfg.GetAllExecutionResults()
-	if executionResults != nil && len(executionResults) > 0 {
-		draftMap["previous_results"] = executionResults
+	if cfg == nil {
+		return draftData, nil
 	}
 
-	variables := cfg.GetAllVariables()
-	if variables != nil && len(variables) > 0 {
-		draftMap["variables"] = variables
+	results := cfg.GetAllExecutionResults()
+	if len(results) == 0 {
+		return draftData, nil
 	}
 
-	// Convert kembali ke draft
-	return draft
+	return draftData, results
 }
 
 func structToMap(data interface{}) map[string]interface{} {
