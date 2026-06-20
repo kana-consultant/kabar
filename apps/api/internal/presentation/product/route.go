@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	productApp "seo-backend/internal/application/product"
 	baseRoutes "seo-backend/internal/domain/base"
-	"seo-backend/internal/infrastructure/db/repositories"
 	rbacCache "seo-backend/internal/infrastructure/db/repositories/rbac"
 	authmw "seo-backend/internal/middleware"
 
@@ -17,20 +16,15 @@ type Route struct {
 	permCache      *rbacCache.PermissionCache
 }
 
-func NewRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache) *Route {
-	productRepo := repositories.NewProductRepository(db)
-	adapterConfigRepo := repositories.NewAdapterConfigRepository(db)
-	WorkflowDefinitionRepository := repositories.NewWorkflowDefinitionRepository(db)
-	WorkflowNodeRepository := repositories.NewWorkflowNodeRepository(db)
-	productService := productApp.NewProductService(db, productRepo, adapterConfigRepo, WorkflowDefinitionRepository, WorkflowNodeRepository)
-	ProductHandler := NewProductHandler(productService)
+func NewRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache, productService productApp.ProductService) *Route {
+	productHandler := NewProductHandler(&productService)
 
 	return &Route{
 		baseroute: baseRoutes.Route{
 			CHI: chi,
 			DB:  db,
 		},
-		ProductHandler: *ProductHandler,
+		ProductHandler: *productHandler,
 		permCache:      permCache,
 	}
 }

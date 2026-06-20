@@ -14,10 +14,10 @@ import (
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
+	"seo-backend/internal/scheduler"
 
 	// "seo-backend/internal/helper"
 	"seo-backend/internal/models"
-	"seo-backend/internal/scheduler"
 
 	"golang.org/x/net/html"
 )

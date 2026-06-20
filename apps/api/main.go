@@ -63,18 +63,12 @@ func main() {
 	}
 	defer database.CloseRedis()
 
-	// 5. INITIALIZE SCHEDULER
-	scheduler := scheduler.NewRedisScheduler(database.RedisClient, database.GetDB())
-	scheduler.Start()
-
 	smtpConfig := config.LoadSMTPConfig()
 
 	emailService := services.NewSMTPEmailService(smtpConfig)
 
-	defer scheduler.Stop()
-
 	// 6. INITIALIZE CONTAINER
-	appContainer = container.NewContainer(cfg, database.GetDB(), scheduler, database.RedisClient, emailService)
+	appContainer = container.NewContainer(cfg, database.GetDB(), database.RedisClient, emailService)
 
 	// 8. CREATE HTTP SERVER
 	server := &http.Server{

@@ -9,6 +9,7 @@ import (
 	"log"
 	"seo-backend/internal/database"
 	"seo-backend/internal/domain/draft"
+	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
 
 	"time"
@@ -38,22 +39,24 @@ type ScheduledTask struct {
 }
 
 type RedisScheduler struct {
-	redisClient  *redis.Client
-	cron         *cron.Cron
-	ctx          context.Context
-	taskHandlers map[string]TaskHandler
-	db           *sql.DB
+	redisClient       *redis.Client
+	cron              *cron.Cron
+	ctx               context.Context
+	taskHandlers      map[string]TaskHandler
+	db                *sql.DB
+	productController product.ProductService
 }
 
 type TaskHandler func(task *ScheduledTask) error
 
-func NewRedisScheduler(redisClient *redis.Client, db *sql.DB) *RedisScheduler {
+func NewRedisScheduler(redisClient *redis.Client, db *sql.DB, productController product.ProductService) *RedisScheduler {
 	return &RedisScheduler{
-		redisClient:  redisClient,
-		cron:         cron.New(cron.WithSeconds()),
-		ctx:          context.Background(),
-		taskHandlers: make(map[string]TaskHandler),
-		db:           db,
+		redisClient:       redisClient,
+		productController: productController,
+		cron:              cron.New(cron.WithSeconds()),
+		ctx:               context.Background(),
+		taskHandlers:      make(map[string]TaskHandler),
+		db:                db,
 	}
 }
 
@@ -217,9 +220,9 @@ func (s *RedisScheduler) doPublishDraft(task *ScheduledTask) error {
 		TargetProducts: task.TargetProducts,
 	}
 
-	postService := helper.NewPostService(s.db)
+	postService := helper.NewPostService(s.db, &s.productController)
 
-	result, someFailed, allFailed, err := postService.ProcessDraftProducts(draftData)
+	result, someFailed, allFailed, err := postService.ProcessDraftProducts(s.ctx, draftData)
 	if err != nil {
 		return fmt.Errorf("failed to process products: %w", err)
 	}

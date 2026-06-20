@@ -6,7 +6,9 @@ import (
 	"time"
 
 	// Infrastructure
+	"seo-backend/internal/application/product"
 	"seo-backend/internal/config"
+	"seo-backend/internal/database"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/infrastructure/db/repositories"
 	"seo-backend/internal/infrastructure/db/repositories/rbac"
@@ -46,7 +48,6 @@ type Container struct {
 func NewContainer(
 	cfg *config.Config,
 	db *sql.DB,
-	redisScheduler *scheduler.RedisScheduler,
 	redisClient *redis.Client,
 	emailService *services.SMTPEmailService,
 ) *Container {
@@ -99,16 +100,30 @@ func NewContainer(
 	authHandler.NewRoute(db, r, jwtGenerator, permCache).SetupRoute()
 	teamHandler.NewRoute(db, r, emailService).SetupPublicRoutes()
 
+	// Wiring dependency SEKALI di sini
+	productRepo := repositories.NewProductRepository(db)
+	adapterConfigRepo := repositories.NewAdapterConfigRepository(db)
+	workflowDefinitionRepo := repositories.NewWorkflowDefinitionRepository(db)
+	workflowNodeRepo := repositories.NewWorkflowNodeRepository(db)
+	productService := product.NewProductService(db, productRepo, adapterConfigRepo, workflowDefinitionRepo, workflowNodeRepo)
+
+	// 5. INITIALIZE SCHEDULER
+	scheduler := scheduler.NewRedisScheduler(database.RedisClient, db, productService)
+
+	scheduler.Start()
+
+	defer scheduler.Stop()
+
 	// Protected routes
 	r.Route("/api/", func(protected chi.Router) {
 		protected.Use(auth.JWTMiddleware(cfg))
 
 		authHandler.NewRoute(db, protected, jwtGenerator, permCache).AuthSettingRoute()
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
-		draftHandler.NewRoute(db, protected, redisClient, redisScheduler, permCache).SetupRoutes()
+		draftHandler.NewRoute(db, protected, redisClient, scheduler, permCache).SetupRoutes()
 		generateHandler.NewRoute(db, protected, cfg).SetupRoutes()
 		historyHandler.NewHistoryRoute(db, protected, permCache).SetupRoute()
-		productHandler.NewRoute(db, protected, permCache).SetupRoutes()
+		productHandler.NewRoute(db, protected, permCache, productService).SetupRoutes()
 		providerHandler.NewRoute(db, protected, redisClient).SetupRoutes()
 		teamHandler.NewRoute(db, protected, emailService).SetupRoutes()
 		userHandler.NewRoute(db, protected, permCache).SetupRoutes()
