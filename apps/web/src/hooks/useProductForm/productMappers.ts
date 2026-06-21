@@ -27,7 +27,7 @@ export const mapProductToCreateRequest = (product: Partial<Product>): ProductReq
                 id: node.id,
                 workflow_id: node.workflow_id || workflow.id,
                 step_order: node.step_order,
-                next_node_id: node.next_node_id,
+                next_node_ids: node.next_node_ids,
                 previous_node_ids: node.previous_node_ids,
                 adapter_config: node.adapter_config ? {
                     id: node.adapter_config.id,
@@ -83,7 +83,7 @@ export const mapProductToUpdateRequest = (product: Partial<Product>): UpdateProd
                 id: node.id,
                 adapter_config_id: node.adapter_config_id,
                 step_order: node.step_order,
-                next_node_id: node.next_node_id,
+                next_node_ids: node.next_node_ids,
                 previous_node_ids: node.previous_node_ids || [],
                 adapter_config: node.adapter_config ? {
                     id: node.adapter_config.id,

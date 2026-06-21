@@ -95,7 +95,7 @@ const getNextObjectNumber = (fields: Field[]): number => {
 
 const jsonToFields = (obj: any, parentKey?: string): Field[] => {
     if (!obj || typeof obj !== "object") return [];
-    
+
     return Object.entries(obj).map(([key, value]) => {
         const isObject = value && typeof value === "object" && !Array.isArray(value);
         return {
@@ -113,12 +113,12 @@ const fieldsToJson = (fields: Field[]): any => {
     const result: any = {};
     fields.forEach(field => {
         if (!field.key.trim()) return;
-        
+
         if (field.type === "object") {
             result[field.key] = fieldsToJson(field.children);
         } else {
             const val = field.value.trim();
-            if ((val.startsWith("{") && val.endsWith("}")) || 
+            if ((val.startsWith("{") && val.endsWith("}")) ||
                 (val.startsWith("[") && val.endsWith("]"))) {
                 try {
                     result[field.key] = JSON.parse(val);
@@ -140,20 +140,20 @@ function PlaceholderModal({
     onSelect,
     onClose,
 }: {
-    placeholders: PlaceholderItem[];
+    placeholders: PlaceholderItem[] | undefined;
     onSelect: (value: string) => void;
     onClose: () => void;
 }) {
     const [search, setSearch] = useState("");
 
-    const filtered = placeholders.filter(
+    const filtered = placeholders?.filter(
         (p) =>
             p.value.toLowerCase().includes(search.toLowerCase()) ||
             p.label.toLowerCase().includes(search.toLowerCase())
     );
 
     // Group by group
-    const grouped = filtered.reduce((acc, p) => {
+    const grouped = filtered?.reduce((acc, p) => {
         const group = p.group || "Lainnya";
         if (!acc[group]) acc[group] = [];
         acc[group].push(p);
@@ -162,7 +162,7 @@ function PlaceholderModal({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            className="fixed inset-0 z-50 flex items-center justify-center "
             onMouseDown={onClose}
         >
             <div
@@ -195,12 +195,12 @@ function PlaceholderModal({
                 </div>
 
                 <div className="overflow-y-auto flex-1 p-2">
-                    {Object.keys(grouped).length === 0 ? (
+                    {Object.keys(grouped as Record<string, PlaceholderItem[]>)?.length === 0 ? (
                         <div className="text-center py-6 text-slate-400 text-sm">
                             Tidak ditemukan
                         </div>
                     ) : (
-                        Object.entries(grouped).map(([group, items]) => (
+                        Object.entries(grouped as Record<string, PlaceholderItem[]>).map(([group, items]) => (
                             <div key={group} className="mb-4">
                                 <div className="text-xs font-semibold text-slate-500 px-2 py-1 uppercase tracking-wide">
                                     {group}
@@ -251,7 +251,7 @@ export function SimpleJsonBuilder({
     // ==================== MODE LOGIC ====================
     // MODE 1: Jika props placeholders ada (tidak undefined), pakai dari props
     // MODE 2: Jika props placeholders tidak ada, pakai DEFAULT_PLACEHOLDERS (built-in)
-    const activePlaceholders = placeholders !== undefined ? placeholders : DEFAULT_PLACEHOLDERS;
+    const activePlaceholders = [...DEFAULT_PLACEHOLDERS, ...(placeholders ?? [])];
     // Atau pakai nullish coalescing: const activePlaceholders = placeholders ?? DEFAULT_PLACEHOLDERS;
 
     const parseValue = (val: any) => {
@@ -380,7 +380,7 @@ export function SimpleJsonBuilder({
     const renderField = (field: Field, level = 0) => {
         const indent = level * 20;
         const isObject = field.type === "object";
-        const isPlaceholder = activePlaceholders.some((p) => p.value === field.value);
+        const isPlaceholder = activePlaceholders?.some((p) => p.value === field.value);
 
         return (
             <div key={field.id} style={{ marginLeft: indent }} className="mb-2">

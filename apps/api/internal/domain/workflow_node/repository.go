@@ -26,16 +26,16 @@ type WorkflowNode struct {
 }
 
 type WorkflowNodeCreate struct {
-	ID              string
-	WorkflowID      string
-	AdapterConfigID string
-	PreviousNodeIDs []string
-	StepOrder       int
-	InputMapping    json.RawMessage
-	NextNodeIDs     []string
-	CreatedAt       time.Time
-	EndpointPath    *string
-	HTTPMethod      string
+	ID              string          `json:"id"`
+	WorkflowID      string          `json:"workflow_id"`
+	AdapterConfigID string          `json:"adapter_config_id"`
+	PreviousNodeIDs []string        `json:"previous_node_ids"`
+	StepOrder       int             `json:"step_order"`
+	InputMapping    json.RawMessage `json:"input_mapping"`
+	NextNodeIDs     []string        `json:"next_node_ids"`
+	CreatedAt       time.Time       `json:"created_at"`
+	EndpointPath    *string         `json:"endpoint_path,omitempty"`
+	HTTPMethod      string          `json:"http_method"`
 }
 
 type AdapterConfig struct {

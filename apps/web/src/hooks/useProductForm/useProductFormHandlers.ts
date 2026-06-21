@@ -54,7 +54,6 @@ export function useProductFormHandlers(
         setLoading(true);
 
         try {
-            // ✅ FIX 1: Normalize adapter_config — handle missing/partial fields safely
             let adapterConfig = undefined;
 
             if (productToSaveRaw.adapter_config) {

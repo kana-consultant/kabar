@@ -219,7 +219,7 @@ export function useProductFormActions(
     const updateNodeConnections = (
         workflowId: string,
         nodeId: string,
-        nextNodeId: string | null,
+        nextNodeId: string[] | null,
         previousNodeIds?: string[]
     ) => {
         setProduct((prev: Partial<Product>) => ({
@@ -230,7 +230,7 @@ export function useProductFormActions(
                         ...workflow,
                         nodes: workflow.nodes?.map(node => {
                             if (node.id === nodeId) {
-                                const updates: Partial<WorkflowNode> = { next_node_id: nextNodeId };
+                                const updates: Partial<WorkflowNode> = { next_node_ids : nextNodeId as string[]};
                                 if (previousNodeIds !== undefined) {
                                     updates.previous_node_ids = previousNodeIds;
                                 }

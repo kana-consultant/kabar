@@ -25,7 +25,7 @@ func NewWorkflowNodeRepository(db *sql.DB) workflow_node.WorkflowNodeRepository 
 func (r *WorkflowNodeRepository) GetByID(ctx context.Context, id string) (*workflow_node.WorkflowNode, error) {
 	query := `
 		SELECT id, workflow_id, adapter_config_id, step_order, 
-			input_mapping, next_node_id, previous_node_ids,http_method, created_at
+			input_mapping, next_node_ids, previous_node_ids,http_method, created_at
 		FROM workflow_nodes WHERE id = $1
 	`
 
@@ -203,7 +203,7 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 	log.Println("========== InsertBatchWithTx ==========")
 	log.Printf("Total nodes to insert: %d\n", len(nodes))
 
-	// ── TAHAP 1: Insert semua node tanpa next_node_id ──────────────────────
+	// ── TAHAP 1: Insert semua node tanpa next_node_ids ──────────────────────
 	insertQuery := `
 		INSERT INTO workflow_nodes (
 			id,
@@ -211,13 +211,13 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			adapter_config_id,
 			step_order,
 			input_mapping,
-			next_node_id,
+			next_node_ids,
 			previous_node_ids,
 			endpoint_path,
 			http_method,
 			created_at
 		)
-		VALUES ($1, $2, $3, $4, $5, NULL, $6,$7, NOW())
+		VALUES ($1, $2, $3, $4, $5, NULL, $6,$7,$8, NOW())
 		RETURNING created_at
 	`
 
@@ -249,7 +249,6 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			}
 			previousNodeIDsJSON = b
 		}
-		log.Printf("PreviousNodeIDs JSON: %s\n", string(previousNodeIDsJSON))
 
 		savedNode := node
 		err := tx.QueryRowContext(
@@ -261,8 +260,8 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			savedNode.StepOrder,
 			inputMappingJSON,
 			previousNodeIDsJSON,
-			savedNode.HTTPMethod,
 			savedNode.EndpointPath,
+			savedNode.HTTPMethod,
 		).Scan(&savedNode.CreatedAt)
 
 		if err != nil {
@@ -270,24 +269,36 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			return nil, fmt.Errorf("failed to insert workflow node %s: %w", savedNode.ID, err)
 		}
 
-		log.Printf("✅ Node inserted (without next_node_id): %s\n", savedNode.ID)
+		log.Printf("✅ Node inserted (without next_node_ids): %s\n", savedNode.ID)
 		savedNodes = append(savedNodes, savedNode)
 	}
 
-	// ── TAHAP 2: Update next_node_id setelah semua node ter-insert ─────────
-	updateQuery := `UPDATE workflow_nodes SET next_node_id = $1 WHERE id = $2`
+	// ── TAHAP 2: Update next_node_ids setelah semua node ter-insert ─────────
+	updateQuery := `UPDATE workflow_nodes SET next_node_ids = $1 WHERE id = $2`
 
 	for _, node := range nodes {
 		if node.NextNodeIDs == nil {
 			continue
 		}
 
-		log.Printf("Updating next_node_id for node %s -> %s\n", node.ID, node.NextNodeIDs)
+		// Handle previous_node_ids
+		var nextNodeIDsJSON []byte
+		if len(node.PreviousNodeIDs) == 0 {
+			nextNodeIDsJSON = []byte(`[]`)
+		} else {
+			b, err := json.Marshal(node.NextNodeIDs)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal previous_node_ids for node %s: %w", node.ID, err)
+			}
+			nextNodeIDsJSON = b
+		}
 
-		_, err := tx.ExecContext(ctx, updateQuery, node.NextNodeIDs, node.ID)
+		log.Printf("Updating next_node_ids for node %s -> %s\n", node.ID, nextNodeIDsJSON)
+
+		_, err := tx.ExecContext(ctx, updateQuery, nextNodeIDsJSON, node.ID)
 		if err != nil {
-			log.Printf("❌ Failed to update next_node_id for node %s: %v\n", node.ID, err)
-			return nil, fmt.Errorf("failed to update next_node_id for node %s: %w", node.ID, err)
+			log.Printf("❌ Failed to update next_node_ids for node %s: %v\n", node.ID, err)
+			return nil, fmt.Errorf("failed to update next_node_ids for node %s: %w", node.ID, err)
 		}
 
 		// Update savedNodes juga supaya return value akurat
@@ -298,7 +309,7 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			}
 		}
 
-		log.Printf("✅ next_node_id updated for node %s\n", node.ID)
+		log.Printf("✅ next_node_ids updated for node %s\n", node.ID)
 	}
 
 	log.Printf("✅ All %d nodes inserted successfully\n", len(savedNodes))
