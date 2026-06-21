@@ -220,7 +220,7 @@ func (s *RedisScheduler) doPublishDraft(task *ScheduledTask) error {
 		TargetProducts: task.TargetProducts,
 	}
 
-	postService := helper.NewPostService(s.db, &s.productController)
+	postService := helper.NewPostService(s.db, s.productController)
 
 	result, someFailed, allFailed, err := postService.ProcessDraftProducts(s.ctx, draftData)
 	if err != nil {

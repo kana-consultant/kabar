@@ -2,8 +2,8 @@ package product
 
 import (
 	"database/sql"
-	productApp "seo-backend/internal/application/product"
 	baseRoutes "seo-backend/internal/domain/base"
+	productApp "seo-backend/internal/domain/product"
 	rbacCache "seo-backend/internal/infrastructure/db/repositories/rbac"
 	authmw "seo-backend/internal/middleware"
 
@@ -17,7 +17,7 @@ type Route struct {
 }
 
 func NewRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache, productService productApp.ProductService) *Route {
-	productHandler := NewProductHandler(&productService)
+	productHandler := NewProductHandler(productService)
 
 	return &Route{
 		baseroute: baseRoutes.Route{
