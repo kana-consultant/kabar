@@ -215,8 +215,7 @@ func (h *DraftHandler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *DraftHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
-	teamID := auth.GetTeamID(ctx)
-	userID := auth.GetUserID(ctx)
+	userContext := auth.GetUserContext(r)
 
 	var req draft.CreateDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -224,7 +223,7 @@ func (h *DraftHandler) Publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.draftService.PublishDraft(ctx, id, req, teamID, userID)
+	result, err := h.draftService.PublishDraft(ctx, id, req, userContext)
 	if err != nil {
 		log.Printf("Failed to publish draft: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -241,11 +240,7 @@ func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	log.Println("========== PUBLISH CONTENT ==========")
 	log.Printf("Method: %s | URL: %s\n", r.Method, r.URL.Path)
 
-	teamID := auth.GetTeamID(ctx)
-	userID := auth.GetUserID(ctx)
-
-	log.Printf("TeamID: %s\n", teamID)
-	log.Printf("UserID: %s\n", userID)
+	userCtx := auth.GetUserContext(r)
 
 	// READ RAW BODY
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -294,8 +289,7 @@ func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	result, err := h.draftService.PublishContent(
 		ctx,
 		req,
-		teamID,
-		userID,
+		userCtx,
 	)
 
 	if err != nil {
@@ -323,16 +317,14 @@ func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 // ScheduleDraft - schedule a draft for future publishing
 func (h *DraftHandler) ScheduleDraft(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userID := auth.GetUserID(ctx)
-	teamID := auth.GetTeamID(ctx)
-
+	userCtx := auth.GetUserContext(r)
 	var req draft.ScheduleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	draftID, err := h.draftService.ScheduleDraft(ctx, req, teamID, userID)
+	draftID, err := h.draftService.ScheduleDraft(ctx, req, userCtx)
 	if err != nil {
 		log.Printf("Failed to schedule draft: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

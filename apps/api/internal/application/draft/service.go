@@ -86,7 +86,7 @@ func (s *DraftServiceImpl) PublishDraft(
 	ctx context.Context,
 	id string,
 	req draft.CreateDraftRequest,
-	teamID, userID string,
+	userCtx models.UserContext,
 ) (*draft.PublishResult, error) {
 
 	log.Printf("[PublishDraft] START id=%s", id)
@@ -159,7 +159,7 @@ func (s *DraftServiceImpl) PublishDraft(
 	if req.ScheduledFor != "" {
 		log.Printf("[PublishDraft] SCHEDULE MODE id=%s scheduledFor=%s", id, req.ScheduledFor)
 
-		result, err := s.scheduleDraft(ctx, id, req.ScheduledFor, draftData, teamID, userID)
+		result, err := s.scheduleDraft(ctx, id, req.ScheduledFor, draftData, userCtx)
 		if err != nil {
 			log.Printf("[PublishDraft] ERROR scheduleDraft id=%s err=%v", id, err)
 			return nil, err
@@ -171,12 +171,12 @@ func (s *DraftServiceImpl) PublishDraft(
 
 	log.Printf("[PublishDraft] DIRECT PUBLISH MODE id=%s", id)
 
-	result, err := s.processPublish(ctx, draftData, id, teamID, userID)
+	result, err := s.processPublish(ctx, draftData, id, userCtx)
 
 	if err != nil {
 		log.Printf("[PublishDraft] ERROR processPublish id=%s err=%v", id, err)
 
-		if histErr := s.repo.InsertHistory(ctx, historyReq, userID, teamID, "failed"); histErr != nil {
+		if histErr := s.repo.InsertHistory(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
 			log.Printf("[PublishDraft] ERROR InsertHistory(failed) id=%s err=%v", id, histErr)
 		} else {
 			log.Printf("[PublishDraft] SUCCESS InsertHistory(failed) id=%s", id)
@@ -187,7 +187,7 @@ func (s *DraftServiceImpl) PublishDraft(
 
 	log.Printf("[PublishDraft] SUCCESS processPublish id=%s result=%+v", id, result)
 
-	if histErr := s.repo.InsertHistory(ctx, historyReq, userID, teamID, "published"); histErr != nil {
+	if histErr := s.repo.InsertHistory(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "published"); histErr != nil {
 		log.Printf("[PublishDraft] ERROR InsertHistory(published) id=%s err=%v", id, histErr)
 	} else {
 		log.Printf("[PublishDraft] SUCCESS InsertHistory(published) id=%s", id)
@@ -200,13 +200,12 @@ func (s *DraftServiceImpl) PublishDraft(
 func (s *DraftServiceImpl) PublishContent(
 	ctx context.Context,
 	req draft.DraftDataPost,
-	teamID,
-	userID string,
+	userCtx models.UserContext,
 ) (*draft.PublishResult, error) {
 
 	log.Println("========== START PublishContent ==========")
 
-	log.Printf("REQUEST TEAM_ID=%s USER_ID=%s", teamID, userID)
+	log.Printf("REQUEST TEAM_ID=%s USER_ID=%s", userCtx.GetTeamID(), userCtx.GetUserID())
 
 	log.Printf(
 		"REQUEST DATA => Title=%s Topic=%s ImageURL=%v TargetProducts=%v keywords=%v",
@@ -237,7 +236,7 @@ func (s *DraftServiceImpl) PublishContent(
 
 	log.Println("CALLING ProcessDraftProducts...")
 
-	result, someFailed, allFailed, err := s.ProcessDraftProducts(ctx, req)
+	result, someFailed, allFailed, err := s.ProcessDraftProducts(ctx, req, userCtx)
 
 	log.Printf("PROCESS RESULT => %+v", result)
 	log.Printf("PROCESS FLAGS => someFailed=%v allFailed=%v", someFailed, allFailed)
@@ -251,8 +250,8 @@ func (s *DraftServiceImpl) PublishContent(
 		historyErr := s.repo.InsertHistory(
 			ctx,
 			historyReq,
-			userID,
-			teamID,
+			userCtx.GetUserID(),
+			userCtx.GetTeamID(),
 			"failed",
 		)
 
@@ -270,8 +269,8 @@ func (s *DraftServiceImpl) PublishContent(
 	err = s.repo.InsertHistory(
 		ctx,
 		historyReq,
-		userID,
-		teamID,
+		userCtx.GetUserID(),
+		userCtx.GetTeamID(),
 		"published",
 	)
 
@@ -296,7 +295,7 @@ func (s *DraftServiceImpl) PublishContent(
 }
 
 // ScheduleDraft implements draft.Service
-func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.ScheduleRequest, teamID, userID string) (string, error) {
+func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.ScheduleRequest, userCtx models.UserContext) (string, error) {
 	scheduledFor := helper.ParseWIBTime(req.ScheduledFor)
 
 	loc, _ := time.LoadLocation("Asia/Jakarta")
@@ -305,7 +304,7 @@ func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.Schedule
 		return "", fmt.Errorf("scheduled time must be in the future")
 	}
 
-	draftID, err := s.repo.InsertScheduledDraft(ctx, req, scheduledFor, teamID, userID)
+	draftID, err := s.repo.InsertScheduledDraft(ctx, req, scheduledFor, userCtx.GetTeamID(), userCtx.GetUserID())
 	if err != nil {
 		log.Printf("ERROR InsertScheduledDraft : %v", err)
 		return "", err
@@ -319,12 +318,12 @@ func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.Schedule
 		ImageURL:       req.ImageURL,
 		ImagePrompt:    req.ImagePrompt,
 		TargetProducts: req.TargetProducts,
-		TeamID:         teamID,
-		UserID:         userID,
+		TeamID:         userCtx.GetTeamID(),
+		UserID:         userCtx.GetUserID(),
 	}
 
-	if err := s.redisScheduler.ScheduleDraftTask(draftID, scheduledFor, taskData); err != nil {
-		s.repo.Delete(ctx, teamID, draftID)
+	if err := s.redisScheduler.ScheduleDraftTask(draftID, scheduledFor, taskData, userCtx); err != nil {
+		s.repo.Delete(ctx, userCtx.GetTeamID(), draftID)
 		log.Printf("ERROR ScheduleDraftTask : %v", err)
 		return "", fmt.Errorf("failed to schedule in Redis: %w", err)
 	}
@@ -341,7 +340,7 @@ func (s *DraftServiceImpl) CancelSchedule(ctx context.Context, draftID string) e
 }
 
 // Private methods
-func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForStr string, draftData *draft.DraftData, teamID, userID string) (*draft.PublishResult, error) {
+func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForStr string, draftData *draft.DraftData, userCtx models.UserContext) (*draft.PublishResult, error) {
 	scheduledFor := helper.ParseWIBTime(scheduledForStr)
 
 	if err := s.repo.UpdateStatus(ctx, id, "scheduled", &scheduledFor); err != nil {
@@ -363,11 +362,11 @@ func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForSt
 		ImageURL:       imageURL,
 		ImagePrompt:    draftData.ImagePrompt,
 		TargetProducts: draftData.TargetProducts,
-		TeamID:         teamID,
-		UserID:         userID,
+		TeamID:         userCtx.GetTeamID(),
+		UserID:         userCtx.GetUserID(),
 	}
 
-	if err := s.redisScheduler.ScheduleDraftTask(id, scheduledFor, taskData); err != nil {
+	if err := s.redisScheduler.ScheduleDraftTask(id, scheduledFor, taskData, userCtx); err != nil {
 		log.Printf("ERROR on redis: %v", err)
 		return nil, err
 	}
@@ -378,7 +377,7 @@ func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForSt
 	}, nil
 }
 
-func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.DraftData, id, teamID, userID string) (*draft.PublishResult, error) {
+func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.DraftData, id string, userCtx models.UserContext) (*draft.PublishResult, error) {
 	draftPost := draft.DraftDataPost{
 		Id:             id,
 		Title:          draftData.Title,
@@ -390,10 +389,10 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 		Excerpt:        draftData.Excerpt,
 	}
 
-	result, someFailed, allFailed, err := s.ProcessDraftProducts(ctx, draftPost)
+	result, someFailed, allFailed, err := s.ProcessDraftProducts(ctx, draftPost, userCtx)
 	log.Printf("IS ERROR,%v", err)
 
-	if err := s.repo.Delete(ctx, teamID, id); err != nil {
+	if err := s.repo.Delete(ctx, userCtx.GetTeamID(), id); err != nil {
 		log.Printf("Failed to delete draft: %v", err)
 	}
 
@@ -654,7 +653,7 @@ func min(a, b int) int {
 	return b
 }
 
-func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft.DraftDataPost) ([]map[string]interface{}, bool, bool, error) {
+func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft.DraftDataPost, userCtx models.UserContext) ([]map[string]interface{}, bool, bool, error) {
 	log.Printf("TargetProducts : %v", draft.TargetProducts)
 
 	if len(draft.TargetProducts) == 0 {
@@ -672,7 +671,7 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 		log.Printf("======================= PROCESSING PRODUCT: %s =======================", productID)
 
 		// Get product config
-		cfg, err := s.productController.GetProductConfig(ctx, productID, draft)
+		cfg, err := s.productController.GetProductConfig(ctx, productID, draft, userCtx)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to get product config for %s: %v", productID, err)
 			log.Printf("[ERROR] %s", errMsg)

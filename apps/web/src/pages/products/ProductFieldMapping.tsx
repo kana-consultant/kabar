@@ -658,7 +658,7 @@ export function ProductFieldMapping({
     };
 
     return (
-        <div className="border rounded-xl p-5 space-y-6">
+        <div className="border rounded-xl p-5 space-y-6 mt-2">
             <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v as any)}>
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="meta">🏷️ Meta Tags</TabsTrigger>

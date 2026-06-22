@@ -8,6 +8,7 @@ import (
 	"seo-backend/internal/database"
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/product"
+	"seo-backend/internal/models"
 )
 
 type PostService struct {
@@ -33,7 +34,7 @@ func (s *PostService) markProductSynced(productID string) error {
 	return nil
 }
 
-func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.DraftDataPost) ([]map[string]interface{}, bool, bool, error) {
+func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.DraftDataPost, userCtx models.UserContext) ([]map[string]interface{}, bool, bool, error) {
 	log.Printf("TargetProducts : %v", draft.TargetProducts)
 
 	if len(draft.TargetProducts) == 0 {
@@ -51,7 +52,7 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 		log.Printf("======================= PROCESSING PRODUCT: %s =======================", productID)
 
 		// Get product config
-		cfg, err := s.productController.GetProductConfig(ctx, productID, draft)
+		cfg, err := s.productController.GetProductConfig(ctx, productID, draft, userCtx)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to get product config for %s: %v", productID, err)
 			log.Printf("[ERROR] %s", errMsg)

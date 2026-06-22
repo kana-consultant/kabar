@@ -16,11 +16,11 @@ type Service interface {
 	GetDashboardStats(ctx context.Context, userFilter models.UserContext) (*DraftStats, error)
 	GetAllScheduled(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
 	// Publishing
-	PublishDraft(ctx context.Context, id string, req CreateDraftRequest, teamID, userID string) (*PublishResult, error)
-	PublishContent(ctx context.Context, req DraftDataPost, teamID, userID string) (*PublishResult, error)
+	PublishDraft(ctx context.Context, id string, req CreateDraftRequest, userContext models.UserContext) (*PublishResult, error)
+	PublishContent(ctx context.Context, req DraftDataPost, userCtx models.UserContext) (*PublishResult, error)
 
 	// Scheduling
-	ScheduleDraft(ctx context.Context, req ScheduleRequest, teamID, userID string) (string, error)
+	ScheduleDraft(ctx context.Context, req ScheduleRequest, userCtx models.UserContext) (string, error)
 	CancelSchedule(ctx context.Context, draftID string) error
 
 	// SEO

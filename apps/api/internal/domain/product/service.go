@@ -29,7 +29,7 @@ type ProductService interface {
 	// UpdateConnectionStatus updates product connection status
 	UpdateConnectionStatus(ctx context.Context, productID string, isConnected bool) error
 
-	GetProductConfig(ctx context.Context, productID string, draft draft.DraftDataPost) (*ProductConfig, error)
+	GetProductConfig(ctx context.Context, productID string, draft draft.DraftDataPost, userCtx models.UserContext) (*ProductConfig, error)
 	ReorderNodesWithBatch(nodes []*workflow_node.WorkflowNode) ([]*workflow_node.WorkflowNode, map[int][]*workflow_node.WorkflowNode)
 	ReorderNodesByLevel(nodes []*workflow_node.WorkflowNode) []*workflow_node.WorkflowNode
 	LoadAdapterConfig(ctx context.Context, cfg *ProductConfig) error

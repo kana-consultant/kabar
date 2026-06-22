@@ -36,6 +36,13 @@ func (b *RequestBuilder) BuildArticleRequestBody(
 		log.Println(prompt)
 	}
 
+	// Validasi & normalisasi MaxTokens SEBELUM dipakai
+	maxTokens := config.MaxTokens
+	if maxTokens < 1 {
+		log.Printf("[WARNING] MaxTokens %d is invalid, using default 1024", maxTokens)
+		maxTokens = 1024
+	}
+
 	// =========================
 	// TEMPLATE VARIABLES - AMBIL DARI CONFIG
 	// =========================
@@ -44,7 +51,8 @@ func (b *RequestBuilder) BuildArticleRequestBody(
 		"{prompt}":        escapeJSON(prompt),
 		"{system_prompt}": escapeJSON(config.SystemPrompt),
 		"{temperature}":   fmt.Sprintf("%.2f", config.Temperature),
-		"{max_token}":     fmt.Sprintf("%d", config.MaxTokens),
+		"{max_token}":     fmt.Sprintf("%d", maxTokens),
+		"{max_tokens}":    fmt.Sprintf("%d", maxTokens), // alias, biar typo lama di template tetap kebaca
 	}
 
 	log.Println("[INFO] Template Variables:")
@@ -61,20 +69,12 @@ func (b *RequestBuilder) BuildArticleRequestBody(
 	// =========================
 	template := config.Template
 
-	// Cek apakah template butuh {system_prompt} tapi nilainya kosong
 	if strings.Contains(template, "{system_prompt}") && config.SystemPrompt == "" {
 		log.Println("[WARNING] Template requires {system_prompt} but SystemPrompt is empty")
 	}
 
-	// Validasi temperature range
 	if config.Temperature < 0 || config.Temperature > 2 {
 		log.Printf("[WARNING] Temperature %.2f is outside recommended range (0-2)", config.Temperature)
-	}
-
-	// Validasi max_tokens
-	if config.MaxTokens < 1 {
-		log.Printf("[WARNING] MaxTokens %d is invalid, using default 1024", config.MaxTokens)
-		vars["{max_tokens}"] = "1024"
 	}
 
 	// =========================
@@ -100,6 +100,31 @@ func (b *RequestBuilder) BuildArticleRequestBody(
 	}
 
 	log.Println("[INFO] JSON template parsed successfully")
+
+	// =========================
+	// FORCE FIELD NUMERIK & TAMBAHAN THINKING CONFIG
+	// Ini langkah krusial: walaupun template menulis angka
+	// sebagai string (misal "3000" atau "1.00"), kita overwrite
+	// di level Go pakai tipe numerik asli (int/float64) supaya
+	// hasil json.Marshal nanti berupa JSON number, bukan string.
+	// =========================
+	if genConfig, ok := bodyMap["generationConfig"].(map[string]interface{}); ok {
+		// --- Gemini style: nested generationConfig ---
+		genConfig["maxOutputTokens"] = maxTokens      // int asli
+		genConfig["temperature"] = config.Temperature // float64 asli
+		genConfig["thinkingConfig"] = map[string]interface{}{
+			"thinkingBudget": 0, // matikan thinking biar token output nggak kepotong
+		}
+		log.Println("[INFO] Format terdeteksi: Gemini (generationConfig nested)")
+	} else if _, hasMaxTokens := bodyMap["max_tokens"]; hasMaxTokens {
+		// --- OpenAI-compatible style: max_tokens & temperature di root ---
+		// Dipakai oleh gpt-oss, Groq, OpenRouter, dan provider sejenis.
+		bodyMap["max_tokens"] = maxTokens           // int asli, bukan string "1024"
+		bodyMap["temperature"] = config.Temperature // float64 asli, bukan string "1.00"
+		log.Println("[INFO] Format terdeteksi: OpenAI-compatible (root-level max_tokens)")
+	} else {
+		log.Println("[WARNING] Tidak ditemukan generationConfig maupun max_tokens di root, skip normalisasi numerik")
+	}
 
 	// =========================
 	// FINAL BODY
@@ -134,12 +159,19 @@ func (b *RequestBuilder) BuildImageRequestBody(
 	log.Println("[INFO] Temperature:", config.Temperature)
 	log.Println("[INFO] System Prompt Length:", len(config.SystemPrompt))
 
+	maxTokens := config.MaxTokens
+	if maxTokens < 1 {
+		log.Printf("[WARNING] MaxTokens %d is invalid, using default 1024", maxTokens)
+		maxTokens = 1024
+	}
+
 	vars := map[string]string{
 		"{model}":         config.ModelName,
 		"{prompt}":        escapeJSON(prompt),
 		"{system_prompt}": escapeJSON(config.SystemPrompt),
 		"{temperature}":   fmt.Sprintf("%.2f", config.Temperature),
-		"{max_tokens}":    fmt.Sprintf("%d", config.MaxTokens),
+		"{max_tokens}":    fmt.Sprintf("%d", maxTokens),
+		"{max_token}":     fmt.Sprintf("%d", maxTokens), // alias safety
 	}
 
 	log.Println("[INFO] Template Variables:")
@@ -153,12 +185,10 @@ func (b *RequestBuilder) BuildImageRequestBody(
 
 	template := config.Template
 
-	// Validasi temperature range untuk image generation
 	if config.Temperature < 0 || config.Temperature > 2 {
 		log.Printf("[WARNING] Temperature %.2f is outside recommended range (0-2)", config.Temperature)
 	}
 
-	// Replace template variables
 	replacedTemplate := helper.ReplaceTemplate(template, vars)
 
 	log.Println("[INFO] Template After Replacement:")
@@ -175,6 +205,19 @@ func (b *RequestBuilder) BuildImageRequestBody(
 	}
 
 	log.Println("[INFO] JSON template parsed successfully")
+
+	// Force numerik: cover format Gemini (nested) maupun OpenAI-compatible (root-level)
+	if genConfig, ok := bodyMap["generationConfig"].(map[string]interface{}); ok {
+		genConfig["maxOutputTokens"] = maxTokens
+		genConfig["temperature"] = config.Temperature
+		log.Println("[INFO] Format terdeteksi: Gemini (generationConfig nested)")
+	} else if _, hasMaxTokens := bodyMap["max_tokens"]; hasMaxTokens {
+		bodyMap["max_tokens"] = maxTokens
+		bodyMap["temperature"] = config.Temperature
+		log.Println("[INFO] Format terdeteksi: OpenAI-compatible (root-level max_tokens)")
+	} else {
+		log.Println("[WARNING] Tidak ditemukan generationConfig maupun max_tokens di root, skip normalisasi numerik")
+	}
 
 	finalBody, err := json.MarshalIndent(bodyMap, "", "  ")
 	if err != nil {

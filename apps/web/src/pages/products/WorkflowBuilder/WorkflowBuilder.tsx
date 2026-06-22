@@ -478,7 +478,7 @@ export function WorkflowBuilder({
 
   return (
     <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
-      <div className={`flex gap-4 relative ${isFullscreen ? 'h-screen' : 'h-[600px]'}`}>
+      <div className={`mt-2 flex gap-4 relative ${isFullscreen ? 'h-screen' : 'h-[600px]'}`}>
         {/* Error Alert */}
         {error && (
           <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-50 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded shadow-lg">

@@ -274,7 +274,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 title="Informasi Dasar & Konfigurasi API"
                 description="Atur informasi produk dan konfigurasi API endpoint"
             >
-                <div className="grid gap-6 lg:grid-cols-2">
+                <div className="grid mt-2 gap-6 lg:grid-cols-2">
                     <ProductBasicInfo
                         product={product}
                         onUpdate={updateProductInfo}

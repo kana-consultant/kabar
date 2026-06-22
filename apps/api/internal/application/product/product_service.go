@@ -913,14 +913,14 @@ func nullIfEmpty(id string) interface{} {
 }
 
 // services/product_service.go
-func (s *ProductService) GetProductConfig(ctx context.Context, productID string, draft draft.DraftDataPost) (*product.ProductConfig, error) {
+func (s *ProductService) GetProductConfig(ctx context.Context, productID string, draft draft.DraftDataPost, userCtx models.UserContext) (*product.ProductConfig, error) {
 	var cfg product.ProductConfig
 
 	log.Printf("========== GET PRODUCT CONFIG ==========")
 	log.Printf("PRODUCT ID: %s", productID)
 
 	// 1. Get product data from repository
-	productData, err := s.productRepo.GetByID(ctx, productID)
+	productData, err := s.GetByID(ctx, productID, userCtx)
 	if err != nil {
 		log.Printf("[ERROR] Failed to get product: %v", err)
 		return nil, fmt.Errorf("failed to get product %s: %w", productID, err)
@@ -929,7 +929,7 @@ func (s *ProductService) GetProductConfig(ctx context.Context, productID string,
 	// 2. Set basic product config
 	cfg.ProductID = productData.ID
 	cfg.APIEndpoint = productData.APIEndpoint
-	cfg.APIKey = productData.APIKeyEncrypted
+	cfg.APIKey = productData.APIKey
 
 	log.Printf("PRODUCT FOUND: %s", cfg.ProductID)
 	log.Printf("API ENDPOINT: %s", cfg.APIEndpoint)
@@ -970,13 +970,13 @@ func (s *ProductService) GetProductConfig(ctx context.Context, productID string,
 	log.Printf("FULL URL: %s", cfg.FullURL)
 
 	// 6. Reorder workflow nodes and store them in config
-	if len(productData.Workflows.Nodes) > 0 {
-		log.Printf("REORDERING WORKFLOW NODES (Total: %d)", len(productData.Workflows.Nodes))
+	if len(productData.Workflows[0].Nodes) > 0 {
+		log.Printf("REORDERING WORKFLOW NODES (Total: %d)", len(productData.Workflows[0].Nodes))
 
 		// Convert to pointer slice for reordering
-		nodes := make([]*workflow_node.WorkflowNode, len(productData.Workflows.Nodes))
-		for i := range productData.Workflows.Nodes {
-			nodes[i] = &productData.Workflows.Nodes[i]
+		nodes := make([]*workflow_node.WorkflowNode, len(productData.Workflows[0].Nodes))
+		for i := range productData.Workflows[0].Nodes {
+			nodes[i] = &productData.Workflows[0].Nodes[i]
 		}
 
 		// Reorder nodes with batch

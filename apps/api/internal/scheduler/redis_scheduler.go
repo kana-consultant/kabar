@@ -11,6 +11,7 @@ import (
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
+	"seo-backend/internal/models"
 
 	"time"
 
@@ -65,7 +66,7 @@ func (s *RedisScheduler) RegisterTaskHandler(taskName string, handler TaskHandle
 }
 
 // ScheduleDraftTask schedules a draft for publishing
-func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Time, taskData *ScheduledTask) error {
+func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Time, taskData *ScheduledTask, userCtx models.UserContext) error {
 	taskID := fmt.Sprintf(
 		"draft_%s_%d",
 		draftID,
@@ -121,7 +122,7 @@ func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Tim
 		int(scheduledFor.Month()))
 
 	_, err = s.cron.AddFunc(cronExpr, func() {
-		s.executeDraftTask(taskID)
+		s.executeDraftTask(taskID, userCtx)
 	})
 
 	if err != nil {
@@ -133,7 +134,7 @@ func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Tim
 }
 
 // executeDraftTask runs the scheduled draft publishing
-func (s *RedisScheduler) executeDraftTask(taskID string) {
+func (s *RedisScheduler) executeDraftTask(taskID string, userCtx models.UserContext) {
 	log.Printf("Executing scheduled draft task: %s", taskID)
 
 	// Get task from Redis
@@ -158,7 +159,7 @@ func (s *RedisScheduler) executeDraftTask(taskID string) {
 	}
 
 	// Execute publishing with retry
-	err = s.publishDraft(task)
+	err = s.publishDraft(task, userCtx)
 	if err != nil {
 		log.Printf("Failed to publish draft %s after retries: %v", task.DraftID, err)
 		task.Status = "failed"
@@ -178,7 +179,7 @@ func (s *RedisScheduler) executeDraftTask(taskID string) {
 }
 
 // publishDraft with retry mechanism
-func (s *RedisScheduler) publishDraft(task *ScheduledTask) error {
+func (s *RedisScheduler) publishDraft(task *ScheduledTask, userCtx models.UserContext) error {
 	var lastErr error
 
 	for i := 0; i <= task.MaxRetries; i++ {
@@ -187,7 +188,7 @@ func (s *RedisScheduler) publishDraft(task *ScheduledTask) error {
 			time.Sleep(time.Duration(i*5) * time.Second)
 		}
 
-		err := s.doPublishDraft(task)
+		err := s.doPublishDraft(task, userCtx)
 		if err == nil {
 			return nil
 		}
@@ -201,7 +202,7 @@ func (s *RedisScheduler) publishDraft(task *ScheduledTask) error {
 }
 
 // doPublishDraft actually publishes the draft
-func (s *RedisScheduler) doPublishDraft(task *ScheduledTask) error {
+func (s *RedisScheduler) doPublishDraft(task *ScheduledTask, userCtx models.UserContext) error {
 
 	log.Printf(
 		"[Scheduler] START publish draft_id=%s title=%s products=%v",
@@ -222,7 +223,7 @@ func (s *RedisScheduler) doPublishDraft(task *ScheduledTask) error {
 
 	postService := helper.NewPostService(s.db, s.productController)
 
-	result, someFailed, allFailed, err := postService.ProcessDraftProducts(s.ctx, draftData)
+	result, someFailed, allFailed, err := postService.ProcessDraftProducts(s.ctx, draftData, userCtx)
 	if err != nil {
 		return fmt.Errorf("failed to process products: %w", err)
 	}
