@@ -933,6 +933,8 @@ func (s *ProductService) GetProductConfig(ctx context.Context, productID string,
 
 	log.Printf("PRODUCT FOUND: %s", cfg.ProductID)
 	log.Printf("API ENDPOINT: %s", cfg.APIEndpoint)
+	log.Printf("API KEY PRESENT: %v", cfg.APIKey != "")
+	log.Printf("API KEY LENGTH: %d", len(cfg.APIKey))
 
 	if cfg.APIEndpoint == "" {
 		log.Printf("[ERROR] EMPTY API ENDPOINT")
@@ -943,19 +945,108 @@ func (s *ProductService) GetProductConfig(ctx context.Context, productID string,
 	if productData.AdapterConfig != nil {
 		cfg.Timeout = productData.AdapterConfig.TimeoutSeconds
 		cfg.RetryCount = productData.AdapterConfig.RetryCount
+		log.Printf("ADAPTER CONFIG FOUND: Timeout=%d, RetryCount=%d", cfg.Timeout, cfg.RetryCount)
 	} else {
 		cfg.Timeout = 30   // default timeout
 		cfg.RetryCount = 3 // default retry
+		log.Printf("[INFO] NO ADAPTER CONFIG, USING DEFAULTS: Timeout=%d, RetryCount=%d", cfg.Timeout, cfg.RetryCount)
 	}
+
 	cfg.CustomHeaders = make(map[string]string)
 	cfg.MetaConfigStr = "{}"
 	cfg.SitemapConfigStr = "{}"
 
 	// 4. Load adapter config if API key exists
+	log.Printf("========== LOADING ADAPTER CONFIG ==========")
+	log.Printf("API KEY EXISTS: %v", cfg.APIKey != "")
+
 	if cfg.APIKey != "" {
+		log.Printf("[INFO] LOADING ADAPTER CONFIGS FOR PRODUCT: %s", cfg.ProductID)
+
+		// Log sebelum load adapter
+		log.Printf("[BEFORE_LOAD] AdapterEndpoint: %s", cfg.AdapterEndpoint)
+		log.Printf("[BEFORE_LOAD] FieldMappingStr: %s", cfg.FieldMappingStr)
+		log.Printf("[BEFORE_LOAD] CustomHeadersStr: %s", cfg.CustomHeadersStr)
+		log.Printf("[BEFORE_LOAD] MetaConfigStr: %s", cfg.MetaConfigStr)
+		log.Printf("[BEFORE_LOAD] SitemapConfigStr: %s", cfg.SitemapConfigStr)
+		log.Printf("[BEFORE_LOAD] CustomHeaders map: %+v", cfg.CustomHeaders)
+
 		if err := s.LoadAdapterConfig(ctx, &cfg); err != nil {
+			log.Printf("[ERROR] Failed to load adapter config: %v", err)
 			return nil, err
 		}
+
+		// Log setelah load adapter
+		log.Printf("[AFTER_LOAD] AdapterEndpoint: %s", cfg.AdapterEndpoint)
+		log.Printf("[AFTER_LOAD] FieldMappingStr length: %d", len(cfg.FieldMappingStr))
+		log.Printf("[AFTER_LOAD] CustomHeadersStr length: %d", len(cfg.CustomHeadersStr))
+		log.Printf("[AFTER_LOAD] MetaConfigStr length: %d", len(cfg.MetaConfigStr))
+		log.Printf("[AFTER_LOAD] SitemapConfigStr length: %d", len(cfg.SitemapConfigStr))
+
+		// Log custom headers detail
+		if len(cfg.CustomHeaders) > 0 {
+			log.Printf("========== CUSTOM HEADERS LOADED ==========")
+			log.Printf("TOTAL CUSTOM HEADERS: %d", len(cfg.CustomHeaders))
+			for key, value := range cfg.CustomHeaders {
+				// Mask sensitive values
+				maskedValue := value
+				if strings.Contains(strings.ToLower(key), "authorization") ||
+					strings.Contains(strings.ToLower(key), "api-key") ||
+					strings.Contains(strings.ToLower(key), "token") {
+					maskedValue = maskSensitiveValue(value)
+				}
+				log.Printf("  HEADER: %s = %s", key, maskedValue)
+			}
+
+			// Log detail untuk template validation
+			log.Printf("========== HEADER TEMPLATE VALIDATION ==========")
+			for key, value := range cfg.CustomHeaders {
+				if strings.Contains(value, "{{") && strings.Contains(value, "}}") {
+					log.Printf("  TEMPLATE DETECTED in %s: %s", key, value)
+					// Extract template variables
+					templateVars := extractTemplateVars(value)
+					log.Printf("  TEMPLATE VARIABLES: %v", templateVars)
+
+					// Check if variables are available
+					availableVars := map[string]bool{
+						"api_key":    cfg.APIKey != "",
+						"product_id": cfg.ProductID != "",
+						"id":         true, // UUID always available
+					}
+
+					missingVars := []string{}
+					for _, varName := range templateVars {
+						if available, ok := availableVars[varName]; ok && !available {
+							missingVars = append(missingVars, varName)
+						}
+					}
+
+					if len(missingVars) > 0 {
+						log.Printf("  [WARNING] MISSING TEMPLATE VARIABLES: %v", missingVars)
+					} else {
+						log.Printf("  [OK] All template variables available")
+					}
+
+					// Show resolved value preview
+					resolved := resolveTemplatePreview(value, map[string]string{
+						"api_key":    cfg.APIKey,
+						"product_id": cfg.ProductID,
+						"id":         "sample-uuid-123",
+					})
+					log.Printf("  RESOLVED PREVIEW: %s", maskSensitiveValue(resolved))
+				} else {
+					log.Printf("  STATIC HEADER %s: %s", key, maskSensitiveValue(value))
+				}
+			}
+		} else {
+			log.Printf("[INFO] NO CUSTOM HEADERS LOADED")
+		}
+
+		// Log parsing results
+		if len(cfg.FieldMapping) > 0 {
+			log.Printf("FIELD MAPPING PARSED: %d fields", len(cfg.FieldMapping))
+		}
+
 	} else {
 		log.Printf("[INFO] SKIPPING ADAPTER CONFIGS BECAUSE API KEY EMPTY")
 		cfg.AdapterEndpoint = ""
@@ -963,15 +1054,40 @@ func (s *ProductService) GetProductConfig(ctx context.Context, productID string,
 		cfg.CustomHeadersStr = "{}"
 		cfg.MetaConfigStr = "{}"
 		cfg.SitemapConfigStr = "{}"
+		cfg.CustomHeaders = make(map[string]string)
+		log.Printf("SET EMPTY CONFIGS: AdapterEndpoint='', CustomHeaders={}, FieldMappingStr={}, MetaConfigStr={}, SitemapConfigStr={}")
 	}
 
 	// 5. Build full URL
+	log.Printf("========== BUILDING FULL URL ==========")
+	log.Printf("API Endpoint: %s", cfg.APIEndpoint)
+	log.Printf("Adapter Endpoint: %s", cfg.AdapterEndpoint)
+
 	cfg.FullURL = strings.TrimRight(cfg.APIEndpoint, "/") + "/" + strings.TrimLeft(cfg.AdapterEndpoint, "/")
 	log.Printf("FULL URL: %s", cfg.FullURL)
 
+	// Validate URL
+	if cfg.FullURL == "" {
+		log.Printf("[ERROR] EMPTY FULL URL after building")
+		return nil, fmt.Errorf("empty full URL for product %s", productID)
+	}
+
 	// 6. Reorder workflow nodes and store them in config
-	if len(productData.Workflows[0].Nodes) > 0 {
+	log.Printf("========== WORKFLOW NODES PROCESSING ==========")
+
+	if len(productData.Workflows) == 0 {
+		log.Printf("[WARNING] NO WORKFLOWS FOUND FOR PRODUCT")
+		cfg.WorkflowNodes = []workflow_node.WorkflowNode{}
+		cfg.WorkflowLevelMap = make(map[int][]*workflow_node.WorkflowNode)
+	} else if len(productData.Workflows[0].Nodes) > 0 {
 		log.Printf("REORDERING WORKFLOW NODES (Total: %d)", len(productData.Workflows[0].Nodes))
+
+		// Log nodes before reordering
+		log.Printf("NODES BEFORE REORDER:")
+		for i, node := range productData.Workflows[0].Nodes {
+			log.Printf("  Node[%d]: ID=%s",
+				i, node.ID)
+		}
 
 		// Convert to pointer slice for reordering
 		nodes := make([]*workflow_node.WorkflowNode, len(productData.Workflows[0].Nodes))
@@ -981,6 +1097,7 @@ func (s *ProductService) GetProductConfig(ctx context.Context, productID string,
 
 		// Reorder nodes with batch
 		sortedNodes, levelMap := s.ReorderNodesWithBatch(nodes)
+		log.Printf("REORDER COMPLETE: %d nodes into %d batches", len(sortedNodes), len(levelMap))
 
 		// Store reordered nodes in config
 		cfg.WorkflowNodes = make([]workflow_node.WorkflowNode, len(sortedNodes))
@@ -994,15 +1111,17 @@ func (s *ProductService) GetProductConfig(ctx context.Context, productID string,
 		cfg.WorkflowLevelMap = levelMap
 
 		// Log batch information
-		log.Printf("NODES REORDERED INTO %d BATCHES", len(levelMap))
+		log.Printf("========== WORKFLOW BATCHES ==========")
 		for level, batch := range levelMap {
 			nodeIDs := make([]string, len(batch))
 			for i, node := range batch {
 				if node != nil {
 					nodeIDs[i] = node.ID
+
 				}
 			}
-			log.Printf("BATCH %d: %v", level, nodeIDs)
+			log.Printf("BATCH %d: %d nodes", level, len(batch))
+			log.Printf("  Node IDs: %v", nodeIDs)
 		}
 	} else {
 		log.Printf("[INFO] NO WORKFLOW NODES TO REORDER")
@@ -1010,8 +1129,78 @@ func (s *ProductService) GetProductConfig(ctx context.Context, productID string,
 		cfg.WorkflowLevelMap = make(map[int][]*workflow_node.WorkflowNode)
 	}
 
+	// 7. Final validation and summary
+	log.Printf("========== FINAL CONFIGURATION SUMMARY ==========")
+	log.Printf("Product ID: %s", cfg.ProductID)
+	log.Printf("API Endpoint: %s", cfg.APIEndpoint)
+	log.Printf("Adapter Endpoint: %s", cfg.AdapterEndpoint)
+	log.Printf("Full URL: %s", cfg.FullURL)
+	log.Printf("API Key: %s", maskSensitiveValue(cfg.APIKey))
+	log.Printf("Timeout: %d seconds", cfg.Timeout)
+	log.Printf("Retry Count: %d", cfg.RetryCount)
+	log.Printf("HTTP Method: %s", cfg.HTTPMethod)
+	log.Printf("Custom Headers Count: %d", len(cfg.CustomHeaders))
+
+	if len(cfg.CustomHeaders) > 0 {
+		log.Printf("Custom Headers Detail:")
+		for key, value := range cfg.CustomHeaders {
+			log.Printf("  %s: %s", key, maskSensitiveValue(value))
+		}
+	}
+
+	log.Printf("Workflow Nodes: %d", len(cfg.WorkflowNodes))
+	log.Printf("Workflow Batches: %d", len(cfg.WorkflowLevelMap))
+	log.Printf("Field Mapping: %d", len(cfg.FieldMapping))
+	log.Printf("Meta Config: %v", cfg.MetaConfig != nil)
+	log.Printf("Sitemap Config: %v", cfg.SitemapConfig != nil)
+	log.Printf("Execution Results: %v", cfg.ExecutionResults != nil)
+
 	log.Printf("========== PRODUCT CONFIG READY ==========")
 	return &cfg, nil
+}
+
+// Helper functions untuk logging
+
+func maskSensitiveValue(value string) string {
+	if len(value) <= 4 {
+		return "****"
+	}
+	return value[:2] + "..." + value[len(value)-2:]
+}
+
+func extractTemplateVars(template string) []string {
+	var vars []string
+	// Simple extraction of {{var}} patterns
+	start := 0
+	for {
+		openIdx := strings.Index(template[start:], "{{")
+		if openIdx == -1 {
+			break
+		}
+		openIdx += start
+		closeIdx := strings.Index(template[openIdx:], "}}")
+		if closeIdx == -1 {
+			break
+		}
+		closeIdx += openIdx
+
+		varName := strings.TrimSpace(template[openIdx+2 : closeIdx])
+		if varName != "" {
+			vars = append(vars, varName)
+		}
+
+		start = closeIdx + 2
+	}
+	return vars
+}
+
+func resolveTemplatePreview(template string, data map[string]string) string {
+	result := template
+	for key, value := range data {
+		placeholder := "{{" + key + "}}"
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+	return result
 }
 
 // Fixed ReorderNodesWithBatch with correct parameter type

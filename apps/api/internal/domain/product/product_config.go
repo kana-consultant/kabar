@@ -2,6 +2,7 @@ package product
 
 import (
 	"fmt"
+	"log"
 	"seo-backend/internal/domain/workflow_node"
 	"strings"
 	"time"
@@ -125,20 +126,34 @@ func (c *ProductConfig) GetExecutionResultField(nodeID, fieldPath string) (inter
 // ============================================================
 
 func (c *ProductConfig) ParseTemplate(template string) (interface{}, error) {
-	if !strings.HasPrefix(template, "{{") || !strings.HasSuffix(template, "}}") {
+	log.Printf("[INFO] ParseTemplate called with template: %s", template)
+
+	if !strings.HasPrefix(template, "{") || !strings.HasSuffix(template, "}") {
+		log.Printf("[ERROR] Template validation failed - invalid format: %s", template)
 		return nil, fmt.Errorf("invalid template format: %s", template)
 	}
+	log.Printf("[DEBUG] Template validation passed")
 
-	trimmed := strings.TrimSuffix(strings.TrimPrefix(template, "{{"), "}}")
+	trimmed := strings.TrimSuffix(strings.TrimPrefix(template, "{"), "}")
+	log.Printf("[DEBUG] Trimmed template: %s", trimmed)
+
 	parts := strings.SplitN(trimmed, ".", 2)
-
 	nodeID := parts[0]
 	fieldPath := ""
-
 	if len(parts) > 1 {
 		fieldPath = parts[1]
 	}
 
-	// ONLY ONE SOURCE: ExecutionResults
-	return c.GetExecutionResultField(nodeID, fieldPath)
+	log.Printf("[DEBUG] Split result - nodeID: %s, fieldPath: %s", nodeID, fieldPath)
+	log.Printf("[INFO] Calling GetExecutionResultField with nodeID: %s, fieldPath: %s", nodeID, fieldPath)
+
+	result, err := c.GetExecutionResultField(nodeID, fieldPath)
+	if err != nil {
+		log.Printf("[ERROR] GetExecutionResultField returned error: %v", err)
+		return nil, err
+	}
+
+	log.Printf("[INFO] GetExecutionResultField returned value: %v (type: %T)", result, result)
+	log.Printf("[SUCCESS] ParseTemplate completed successfully")
+	return result, nil
 }

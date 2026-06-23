@@ -137,7 +137,7 @@ func (r *WorkflowNodeRepository) GetByWorkflowIDs(ctx context.Context, workflowI
 		}
 
 		if len(inputMappingJSON) > 0 {
-			json.Unmarshal(inputMappingJSON, &node.InputMapping)
+			node.InputMapping = inputMappingJSON
 		}
 
 		if EndpointPath.Valid {

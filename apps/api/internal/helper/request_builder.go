@@ -3,6 +3,7 @@ package helper
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/domain/workflow_node"
@@ -15,63 +16,205 @@ func BuildRequestBody(
 	cfg *product.ProductConfig,
 ) (map[string]interface{}, error) {
 
-	fmt.Println("========== BUILD REQUEST BODY ==========")
-	fmt.Printf("Node ID: %s, Step: %d\n", node.ID, node.StepOrder)
+	logJSON("build_request_start", map[string]interface{}{
+		"node_id":    node.ID,
+		"step":       node.StepOrder,
+		"product_id": cfg.ProductID,
+	})
 
-	// 1. PARSE FIELD MAPPING
+	// ========== LOG ALL DRAFT FIELDS ==========
+	logJSON("draft_all_fields", map[string]interface{}{
+		"id":             draft.Id,
+		"title":          draft.Title,
+		"topic":          draft.Topic,
+		"article":        draft.Article,
+		"article_length": len(draft.Article),
+		"image_url": func() interface{} {
+			if draft.ImageURL != nil {
+				return *draft.ImageURL
+			}
+			return nil
+		}(),
+		"image_prompt":          draft.ImagePrompt,
+		"target_products":       draft.TargetProducts,
+		"target_products_count": len(draft.TargetProducts),
+		"slug":                  draft.Slug,
+		"keywords":              draft.Keywords,
+		"keywords_count":        len(draft.Keywords),
+		"excerpt":               draft.Excerpt,
+		"excerpt_length":        len(draft.Excerpt),
+	})
+
+	// ========== LOG DRAFT SUMMARY ==========
+	logJSON("draft_summary", map[string]interface{}{
+		"has_title":           draft.Title != "",
+		"has_topic":           draft.Topic != "",
+		"has_article":         draft.Article != "",
+		"has_image":           draft.ImageURL != nil,
+		"has_image_prompt":    draft.ImagePrompt != "",
+		"has_slug":            draft.Slug != "",
+		"has_keywords":        len(draft.Keywords) > 0,
+		"has_excerpt":         draft.Excerpt != "",
+		"has_target_products": len(draft.TargetProducts) > 0,
+	})
+
+	// ========== LOG DRAFT DETAILS ==========
+	if len(draft.Keywords) > 0 {
+		logJSON("draft_keywords", map[string]interface{}{
+			"keywords": draft.Keywords,
+			"count":    len(draft.Keywords),
+		})
+	}
+
+	if draft.ImageURL != nil {
+		logJSON("draft_image", map[string]interface{}{
+			"image_url":    *draft.ImageURL,
+			"image_prompt": draft.ImagePrompt,
+		})
+	}
+
+	if draft.Excerpt != "" {
+		logJSON("draft_excerpt", map[string]interface{}{
+			"excerpt": draft.Excerpt,
+			"length":  len(draft.Excerpt),
+		})
+	}
+
+	if len(draft.TargetProducts) > 0 {
+		logJSON("draft_target_products", map[string]interface{}{
+			"target_products": draft.TargetProducts,
+			"count":           len(draft.TargetProducts),
+		})
+	}
+
+	// ========== LOG FIELD MAPPING ==========
 	var fieldMapping map[string]interface{}
 
 	// Dari node
-	if node.AdapterConfig.FieldMapping != "" && node.AdapterConfig.FieldMapping != "{}" {
-		if err := json.Unmarshal([]byte(node.AdapterConfig.FieldMapping), &fieldMapping); err != nil {
-			fmt.Printf("[WARN] Failed to parse node field mapping: %v\n", err)
-			fieldMapping = nil
+	if node.AdapterConfig.FieldMapping != "" {
+		trimmedMapping := strings.TrimSpace(node.AdapterConfig.FieldMapping)
+		if trimmedMapping != "" && trimmedMapping != "{}" {
+			if err := json.Unmarshal([]byte(node.AdapterConfig.FieldMapping), &fieldMapping); err != nil {
+				logJSON("field_mapping_parse_error", map[string]interface{}{
+					"source": "node",
+					"error":  err.Error(),
+					"raw":    node.AdapterConfig.FieldMapping,
+				})
+				fieldMapping = nil
+			} else {
+				logJSON("field_mapping_from_node", map[string]interface{}{
+					"mapping": fieldMapping,
+					"keys":    getMapKeys(fieldMapping),
+				})
+			}
 		} else {
-			fmt.Println("✅ Using node field mapping")
+			logJSON("field_mapping_empty", map[string]interface{}{
+				"source": "node",
+				"reason": "empty or '{}'",
+			})
 		}
 	}
 
-	// Dari cfg kalo node kosong
-	if len(fieldMapping) == 0 && cfg.FieldMappingStr != "" && cfg.FieldMappingStr != "{}" {
-		if err := json.Unmarshal([]byte(cfg.FieldMappingStr), &fieldMapping); err != nil {
-			fmt.Printf("[WARN] Failed to parse config field mapping: %v\n", err)
-			fieldMapping = nil
+	// Dari cfg kalo node kosong atau nil
+	if fieldMapping == nil && cfg.FieldMappingStr != "" {
+		trimmedMapping := strings.TrimSpace(cfg.FieldMappingStr)
+		if trimmedMapping != "" && trimmedMapping != "{}" {
+			if err := json.Unmarshal([]byte(cfg.FieldMappingStr), &fieldMapping); err != nil {
+				logJSON("field_mapping_parse_error", map[string]interface{}{
+					"source": "config",
+					"error":  err.Error(),
+					"raw":    cfg.FieldMappingStr,
+				})
+				fieldMapping = nil
+			} else {
+				logJSON("field_mapping_from_config", map[string]interface{}{
+					"mapping": fieldMapping,
+					"keys":    getMapKeys(fieldMapping),
+				})
+			}
 		} else {
-			fmt.Println("✅ Using config field mapping")
+			logJSON("field_mapping_empty", map[string]interface{}{
+				"source": "config",
+				"reason": "empty or '{}'",
+			})
 		}
 	}
 
-	fmt.Printf("FIELD MAPPING KEYS: %v\n", getMapKeys(fieldMapping))
+	// Final check
+	if fieldMapping == nil {
+		logJSON("field_mapping_not_found", map[string]interface{}{
+			"message": "No field mapping available, using default",
+		})
+		fieldMapping = make(map[string]interface{})
+	}
 
 	// 2. VALIDASI DRAFT
 	if strings.TrimSpace(draft.Title) == "" {
+		logJSON("validation_error", map[string]interface{}{
+			"field": "title",
+			"error": "draft title is required",
+			"draft": draft,
+		})
 		return nil, fmt.Errorf("draft title is required")
 	}
 	if strings.TrimSpace(draft.Article) == "" {
+		logJSON("validation_error", map[string]interface{}{
+			"field": "article",
+			"error": "draft article content is required",
+			"draft": draft,
+		})
 		return nil, fmt.Errorf("draft article content is required")
 	}
 
-	fmt.Printf("Draft Title: %s\n", draft.Title)
-	fmt.Printf("Draft Topic: %s\n", draft.Topic)
-	fmt.Printf("Draft Article Length: %d\n", len(draft.Article))
-
-	// 3. BUILD REQUEST BODY
+	// ========== BUILD REQUEST BODY ==========
 	requestBody := buildPayload(fieldMapping, draft, cfg)
+
+	// Log hasil build
+	logJSON("request_body_built", map[string]interface{}{
+		"fields_count": len(requestBody),
+		"keys":         getMapKeys(requestBody),
+		"body":         requestBody,
+	})
 
 	// 4. FALLBACK KALO KOSONG
 	if len(requestBody) == 0 {
-		fmt.Println("⚠️  FIELD MAPPING EMPTY, USING DEFAULT BODY")
+		logJSON("fallback_used", map[string]interface{}{
+			"reason": "field mapping empty, using default body",
+			"draft": map[string]interface{}{
+				"id":       draft.Id,
+				"title":    draft.Title,
+				"topic":    draft.Topic,
+				"content":  draft.Article,
+				"slug":     draft.Slug,
+				"excerpt":  draft.Excerpt,
+				"keywords": draft.Keywords,
+			},
+		})
 		requestBody = map[string]interface{}{
-			"title":   draft.Title,
-			"topic":   draft.Topic,
-			"content": draft.Article,
+			"id":       draft.Id,
+			"title":    draft.Title,
+			"topic":    draft.Topic,
+			"content":  draft.Article,
+			"slug":     draft.Slug,
+			"excerpt":  draft.Excerpt,
+			"keywords": draft.Keywords,
 		}
 		if draft.ImageURL != nil {
 			requestBody["image_url"] = *draft.ImageURL
 		}
+		if draft.ImagePrompt != "" {
+			requestBody["image_prompt"] = draft.ImagePrompt
+		}
 	}
 
-	printJSON("✅ FINAL REQUEST BODY", requestBody)
+	// ========== LOG FINAL REQUEST BODY ==========
+	logJSON("final_request_body", map[string]interface{}{
+		"node_id":     node.ID,
+		"product_id":  cfg.ProductID,
+		"body_fields": len(requestBody),
+		"body_keys":   getMapKeys(requestBody),
+		"body":        requestBody,
+	})
 
 	return requestBody, nil
 }
@@ -87,20 +230,47 @@ func buildPayload(
 
 	payload := make(map[string]interface{})
 
+	log.Printf("=== BUILD PAYLOAD START ===")
+	log.Printf("Field Mapping: %+v", fieldMapping)
+
 	if len(fieldMapping) == 0 {
+		log.Printf("Field Mapping kosong")
 		return payload
 	}
 
 	// Convert draft ke map
 	draftMap := structToMap(draft)
 
+	log.Printf("Draft Map: %+v", draftMap)
+
 	// Loop mapping
 	for targetField, sourceConfig := range fieldMapping {
+
+		log.Printf("Processing targetField=%s", targetField)
+		log.Printf("Source Config=%+v", sourceConfig)
+
 		value, found := getValue(sourceConfig, draftMap, cfg)
+
+		log.Printf(
+			"Result targetField=%s found=%v value=%#v",
+			targetField,
+			found,
+			value,
+		)
+
 		if found {
 			payload[targetField] = value
+
+			log.Printf(
+				"Added payload[%s] = %#v",
+				targetField,
+				value,
+			)
 		}
 	}
+
+	log.Printf("Final Payload: %+v", payload)
+	log.Printf("=== BUILD PAYLOAD END ===")
 
 	return payload
 }
@@ -120,65 +290,218 @@ func getValue(
 	cfg *product.ProductConfig,
 ) (interface{}, bool) {
 
+	logJSON("get_value_start", map[string]interface{}{
+		"source_type":  fmt.Sprintf("%T", source),
+		"source_value": fmt.Sprintf("%#v", source),
+	})
+
 	switch v := source.(type) {
 	case string:
-		// TEMPLATE: {{node-id.field}}
+		logJSON("get_value_string", map[string]interface{}{
+			"value": v,
+		})
+
+		// NORMALISASI: strip {} atau {{}}
+		normalized := v
 		if strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}") {
+			normalized = v[2 : len(v)-2]
+			logJSON("get_value_normalized", map[string]interface{}{
+				"original":   v,
+				"normalized": normalized,
+				"type":       "double_curly",
+			})
+		} else if strings.HasPrefix(v, "{") && strings.HasSuffix(v, "}") {
+			normalized = v[1 : len(v)-1]
+			logJSON("get_value_normalized", map[string]interface{}{
+				"original":   v,
+				"normalized": normalized,
+				"type":       "single_curly",
+			})
+		}
+
+		// CEK APAKAH TEMPLATE
+		if (strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}")) || (strings.HasPrefix(v, "{") && strings.HasSuffix(v, "}")) {
+			logJSON("template_detected", map[string]interface{}{
+				"template": v,
+				"key":      normalized,
+			})
+
 			if cfg == nil {
-				fmt.Printf("[WARN] Template '%s' tidak bisa diproses: cfg nil\n", v)
+				logJSON("template_error", map[string]interface{}{
+					"error": "cfg is nil",
+				})
 				return nil, false
 			}
+
+			// PARSE TEMPLATE
 			val, err := cfg.ParseTemplate(v)
-			if err != nil {
-				fmt.Printf("[WARN] Template error '%s': %v\n", v, err)
-				return nil, false
+			logJSON("template_parse_result", map[string]interface{}{
+				"key":     normalized,
+				"value":   val,
+				"error":   err,
+				"success": err == nil && val != nil,
+			})
+
+			// JIKA BERHASIL, KEMBALIKAN HASIL PARSE
+			if err == nil && val != nil {
+				logJSON("template_success", map[string]interface{}{
+					"key":   normalized,
+					"value": val,
+				})
+				return val, true
 			}
+
+			if err != nil {
+				logJSON("template_error_fallback", map[string]interface{}{
+					"key":   normalized,
+					"error": err.Error(),
+				})
+			} else {
+				logJSON("template_nil_fallback", map[string]interface{}{
+					"key": normalized,
+				})
+			}
+		}
+
+		// ✅ ALIAS MAPPING: content -> article
+		// Jika key adalah "content", kita akan mengambil dari "article"
+		lookupKey := normalized
+		if normalized == "content" {
+			lookupKey = "article"
+			logJSON("alias_mapping", map[string]interface{}{
+				"alias":  "content",
+				"target": "article",
+				"reason": "content is alias for article (HTML content)",
+			})
+		}
+
+		// ✅ FALLBACK KE DRAFT MAP (pakai lookupKey)
+		logJSON("draft_lookup", map[string]interface{}{
+			"original_key": normalized,
+			"lookup_key":   lookupKey,
+		})
+
+		val, exists := draftMap[lookupKey]
+		logJSON("draft_result", map[string]interface{}{
+			"original_key": normalized,
+			"lookup_key":   lookupKey,
+			"exists":       exists,
+			"value_type":   fmt.Sprintf("%T", val),
+		})
+
+		if exists {
+			// ✅ KHUSUS UNTUK {content} - Ambil plain text tanpa HTML
+			if normalized == "content" {
+				if strVal, ok := val.(string); ok {
+					// Hapus HTML tags untuk content
+					plainText := stripHTMLTags(strVal)
+					logJSON("content_plain_text", map[string]interface{}{
+						"original_key":    normalized,
+						"source_key":      lookupKey,
+						"original_length": len(strVal),
+						"plain_length":    len(plainText),
+						"plain_preview":   plainText[:min(len(plainText), 100)],
+					})
+					return plainText, true
+				}
+			}
+
+			// ✅ KHUSUS UNTUK {article} - Kembalikan HTML content asli
+			if normalized == "article" {
+				if strVal, ok := val.(string); ok {
+					logJSON("article_html", map[string]interface{}{
+						"html_length":  len(strVal),
+						"html_preview": strVal[:min(len(strVal), 100)],
+					})
+					return strVal, true
+				}
+			}
+
 			return val, true
 		}
 
-		// DARI DRAFT
-		val, exists := draftMap[v]
-		return val, exists
+		logJSON("key_not_found", map[string]interface{}{
+			"original_key": normalized,
+			"lookup_key":   lookupKey,
+		})
+		return nil, false
 
 	case map[string]interface{}:
-		// NESTED OBJECT
+		logJSON("map_detected", map[string]interface{}{
+			"keys": getMapKeys(v),
+			"len":  len(v),
+		})
+
 		result := make(map[string]interface{})
 		hasAny := false
+
 		for key, sub := range v {
+			logJSON("map_iteration", map[string]interface{}{
+				"key": key,
+			})
+
 			if val, found := getValue(sub, draftMap, cfg); found {
 				result[key] = val
 				hasAny = true
 			}
 		}
+
+		logJSON("map_result", map[string]interface{}{
+			"has_any": hasAny,
+			"result":  result,
+			"keys":    getMapKeys(result),
+		})
+
 		if !hasAny {
 			return nil, false
 		}
 		return result, true
 
 	case []interface{}:
-		// ARRAY
+		logJSON("array_detected", map[string]interface{}{
+			"len": len(v),
+		})
+
 		result := make([]interface{}, 0, len(v))
 		hasAny := false
-		for _, item := range v {
+
+		for i, item := range v {
+			logJSON("array_iteration", map[string]interface{}{
+				"index": i,
+			})
+
 			if val, found := getValue(item, draftMap, cfg); found {
 				result = append(result, val)
 				hasAny = true
 			}
 		}
+
+		logJSON("array_result", map[string]interface{}{
+			"has_any": hasAny,
+			"result":  result,
+			"len":     len(result),
+		})
+
 		if !hasAny {
 			return nil, false
 		}
 		return result, true
 
 	case nil:
-		// source literal nil dianggap "tidak ada nilai"
+		logJSON("nil_source", map[string]interface{}{
+			"message": "source is nil",
+		})
 		return nil, false
 
 	default:
-		// literal value (int, float64, bool, dst) -> selalu dianggap ada
+		logJSON("literal_value", map[string]interface{}{
+			"type":  fmt.Sprintf("%T", v),
+			"value": v,
+		})
 		return v, true
 	}
 }
+
 func structToMap(data interface{}) map[string]interface{} {
 	bytes, _ := json.Marshal(data)
 	var result map[string]interface{}
