@@ -164,7 +164,6 @@ export function useProviderForm(initialProvider: APIProvider | null) {
                 }
             }
         });
-
         return errors;
     }, [formData]);
 

@@ -647,8 +647,7 @@ func stripHTML(content string) string {
 }
 
 func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft.DraftDataPost, userCtx models.UserContext) ([]map[string]interface{}, bool, bool, error) {
-	log.Printf("============= PROCESSING DRAFT FOR PRODUCTS =============")
-	log.Printf("Target Products: %v", draft.TargetProducts)
+	log.Printf("[DRAFT] Processing %d products: %v", len(draft.TargetProducts), draft.TargetProducts)
 
 	if len(draft.TargetProducts) == 0 {
 		return nil, false, true, fmt.Errorf("target products is required and cannot be empty")
@@ -659,28 +658,23 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 	allFailed := true
 
 	for _, productID := range draft.TargetProducts {
-		log.Printf("======================= PROCESSING PRODUCT: %s =======================", productID)
-
-		// Get product config (sudah fully setup)
+		// Get product config
 		cfg, err := s.productController.GetProductConfig(ctx, productID, draft, userCtx)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to get product config: %v", err)
-			log.Printf("[ERROR] %s", errMsg)
+			log.Printf("[ERROR] Product %s: failed to get config - %v", productID, err)
 			postResults = append(postResults, map[string]interface{}{
 				"product": productID,
 				"success": false,
-				"error":   errMsg,
+				"error":   fmt.Sprintf("failed to get product config: %v", err),
 				"synced":  false,
 			})
 			someFailed = true
 			continue
 		}
 
-		log.Printf("✅ Config loaded: URL=%s, Method=%s, Retry=%d", cfg.FullURL, cfg.HTTPMethod, cfg.RetryCount)
-
-		// Validasi minimal
+		// Validate config
 		if cfg.FullURL == "" {
-			log.Printf("[ERROR] Full URL is empty")
+			log.Printf("[ERROR] Product %s: empty URL", productID)
 			postResults = append(postResults, map[string]interface{}{
 				"product": productID,
 				"success": false,
@@ -692,7 +686,7 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 		}
 
 		if !cfg.HasWorkflowNodes() {
-			log.Printf("[WARNING] No workflow nodes")
+			log.Printf("[WARNING] Product %s: no workflow nodes", productID)
 			postResults = append(postResults, map[string]interface{}{
 				"product": productID,
 				"success": false,
@@ -708,12 +702,8 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 		cfg.ExecutionResults["product_id"] = cfg.ProductID
 		cfg.ExecutionResults["variables"] = make(map[string]interface{})
 
-		log.Printf("📋 Processing %d nodes", len(cfg.WorkflowNodes))
-
 		// Process each node
-		for idx, node := range cfg.WorkflowNodes {
-			log.Printf("--- Node %d/%d: %s ---", idx+1, len(cfg.WorkflowNodes), node.ID)
-
+		for _, node := range cfg.WorkflowNodes {
 			// Set current node
 			cfg.CurrentNodeID = node.ID
 
@@ -732,13 +722,12 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 			// Build request body
 			requestBody, err := helper.BuildRequestBody(&node, draft, cfg)
 			if err != nil {
-				errMsg := fmt.Sprintf("failed to build request: %v", err)
-				log.Printf("[ERROR] %s", errMsg)
+				log.Printf("[ERROR] Product %s, Node %s: build request failed - %v", productID, node.ID, err)
 				postResults = append(postResults, map[string]interface{}{
 					"product": productID,
 					"node":    node.ID,
 					"success": false,
-					"error":   errMsg,
+					"error":   fmt.Sprintf("failed to build request: %v", err),
 					"synced":  false,
 				})
 				someFailed = true
@@ -748,13 +737,12 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 			// Send request
 			response, err := helper.SendWithRetry(cfg, requestBody)
 			if err != nil {
-				errMsg := fmt.Sprintf("request failed: %v", err)
-				log.Printf("[ERROR] %s", errMsg)
+				log.Printf("[ERROR] Product %s, Node %s: request failed - %v", productID, node.ID, err)
 				postResults = append(postResults, map[string]interface{}{
 					"product": productID,
 					"node":    node.ID,
 					"success": false,
-					"error":   errMsg,
+					"error":   fmt.Sprintf("request failed: %v", err),
 					"synced":  false,
 				})
 				someFailed = true
@@ -785,16 +773,15 @@ func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft
 				"response": response,
 				"synced":   false,
 			})
-
-			log.Printf("✅ Node %s success", node.ID)
 		}
-
-		log.Printf("✅ Product %s completed", productID)
 	}
 
 	// Final summary
-	log.Printf("============= DRAFT PROCESSING COMPLETED =============")
-	log.Printf("Total Results: %d, Some Failed: %v, All Failed: %v", len(postResults), someFailed, allFailed)
+	if someFailed {
+		log.Printf("[DRAFT] Completed with errors - Total: %d, Failed: %v", len(postResults), someFailed)
+	} else {
+		log.Printf("[DRAFT] All products processed successfully - Total: %d", len(postResults))
+	}
 
 	if allFailed && len(draft.TargetProducts) > 0 {
 		return postResults, someFailed, allFailed, fmt.Errorf("all products failed to process")
