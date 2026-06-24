@@ -53,7 +53,7 @@ func BuildRequestBody(
 	}
 
 	// Build request body
-	requestBody := buildPayload(fieldMapping, draft, cfg)
+	requestBody := buildPayload(fieldMapping, draft, cfg, node)
 
 	// Fallback jika kosong
 	if len(requestBody) == 0 {
@@ -82,6 +82,7 @@ func buildPayload(
 	fieldMapping map[string]interface{},
 	draft draft.DraftDataPost,
 	cfg *product.ProductConfig,
+	node *workflow_node.WorkflowNode, // TAMBAH
 ) map[string]interface{} {
 
 	payload := make(map[string]interface{})
@@ -93,7 +94,7 @@ func buildPayload(
 	draftMap := structToMap(draft)
 
 	for targetField, sourceConfig := range fieldMapping {
-		value, found := getValue(sourceConfig, draftMap, cfg)
+		value, found := getValue(sourceConfig, draftMap, cfg, node) // TAMBAH node
 		if found {
 			payload[targetField] = value
 		}
@@ -106,6 +107,7 @@ func getValue(
 	source interface{},
 	draftMap map[string]interface{},
 	cfg *product.ProductConfig,
+	node *workflow_node.WorkflowNode, // TAMBAH PARAMETER
 ) (interface{}, bool) {
 
 	switch v := source.(type) {
@@ -118,77 +120,99 @@ func getValue(
 			normalized = v[1 : len(v)-1]
 		}
 
-		// Cek template
+		// Cek template {{...}} atau {...}
 		if (strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}")) ||
 			(strings.HasPrefix(v, "{") && strings.HasSuffix(v, "}")) {
 
+			// Coba resolve via ProductConfig (workflow execution results)
 			if cfg != nil {
-				val, err := cfg.ParseTemplate(v)
+				val, err := cfg.ParseTemplate(v, node) // TAMBAH node
 				if err == nil && val != nil {
+					log.Printf("[SUCCESS] getValue: Template '%s' resolved via cfg -> '%v'", v, val)
 					return val, true
 				}
 				if err != nil {
-					log.Printf("[WARNING] Template parse failed for '%s': %v", normalized, err)
+					log.Printf("[WARNING] getValue: Template parse failed for '%s': %v", normalized, err)
 				}
 			}
 		}
 
-		// Alias content -> article
+		// Alias content -> article (untuk lookup di draftMap)
 		lookupKey := normalized
 		if normalized == "content" {
 			lookupKey = "article"
 		}
 
-		// Lookup di draft
+		// Lookup di draftMap
 		val, exists := draftMap[lookupKey]
 		if exists {
-			// Khusus content: strip HTML
+			// Khusus content: strip HTML tags
 			if normalized == "content" {
 				if strVal, ok := val.(string); ok {
-					return stripHTMLTags(strVal), true
+					stripped := stripHTMLTags(strVal)
+					log.Printf("[SUCCESS] getValue: DraftMap lookup '%s' (alias: '%s') -> content stripped (%d chars)",
+						normalized, lookupKey, len(stripped))
+					return stripped, true
 				}
 			}
+			log.Printf("[SUCCESS] getValue: DraftMap lookup '%s' -> '%v'", normalized, val)
 			return val, true
 		}
 
+		// Not found
+		log.Printf("[DEBUG] getValue: Not found for '%s' (lookup key: '%s')", normalized, lookupKey)
 		return nil, false
 
 	case map[string]interface{}:
+		log.Printf("[DEBUG] getValue: Processing map with %d keys", len(v))
 		result := make(map[string]interface{})
 		hasAny := false
 
 		for key, sub := range v {
-			if val, found := getValue(sub, draftMap, cfg); found {
+			if val, found := getValue(sub, draftMap, cfg, node); found { // TAMBAH node
 				result[key] = val
 				hasAny = true
+				log.Printf("[SUCCESS] getValue: Map key '%s' resolved -> '%v'", key, val)
+			} else {
+				log.Printf("[DEBUG] getValue: Map key '%s' NOT resolved", key)
 			}
 		}
 
 		if !hasAny {
+			log.Printf("[DEBUG] getValue: Map returned empty, no keys resolved")
 			return nil, false
 		}
+		log.Printf("[SUCCESS] getValue: Map resolved with %d/%d keys", len(result), len(v))
 		return result, true
 
 	case []interface{}:
+		log.Printf("[DEBUG] getValue: Processing array with %d items", len(v))
 		result := make([]interface{}, 0, len(v))
 		hasAny := false
 
-		for _, item := range v {
-			if val, found := getValue(item, draftMap, cfg); found {
+		for i, item := range v {
+			if val, found := getValue(item, draftMap, cfg, node); found { // TAMBAH node
 				result = append(result, val)
 				hasAny = true
+				log.Printf("[SUCCESS] getValue: Array[%d] resolved -> '%v'", i, val)
+			} else {
+				log.Printf("[DEBUG] getValue: Array[%d] NOT resolved", i)
 			}
 		}
 
 		if !hasAny {
+			log.Printf("[DEBUG] getValue: Array returned empty, no items resolved")
 			return nil, false
 		}
+		log.Printf("[SUCCESS] getValue: Array resolved with %d/%d items", len(result), len(v))
 		return result, true
 
 	case nil:
+		log.Printf("[DEBUG] getValue: Source is nil")
 		return nil, false
 
 	default:
+		log.Printf("[SUCCESS] getValue: Default type '%T' -> '%v'", v, v)
 		return v, true
 	}
 }
