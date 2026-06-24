@@ -1,10 +1,10 @@
 // pages/admin/ai-management/components/ProviderForm/FamiliesSection/ResponsePaths.tsx
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Input } from "@kana-consultant/ui-kit";
 import { Label } from "@kana-consultant/ui-kit";
 import { Button } from "@kana-consultant/ui-kit";
-import type{ Family } from "@/types/provider.types";
+import type { Family } from "@/types/provider.types";
 import { TestModelDialog } from "@/pages/ai-management/TestModelDialog";
 import { Beaker } from "lucide-react";
 
@@ -23,29 +23,56 @@ interface ResponsePathsProps {
 export function ResponsePaths({ value, onChange, providerConfig }: ResponsePathsProps) {
     const [testDialogOpen, setTestDialogOpen] = useState(false);
 
-    const handlePathsSelected = (textPath: string, imagePath?: string) => {
+
+    const handleOpenDialog = useCallback(() => {
+        setTestDialogOpen(true);
+    }, []);
+
+    const handleTextPathChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        onChange({
+            schema: {
+                ...value.schema,
+                response_text_path: e.target.value,
+            } as Family['schema']
+        });
+    }, [value.schema, onChange]);
+
+    const handleImagePathChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        onChange({
+            schema: {
+                ...value.schema,
+                response_image_path: e.target.value || null,
+            } as Family['schema']
+        });
+    }, [value.schema, onChange]);
+
+    const handlePathsSelected = useCallback((textPath: string, imagePath?: string) => {
         onChange({
             schema: {
                 ...value.schema,
                 response_text_path: textPath,
                 response_image_path: imagePath || null,
-            }
+            } as Family['schema']
         });
-    };
+    }, [value.schema, onChange]);
 
-    // Konversi providerConfig ke APIProvider untuk TestModelDialog
-    const apiProviderForTest = providerConfig ? {
-        base_url: providerConfig.base_url,
-        auth_header: providerConfig.auth_header,
-        auth_prefix: providerConfig.auth_prefix,
-        default_headers: providerConfig.default_headers,
-        display_name: providerConfig.display_name || "Provider",
-        name: "temp",
-        description: null,
-        auth_type: "custom",
-        is_active: true,
-        families: [],
-    } : undefined;
+    // Memoisasi apiProviderForTest agar tidak dibuat ulang setiap render
+    const apiProviderForTest = useMemo(() => {
+        if (!providerConfig) return undefined;
+
+        return {
+            base_url: providerConfig.base_url,
+            auth_header: providerConfig.auth_header,
+            auth_prefix: providerConfig.auth_prefix,
+            default_headers: providerConfig.default_headers,
+            display_name: providerConfig.display_name || "Provider",
+            name: "temp",
+            description: null,
+            auth_type: "custom",
+            is_active: true,
+            families: [],
+        };
+    }, [providerConfig]);
 
     return (
         <>
@@ -56,7 +83,7 @@ export function ResponsePaths({ value, onChange, providerConfig }: ResponsePaths
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setTestDialogOpen(true)}
+                        onClick={handleOpenDialog}
                         disabled={!providerConfig?.base_url}
                     >
                         <Beaker className="h-3 w-3 mr-1" />
@@ -64,8 +91,8 @@ export function ResponsePaths({ value, onChange, providerConfig }: ResponsePaths
                     </Button>
                 </div>
                 <Input
-                    value={value.schema.response_text_path || ""}
-                    onChange={(e) => onChange({ schema : {...value.schema, response_text_path : e.target.value as string } })}
+                    value={value.schema?.response_text_path || ""}
+                    onChange={handleTextPathChange}
                     placeholder="choices[0].message.content"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -76,8 +103,8 @@ export function ResponsePaths({ value, onChange, providerConfig }: ResponsePaths
             <div className="space-y-2">
                 <Label>Response Image Path (Optional)</Label>
                 <Input
-                    value={value.schema.response_image_path || ""}
-                    onChange={(e) => onChange({schema : {...value.schema, response_image_path : e.target.value || null } })}
+                    value={value.schema?.response_image_path || ""}
+                    onChange={handleImagePathChange}
                     placeholder="data[0].url"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -85,12 +112,12 @@ export function ResponsePaths({ value, onChange, providerConfig }: ResponsePaths
                 </p>
             </div>
 
-            {/* Test Dialog - pass family langsung */}
-            {apiProviderForTest && (
+            {/* Render dialog hanya ketika diperlukan */}
+            {testDialogOpen && apiProviderForTest && (
                 <TestModelDialog
                     open={testDialogOpen}
                     onOpenChange={setTestDialogOpen}
-                    family={value}  // ← Langsung pass family
+                    family={value}
                     providerConfig={apiProviderForTest}
                     onPathsSelected={handlePathsSelected}
                 />

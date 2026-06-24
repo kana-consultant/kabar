@@ -37,10 +37,9 @@ export function FamilyCard({
     providerConfig,
 }: FamilyCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
-    console.log(family)
 
     // Handler untuk update parameter family
-    const handleFamilyParamChange = (field: string, value: number | string) => {
+    const handleFamilyParamChange = (field: string, value: number | string | undefined) => {
         onUpdate({ [field]: value });
     };
 
@@ -104,8 +103,8 @@ export function FamilyCard({
                                     type="number"
                                     min="1"
                                     max="32000"
-                                    value={family.max_token || ''}
-                                    onChange={(e) => handleFamilyParamChange('max_token', parseInt(e.target.value) || 0)}
+                                    value={family.max_token ?? ''}
+                                    onChange={(e) => handleFamilyParamChange('max_token', parseInt(e.target.value) || undefined)}
                                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     placeholder="Use global default"
                                 />
@@ -130,10 +129,10 @@ export function FamilyCard({
                                     step="0.1"
                                     min="0"
                                     max="2"
-                                    value={family.temperature !== undefined ? family.temperature : ''}
+                                    value={family.temperature ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value;
-                                        handleFamilyParamChange('temperature', value === " " ? undefined : parseFloat(value));
+                                        handleFamilyParamChange('temperature', value === "" ? undefined : parseFloat(value));
                                     }}
                                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     placeholder="Use global default"
@@ -180,7 +179,7 @@ export function FamilyCard({
 
                     <ResponsePaths
                         value={family}
-                        onChange={(schemaUpdates) => onUpdate({ schema: { ...family.schema, ...schemaUpdates } })}
+                        onChange={onUpdate}
                         providerConfig={providerConfig}
                     />
                 </CardContent>

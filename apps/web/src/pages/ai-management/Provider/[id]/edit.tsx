@@ -23,6 +23,7 @@ export default function EditProviderPage() {
         deleteProvider,
     } = useProviderManagement({ autoLoad: false });
 
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeTab, setActiveTab] = useState("edit");
 
@@ -39,42 +40,18 @@ export default function EditProviderPage() {
     };
 
     const handleSubmit = async (data: ProviderFormData) => {
+        console.log("result submit")
+        console.log(data)
         setIsSubmitting(true);
         try {
             await updateProvider(id, {
                 ...data,
-                families: (data.families || []).map(family => ({
-                    id: family.id,
-                    provider_id: family.provider_id,
-                    schema_id: family.schema_id,
-                    name: family.name,
-                    display_name: family.display_name,
-                    description: family.description ?? null,
-                    max_token: family.max_token ?? 1024,        
-                    temperature: family.temperature ?? 1.0,       
-                    system_prompt: family.system_prompt ?? "You are a helpful assistant.", 
-                    schema: family.schema ? {
-                        id: family.schema.id,
-                        provider_id: family.schema.provider_id,
-                        name: family.schema.name,
-                        endpoint_path: family.schema.endpoint_path,
-                        request_template: family.schema.request_template ?? null,
-                        response_text_path: family.schema.response_text_path,
-                        response_image_path: family.schema.response_image_path ?? null,
-                        supports_temperature: family.schema.supports_temperature,
-                        supports_streaming: family.schema.supports_streaming,
-                    } : undefined,
-                } satisfies Family))
+                families: data.families || []
             });
-
             toast.success("Provider updated successfully");
-            navigate({ to: "/ai-management" });
-
         } catch (error) {
+            console.error("Failed to update provider:", error);
             toast.error("Failed to update provider");
-            console.error(error);
-        } finally {
-            setIsSubmitting(false);
         }
     };
 

@@ -50,6 +50,7 @@ export function KeyValueEditor({ value, onChange }: KeyValueEditorProps) {
             className="flex-1"
           />
           <Button
+            type="button"
             variant="ghost"
             size="icon"
             onClick={() => handleRemove(key)}

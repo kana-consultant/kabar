@@ -298,9 +298,9 @@ export interface RequestSchema {
     provider_id: string;
     name: string;
     endpoint_path: string;
-    request_template: string | null;
+    request_template: string ;
     response_text_path: string;
-    response_image_path: string | null;
+    response_image_path: string ;
     supports_temperature: boolean;
     supports_streaming: boolean;
     created_at?: string;
@@ -312,7 +312,7 @@ export interface RequestSchema {
 export interface Family {
     id: string;
     provider_id: string;
-    schema_id: string;
+    schema_id?: string;
     name: string;
     display_name: string;
     description: string | null;

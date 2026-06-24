@@ -1,6 +1,6 @@
 // pages/admin/ai-management/TestModelDialog.tsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -71,7 +71,9 @@ export function TestModelDialog({
     const [error, setError] = useState<string | null>(null);
     const [selectedTextPath, setSelectedTextPath] = useState<string>("");
     const [selectedImagePath, setSelectedImagePath] = useState<string>("");
+    const [leafNodes, setLeafNodes] = useState<PathNode[]>([]);
 
+    // Reset state ketika dialog ditutup
     const handleOpenChange = (open: boolean) => {
         if (!open) {
             setApiKey("");
@@ -79,22 +81,37 @@ export function TestModelDialog({
             setError(null);
             setSelectedTextPath("");
             setSelectedImagePath("");
+            setLeafNodes([]);
             setTestPrompt("Hello, this is a test message");
         }
         onOpenChange(open);
     };
+
+    // Auto-select paths ketika response diterima
+    useEffect(() => {
+        if (rawResponse) {
+            const nodes = flattenJSON(rawResponse);
+            setLeafNodes(nodes);
+
+            // Auto-select first text field
+            const firstText = nodes.find(n => n.type === "text");
+            if (firstText && !selectedTextPath) {
+                setSelectedTextPath(firstText.path);
+            }
+
+            // Auto-select first image field
+            const firstImage = nodes.find(n => n.type === "image");
+            if (firstImage && !selectedImagePath) {
+                setSelectedImagePath(firstImage.path);
+            }
+        }
+    }, [rawResponse]);
 
     const getTemplateString = (template: any): string => {
         if (!template) return "{}";
         if (typeof template === 'string') return template;
         return JSON.stringify(template);
     };
-
-    console.log("Family data:", family);
-    console.log("Family max_token:", family.max_token);
-    console.log("Family temperature:", family.temperature);
-    console.log("Family system_prompt:", family.system_prompt);
-    console.log("Values used:", { maxTokenValue, temperatureValue, systemPromptValue });
 
     const replaceVariables = (str: string): string => {
         const familyName = family.name || "";
@@ -106,157 +123,21 @@ export function TestModelDialog({
             .replace(/\{system_prompt\}/g, systemPromptValue);
     };
 
-    const handleTest = async () => {
-        console.log("========== TEST CONNECTION START ==========");
-        console.log("🔑 API KEY:", apiKey);
-        console.log("🔑 API KEY LENGTH:", apiKey?.length);
-        console.log("👨‍💻 PROVIDER CONFIG:", providerConfig);
-        console.log("🤖 FAMILY:", family);
-        console.log("⚙️ TEST PARAMETERS (from Family):", {
-            maxToken: maxTokenValue,
-            temperature: temperatureValue,
-            systemPrompt: systemPromptValue,
-            testPrompt
-        });
-
-        if (!apiKey.trim()) {
-            console.log("❌ API Key kosong");
-            setError("API Key is required");
-            return;
-        }
-
-        if (!family.schema?.request_template) {
-            console.log("❌ Request template belum ada");
-            setError("Request template is required. Please setup request template first.");
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-        setRawResponse(null);
-        setSelectedTextPath("");
-        setSelectedImagePath("");
-
-        try {
-            console.log("📄 REQUEST TEMPLATE RAW:", family.schema.request_template);
-            const templateString = getTemplateString(family.schema.request_template);
-            console.log("📄 TEMPLATE STRING:", templateString);
-            const requestBodyString = replaceVariables(templateString);
-            console.log("🔄 REQUEST BODY STRING:", requestBodyString);
-            const parsedBody = JSON.parse(requestBodyString);
-            console.log("📦 PARSED BODY:", parsedBody);
-            console.log("📦 PARSED BODY JSON:", JSON.stringify(parsedBody, null, 2));
-
-            let defaultHeaders: Record<string, string> = {};
-            console.log("📌 DEFAULT HEADERS RAW:", providerConfig?.default_headers);
-
-            if (providerConfig?.default_headers) {
-                if (typeof providerConfig.default_headers === "string") {
-                    try {
-                        defaultHeaders = JSON.parse(providerConfig.default_headers);
-                    } catch (err) {
-                        console.error("❌ FAILED PARSE DEFAULT HEADERS:", err);
-                        defaultHeaders = {};
-                    }
-                } else {
-                    defaultHeaders = providerConfig.default_headers;
-                }
-            }
-
-            console.log("📌 DEFAULT HEADERS PARSED:", defaultHeaders);
-
-            const headers: Record<string, string> = {
-                "Content-Type": "application/json",
-                ...defaultHeaders,
-            };
-
-            console.log("🔐 AUTH HEADER:", providerConfig?.auth_header);
-            console.log("🔐 AUTH PREFIX:", providerConfig?.auth_prefix);
-
-            if (providerConfig?.auth_header && apiKey) {
-                const authValue = providerConfig.auth_prefix
-                    ? `${providerConfig.auth_prefix} ${apiKey}`.trim()
-                    : apiKey;
-                headers[providerConfig.auth_header] = authValue;
-                console.log("🔐 AUTH VALUE:", authValue);
-            }
-
-            console.log("📨 HEADERS:", headers);
-            console.log("📨 HEADERS JSON:", JSON.stringify(headers, null, 2));
-
-            let endpoint = family.schema.endpoint_path || "";
-            let baseUrl = providerConfig?.base_url || "";
-
-            console.log("🌐 BASE URL RAW:", baseUrl);
-            console.log("🌐 ENDPOINT RAW:", endpoint);
-
-            endpoint = replaceVariables(endpoint);
-            baseUrl = replaceVariables(baseUrl);
-
-            console.log("🌐 BASE URL PARSED:", baseUrl);
-            console.log("🌐 ENDPOINT PARSED:", endpoint);
-
-            const url = `${baseUrl}${endpoint}`;
-            console.log("🚀 FINAL URL:", url);
-            console.log("🚀 REQUEST OBJECT:", {
-                method: "POST",
-                headers,
-                body: parsedBody,
-            });
-
-            const response = await fetch(url, {
-                method: "POST",
-                headers,
-                body: JSON.stringify(parsedBody),
-            });
-
-            console.log("📥 RESPONSE OBJECT:", response);
-            console.log("📥 STATUS:", response.status);
-            console.log("📥 STATUS TEXT:", response.statusText);
-            console.log("📥 OK:", response.ok);
-            console.log("📥 RESPONSE HEADERS:");
-            response.headers.forEach((value, key) => {
-                console.log(`${key}: ${value}`);
-            });
-
-            const responseText = await response.text();
-            console.log("📥 RAW RESPONSE:", responseText);
-            console.log("📥 RAW RESPONSE TYPE:", typeof responseText);
-            console.log("📥 RAW RESPONSE LENGTH:", responseText.length);
-
-            let data;
-
-            try {
-                data = JSON.parse(responseText);
-                console.log("📥 PARSED RESPONSE:", data);
-            } catch (err) {
-                console.warn("⚠️ RESPONSE BUKAN JSON", err);
-                data = responseText;
-            }
-
-            if (!response.ok) {
-                console.error("❌ REQUEST FAILED:", data);
-                throw new Error(
-                    data?.error?.message ||
-                    data?.error ||
-                    `HTTP ${response.status}: Request failed`
-                );
-            }
-
-            console.log("✅ REQUEST SUCCESS");
-            setRawResponse(data);
-        } catch (err: any) {
-            console.error("❌ ERROR OBJECT:", err);
-            console.error("❌ ERROR MESSAGE:", err?.message);
-            console.error("❌ ERROR STACK:", err?.stack);
-            setError(
-                err?.message ||
-                "Failed to test. Please check your configuration."
-            );
-        } finally {
-            console.log("========== TEST CONNECTION END ==========");
-            setLoading(false);
-        }
+    // IMPROVED: Better image detection
+    const isImageValue = (value: string): boolean => {
+        if (typeof value !== "string") return false;
+        
+        const imagePatterns = [
+            /^https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff?)/i,
+            /^https?:\/\/[^\s]+\/(image|img|photo|picture|avatar|thumbnail|cover)/i,
+            /^data:image\//,
+            /^\/9j\//, // JPEG base64
+            /^iVBOR/,  // PNG base64
+            /^R0lGOD/, // GIF base64
+            /^data:image\/svg\+xml/,
+            /^blob:https?:\/\//,
+        ];
+        return imagePatterns.some(pattern => pattern.test(value));
     };
 
     const flattenJSON = (obj: any, prefix = ""): PathNode[] => {
@@ -288,7 +169,7 @@ export function TestModelDialog({
                     let type: PathNode["type"] = "text";
 
                     if (typeof value === "string") {
-                        if (value.startsWith("http") || value.startsWith("data:image/") || value.startsWith("/9j/") || value.startsWith("iVBOR")) {
+                        if (isImageValue(value)) {
                             type = "image";
                         }
                     } else if (typeof value === "number") {
@@ -306,8 +187,6 @@ export function TestModelDialog({
 
         return nodes;
     };
-
-    const leafNodes = rawResponse ? flattenJSON(rawResponse) : [];
 
     const handlePathToggle = (node: PathNode, checked: boolean) => {
         if (!checked) {
@@ -335,6 +214,10 @@ export function TestModelDialog({
         if (value === null) return "null";
         if (value === undefined) return "undefined";
         if (typeof value === "string") {
+            if (isImageValue(value)) {
+                if (value.length > 60) return value.substring(0, 60) + "...";
+                return value;
+            }
             if (value.length > 100) return value.substring(0, 100) + "...";
             return value;
         }
@@ -357,7 +240,6 @@ export function TestModelDialog({
     };
 
     const getPreviewEndpoint = () => {
-        console.log(family);
         if (!providerConfig) return "Not selected";
         const endpoint = family.schema?.endpoint_path || "";
         const baseUrl = providerConfig.base_url || "";
@@ -372,6 +254,95 @@ export function TestModelDialog({
     const copyToClipboard = () => {
         if (rawResponse) {
             navigator.clipboard.writeText(JSON.stringify(rawResponse, null, 2));
+        }
+    };
+
+    const handleTest = async () => {
+        if (!apiKey.trim()) {
+            setError("API Key is required");
+            return;
+        }
+
+        if (!family.schema?.request_template) {
+            setError("Request template is required. Please setup request template first.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setRawResponse(null);
+        setSelectedTextPath("");
+        setSelectedImagePath("");
+
+        try {
+            const templateString = getTemplateString(family.schema.request_template);
+            const requestBodyString = replaceVariables(templateString);
+            const parsedBody = JSON.parse(requestBodyString);
+
+            let defaultHeaders: Record<string, string> = {};
+            if (providerConfig?.default_headers) {
+                if (typeof providerConfig.default_headers === "string") {
+                    try {
+                        defaultHeaders = JSON.parse(providerConfig.default_headers);
+                    } catch (err) {
+                        defaultHeaders = {};
+                    }
+                } else {
+                    defaultHeaders = providerConfig.default_headers;
+                }
+            }
+
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+                ...defaultHeaders,
+            };
+
+            if (providerConfig?.auth_header && apiKey) {
+                const authValue = providerConfig.auth_prefix
+                    ? `${providerConfig.auth_prefix} ${apiKey}`.trim()
+                    : apiKey;
+                headers[providerConfig.auth_header] = authValue;
+            }
+
+            let endpoint = family.schema.endpoint_path || "";
+            let baseUrl = providerConfig?.base_url || "";
+
+            endpoint = replaceVariables(endpoint);
+            baseUrl = replaceVariables(baseUrl);
+
+            const url = `${baseUrl}${endpoint}`;
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers,
+                body: JSON.stringify(parsedBody),
+            });
+
+            const responseText = await response.text();
+            let data;
+
+            try {
+                data = JSON.parse(responseText);
+            } catch (err) {
+                data = responseText;
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    data?.error?.message ||
+                    data?.error ||
+                    `HTTP ${response.status}: Request failed`
+                );
+            }
+
+            setRawResponse(data);
+        } catch (err: any) {
+            setError(
+                err?.message ||
+                "Failed to test. Please check your configuration."
+            );
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -603,6 +574,11 @@ export function TestModelDialog({
                                     <Label className="text-xs font-semibold uppercase block">
                                         Select Response Paths
                                         <span className="text-muted-foreground ml-2">({leafNodes.length} fields)</span>
+                                        {leafNodes.length > 0 && (
+                                            <span className="text-xs font-normal text-green-600 ml-2">
+                                                ✨ Auto-selected first text & image
+                                            </span>
+                                        )}
                                     </Label>
                                     <div className="border rounded-xl max-h-[420px] overflow-y-auto bg-white dark:bg-gray-950">
                                         <div className="divide-y">
@@ -629,8 +605,13 @@ export function TestModelDialog({
                                                             <code className="text-xs font-mono font-semibold break-all">
                                                                 {node.path}
                                                             </code>
-                                                            <div className="mt-1">
+                                                            <div className="mt-1 flex items-center gap-2">
                                                                 {getTypeBadge(node.type)}
+                                                                {node.type === "image" && (
+                                                                    <span className="text-[10px] text-blue-600">
+                                                                        🖼️ Image detected
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <p className="text-xs text-muted-foreground mt-1 truncate font-mono">
                                                                 {getValuePreview(node.value)}
@@ -650,25 +631,47 @@ export function TestModelDialog({
                                     <Label className="text-xs font-semibold uppercase">Selected Paths Summary</Label>
                                     <div className="grid gap-2">
                                         {selectedTextPath && (
-                                            <div className="p-3 rounded-xl border border-green-200 bg-green-50">
-                                                <Badge tone="success" className="gap-1 mb-2">
-                                                    <Type className="h-3 w-3" />
-                                                    TEXT
-                                                </Badge>
-                                                <code className="text-sm font-mono text-green-700 block break-all">
+                                            <div className="p-3 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Badge tone="success" className="gap-1">
+                                                        <Type className="h-3 w-3" />
+                                                        TEXT
+                                                    </Badge>
+                                                    <span className="text-xs text-muted-foreground">Path:</span>
+                                                </div>
+                                                <code className="text-sm font-mono text-green-700 dark:text-green-400 block break-all">
                                                     {selectedTextPath}
                                                 </code>
+                                                <div className="mt-2 text-xs text-muted-foreground">
+                                                    <span className="font-medium">Preview value:</span>{' '}
+                                                    <span className="font-mono bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded">
+                                                        {getValuePreview(
+                                                            leafNodes.find(n => n.path === selectedTextPath)?.value
+                                                        )}
+                                                    </span>
+                                                </div>
                                             </div>
                                         )}
                                         {selectedImagePath && (
-                                            <div className="p-3 rounded-xl border border-blue-200 bg-blue-50">
-                                                <Badge tone="info" className="gap-1 mb-2">
-                                                    <Image className="h-3 w-3" />
-                                                    IMAGE
-                                                </Badge>
-                                                <code className="text-sm font-mono text-blue-700 block break-all">
+                                            <div className="p-3 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Badge tone="info" className="gap-1">
+                                                        <Image className="h-3 w-3" />
+                                                        IMAGE
+                                                    </Badge>
+                                                    <span className="text-xs text-muted-foreground">Path:</span>
+                                                </div>
+                                                <code className="text-sm font-mono text-blue-700 dark:text-blue-400 block break-all">
                                                     {selectedImagePath}
                                                 </code>
+                                                <div className="mt-2 text-xs text-muted-foreground">
+                                                    <span className="font-medium">Preview value:</span>{' '}
+                                                    <span className="font-mono bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded truncate block">
+                                                        {getValuePreview(
+                                                            leafNodes.find(n => n.path === selectedImagePath)?.value
+                                                        )}
+                                                    </span>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -682,7 +685,7 @@ export function TestModelDialog({
                 <div className="border-t px-6 py-4 bg-muted/20 flex justify-between items-center">
                     <p className="text-xs text-muted-foreground">
                         {rawResponse
-                            ? "✓ Select one text field and optionally one image field"
+                            ? "✓ Select one text field and optionally one image field (auto-selected for you)"
                             : "🔑 Enter API key and click test to see response structure"}
                     </p>
                     <div className="flex gap-2">
