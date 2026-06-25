@@ -1,6 +1,5 @@
-// Hapus import Toast langsung
-// import { Toast } from "@kana-consultant/ui-kit";
-import type { ToastContextType } from "@/hooks/use-toast"; // Import type untuk typing
+// hooks/usePublishActions.ts
+import type { ToastContextType } from "@/hooks/use-toast";
 import { createDraft, updateDraft, publishDraft, draftSchedule, publishDraftInstant, type Draft, type CreateDraftRequest } from "@/services/draft";
 import type { ScheduleRequest } from "@/types/schedule";
 
@@ -13,12 +12,12 @@ export async function saveAsDraft(
     setCurrentDraftId: (id: string | null) => void,
     slug: string,
     tags: string[] | null,
-    excerpt : string,
-    toast: ToastContextType //   Tambahkan parameter toast
-) {
+    excerpt: string,
+    toast: ToastContextType
+): Promise<{ success: boolean; result?: any }> {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
-        return false;
+        return { success: false };
     }
 
     const draftData = {
@@ -31,23 +30,25 @@ export async function saveAsDraft(
         has_image: !!imageUrl,
         slug: slug,
         keywords: tags as string[],
-        excerpt : excerpt
+        excerpt: excerpt
     };
 
     try {
+        let response;
         if (currentDraftId) {
             await updateDraft(currentDraftId, { ...draftData, status: 'draft' });
             toast.success("Draft diperbarui!");
+            return { success: true };
         } else {
-            const response = await createDraft(draftData);
+            response = await createDraft(draftData);
             setCurrentDraftId(response.id);
             toast.success("Draft tersimpan!");
+            return { success: true, result: response };
         }
-        return true;
     } catch (error) {
         console.error("Failed to save draft:", error);
         toast.error("Gagal menyimpan draft");
-        return false;
+        return { success: false };
     }
 }
 
@@ -64,18 +65,19 @@ export async function saveAsSchedule(
     setPublishing: (val: boolean) => void,
     setPublishResults: (val: any) => void,
     setShowResultDialog: (val: boolean) => void,
-    resetForm: () => void,
+    onSuccess: (result: any) => void, // Callback dengan parameter
+    onReset: () => void, // Callback untuk reset
     slug: string,
     tags: string[] | null,
-    toast: ToastContextType //   Tambahkan parameter toast
-) {
+    toast: ToastContextType
+): Promise<{ success: boolean; result?: any }> {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
-        return false;
+        return { success: false };
     }
     if (selectedProducts.length === 0) {
         toast.error("Pilih minimal 1 produk");
-        return false;
+        return { success: false };
     }
 
     let scheduledFor: string;
@@ -85,9 +87,8 @@ export async function saveAsSchedule(
     } else {
         if (!scheduleDate) {
             toast.error("Pilih tanggal jadwal");
-            return false;
+            return { success: false };
         }
-
         scheduledFor = `${scheduleDate}T${scheduleTime}:00`;
     }
 
@@ -112,7 +113,7 @@ export async function saveAsSchedule(
         if (currentDraftId) {
             response = await publishDraft(currentDraftId, draftData);
         } else {
-            const ScheduleDraft: ScheduleRequest = {
+            const scheduleDraft: ScheduleRequest = {
                 title: topic,
                 topic: topic,
                 article: article,
@@ -124,16 +125,21 @@ export async function saveAsSchedule(
                 slug: slug,
                 keywords: tags as string[]
             };
+            response = await draftSchedule(scheduleDraft);
+        }
 
-            response = await draftSchedule(ScheduleDraft);
+        // Set results
+        setPublishResults(response);
+        setShowResultDialog(true);
+
+        // Panggil onSuccess dengan response
+        if (onSuccess) {
+            onSuccess(response);
         }
 
         const hasErrors = response.results?.some((r: any) => !r.success);
 
         if (hasErrors) {
-            setPublishResults(response);
-            setShowResultDialog(true);
-
             toast.error("Publikasi sebagian gagal", {
                 description: "Beberapa produk tidak dapat dijangkau. Lihat detail untuk info lebih lanjut."
             });
@@ -144,27 +150,36 @@ export async function saveAsSchedule(
                     : `"${topic}" dijadwalkan pada ${scheduleDate} jam ${scheduleTime}`,
             });
 
-            resetForm();
+            // Reset form setelah sukses
+            if (onReset) {
+                onReset();
+            }
         }
 
-        return true;
+        return { success: true, result: response };
     } catch (error: any) {
         console.error("Failed to save schedule:", error);
 
         if (error?.results) {
-            setPublishResults({
+            const errorResponse = {
                 message: error.message || "Publikasi gagal",
                 results: error.results,
                 status: "failed"
-            });
+            };
+            setPublishResults(errorResponse);
             setShowResultDialog(true);
+            
+            // Panggil onSuccess dengan error response
+            if (onSuccess) {
+                onSuccess(errorResponse);
+            }
         } else {
             toast.error("Gagal menjadwalkan", {
                 description: error?.message || "Terjadi kesalahan pada server",
             });
         }
 
-        return false;
+        return { success: false };
     } finally {
         setPublishing(false);
     }
@@ -179,20 +194,21 @@ export async function postInstant(
     setPublishing: (val: boolean) => void,
     setPublishResults: (val: any) => void,
     setShowResultDialog: (val: boolean) => void,
-    resetForm: () => void,
+    onSuccess: (result: any) => void, // Callback dengan parameter
+    onReset: () => void, // Callback untuk reset
     slug: string,
     tags: string[],
-    excerpt : string,
-    toast: ToastContextType //   Tambahkan parameter toast
-) {
+    excerpt: string,
+    toast: ToastContextType
+): Promise<{ success: boolean; result?: any }> {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
-        return false;
+        return { success: false };
     }
 
     if (selectedProducts.length === 0) {
         toast.error("Pilih minimal 1 produk");
-        return false;
+        return { success: false };
     }
 
     setPublishing(true);
@@ -207,7 +223,7 @@ export async function postInstant(
             target_products: selectedProducts,
             slug: slug,
             keywords: tags as string[],
-            excerpt : excerpt
+            excerpt: excerpt
         };
         
         let response: any;
@@ -217,12 +233,18 @@ export async function postInstant(
             response = await publishDraftInstant(draftData);
         }
 
+        // Set results
+        setPublishResults(response);
+        setShowResultDialog(true);
+
+        // Panggil onSuccess dengan response
+        if (onSuccess) {
+            onSuccess(response);
+        }
+
         const hasErrors = response.results?.some((r: any) => !r.success);
 
         if (hasErrors) {
-            setPublishResults(response);
-            setShowResultDialog(true);
-
             toast.error("Publikasi sebagian gagal", {
                 description: "Beberapa produk tidak dapat dijangkau. Lihat detail untuk info lebih lanjut."
             });
@@ -231,27 +253,36 @@ export async function postInstant(
                 description: `"${topic}" telah diposting ke ${selectedProducts.length} produk`,
             });
 
-            resetForm();
+            // Reset form setelah sukses
+            if (onReset) {
+                onReset();
+            }
         }
 
-        return true;
+        return { success: true, result: response };
     } catch (error: any) {
         console.error("Failed to post:", error);
 
         if (error?.results) {
-            setPublishResults({
+            const errorResponse = {
                 message: error.message || "Publikasi gagal",
                 results: error.results,
                 status: "failed"
-            });
+            };
+            setPublishResults(errorResponse);
             setShowResultDialog(true);
+            
+            // Panggil onSuccess dengan error response
+            if (onSuccess) {
+                onSuccess(errorResponse);
+            }
         } else {
             toast.error("Gagal memposting", {
                 description: error?.message || "Terjadi kesalahan pada server",
             });
         }
 
-        return false;
+        return { success: false };
     } finally {
         setPublishing(false);
     }

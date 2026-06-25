@@ -34,7 +34,12 @@ export default function Generate() {
         closeResultDialog,
         isPosting,
         selectedModelId, 
-        setSelectedModelId
+        setSelectedModelId,
+        isError,           
+        results,           
+        errorData,         
+        onRetry,           
+        onCloseError,      
     } = useGenerate();
 
     if (productsLoading) {
@@ -76,8 +81,6 @@ export default function Generate() {
             )}
 
             <GenerateHeader />
-
-            
 
             {/* Main content grid */}
             <div className="grid gap-6 lg:grid-cols-2">
@@ -123,6 +126,11 @@ export default function Generate() {
                     article={article}
                     onPost={handlePost}
                     isPosting={isPosting}
+                    isError={isError}
+                    results={results}
+                    errorData={errorData}
+                    onRetry={onRetry}
+                    onCloseError={onCloseError}
                 />
             </div>
 

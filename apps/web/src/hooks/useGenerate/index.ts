@@ -1,3 +1,4 @@
+// hooks/useGenerate.ts
 import { useLocation } from "@tanstack/react-router";
 import { useToast } from "@/hooks/use-toast";
 import { useGenerateState } from "./useGenerateState";
@@ -9,6 +10,7 @@ import { saveAsDraft, saveAsSchedule, postInstant } from "./usePublishActions";
 import { handleAddKeyword, handleRemoveKeyword, handleProductToggle, handleSelectAll, resetForm } from "./useFormManagement";
 import { quickGenerate } from "./useQuickGenerate";
 import { closeResultDialog } from "./useDialogState";
+import { useState } from "react";
 
 export function useGenerate() {
     const toast = useToast();
@@ -16,6 +18,11 @@ export function useGenerate() {
     const searchParams = new URLSearchParams(location.search);
     const editId = searchParams.get("edit") || undefined;
     const TopicId = searchParams.get("topic") || undefined;
+
+    // State untuk error handling di PostingConfig
+    const [isError, setIsError] = useState(false);
+    const [results, setResults] = useState<any[]>([]);
+    const [errorData, setErrorData] = useState<any>(null);
 
     const {
         topic, setTopic,
@@ -65,52 +72,139 @@ export function useGenerate() {
         editId, TopicId,
         setTopic, setArticle, setImageUrl, setSelectedProducts, setCurrentDraftId,
         setSlug, setKeywords,
-        toast //   Kirim toast ke useLoadDraft
+        toast
     );
 
     const generateArticle = () => generateArticleContent(
         topic, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
-        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt, toast //   Kirim toast ke generateArticleContent
+        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt, toast
     );
 
     const generateImage = () => generateImageManually(
         articleResponse, topic, selectedModelId, setLoadingImage, setImageUrl,
-        toast //   Kirim toast ke generateImageManually
+        toast
     );
+
+    // Reset error state
+    const resetErrorState = () => {
+        setIsError(false);
+        setResults([]);
+        setErrorData(null);
+    };
+
+    // Handle success dari post/schedule
+    const handlePublishSuccess = (result: any) => {
+        if (result) {
+            setResults(result.results || []);
+            if (result.some_failed || result.all_failed) {
+                setIsError(true);
+                setErrorData({
+                    title: result.all_failed
+                        ? 'Semua Produk Gagal Diposting'
+                        : 'Beberapa Produk Gagal Diposting',
+                    message: result.message || 'Terjadi kesalahan saat memposting konten',
+                    errors: result.errors || ['Unknown error'],
+                    results: result.results || [],
+                    someFailed: result.some_failed,
+                    allFailed: result.all_failed,
+                });
+            }
+        }
+    };
+
+    // Handle reset form setelah publish
+    const handleResetAfterPublish = () => {
+        resetForm(
+            setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
+            setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
+            setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+            toast
+        );
+    };
 
     const handleSaveAsDraft = () => saveAsDraft(
         article, topic, imageUrl, selectedProducts, currentDraftId, setCurrentDraftId,
-        slug as string, keywords as string[],excerpt as string,toast //   Kirim toast ke saveAsDraft
+        slug as string, keywords as string[], excerpt as string, toast
     );
 
-    const handleSaveAsSchedule = () => saveAsSchedule(
-        article, topic, imageUrl, selectedProducts, currentDraftId,
-        dailySchedule, dailyTime, scheduleDate, scheduleTime,
-        setPublishing, setPublishResults, setShowResultDialog,
-        () => resetForm(
-            setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
-            setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
-            setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+    const handleSaveAsSchedule = () => {
+        resetErrorState();
+        return saveAsSchedule(
+            article, topic, imageUrl, selectedProducts, currentDraftId,
+            dailySchedule, dailyTime, scheduleDate, scheduleTime,
+            setPublishing, setPublishResults, setShowResultDialog,
+            (result: any) => {
+                // onSuccess callback
+                if (result) {
+                    setResults(result.results || []);
+                    if (result.some_failed || result.all_failed) {
+                        setIsError(true);
+                        setErrorData({
+                            title: result.all_failed
+                                ? 'Semua Produk Gagal Dijadwalkan'
+                                : 'Beberapa Produk Gagal Dijadwalkan',
+                            message: result.message || 'Terjadi kesalahan saat menjadwalkan konten',
+                            errors: result.errors || ['Unknown error'],
+                            results: result.results || [],
+                            someFailed: result.some_failed,
+                            allFailed: result.all_failed,
+                        });
+                    }
+                }
+            },
+            () => {
+                // onReset callback
+                resetForm(
+                    setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
+                    setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
+                    setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+                    toast
+                );
+            },
+            slug as string, keywords as string[],
             toast
-        ),
-        slug as string, keywords as string[],
-        toast //   Kirim toast ke saveAsSchedule
-    );
+        );
+    };
 
-    const handlePostInstant = () => postInstant(
-        article, topic, imageUrl, selectedProducts, currentDraftId,
-        setPublishing, setPublishResults, setShowResultDialog,
-        () => resetForm(
-            setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
-            setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
-            setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+    const handlePostInstant = () => {
+        resetErrorState();
+        return postInstant(
+            article, topic, imageUrl, selectedProducts, currentDraftId,
+            setPublishing, setPublishResults, setShowResultDialog,
+            (result: any) => {
+                // onSuccess callback
+                if (result) {
+                    setResults(result.results || []);
+                    if (result.some_failed || result.all_failed) {
+                        setIsError(true);
+                        setErrorData({
+                            title: result.all_failed
+                                ? 'Semua Produk Gagal Diposting'
+                                : 'Beberapa Produk Gagal Diposting',
+                            message: result.message || 'Terjadi kesalahan saat memposting konten',
+                            errors: result.errors || ['Unknown error'],
+                            results: result.results || [],
+                            someFailed: result.some_failed,
+                            allFailed: result.all_failed,
+                        });
+                    }
+                }
+            },
+            () => {
+                // onReset callback
+                resetForm(
+                    setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
+                    setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
+                    setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+                    toast
+                );
+            },
+            slug as string, keywords as string[],
+            excerpt as string,
             toast
-        ),
-        slug as string, keywords as string[],
-        excerpt as string,
-        toast //   Kirim toast ke postInstant
-    );
+        );
+    };
 
     const handlePost = async () => {
         try {
@@ -124,29 +218,60 @@ export function useGenerate() {
             }
 
             setIsPosting(true);
+            resetErrorState();
+
+            let result: any = null;
+
             if (postMode === "draft") {
                 await handleSaveAsDraft();
+                toast.success('Draft berhasil disimpan');
             } else if (postMode === "scheduled") {
-                await handleSaveAsSchedule();
+                result = await handleSaveAsSchedule();
             } else {
-                await handlePostInstant();
+                result = await handlePostInstant();
             }
+        } catch (error: any) {
+            setIsError(true);
+            setErrorData({
+                title: 'Error',
+                message: error.message || 'Terjadi kesalahan yang tidak diketahui',
+                errors: [error.message || 'Unknown error'],
+                results: [],
+                someFailed: true,
+                allFailed: true,
+            });
+            toast.error(error.message || 'Gagal memposting konten');
         } finally {
             setIsPosting(false);
         }
     };
 
-    const onResetForm = () => resetForm(
-        setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
-        setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
-        setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
-        toast
-    );
+    const onResetForm = () => {
+        resetForm(
+            setTopic, setArticle, setArticleResponse, setImageUrl, setSelectedProducts,
+            setPostMode, setCurrentDraftId, setKeywords, setKeywordInput,
+            setSeoScore, setReadabilityScore, setWordCount, setTone, setArticleLength, setLanguage,
+            toast
+        );
+        resetErrorState();
+    };
 
     const onQuickGenerate = () => quickGenerate(
         topic, selectedProducts, article, imageUrl, setPublishing, setCurrentDraftId, onResetForm, excerpt as string,
-        toast //   Kirim toast ke quickGenerate
+        toast
     );
+
+    // Handle retry
+    const handleRetry = () => {
+        resetErrorState();
+        handlePost();
+    };
+
+    // Handle close error
+    const handleCloseError = () => {
+        resetErrorState();
+        closeResultDialog(setShowResultDialog, setPublishResults);
+    };
 
     return {
         topic, setTopic,
@@ -186,5 +311,11 @@ export function useGenerate() {
         handleRemoveKeyword: (keyword: string) => handleRemoveKeyword(keyword, keywords, setKeywords),
         isPosting, setIsPosting,
         quickGenerate: onQuickGenerate,
+        // Props untuk PostingConfig error handling
+        isError,
+        results,
+        errorData,
+        onRetry: handleRetry,
+        onCloseError: handleCloseError,
     };
 }

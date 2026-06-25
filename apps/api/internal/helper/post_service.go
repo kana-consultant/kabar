@@ -11,6 +11,7 @@ import (
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/models"
 	"strings"
+	"time"
 )
 
 type PostService struct {
@@ -26,58 +27,96 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 	}
 
 	var postResults []map[string]interface{}
+	var allErrors []string
 	someFailed := false
 	allFailed := true
+	stopOnError := true // Flag to stop processing on error
 
-	for _, productID := range draft.TargetProducts {
+	for idx, productID := range draft.TargetProducts {
+		log.Printf("[DRAFT] Processing product %d/%d: %s", idx+1, len(draft.TargetProducts), productID)
+
 		// Get product config
 		cfg, err := s.productController.GetProductConfig(ctx, productID, draft, userCtx)
 		if err != nil {
-			log.Printf("[ERROR] Product %s: failed to get config - %v", productID, err)
-			postResults = append(postResults, map[string]interface{}{
-				"product": productID,
-				"success": false,
-				"error":   fmt.Sprintf("failed to get product config: %v", err),
-				"synced":  false,
-			})
+			errMsg := fmt.Sprintf("failed to get product config: %v", err)
+			log.Printf("[ERROR] Product %s: %s", productID, errMsg)
+
+			result := map[string]interface{}{
+				"product":    productID,
+				"success":    false,
+				"error":      errMsg,
+				"synced":     false,
+				"statusCode": 0,
+			}
+			postResults = append(postResults, result)
+			allErrors = append(allErrors, fmt.Sprintf("Product %s: %s", productID, errMsg))
 			someFailed = true
-			continue // Skip to next product
+
+			if stopOnError {
+				log.Printf("[DRAFT] Stopping processing due to error on product %s", productID)
+				break // Stop processing all products
+			}
+			continue
 		}
 
 		// Validate config
 		if cfg.FullURL == "" {
-			log.Printf("[ERROR] Product %s: empty URL", productID)
-			postResults = append(postResults, map[string]interface{}{
-				"product": productID,
-				"success": false,
-				"error":   "full URL is empty",
-				"synced":  false,
-			})
+			errMsg := "full URL is empty"
+			log.Printf("[ERROR] Product %s: %s", productID, errMsg)
+
+			result := map[string]interface{}{
+				"product":    productID,
+				"success":    false,
+				"error":      errMsg,
+				"synced":     false,
+				"statusCode": 0,
+			}
+			postResults = append(postResults, result)
+			allErrors = append(allErrors, fmt.Sprintf("Product %s: %s", productID, errMsg))
 			someFailed = true
-			continue // Skip to next product
+
+			if stopOnError {
+				log.Printf("[DRAFT] Stopping processing due to error on product %s", productID)
+				break
+			}
+			continue
 		}
 
 		if !cfg.HasWorkflowNodes() {
-			log.Printf("[WARNING] Product %s: no workflow nodes", productID)
-			postResults = append(postResults, map[string]interface{}{
-				"product": productID,
-				"success": false,
-				"error":   "no workflow nodes configured",
-				"synced":  false,
-			})
+			errMsg := "no workflow nodes configured"
+			log.Printf("[WARNING] Product %s: %s", productID, errMsg)
+
+			result := map[string]interface{}{
+				"product":    productID,
+				"success":    false,
+				"error":      errMsg,
+				"synced":     false,
+				"statusCode": 0,
+			}
+			postResults = append(postResults, result)
+			allErrors = append(allErrors, fmt.Sprintf("Product %s: %s", productID, errMsg))
 			someFailed = true
-			continue // Skip to next product
+
+			if stopOnError {
+				log.Printf("[DRAFT] Stopping processing due to error on product %s", productID)
+				break
+			}
+			continue
 		}
 
 		// Initialize execution context
 		cfg.ExecutionResults = make(map[string]interface{})
 		cfg.ExecutionResults["product_id"] = cfg.ProductID
 		cfg.ExecutionResults["variables"] = make(map[string]interface{})
+		cfg.ExecutionResults["started_at"] = time.Now().Format(time.RFC3339)
 
 		productFailed := false
+		var productErrors []string
 
 		// Process each node
-		for _, node := range cfg.WorkflowNodes {
+		for nodeIdx, node := range cfg.WorkflowNodes {
+			log.Printf("[DRAFT] Product %s: Processing node %d/%d: %s", productID, nodeIdx+1, len(cfg.WorkflowNodes), node.ID)
+
 			// Set current node
 			cfg.CurrentNodeID = node.ID
 
@@ -96,17 +135,21 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 			// Build request body
 			requestBody, err := BuildRequestBody(&node, draft, cfg)
 			if err != nil {
-				log.Printf("[ERROR] Product %s, Node %s: build request failed - %v", productID, node.ID, err)
-				postResults = append(postResults, map[string]interface{}{
+				errMsg := fmt.Sprintf("failed to build request: %v", err)
+				log.Printf("[ERROR] Product %s, Node %s: %s", productID, node.ID, errMsg)
+
+				result := map[string]interface{}{
 					"product":    productID,
 					"node":       node.ID,
 					"success":    false,
-					"error":      fmt.Sprintf("failed to build request: %v", err),
+					"error":      errMsg,
 					"synced":     false,
 					"statusCode": 0,
-				})
-				someFailed = true
+				}
+				postResults = append(postResults, result)
+				productErrors = append(productErrors, fmt.Sprintf("Node %s: %s", node.ID, errMsg))
 				productFailed = true
+				someFailed = true
 				break // STOP processing remaining nodes for this product
 			}
 
@@ -121,16 +164,19 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 				}
 
 				log.Printf("[ERROR] Product %s, Node %s: %s", productID, node.ID, errorMsg)
-				postResults = append(postResults, map[string]interface{}{
+
+				result := map[string]interface{}{
 					"product":    productID,
 					"node":       node.ID,
 					"success":    false,
 					"error":      errorMsg,
 					"synced":     false,
 					"statusCode": statusCode,
-				})
-				someFailed = true
+				}
+				postResults = append(postResults, result)
+				productErrors = append(productErrors, fmt.Sprintf("Node %s: %s", node.ID, errorMsg))
 				productFailed = true
+				someFailed = true
 				break // STOP processing remaining nodes for this product
 			}
 
@@ -151,31 +197,70 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 				}
 			}
 
-			postResults = append(postResults, map[string]interface{}{
+			// Success result
+			result := map[string]interface{}{
 				"product":    productID,
 				"node":       node.ID,
 				"success":    true,
 				"response":   string(response),
 				"synced":     false,
 				"statusCode": statusCode,
-			})
+			}
+			postResults = append(postResults, result)
+
+			log.Printf("[SUCCESS] Product %s, Node %s: Status %d", productID, node.ID, statusCode)
 		}
 
-		// If product had any failure, mark it
+		// If product had any failure, mark it and optionally stop
 		if productFailed {
 			someFailed = true
+
+			// Add product summary to errors
+			allErrors = append(allErrors, fmt.Sprintf("Product %s failed: %v", productID, productErrors))
+
+			// Check if we should stop processing remaining products
+			if stopOnError {
+				log.Printf("[DRAFT] Stopping processing due to product failure: %s", productID)
+				break // Stop processing remaining products
+			}
+		} else {
+			log.Printf("[SUCCESS] Product %s: All nodes processed successfully", productID)
+		}
+	}
+
+	// Calculate final statistics
+	totalProcessed := len(postResults)
+	successCount := 0
+	failedCount := 0
+
+	for _, result := range postResults {
+		if success, ok := result["success"].(bool); ok {
+			if success {
+				successCount++
+			} else {
+				failedCount++
+			}
 		}
 	}
 
 	// Final summary
+	log.Printf("[DRAFT] Processing completed - Total results: %d, Success: %d, Failed: %d",
+		totalProcessed, successCount, failedCount)
+
 	if someFailed {
-		log.Printf("[DRAFT] Completed with errors - Total: %d, Failed: %v", len(postResults), someFailed)
+		log.Printf("[DRAFT] Completed with errors: %v", allErrors)
 	} else {
-		log.Printf("[DRAFT] All products processed successfully - Total: %d", len(postResults))
+		log.Printf("[DRAFT] All products processed successfully")
 	}
 
+	// Return error if all failed
 	if allFailed && len(draft.TargetProducts) > 0 {
-		return postResults, someFailed, allFailed, fmt.Errorf("all products failed to process")
+		return postResults, someFailed, allFailed, fmt.Errorf("all products failed to process: %v", allErrors)
+	}
+
+	// Return partial success if some failed but not all
+	if someFailed {
+		return postResults, someFailed, allFailed, fmt.Errorf("some products failed to process: %v", allErrors)
 	}
 
 	return postResults, someFailed, allFailed, nil
