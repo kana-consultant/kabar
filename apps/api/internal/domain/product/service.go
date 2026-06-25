@@ -34,5 +34,4 @@ type ProductService interface {
 	ReorderNodesByLevel(nodes []*workflow_node.WorkflowNode) []*workflow_node.WorkflowNode
 	LoadAdapterConfig(ctx context.Context, cfg *ProductConfig) error
 	ParseCustomHeaders(cfg *ProductConfig) error
-	SendWithRetry(cfg ProductConfig, requestBody interface{}) (interface{}, error)
 }

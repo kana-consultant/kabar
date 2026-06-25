@@ -1432,17 +1432,3 @@ func (s *ProductService) ParseCustomHeaders(cfg *product.ProductConfig) error {
 
 	return nil
 }
-
-// sendWithRetry method (if not exists)
-func (s *ProductService) SendWithRetry(cfg product.ProductConfig, requestBody interface{}) (interface{}, error) {
-	// Implement your retry logic here
-	// This is a placeholder
-	return nil, nil
-}
-
-// markProductSynced method (if not exists)
-func (s *ProductService) markProductSynced(productID string) error {
-	// Implement your sync marking logic here
-	// This is a placeholder
-	return nil
-}
