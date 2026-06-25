@@ -43,12 +43,19 @@ type DraftData struct {
 	Excerpt        string   `json:"excerpt"`
 }
 
+// draft/models.go
 type PublishResult struct {
-	Results      interface{} `json:"results"`
-	SomeFailed   bool        `json:"some_failed"`
-	AllFailed    bool        `json:"all_failed"`
-	Status       string      `json:"status"`
-	ScheduledFor *time.Time  `json:"scheduled_for"`
+	Results       interface{} `json:"results"`
+	SomeFailed    bool        `json:"some_failed"`
+	AllFailed     bool        `json:"all_failed"`
+	Status        string      `json:"status"`  // "published", "partial", "failed", "scheduled"
+	Message       string      `json:"message"` // Deskripsi status
+	ScheduledFor  *time.Time  `json:"scheduled_for,omitempty"`
+	PublishedAt   *time.Time  `json:"published_at,omitempty"`
+	TotalProducts int         `json:"total_products"`
+	SuccessCount  int         `json:"success_count"`
+	FailedCount   int         `json:"failed_count"`
+	Errors        []string    `json:"errors,omitempty"`
 }
 
 type SEOScore struct {

@@ -220,13 +220,16 @@ func (s *DraftServiceImpl) PublishContent(
 		req.Keywords,
 	)
 
+	// Validasi request
 	if err := validatePublishRequest(req); err != nil {
 		log.Printf("VALIDATION ERROR => %v", err)
+		log.Println("========== END PublishContent ==========")
 		return nil, err
 	}
 
 	log.Println("VALIDATION SUCCESS")
 
+	// Prepare history request
 	historyReq := draft.PublishHistoryRequest{
 		Title:          req.Title,
 		Topic:          req.Topic,
@@ -240,62 +243,101 @@ func (s *DraftServiceImpl) PublishContent(
 
 	log.Println("CALLING ProcessDraftProducts...")
 
+	// Process products
 	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(ctx, req, userCtx)
 
 	log.Printf("PROCESS RESULT => %+v", result)
 	log.Printf("PROCESS FLAGS => someFailed=%v allFailed=%v", someFailed, allFailed)
 
+	// Determine status based on result
+	status := determinePublishStatus(someFailed, allFailed, err)
+
+	// Insert history (always attempt, even on error)
+	historyErr := s.insertPublishHistory(ctx, historyReq, userCtx, status)
+	if historyErr != nil {
+		log.Printf("WARNING: Failed to insert history: %v", historyErr)
+		// Don't return error, just log it
+	}
+
+	// Handle processing error
 	if err != nil {
-
 		log.Printf("PROCESS ERROR => %v", err)
-
-		log.Println("INSERT HISTORY STATUS=failed")
-
-		historyErr := s.repo.InsertHistory(
-			ctx,
-			historyReq,
-			userCtx.GetUserID(),
-			userCtx.GetTeamID(),
-			"failed",
-		)
-
-		if historyErr != nil {
-			log.Printf("FAILED INSERT HISTORY => %v", historyErr)
-		}
-
+		log.Println("========== END PublishContent ==========")
 		return nil, fmt.Errorf("failed to process products: %w", err)
 	}
 
 	log.Println("PROCESS SUCCESS")
 
-	log.Println("INSERT HISTORY STATUS=published")
-
-	err = s.repo.InsertHistory(
-		ctx,
-		historyReq,
-		userCtx.GetUserID(),
-		userCtx.GetTeamID(),
-		"published",
-	)
-
-	if err != nil {
-		log.Printf("FAILED INSERT HISTORY => %v", err)
-	} else {
-		log.Println("INSERT HISTORY SUCCESS")
-	}
-
+	// Build final result
 	finalResult := &draft.PublishResult{
 		Results:    result,
 		SomeFailed: someFailed,
 		AllFailed:  allFailed,
-		Status:     "published",
+		Status:     status,
+		Message:    getStatusMessage(someFailed, allFailed),
 	}
 
 	log.Printf("FINAL RESPONSE => %+v", finalResult)
-
 	log.Println("========== END PublishContent ==========")
 
 	return finalResult, nil
+}
+
+// Helper function to determine publish status
+func determinePublishStatus(someFailed bool, allFailed bool, err error) string {
+	if err != nil || allFailed {
+		return "failed"
+	}
+	if someFailed {
+		return "partial"
+	}
+	return "published"
+}
+
+// Helper function to get status message
+func getStatusMessage(someFailed bool, allFailed bool) string {
+	if allFailed {
+		return "All products failed to publish"
+	}
+	if someFailed {
+		return "Some products failed to publish"
+	}
+	return "All products published successfully"
+}
+
+// Helper function to insert history with retry
+func (s *DraftServiceImpl) insertPublishHistory(
+	ctx context.Context,
+	historyReq draft.PublishHistoryRequest,
+	userCtx models.UserContext,
+	status string,
+) error {
+	const maxRetries = 3
+
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			time.Sleep(time.Duration(i) * time.Second)
+		}
+
+		err := s.repo.InsertHistory(
+			ctx,
+			historyReq,
+			userCtx.GetUserID(),
+			userCtx.GetTeamID(),
+			status,
+		)
+
+		if err == nil {
+			log.Printf("INSERT HISTORY SUCCESS (status=%s)", status)
+			return nil
+		}
+
+		lastErr = err
+		log.Printf("INSERT HISTORY ATTEMPT %d/%d FAILED: %v", i+1, maxRetries, err)
+	}
+
+	return fmt.Errorf("failed to insert history after %d attempts: %w", maxRetries, lastErr)
 }
 
 // ScheduleDraft implements draft.Service
