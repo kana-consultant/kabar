@@ -8,6 +8,7 @@ import (
 	"seo-backend/internal/database"
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/product"
+
 	"seo-backend/internal/models"
 )
 
@@ -104,7 +105,7 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 				log.Printf("Request body built for node %s: %+v", node.ID, requestBody)
 
 				// Send request with retry
-				response, err := s.productController.SendWithRetry(*cfg, requestBody)
+				response, err := SendWithRetry(cfg, requestBody)
 				if err != nil {
 					errMsg := fmt.Sprintf("failed to send request for node %s: %v", node.ID, err)
 					log.Printf("[ERROR] %s", errMsg)
