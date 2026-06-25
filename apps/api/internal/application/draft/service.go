@@ -27,6 +27,7 @@ type DraftServiceImpl struct {
 	redisScheduler    *scheduler.RedisScheduler
 	productController product.ProductService
 	productService    product.ProductRepository
+	postService       helper.PostService
 }
 
 func NewService(
@@ -34,11 +35,14 @@ func NewService(
 	redisScheduler *scheduler.RedisScheduler,
 	productController product.ProductService,
 	productService product.ProductRepository,
+	postService helper.PostService,
 ) draft.Service {
+
 	return &DraftServiceImpl{
 		repo:              repo,
 		redisScheduler:    redisScheduler,
 		productController: productController,
+		postService:       postService,
 	}
 }
 
@@ -236,7 +240,7 @@ func (s *DraftServiceImpl) PublishContent(
 
 	log.Println("CALLING ProcessDraftProducts...")
 
-	result, someFailed, allFailed, err := s.ProcessDraftProducts(ctx, req, userCtx)
+	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(ctx, req, userCtx)
 
 	log.Printf("PROCESS RESULT => %+v", result)
 	log.Printf("PROCESS FLAGS => someFailed=%v allFailed=%v", someFailed, allFailed)
@@ -389,7 +393,7 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 		Excerpt:        draftData.Excerpt,
 	}
 
-	result, someFailed, allFailed, err := s.ProcessDraftProducts(ctx, draftPost, userCtx)
+	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(ctx, draftPost, userCtx)
 	log.Printf("IS ERROR,%v", err)
 
 	if err := s.repo.Delete(ctx, userCtx.GetTeamID(), id); err != nil {
@@ -644,150 +648,6 @@ func stripHTML(content string) string {
 	}
 	f(doc)
 	return buf.String()
-}
-
-func (s *DraftServiceImpl) ProcessDraftProducts(ctx context.Context, draft draft.DraftDataPost, userCtx models.UserContext) ([]map[string]interface{}, bool, bool, error) {
-	log.Printf("[DRAFT] Processing %d products: %v", len(draft.TargetProducts), draft.TargetProducts)
-
-	if len(draft.TargetProducts) == 0 {
-		return nil, false, true, fmt.Errorf("target products is required and cannot be empty")
-	}
-
-	var postResults []map[string]interface{}
-	someFailed := false
-	allFailed := true
-
-	for _, productID := range draft.TargetProducts {
-		// Get product config
-		cfg, err := s.productController.GetProductConfig(ctx, productID, draft, userCtx)
-		if err != nil {
-			log.Printf("[ERROR] Product %s: failed to get config - %v", productID, err)
-			postResults = append(postResults, map[string]interface{}{
-				"product": productID,
-				"success": false,
-				"error":   fmt.Sprintf("failed to get product config: %v", err),
-				"synced":  false,
-			})
-			someFailed = true
-			continue
-		}
-
-		// Validate config
-		if cfg.FullURL == "" {
-			log.Printf("[ERROR] Product %s: empty URL", productID)
-			postResults = append(postResults, map[string]interface{}{
-				"product": productID,
-				"success": false,
-				"error":   "full URL is empty",
-				"synced":  false,
-			})
-			someFailed = true
-			continue
-		}
-
-		if !cfg.HasWorkflowNodes() {
-			log.Printf("[WARNING] Product %s: no workflow nodes", productID)
-			postResults = append(postResults, map[string]interface{}{
-				"product": productID,
-				"success": false,
-				"error":   "no workflow nodes configured",
-				"synced":  false,
-			})
-			someFailed = true
-			continue
-		}
-
-		// Initialize execution context
-		cfg.ExecutionResults = make(map[string]interface{})
-		cfg.ExecutionResults["product_id"] = cfg.ProductID
-		cfg.ExecutionResults["variables"] = make(map[string]interface{})
-
-		// Process each node
-		for _, node := range cfg.WorkflowNodes {
-			// Set current node
-			cfg.CurrentNodeID = node.ID
-
-			// Update config from node if available
-			if node.AdapterConfig != nil {
-				if node.AdapterConfig.HTTPMethod != "" {
-					cfg.HTTPMethod = node.AdapterConfig.HTTPMethod
-				}
-				if node.AdapterConfig.EndpointPath != "" {
-					cfg.FullURL = strings.TrimRight(cfg.APIEndpoint, "/") + "/" +
-						strings.TrimLeft(node.AdapterConfig.EndpointPath, "/")
-					cfg.ExecutionResults["endpoint_path"] = node.AdapterConfig.EndpointPath
-				}
-			}
-
-			// Build request body
-			requestBody, err := helper.BuildRequestBody(&node, draft, cfg)
-			if err != nil {
-				log.Printf("[ERROR] Product %s, Node %s: build request failed - %v", productID, node.ID, err)
-				postResults = append(postResults, map[string]interface{}{
-					"product": productID,
-					"node":    node.ID,
-					"success": false,
-					"error":   fmt.Sprintf("failed to build request: %v", err),
-					"synced":  false,
-				})
-				someFailed = true
-				continue
-			}
-
-			// Send request
-			response, err := helper.SendWithRetry(cfg, requestBody)
-			if err != nil {
-				log.Printf("[ERROR] Product %s, Node %s: request failed - %v", productID, node.ID, err)
-				postResults = append(postResults, map[string]interface{}{
-					"product": productID,
-					"node":    node.ID,
-					"success": false,
-					"error":   fmt.Sprintf("request failed: %v", err),
-					"synced":  false,
-				})
-				someFailed = true
-				continue
-			}
-
-			// Store result
-			cfg.SetExecutionResult(node.ID, response)
-			allFailed = false
-
-			// Parse & store response
-			if len(response) > 0 {
-				var responseData map[string]interface{}
-				if err := json.Unmarshal(response, &responseData); err == nil {
-					for key, value := range responseData {
-						cfg.ExecutionResults["response_"+key] = value
-						if variables, ok := cfg.ExecutionResults["variables"].(map[string]interface{}); ok {
-							variables[key] = value
-						}
-					}
-				}
-			}
-
-			postResults = append(postResults, map[string]interface{}{
-				"product":  productID,
-				"node":     node.ID,
-				"success":  true,
-				"response": response,
-				"synced":   false,
-			})
-		}
-	}
-
-	// Final summary
-	if someFailed {
-		log.Printf("[DRAFT] Completed with errors - Total: %d, Failed: %v", len(postResults), someFailed)
-	} else {
-		log.Printf("[DRAFT] All products processed successfully - Total: %d", len(postResults))
-	}
-
-	if allFailed && len(draft.TargetProducts) > 0 {
-		return postResults, someFailed, allFailed, fmt.Errorf("all products failed to process")
-	}
-
-	return postResults, someFailed, allFailed, nil
 }
 
 // Helper function to mask sensitive values

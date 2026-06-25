@@ -2,10 +2,8 @@ package draft
 
 import (
 	"database/sql"
-	DraftService "seo-backend/internal/application/draft"
-	productApp "seo-backend/internal/application/product"
 	baseRoutes "seo-backend/internal/domain/base"
-	"seo-backend/internal/infrastructure/db/repositories"
+	"seo-backend/internal/domain/draft"
 	rbacCache "seo-backend/internal/infrastructure/db/repositories/rbac"
 	authmw "seo-backend/internal/middleware"
 	"seo-backend/internal/scheduler"
@@ -27,14 +25,9 @@ func NewRoute(
 	redisClient *redis.Client,
 	redisScheduler *scheduler.RedisScheduler,
 	permCache *rbacCache.PermissionCache,
+	DraftService draft.Service,
 ) *Route {
-	productRepo := repositories.NewProductRepository(db)
-	DraftRepo := repositories.NewDraftRepository(db, redisClient)
-	adapterConfigRepo := repositories.NewAdapterConfigRepository(db)
-	WorkflowDefinitionRepository := repositories.NewWorkflowDefinitionRepository(db)
-	WorkflowNodeRepository := repositories.NewWorkflowNodeRepository(db)
-	productService := productApp.NewProductService(db, productRepo, adapterConfigRepo, WorkflowDefinitionRepository, WorkflowNodeRepository)
-	DraftService := DraftService.NewService(DraftRepo, redisScheduler, productService, productRepo)
+
 	DraftHandler := NewDraftHandler(DraftService)
 
 	return &Route{

@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"seo-backend/internal/domain/product"
 	"strings"
 	"time"
@@ -63,8 +65,10 @@ func setRequestHeaders(req *http.Request, cfg *product.ProductConfig) {
 	}
 }
 
-func SendWithRetry(cfg *product.ProductConfig, body map[string]interface{}) ([]byte, error) {
+func SendWithRetry(cfg *product.ProductConfig, body map[string]interface{}) ([]byte, int, error) {
 	var lastErr error
+	var lastStatusCode int
+	var lastBody []byte
 
 	// Prepare execution context
 	if cfg.ExecutionResults == nil {
@@ -73,21 +77,27 @@ func SendWithRetry(cfg *product.ProductConfig, body map[string]interface{}) ([]b
 
 	// Validasi URL
 	if cfg.FullURL == "" {
-		return nil, fmt.Errorf("full URL is empty for product %s", cfg.ProductID)
+		return nil, 0, fmt.Errorf("full URL is empty for product %s", cfg.ProductID)
 	}
 
-	// Set default values
+	// Set default values with validation
 	if cfg.RetryCount <= 0 {
 		cfg.RetryCount = 3
 	}
+	if cfg.RetryCount > 10 {
+		cfg.RetryCount = 10 // Max retry limit
+	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 30
+	}
+	if cfg.Timeout > 300 {
+		cfg.Timeout = 300 // Max 5 minutes
 	}
 
 	// Trim URL
 	cfg.FullURL = strings.TrimSpace(cfg.FullURL)
 
-	// HTTP Client
+	// HTTP Client with timeout
 	client := &http.Client{
 		Timeout: time.Duration(cfg.Timeout) * time.Second,
 	}
@@ -95,30 +105,37 @@ func SendWithRetry(cfg *product.ProductConfig, body map[string]interface{}) ([]b
 	// Enrich body with context
 	enrichedBody := enrichBodyWithContext(body, cfg)
 
-	// Retry loop
+	// Retry loop with exponential backoff
 	for i := 0; i < cfg.RetryCount; i++ {
 		attempt := i + 1
+
+		// Exponential backoff with jitter
+		if i > 0 {
+			backoff := time.Duration(1<<uint(i)) * time.Second // 2, 4, 8, 16, 32 seconds
+			if backoff > 30*time.Second {
+				backoff = 30 * time.Second
+			}
+			// Add jitter to prevent thundering herd
+			jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
+			time.Sleep(backoff + jitter)
+		}
 
 		// Marshal body
 		jsonBody, err := json.Marshal(enrichedBody)
 		if err != nil {
 			lastErr = fmt.Errorf("marshal error (attempt %d/%d): %w", attempt, cfg.RetryCount, err)
-			if i < cfg.RetryCount-1 {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			return nil, lastErr
+			log.Printf("[ERROR] Product %s, Node %s: marshal failed - %v", cfg.ProductID, cfg.CurrentNodeID, err)
+			// Don't retry on marshal error
+			return nil, 0, lastErr
 		}
 
 		// Create request
 		req, err := http.NewRequest(cfg.HTTPMethod, cfg.FullURL, bytes.NewReader(jsonBody))
 		if err != nil {
 			lastErr = fmt.Errorf("request creation error (attempt %d/%d): %w", attempt, cfg.RetryCount, err)
-			if i < cfg.RetryCount-1 {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			return nil, lastErr
+			log.Printf("[ERROR] Product %s, Node %s: request creation failed - %v", cfg.ProductID, cfg.CurrentNodeID, err)
+			// Don't retry on request creation error
+			return nil, 0, lastErr
 		}
 
 		// Set headers
@@ -133,34 +150,42 @@ func SendWithRetry(cfg *product.ProductConfig, body map[string]interface{}) ([]b
 			lastErr = fmt.Errorf("request failed (attempt %d/%d): %w", attempt, cfg.RetryCount, err)
 			log.Printf("[ERROR] Product %s, Node %s, Attempt %d/%d: %v (elapsed: %dms)",
 				cfg.ProductID, cfg.CurrentNodeID, attempt, cfg.RetryCount, err, elapsed.Milliseconds())
-			if i < cfg.RetryCount-1 {
-				time.Sleep(2 * time.Second)
+
+			// Check if error is timeout - might retry
+			if os.IsTimeout(err) || strings.Contains(err.Error(), "timeout") {
 				continue
 			}
-			return nil, lastErr
+			// Don't retry on connection refused, no route to host, etc.
+			if strings.Contains(err.Error(), "connection refused") ||
+				strings.Contains(err.Error(), "no such host") {
+				return nil, 0, lastErr
+			}
+			continue
 		}
-		defer resp.Body.Close()
 
-		// Read response
+		// Read response body
 		bodyBytes, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
 		if err != nil {
 			lastErr = fmt.Errorf("read response error (attempt %d/%d): %w", attempt, cfg.RetryCount, err)
 			log.Printf("[ERROR] Product %s, Node %s, Attempt %d/%d: failed to read response - %v",
 				cfg.ProductID, cfg.CurrentNodeID, attempt, cfg.RetryCount, err)
-			if i < cfg.RetryCount-1 {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			return nil, lastErr
+			continue
 		}
+
+		// Store status code and body for error reporting
+		lastStatusCode = resp.StatusCode
+		lastBody = bodyBytes
 
 		// Store in execution results
 		cfg.ExecutionResults["last_response"] = string(bodyBytes)
 		cfg.ExecutionResults["last_status_code"] = resp.StatusCode
 		cfg.ExecutionResults["last_attempt"] = attempt
 		cfg.ExecutionResults["last_elapsed_ms"] = elapsed.Milliseconds()
+		cfg.ExecutionResults["timestamp"] = time.Now().Format(time.RFC3339)
 
-		// Check success
+		// Check if response is successful (2xx)
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Parse and store response data
 			var responseData map[string]interface{}
@@ -170,25 +195,39 @@ func SendWithRetry(cfg *product.ProductConfig, body map[string]interface{}) ([]b
 				}
 			}
 
-			log.Printf("[SUCCESS] Product %s, Node %s, Status: %d (attempt %d, elapsed: %dms)",
-				cfg.ProductID, cfg.CurrentNodeID, resp.StatusCode, attempt, elapsed.Milliseconds())
-			return bodyBytes, nil
+			log.Printf("[SUCCESS] Product %s, Node %s, Status: %d (attempt %d, elapsed: %dms, size: %d bytes)",
+				cfg.ProductID, cfg.CurrentNodeID, resp.StatusCode, attempt, elapsed.Milliseconds(), len(bodyBytes))
+			return bodyBytes, resp.StatusCode, nil
 		}
 
 		// Handle non-2xx response
 		lastErr = fmt.Errorf("HTTP %d (attempt %d/%d): %s", resp.StatusCode, attempt, cfg.RetryCount, string(bodyBytes))
-		log.Printf("[ERROR] Product %s, Node %s, Status: %d (attempt %d/%d)",
-			cfg.ProductID, cfg.CurrentNodeID, resp.StatusCode, attempt, cfg.RetryCount)
+		log.Printf("[ERROR] Product %s, Node %s, Status: %d (attempt %d/%d, elapsed: %dms)",
+			cfg.ProductID, cfg.CurrentNodeID, resp.StatusCode, attempt, cfg.RetryCount, elapsed.Milliseconds())
 
-		if i < cfg.RetryCount-1 {
-			time.Sleep(2 * time.Second)
+		// Don't retry on certain client errors (4xx) except 429 (Too Many Requests)
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 && resp.StatusCode != 429 {
+			log.Printf("[ERROR] Product %s, Node %s: Client error %d, not retrying",
+				cfg.ProductID, cfg.CurrentNodeID, resp.StatusCode)
+			return bodyBytes, resp.StatusCode, lastErr
 		}
+
+		// Retry for 5xx errors and 429
+		if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+			log.Printf("[WARN] Product %s, Node %s: Retryable error %d, will retry",
+				cfg.ProductID, cfg.CurrentNodeID, resp.StatusCode)
+			continue
+		}
+
+		// For other status codes, don't retry
+		return bodyBytes, resp.StatusCode, lastErr
 	}
 
-	log.Printf("[ERROR] Product %s, Node %s: all %d retries failed - %v",
-		cfg.ProductID, cfg.CurrentNodeID, cfg.RetryCount, lastErr)
+	// All retries exhausted
+	log.Printf("[ERROR] Product %s, Node %s: all %d retries exhausted - last status: %d, error: %v",
+		cfg.ProductID, cfg.CurrentNodeID, cfg.RetryCount, lastStatusCode, lastErr)
 
-	return nil, fmt.Errorf("all retries exhausted (%d attempts): %w", cfg.RetryCount, lastErr)
+	return lastBody, lastStatusCode, fmt.Errorf("all retries exhausted (%d attempts): %w", cfg.RetryCount, lastErr)
 }
 
 // getEndpointPathFromConfig mengambil endpoint path dari workflow node berdasarkan current node ID

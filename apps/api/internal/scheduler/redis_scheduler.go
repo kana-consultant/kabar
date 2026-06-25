@@ -46,14 +46,16 @@ type RedisScheduler struct {
 	taskHandlers      map[string]TaskHandler
 	db                *sql.DB
 	productController product.ProductService
+	postService       helper.PostService
 }
 
 type TaskHandler func(task *ScheduledTask) error
 
-func NewRedisScheduler(redisClient *redis.Client, db *sql.DB, productController product.ProductService) *RedisScheduler {
+func NewRedisScheduler(redisClient *redis.Client, db *sql.DB, productController product.ProductService, postService helper.PostService) *RedisScheduler {
 	return &RedisScheduler{
 		redisClient:       redisClient,
 		productController: productController,
+		postService:       postService,
 		cron:              cron.New(cron.WithSeconds()),
 		ctx:               context.Background(),
 		taskHandlers:      make(map[string]TaskHandler),
@@ -221,9 +223,7 @@ func (s *RedisScheduler) doPublishDraft(task *ScheduledTask, userCtx models.User
 		TargetProducts: task.TargetProducts,
 	}
 
-	postService := helper.NewPostService(s.db, s.productController)
-
-	result, someFailed, allFailed, err := postService.ProcessDraftProducts(s.ctx, draftData, userCtx)
+	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(s.ctx, draftData, userCtx)
 	if err != nil {
 		return fmt.Errorf("failed to process products: %w", err)
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	// Infrastructure
+	"seo-backend/internal/application/draft"
 	"seo-backend/internal/application/product"
 	"seo-backend/internal/config"
 	"seo-backend/internal/database"
@@ -108,11 +109,14 @@ func NewContainer(
 	productService := product.NewProductService(db, productRepo, adapterConfigRepo, workflowDefinitionRepo, workflowNodeRepo)
 
 	// 5. INITIALIZE SCHEDULER
-	scheduler := scheduler.NewRedisScheduler(database.RedisClient, db, productService)
+	PostService := helper.NewPostService(db, productService)
 
+	scheduler := scheduler.NewRedisScheduler(database.RedisClient, db, productService, *PostService)
 	scheduler.Start()
-
 	defer scheduler.Stop()
+
+	DraftRepo := repositories.NewDraftRepository(db, redisClient)
+	DraftService := draft.NewService(DraftRepo, scheduler, productService, productRepo, *PostService)
 
 	// Protected routes
 	r.Route("/api/", func(protected chi.Router) {
@@ -120,7 +124,7 @@ func NewContainer(
 
 		authHandler.NewRoute(db, protected, jwtGenerator, permCache).AuthSettingRoute()
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
-		draftHandler.NewRoute(db, protected, redisClient, scheduler, permCache).SetupRoutes()
+		draftHandler.NewRoute(db, protected, redisClient, scheduler, permCache, DraftService).SetupRoutes()
 		generateHandler.NewRoute(db, protected, cfg).SetupRoutes()
 		historyHandler.NewHistoryRoute(db, protected, permCache).SetupRoute()
 		productHandler.NewRoute(db, protected, permCache, productService).SetupRoutes()
