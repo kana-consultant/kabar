@@ -36,15 +36,11 @@ export function NodePanel({
 }: NodePanelProps) {
     const [endpointPath, setEndpointPath] = useState<string>("");
     const [httpMethod, setHttpMethod] = useState<AdapterConfigNode['http_method']>("GET");
-    const [customHeaders, setCustomHeaders] = useState<string>("{}");
-    const [timeoutSeconds, setTimeoutSeconds] = useState<number>(30);
-    const [retryCount, setRetryCount] = useState<number>(3);
     const [inputMapping, setInputMapping] = useState<Record<string, any>>({});
     const [saving, setSaving] = useState(false);
     const [executing, setExecuting] = useState(false);
     const [executionResult, setExecutionResult] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(true);
-    const [headersError, setHeadersError] = useState<string | null>(null);
 
     const toast = useToast();
 
@@ -60,16 +56,6 @@ export function NodePanel({
             setHttpMethod(adapterConfig.http_method || "GET");
 
             // Handle custom_headers (bisa string atau object)
-            let headersStr = "{}";
-            if (typeof adapterConfig.custom_headers === 'string') {
-                headersStr = adapterConfig.custom_headers;
-            } else if (adapterConfig.custom_headers && typeof adapterConfig.custom_headers === 'object') {
-                headersStr = JSON.stringify(adapterConfig.custom_headers, null, 2);
-            }
-            setCustomHeaders(headersStr);
-
-            setTimeoutSeconds(adapterConfig.timeout_seconds || 30);
-            setRetryCount(adapterConfig.retry_count || 3);
         }
 
         if (workflowNode) {
@@ -161,30 +147,6 @@ export function NodePanel({
         return placeholders;
     }, [previousNodes, isFirstNode]);
 
-    // Validate custom headers JSON
-    const validateHeaders = (headersStr: string): boolean => {
-        try {
-            if (headersStr.trim() === "") {
-                setHeadersError(null);
-                return true;
-            }
-            const parsed = JSON.parse(headersStr);
-            if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-                setHeadersError("Headers must be a JSON object");
-                return false;
-            }
-            setHeadersError(null);
-            return true;
-        } catch (e) {
-            setHeadersError("Invalid JSON format");
-            return false;
-        }
-    };
-
-    // Execute node
-    // Execute node - MODIFIED VERSION
-
-
     // Save node changes - FIXED VERSION with proper typing
     // Save node changes - FIXED VERSION dengan type yang benar
     const handleSave = async () => {
@@ -196,10 +158,10 @@ export function NodePanel({
         setSaving(true);
         try {
             // Parse custom headers - langsung sebagai string, tidak perlu JSON.stringify lagi
-            const adapterConfigUpdates: Partial<AdapterConfig> = {
-                timeout_seconds: timeoutSeconds,
-                retry_count: retryCount,
-                updated_at: new Date().toISOString(),
+            const adapterConfigUpdates: Partial<AdapterConfigNode> = {
+                field_mapping : JSON.stringify(inputMapping),
+                http_method : httpMethod,
+                endpoint_path : endpointPath,
             };
 
            
@@ -242,15 +204,6 @@ export function NodePanel({
                 'Content-Type': 'application/json'
             };
 
-            // Parse custom headers dari string JSON
-            if (customHeaders && customHeaders.trim() !== "" && customHeaders !== "{}") {
-                try {
-                    const customHeadersObj = JSON.parse(customHeaders);
-                    headers = { ...headers, ...customHeadersObj };
-                } catch (e) {
-                    console.error("Failed to parse custom headers", e);
-                }
-            }
 
             if (product.api_key) {
                 headers['X-API-Key'] = product.api_key;
@@ -267,10 +220,7 @@ export function NodePanel({
             console.log("Request Body:", body);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(
-                () => controller.abort(),
-                timeoutSeconds * 1000
-            );
+           
 
             console.log("Sending request...");
 
@@ -281,7 +231,6 @@ export function NodePanel({
                 signal: controller.signal,
             });
 
-            clearTimeout(timeoutId);
 
             console.log("Response Status:", response.status);
             console.log("Response Status Text:", response.statusText);
@@ -425,31 +374,6 @@ export function NodePanel({
                                 />
                             </div>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Timeout (seconds)</Label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    max={300}
-                                    value={timeoutSeconds}
-                                    onChange={(e) => setTimeoutSeconds(parseInt(e.target.value) || 30)}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Retry Count</Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    max={10}
-                                    value={retryCount}
-                                    onChange={(e) => setRetryCount(parseInt(e.target.value) || 3)}
-                                />
-                            </div>
-                        </div>
-
                         {/* URL Preview */}
                         <div className="bg-muted p-2 rounded text-xs">
                             <span className="text-muted-foreground">Full URL: </span>

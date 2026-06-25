@@ -51,17 +51,9 @@ export interface AdapterConfig {
 export interface AdapterConfigNode {
   id?: string;
   product_id?: string;
-  api_key?: string;
-  endpoint_path: string;
+  endpoint_path?: string;
   http_method?: 'POST' | 'PUT' | 'PATCH' | 'GET' | 'DELETE';
-  custom_headers?: string;
   field_mapping?: string;
-  meta_config?: string;
-  sitemap_config?: string;
-  timeout_seconds?: number;
-  retry_count?: number;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface WorkflowDefinition {

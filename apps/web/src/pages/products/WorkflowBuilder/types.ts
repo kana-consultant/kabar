@@ -1,5 +1,5 @@
 // src/pages/products/WorkflowBuilder/types.ts
-import type { WorkflowNode } from "@/types/workflow";
+import type { WorkflowNode } from "@/types/product";
 
 export interface CanvasNode {
     id: string;

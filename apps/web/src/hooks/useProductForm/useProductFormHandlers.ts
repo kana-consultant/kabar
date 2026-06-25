@@ -89,9 +89,6 @@ export function useProductFormHandlers(
                         ? {
                             ...node.adapter_config,
                             updated_at: new Date().toISOString(),
-                            custom_headers: typeof node.adapter_config.custom_headers === "string"
-                                ? node.adapter_config.custom_headers
-                                : JSON.stringify(node.adapter_config.custom_headers || {}),
                             field_mapping: typeof node.adapter_config.field_mapping === "string"
                                 ? node.adapter_config.field_mapping
                                 : JSON.stringify(node.adapter_config.field_mapping || {}),

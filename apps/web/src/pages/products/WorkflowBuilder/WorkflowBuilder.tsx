@@ -15,7 +15,7 @@ import "reactflow/dist/style.css";
 import { WorkflowList } from "./WorkflowList";
 import { NodePanel } from "./NodePanel";
 import { WorkflowNode as WorkflowNodeComponent } from "./WorkflowNode";
-import type { Product, WorkflowDefinition, WorkflowNode as WorkflowNodeType, AdapterConfig } from "@/types/product";
+import type { Product, WorkflowDefinition, WorkflowNode as WorkflowNodeType, AdapterConfig, AdapterConfigNode } from "@/types/product";
 
 interface WorkflowBuilderProps {
   productId: string;
@@ -35,7 +35,7 @@ interface WorkflowBuilderProps {
 interface FlowNodeData {
   label: string;
   workflowNode: WorkflowNodeType;
-  adapterConfig: AdapterConfig;
+  adapterConfig: AdapterConfigNode;
 }
 
 type FlowNode = Node<FlowNodeData>;
@@ -246,7 +246,6 @@ export function WorkflowBuilder({
             updatedAdapterConfig = {
               ...n.data.adapterConfig,
               ...adapter_config,
-              updated_at: new Date().toISOString()
             };
             endpointPath = adapter_config.endpoint_path || endpointPath;
           }
@@ -398,15 +397,11 @@ export function WorkflowBuilder({
       const nodeId = `temp-node-${Date.now()}-${Math.random()}`;
       const adapterConfigId = `temp-adapter-${Date.now()}-${Math.random()}`;
 
-      const newAdapterConfig: AdapterConfig = {
+      const newAdapterConfig: AdapterConfigNode = {
         id: adapterConfigId,
         product_id: productId,
         endpoint_path: "/api/default",
         http_method: "GET",
-        timeout_seconds: 30,
-        retry_count: 3,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
       const newNode: WorkflowNodeType = {

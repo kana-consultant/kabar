@@ -1,4 +1,4 @@
-import type { Product, AdapterConfig, WorkflowDefinition, WorkflowNode } from "@/types/product";
+import type { Product, AdapterConfig, WorkflowDefinition, WorkflowNode, AdapterConfigNode } from "@/types/product";
 
 export function useProductFormActions(
     setProduct: (updater: any) => void
@@ -128,14 +128,12 @@ export function useProductFormActions(
             };
         });
     };
-
-    // Update node in workflow
-    // Update node in workflow
+    
     // Update node in workflow
     const updateNodeInWorkflow = (
         workflowId: string,
         nodeId: string,
-        updates: Partial<WorkflowNode> & { adapter_config?: Partial<AdapterConfig> }
+        updates: Partial<WorkflowNode> & { adapter_config?: Partial<AdapterConfigNode> }
     ) => {
         console.log(`🔄 updateNodeInWorkflow:`, { workflowId, nodeId, updates });
 
@@ -160,18 +158,12 @@ export function useProductFormActions(
                                 if (adapter_config) {
                                     console.log("📡 Updating adapter_config:", adapter_config);
 
-                                    // Pastikan custom_headers tetap sebagai string
-                                    let customHeadersStr = adapter_config.custom_headers;
-                                    if (customHeadersStr && typeof customHeadersStr === 'object') {
-                                        customHeadersStr = JSON.stringify(customHeadersStr);
-                                    }
 
                                     updatedNode = {
                                         ...updatedNode,
                                         adapter_config: {
                                             ...node.adapter_config,
                                             ...adapter_config,
-                                            custom_headers: customHeadersStr || node.adapter_config?.custom_headers,
                                             updated_at: new Date().toISOString()
                                         } as AdapterConfig
                                     };
