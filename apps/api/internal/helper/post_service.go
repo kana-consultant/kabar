@@ -41,7 +41,7 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 				"synced":  false,
 			})
 			someFailed = true
-			continue
+			continue // Skip to next product
 		}
 
 		// Validate config
@@ -54,7 +54,7 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 				"synced":  false,
 			})
 			someFailed = true
-			continue
+			continue // Skip to next product
 		}
 
 		if !cfg.HasWorkflowNodes() {
@@ -66,7 +66,7 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 				"synced":  false,
 			})
 			someFailed = true
-			continue
+			continue // Skip to next product
 		}
 
 		// Initialize execution context
@@ -107,7 +107,7 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 				})
 				someFailed = true
 				productFailed = true
-				continue
+				break // STOP processing remaining nodes for this product
 			}
 
 			// Send request with retry and get status code
@@ -131,10 +131,7 @@ func (s *PostService) ProcessDraftProducts(ctx context.Context, draft draft.Draf
 				})
 				someFailed = true
 				productFailed = true
-
-				// Optional: Stop processing further nodes for this product on failure
-				// break
-				continue
+				break // STOP processing remaining nodes for this product
 			}
 
 			// Store result (success case)
