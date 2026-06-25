@@ -5,7 +5,7 @@ import { Button, Label, Input, Select, SelectContent, SelectItem, SelectTrigger,
 import type { Node } from "reactflow";
 import { SimpleJsonBuilder } from "../SimpleJsonBuilder";
 import { useToast } from "@/hooks/use-toast";
-import type { AdapterConfig, WorkflowNode } from "@/types/product";
+import type { AdapterConfig, AdapterConfigNode, WorkflowNode } from "@/types/product";
 
 interface NodePanelProps {
     node: Node;
@@ -35,7 +35,7 @@ export function NodePanel({
     onUpdate
 }: NodePanelProps) {
     const [endpointPath, setEndpointPath] = useState<string>("");
-    const [httpMethod, setHttpMethod] = useState<AdapterConfig['http_method']>("GET");
+    const [httpMethod, setHttpMethod] = useState<AdapterConfigNode['http_method']>("GET");
     const [customHeaders, setCustomHeaders] = useState<string>("{}");
     const [timeoutSeconds, setTimeoutSeconds] = useState<number>(30);
     const [retryCount, setRetryCount] = useState<number>(3);
@@ -49,7 +49,7 @@ export function NodePanel({
     const toast = useToast();
 
     const workflowNode = node.data.workflowNode as WorkflowNode;
-    const adapterConfig = node.data.adapterConfig as AdapterConfig;
+    const adapterConfig = node.data.adapterConfig as AdapterConfigNode;
     const currentNodeStepOrder = workflowNode?.step_order;
     const isFirstNode = currentNodeStepOrder === 1;
 
@@ -197,10 +197,7 @@ export function NodePanel({
         try {
             // Parse custom headers - langsung sebagai string, tidak perlu JSON.stringify lagi
             const adapterConfigUpdates: Partial<AdapterConfig> = {
-                endpoint_path: endpointPath,
-                http_method: httpMethod,
                 timeout_seconds: timeoutSeconds,
-                field_mapping : JSON.stringify(inputMapping),
                 retry_count: retryCount,
                 updated_at: new Date().toISOString(),
             };
@@ -405,7 +402,7 @@ export function NodePanel({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>HTTP Method</Label>
-                                <Select value={httpMethod} onValueChange={(v) => setHttpMethod(v as AdapterConfig['http_method'])}>
+                                <Select value={httpMethod} onValueChange={(v) => setHttpMethod(v as AdapterConfigNode['http_method'])}>
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>

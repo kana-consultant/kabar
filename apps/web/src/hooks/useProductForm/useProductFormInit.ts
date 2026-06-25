@@ -8,15 +8,6 @@ export function useProductFormInit(
 ) {
     useEffect(() => {
         if (isEdit && initialData) {
-            let fieldMappingValue = initialData.adapter_config?.field_mapping || "[]";
-
-            if (typeof fieldMappingValue === 'object') {
-                fieldMappingValue = JSON.stringify(fieldMappingValue, null, 2);
-            }
-
-            if (typeof fieldMappingValue === 'string' && (fieldMappingValue === "" || fieldMappingValue === "null")) {
-                fieldMappingValue = "[]";
-            }
 
             setProduct({
                 ...initialData,

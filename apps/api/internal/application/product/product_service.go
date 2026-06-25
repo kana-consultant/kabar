@@ -619,22 +619,6 @@ func (s *ProductService) validateCreateRequest(req product.ProductRequest) error
 		return fmt.Errorf("at least one workflow is required")
 	}
 
-	for i, wf := range req.Workflows {
-		if wf.Name == "" {
-			return fmt.Errorf("workflow[%d] name is required", i)
-		}
-
-		if len(wf.Nodes) == 0 {
-			return fmt.Errorf("workflow[%d] must have at least one node", i)
-		}
-
-		for j, node := range wf.Nodes {
-			if node.StepOrder <= 0 {
-				return fmt.Errorf("workflow[%d] node[%d] step_order must be greater than 0", i, j)
-			}
-		}
-	}
-
 	return nil
 }
 

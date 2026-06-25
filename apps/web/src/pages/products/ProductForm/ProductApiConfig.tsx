@@ -22,11 +22,12 @@ import {
     PopoverTrigger,
 } from "@kana-consultant/ui-kit";
 
-import type { AdapterConfig } from "@/services/product";
+import type { AdapterConfig, Product } from "@/services/product";
 
 interface ProductApiConfigProps {
     config: Partial<AdapterConfig>;
     onUpdate: (updates: Partial<AdapterConfig>) => void;
+    onUpdateProduct: (updates: Partial<Product>) => void;
 }
 
 interface HeaderItem {
@@ -37,7 +38,6 @@ interface HeaderItem {
 type AuthType = 'none' | 'apiKey';
 type AuthPrefix = 'Bearer' | 'ApiKey' | 'Basic' | 'custom';
 
-// Daftar placeholder yang tersedia
 const PLACEHOLDER_OPTIONS = [
     { label: '{{id}}', value: '{{id}}' },
     { label: '{{name}}', value: '{{name}}' },
@@ -57,39 +57,38 @@ const AUTH_PREFIX_OPTIONS = [
 export function ProductApiConfig({
     config,
     onUpdate,
+    onUpdateProduct,
 }: ProductApiConfigProps) {
-  
+
     const [headers, setHeaders] = useState<HeaderItem[]>([]);
     const [authType, setAuthType] = useState<AuthType>('apiKey');
     const [authPrefix, setAuthPrefix] = useState<AuthPrefix>('ApiKey');
+    const [apiKeyValue, setApiKeyValue] = useState<string>('');
     const [customAuthPrefix, setCustomAuthPrefix] = useState<string>('');
-    const [initialized, setInitialized] = useState(false);
-    
-    // State untuk popover yang terbuka
-    const [openPopoverIndex, setOpenPopoverIndex] = useState<number | null>(null);
-    
-    // Gunakan ref untuk melacak apakah perubahan berasal dari internal
-    const internalUpdateRef = useRef(false);
 
-    // convert object -> list (hanya saat mount)
+    const [openPopoverIndex, setOpenPopoverIndex] = useState<number | null>(null);
+    const internalUpdateRef = useRef(false);
+    const isInitializedRef = useRef(false);
+
     useEffect(() => {
+        if (isInitializedRef.current) return;
+
         let obj: Record<string, string> = {};
-        
-        if (config.customHeaders) {
-            if (typeof config.customHeaders === 'string') {
+
+        if (config.custom_headers) {
+            if (typeof config.custom_headers === 'string') {
                 try {
-                    obj = JSON.parse(config.customHeaders);
+                    obj = JSON.parse(config.custom_headers);
                 } catch (e) {
                     obj = {};
                 }
-            } else if (typeof config.customHeaders === 'object') {
-                obj = config.customHeaders as Record<string, string>;
+            } else if (typeof config.custom_headers === 'object') {
+                obj = config.custom_headers as Record<string, string>;
             }
         }
 
-        // Parse authorization header
         const authHeader = obj['Authorization'] || obj['authorization'] || '';
-        
+
         if (authHeader) {
             if (authHeader.toLowerCase().startsWith('bearer ')) {
                 setAuthType('apiKey');
@@ -100,18 +99,22 @@ export function ProductApiConfig({
             } else if (authHeader.toLowerCase().startsWith('basic ')) {
                 setAuthType('apiKey');
                 setAuthPrefix('Basic');
-            } else if (authHeader.includes('{{api_key}}')) {
-                setAuthType('apiKey');
-                setAuthPrefix('custom');
-                const customPrefix = authHeader.split(' ')[0];
-                setCustomAuthPrefix(customPrefix);
+            } else {
+                const spaceIndex = authHeader.indexOf(' ');
+                if (spaceIndex > 0) {
+                    setAuthType('apiKey');
+                    setAuthPrefix('custom');
+                    const prefix = authHeader.substring(0, spaceIndex);
+                    setCustomAuthPrefix(prefix);
+                }
             }
         } else {
             setAuthType('apiKey');
             setAuthPrefix('ApiKey');
         }
 
-        // Remove authorization from regular headers
+     
+
         const regularHeaders: Record<string, string> = {};
         Object.entries(obj).forEach(([key, value]) => {
             if (key.toLowerCase() !== 'authorization') {
@@ -124,9 +127,9 @@ export function ProductApiConfig({
         );
 
         setHeaders(mapped.length ? mapped : [{ key: "", value: "" }]);
-        setInitialized(true);
+        isInitializedRef.current = true;
 
-    }, [config.customHeaders]);
+    }, []);
 
     const buildAuthValue = useCallback((prefix: AuthPrefix, customPrefix: string) => {
         if (prefix === 'custom') {
@@ -140,27 +143,32 @@ export function ProductApiConfig({
         currentAuthType: AuthType,
         currentAuthPrefix: AuthPrefix,
         currentCustomPrefix: string,
+        currentApiKey: string,
     ) => {
         internalUpdateRef.current = true;
-        
+
         const allHeaders: Record<string, string> = {};
 
-        // Always add Authorization header
+        // Authorization header selalu {{api_key}}
         if (currentAuthType !== 'none') {
             allHeaders['Authorization'] = buildAuthValue(currentAuthPrefix, currentCustomPrefix);
         }
 
-        // custom headers
         currentHeaders.forEach(item => {
             if (item.key.trim() && item.key.toLowerCase() !== 'authorization') {
                 allHeaders[item.key.trim()] = item.value;
             }
         });
 
+        // Kirim custom_headers dan api_key terpisah
         onUpdate({
-            customHeaders: JSON.stringify(allHeaders)
+            custom_headers: JSON.stringify(allHeaders),
         });
-        
+
+        onUpdateProduct({
+            api_key: currentApiKey
+        });
+
         setTimeout(() => {
             internalUpdateRef.current = false;
         }, 0);
@@ -168,26 +176,31 @@ export function ProductApiConfig({
 
     const updateHeaders = useCallback((updated: HeaderItem[]) => {
         setHeaders(updated);
-        updateFullConfig(updated, authType, authPrefix, customAuthPrefix);
-    }, [authType, authPrefix, customAuthPrefix, updateFullConfig]);
+        updateFullConfig(updated, authType, authPrefix, customAuthPrefix, apiKeyValue);
+    }, [authType, authPrefix, customAuthPrefix, apiKeyValue, updateFullConfig]);
 
     const updateAuthType = useCallback((newType: AuthType) => {
         setAuthType(newType);
-        updateFullConfig(headers, newType, authPrefix, customAuthPrefix);
-    }, [headers, authPrefix, customAuthPrefix, updateFullConfig]);
+        updateFullConfig(headers, newType, authPrefix, customAuthPrefix, apiKeyValue);
+    }, [headers, authPrefix, customAuthPrefix, apiKeyValue, updateFullConfig]);
 
     const updateAuthPrefix = useCallback((newPrefix: AuthPrefix) => {
         setAuthPrefix(newPrefix);
         if (newPrefix !== 'custom') {
             setCustomAuthPrefix('');
         }
-        updateFullConfig(headers, authType, newPrefix, newPrefix === 'custom' ? customAuthPrefix : '');
-    }, [headers, authType, customAuthPrefix, updateFullConfig]);
+        updateFullConfig(headers, authType, newPrefix, newPrefix === 'custom' ? customAuthPrefix : '', apiKeyValue);
+    }, [headers, authType, customAuthPrefix, apiKeyValue, updateFullConfig]);
+
+    const updateApiKeyValue = useCallback((value: string) => {
+        setApiKeyValue(value);
+        updateFullConfig(headers, authType, authPrefix, customAuthPrefix, value);
+    }, [headers, authType, authPrefix, customAuthPrefix, updateFullConfig]);
 
     const updateCustomAuthPrefix = useCallback((prefix: string) => {
         setCustomAuthPrefix(prefix);
-        updateFullConfig(headers, authType, 'custom', prefix);
-    }, [headers, authType, updateFullConfig]);
+        updateFullConfig(headers, authType, 'custom', prefix, apiKeyValue);
+    }, [headers, authType, apiKeyValue, updateFullConfig]);
 
     const addHeader = useCallback(() => {
         updateHeaders([...headers, { key: "", value: "" }]);
@@ -215,26 +228,6 @@ export function ProductApiConfig({
 
             <CardContent className="space-y-4">
 
-                {/* METHOD */}
-                <div className="space-y-2">
-                    <Label>HTTP Method</Label>
-                    <Select
-                        value={config.httpMethod || "POST"}
-                        onValueChange={(v: any) => onUpdate({ httpMethod: v as any })}
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="GET">GET</SelectItem>
-                            <SelectItem value="POST">POST</SelectItem>
-                            <SelectItem value="PUT">PUT</SelectItem>
-                            <SelectItem value="PATCH">PATCH</SelectItem>
-                            <SelectItem value="DELETE">DELETE</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
                 {/* AUTH */}
                 <div className="space-y-2">
                     <Label>Jenis Autentikasi</Label>
@@ -255,45 +248,49 @@ export function ProductApiConfig({
                         </div>
                     </RadioGroup>
 
-                    {/* Auth Configuration */}
                     {authType === 'apiKey' && (
                         <div className="mt-3 p-3 border rounded-md bg-muted/40 space-y-3">
                             <div className="space-y-2">
                                 <Label className="text-xs">Format Authorization</Label>
-                                <div className="flex gap-2">
-                                    <div className="w-1/2">
-                                        <Select
-                                            value={authPrefix}
-                                            onValueChange={(v: string) => updateAuthPrefix(v as AuthPrefix)}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {AUTH_PREFIX_OPTIONS.map((option) => (
-                                                    <SelectItem key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="w-1/2">
-                                        {authPrefix === 'custom' ? (
-                                            <Input
-                                                placeholder="Custom prefix"
-                                                value={customAuthPrefix}
-                                                onChange={(e: any) => updateCustomAuthPrefix(e.target.value)}
-                                            />
-                                        ) : (
-                                            <Input
-                                                value={buildAuthValue(authPrefix, customAuthPrefix)}
-                                                disabled
-                                                className="bg-muted"
-                                            />
-                                        )}
-                                    </div>
+                                <Select
+                                    value={authPrefix}
+                                    onValueChange={(v: string) => updateAuthPrefix(v as AuthPrefix)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {AUTH_PREFIX_OPTIONS.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {authPrefix === 'custom' && (
+                                <div className="space-y-2">
+                                    <Label className="text-xs">Custom Prefix</Label>
+                                    <Input
+                                        placeholder="Masukkan prefix (mis: Token)"
+                                        value={customAuthPrefix}
+                                        onChange={(e: any) => updateCustomAuthPrefix(e.target.value)}
+                                    />
                                 </div>
+                            )}
+
+
+                            {/* INPUT API KEY */}
+                            <div className="space-y-2 pt-3 border-t">
+                                <Label className="text-xs">API Key / Token</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="Masukkan API Key atau pilih placeholder"
+                                    value={apiKeyValue}
+                                    onChange={(e: any) => updateApiKeyValue(e.target.value)}
+                                    className="cursor-pointer"
+                                />
                             </div>
                         </div>
                     )}
@@ -328,12 +325,12 @@ export function ProductApiConfig({
                                         }}
                                     />
                                 </div>
-                                
+
                                 <div className="text-sm text-muted-foreground pt-2">=</div>
-                                
+
                                 <div className="flex-1">
-                                    <Popover 
-                                        open={openPopoverIndex === index} 
+                                    <Popover
+                                        open={openPopoverIndex === index}
                                         onOpenChange={(open) => {
                                             if (open) {
                                                 setOpenPopoverIndex(index);

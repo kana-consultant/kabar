@@ -51,7 +51,6 @@ func (s *DraftServiceImpl) GetDashboardStats(ctx context.Context, filter models.
 }
 
 func (s *DraftServiceImpl) GetAllScheduled(ctx context.Context, usrCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
-
 	return s.repo.GetAllScheduled(ctx, usrCtx, params)
 }
 

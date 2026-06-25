@@ -67,9 +67,6 @@ export function useProductFormHandlers(
 
                 adapterConfig = {
                     id: ac.id || "",
-                    product_id: ac.product_id || productToSaveRaw.id || "",
-                    endpoint_path: ac.endpoint_path || "",
-                    http_method: ac.http_method || "GET",
                     custom_headers: toJsonString(ac.custom_headers || (ac as any).customHeaders),
                     meta_config: ac.meta_config ? toJsonString(ac.meta_config) : undefined,
                     sitemap_config: ac.sitemap_config ? toJsonString(ac.sitemap_config) : undefined,

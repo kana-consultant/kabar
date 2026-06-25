@@ -74,22 +74,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     </p>
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="apiKey" className="text-sm font-medium">
-                        API Key / Token
-                    </Label>
-                    <Input
-                        id="apiKey"
-                        type="password"
-                        value={product.api_key || ''}  // ← FIX: default empty string
-                        onChange={(e) => onUpdate({ api_key: e.target.value })}
-                        placeholder="Masukkan API Key"
-                        className="h-10"
-                    />
-                    <p className="text-xs text-slate-400">
-                        ⚠️ Key akan dienkripsi sebelum disimpan ke database
-                    </p>
-                </div>
+               
 
                 {/* Tombol Test Koneksi */}
                 <div className="pt-2">

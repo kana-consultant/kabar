@@ -284,6 +284,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                     <ProductApiConfig
                         config={product.adapter_config || {}}
                         onUpdate={updateAdapterConfig}
+                        onUpdateProduct={updateProductInfo}
                     />
                 </div>
             </CollapsibleSection>
