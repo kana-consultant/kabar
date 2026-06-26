@@ -168,7 +168,7 @@ export async function saveAsSchedule(
             };
             setPublishResults(errorResponse);
             setShowResultDialog(true);
-            
+
             // Panggil onSuccess dengan error response
             if (onSuccess) {
                 onSuccess(errorResponse);
@@ -225,7 +225,10 @@ export async function postInstant(
             keywords: tags as string[],
             excerpt: excerpt
         };
-        
+
+        console.log("lkfasnhkfasdnkfsndgknsdeg")
+        console.log(draftData)
+
         let response: any;
         if (currentDraftId) {
             response = await publishDraft(currentDraftId, draftData);
@@ -238,9 +241,7 @@ export async function postInstant(
         setShowResultDialog(true);
 
         // Panggil onSuccess dengan response
-        if (onSuccess) {
-            onSuccess(response);
-        }
+        onSuccess(response);
 
         const hasErrors = response.results?.some((r: any) => !r.success);
 
@@ -259,30 +260,24 @@ export async function postInstant(
             }
         }
 
+        console.log("HASIL")
+        console.log(response)
+
         return { success: true, result: response };
     } catch (error: any) {
-        console.error("Failed to post:", error);
 
-        if (error?.results) {
-            const errorResponse = {
-                message: error.message || "Publikasi gagal",
-                results: error.results,
-                status: "failed"
-            };
-            setPublishResults(errorResponse);
-            setShowResultDialog(true);
-            
-            // Panggil onSuccess dengan error response
-            if (onSuccess) {
-                onSuccess(errorResponse);
-            }
-        } else {
-            toast.error("Gagal memposting", {
-                description: error?.message || "Terjadi kesalahan pada server",
-            });
+        const errorResponse = error.response.data
+        setPublishResults(errorResponse);
+        setShowResultDialog(true);
+
+        console.log(errorResponse)
+
+        // Panggil onSuccess dengan error response
+        if (onSuccess) {
+            onSuccess(errorResponse);
         }
 
-        return { success: false };
+        throw error
     } finally {
         setPublishing(false);
     }

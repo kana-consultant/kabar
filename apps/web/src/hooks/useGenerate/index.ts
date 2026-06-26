@@ -174,20 +174,12 @@ export function useGenerate() {
             setPublishing, setPublishResults, setShowResultDialog,
             (result: any) => {
                 // onSuccess callback
+                console.log(result)
                 if (result) {
-                    setResults(result.results || []);
-                    if (result.some_failed || result.all_failed) {
+                    setResults(result);
+                    if (!result.success) {
                         setIsError(true);
-                        setErrorData({
-                            title: result.all_failed
-                                ? 'Semua Produk Gagal Diposting'
-                                : 'Beberapa Produk Gagal Diposting',
-                            message: result.message || 'Terjadi kesalahan saat memposting konten',
-                            errors: result.errors || ['Unknown error'],
-                            results: result.results || [],
-                            someFailed: result.some_failed,
-                            allFailed: result.all_failed,
-                        });
+                        setErrorData(result);
                     }
                 }
             },
@@ -228,9 +220,12 @@ export function useGenerate() {
             } else if (postMode === "scheduled") {
                 result = await handleSaveAsSchedule();
             } else {
+                console.log("kesinmiiiiiiiiiiiiiiiiiii")
                 result = await handlePostInstant();
+                console.log("selesai ikontpol")
             }
         } catch (error: any) {
+            console.log("gagalllllllllllllllll kontol")
             setIsError(true);
             setErrorData({
                 title: 'Error',
@@ -240,7 +235,7 @@ export function useGenerate() {
                 someFailed: true,
                 allFailed: true,
             });
-            toast.error(error.message || 'Gagal memposting konten');
+            // toast.error(error.message || 'Gagal memposting konten');
         } finally {
             setIsPosting(false);
         }

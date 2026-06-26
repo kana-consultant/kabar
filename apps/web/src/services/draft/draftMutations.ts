@@ -58,13 +58,7 @@ export async function publishDraft(id: string, draftData: Draft | null): Promise
 }
 
 export async function publishDraftInstant(draftData: CreateDraftRequest): Promise<PublishResponse> {
-    try {
-        const response = await apiClient.post<PublishResponse>(`/drafts/publish`, draftData);
-        return response;
-    } catch (error) {
-        console.error('Failed to update draft:', error);
-        throw error;
-    }
+   return await apiClient.post<PublishResponse>(`/drafts/publish`, draftData);
 }
 
 export async function draftSchedule(scheduleData: ScheduleRequest): Promise<PublishResponse> {

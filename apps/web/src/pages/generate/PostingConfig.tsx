@@ -557,58 +557,7 @@ export function PostingConfig({
                             </button>
                         </div>
 
-                        <ScrollArea
-                            className="max-h-36 rounded-lg"
-                        >
-                            <div className="space-y-2 p-1">
-                                {productGroups.map((group, groupIndex) => (
-                                    <div
-                                        key={groupIndex}
-                                        className={cn(
-                                            "grid grid-cols-5 gap-1 p-1.5 rounded-lg",
-                                            "bg-slate-50/60 border border-slate-100",
-                                            "dark:bg-white/[0.02] dark:border-white/[0.05]"
-                                        )}
-                                    >
-                                        {group.map((product) => {
-                                            const productId = product.id?.toString() || '';
-                                            const isSelected = selectedProducts.includes(productId);
-                                            const hasError = hasProductError(productId);
-
-                                            return (
-                                                <button
-                                                    key={productId}
-                                                    onClick={() => onToggleProduct(productId)}
-                                                    className={cn(
-                                                        "px-2 py-1.5 rounded text-[11px] font-medium transition-all text-center truncate",
-                                                        "hover:ring-1 hover:ring-slate-300 dark:hover:ring-white/[0.15]",
-                                                        `${isSelected && hasError
-                                                            ? "bg-red-50 text-red-700 ring-1 ring-red-300/60 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20"
-                                                            : isSelected && !hasError
-                                                                ? "bg-blue-50 text-blue-700 ring-1 ring-blue-300/60 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20"
-                                                                : "bg-white text-slate-600 ring-1 ring-slate-200/60 dark:bg-transparent dark:text-slate-400 dark:ring-white/[0.06]"
-                                                        }`
-                                                    )}
-                                                    title={product.name}
-                                                >
-                                                    {isSelected && hasError && <AlertTriangle className="h-2.5 w-2.5 inline mr-1" />}
-                                                    {product.name || productId}
-                                                </button>
-                                            );
-                                        })}
-
-                                        {Array.from({ length: 5 - group.length }).map((_, index) => (
-                                            <div
-                                                key={`empty-${index}`}
-                                                className="px-2 py-1.5 rounded opacity-0"
-                                            >
-                                                &nbsp;
-                                            </div>
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
-                        </ScrollArea>
+                     
                     </div>
 
                     {/* Selected Products Box */}
@@ -652,37 +601,7 @@ export function PostingConfig({
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-1.5">
-                                {selectedDetails.map((product) => {
-                                    const productId = product.id?.toString() || '';
-                                    const hasError = hasProductError(productId);
-
-                                    return (
-                                        <span
-                                            key={productId}
-                                            className={cn(
-                                                "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium",
-                                                hasError
-                                                    ? "bg-red-50 text-red-700 ring-1 ring-red-300/60 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20"
-                                                    : "bg-white text-green-700 ring-1 ring-green-300/60 dark:bg-green-500/10 dark:text-green-300 dark:ring-green-500/20"
-                                            )}
-                                        >
-                                            {hasError && <AlertTriangle className="h-2.5 w-2.5" />}
-                                            {product.name || productId}
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onToggleProduct(productId);
-                                                }}
-                                                className="ml-0.5 hover:text-red-500 transition-colors"
-                                            >
-                                                <X className="h-2.5 w-2.5" />
-                                            </button>
-                                        </span>
-                                    );
-                                })}
-                            </div>
+                        
                         </div>
                     )}
 
