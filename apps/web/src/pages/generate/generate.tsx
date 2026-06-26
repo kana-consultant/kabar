@@ -1,3 +1,5 @@
+// components/Generate.tsx
+import { useState } from "react"; // 👈 PENTING: Import useState
 import { GenerateHeader } from "./GenerateHeader";
 import { TopicInput } from "./TopicInput";
 import { PostingConfig } from "./PostingConfig";
@@ -12,35 +14,46 @@ export default function Generate() {
         article,
         imageUrl,
         loadingArticle, loadingImage,
-        selectedProducts,
+        selectedProducts, // 👈 array, kita IGNORE
         postMode, setPostMode,
         scheduleTime, setScheduleTime,
         scheduleDate, setScheduleDate,
         dailySchedule, setDailySchedule,
         dailyTime, setDailyTime,
         autoGenerateImage, setAutoGenerateImage,
-        postToAll,
         products,
         productsLoading,
         productsError,
         currentDraftId,
         generateArticle,
         generateImage,
-        handleProductToggle,
+        handleProductToggle, // 👈 IGNORE
         handleSelectAll,
         handlePost,
         publishResults,
         showResultDialog,
         closeResultDialog,
         isPosting,
-        selectedModelId, 
+        selectedModelId,
         setSelectedModelId,
-        isError,           
-        results,           
-        errorData,         
-        onRetry,           
-        onCloseError,      
+        isError,
+        results,
+        errorData,
+        onRetry,
+        onCloseError,
     } = useGenerate();
+
+    // 👇 STATE KHUSUS UNTUK SINGLE SELECT
+    const [selectedProduct, setSelectedProduct] = useState<string>("");
+
+    // 👇 HANDLER UNTUK SINGLE SELECT
+    const handleSelectProduct = (productId: string | null) => {
+        if (productId === null) {
+            setSelectedProduct("");
+        } else {
+            setSelectedProduct(productId);
+        }
+    };
 
     if (productsLoading) {
         return (
@@ -69,8 +82,6 @@ export default function Generate() {
         );
     }
 
-    console.log(postMode);
-    
     return (
         <div className="space-y-6">
             {/* Draft indicator */}
@@ -105,33 +116,33 @@ export default function Generate() {
                 </div>
 
                 {/* Right column */}
-                <PostingConfig
-                    postMode={postMode}
-                    setPostMode={setPostMode}
-                    scheduleDate={scheduleDate}
-                    setScheduleDate={setScheduleDate}
-                    scheduleTime={scheduleTime}
-                    setScheduleTime={setScheduleTime}
-                    dailySchedule={dailySchedule}
-                    setDailySchedule={setDailySchedule}
-                    dailyTime={dailyTime}
-                    setDailyTime={setDailyTime}
-                    autoGenerateImage={autoGenerateImage}
-                    setAutoGenerateImage={setAutoGenerateImage}
-                    products={products}
-                    selectedProducts={selectedProducts}
-                    postToAll={postToAll}
-                    onToggleProduct={handleProductToggle}
-                    onSelectAll={handleSelectAll}
-                    article={article}
-                    onPost={handlePost}
-                    isPosting={isPosting}
-                    isError={isError}
-                    results={results}
-                    errorData={errorData}
-                    onRetry={onRetry}
-                    onCloseError={onCloseError}
-                />
+                <div className="space-y-6">
+                    <PostingConfig
+                        postMode={postMode}
+                        setPostMode={setPostMode}
+                        scheduleDate={scheduleDate}
+                        setScheduleDate={setScheduleDate}
+                        scheduleTime={scheduleTime}
+                        setScheduleTime={setScheduleTime}
+                        dailySchedule={dailySchedule}
+                        setDailySchedule={setDailySchedule}
+                        dailyTime={dailyTime}
+                        setDailyTime={setDailyTime}
+                        autoGenerateImage={autoGenerateImage}
+                        setAutoGenerateImage={setAutoGenerateImage}
+                        products={products}
+                        selectedProduct={selectedProduct} 
+                        onSelectProduct={handleSelectProduct}
+                        article={article}
+                        onPost={handlePost}
+                        isPosting={isPosting}
+                        isError={isError}
+                        results={results}
+                        errorData={errorData}
+                        onRetry={onRetry}
+                        onCloseError={onCloseError}
+                    />
+                </div>
             </div>
 
             {/* Preview Section */}
@@ -144,7 +155,7 @@ export default function Generate() {
                 dailyTime={dailyTime}
                 scheduleDate={scheduleDate}
                 scheduleTime={scheduleTime}
-                selectedProductsCount={selectedProducts.length}
+                selectedProductsCount={selectedProduct ? 1 : 0} 
                 autoGenerateImage={autoGenerateImage}
             />
 

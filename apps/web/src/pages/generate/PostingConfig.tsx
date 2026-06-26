@@ -9,7 +9,6 @@ import {
     DialogTitle,
     DialogFooter
 } from "@kana-consultant/ui-kit";
-import { ScrollArea } from "./scroll-area";
 import {
     Send,
     Calendar,
@@ -27,7 +26,9 @@ import {
 import { cn } from "@/lib/utils";
 import type { Product } from "@/services/product";
 import { useState } from "react";
+import { ScrollArea } from "./scroll-area";
 
+// ============ INTERFACE ============
 interface PostingConfigProps {
     postMode: "instant" | "scheduled" | "draft";
     setPostMode: (mode: "instant" | "scheduled" | "draft") => void;
@@ -42,10 +43,8 @@ interface PostingConfigProps {
     autoGenerateImage: boolean;
     setAutoGenerateImage: (value: boolean) => void;
     products: Product[];
-    selectedProducts: string[];
-    postToAll: boolean;
-    onToggleProduct: (product: string) => void;
-    onSelectAll: () => void;
+    selectedProduct: string; // 👈 SINGLE STRING
+    onSelectProduct: (productId: string | null) => void; // 👈 SINGLE SELECT HANDLER
     article: string;
     onPost: () => void;
     isPosting: boolean;
@@ -63,13 +62,14 @@ interface PostingConfigProps {
     onCloseError?: () => void;
 }
 
+// ============ CONSTANTS ============
 const modes = [
     { value: "instant", label: "Langsung", icon: Send },
     { value: "scheduled", label: "Terjadwal", icon: Calendar },
     { value: "draft", label: "Draft", icon: FileText },
 ] as const;
 
-// Error Modal Component (inline)
+// ============ ERROR MODAL ============
 function ErrorModal({
     open,
     onOpenChange,
@@ -101,9 +101,7 @@ function ErrorModal({
         .filter((r: any) => r?.success === false)
         .reduce((acc: Record<string, Array<{ node: string; error: string; statusCode: number }>>, r: any) => {
             const productName = r?.product || 'Unknown Product';
-            if (!acc[productName]) {
-                acc[productName] = [];
-            }
+            if (!acc[productName]) acc[productName] = [];
             acc[productName].push({
                 node: r?.node || 'Unknown Node',
                 error: r?.error || 'Unknown error',
@@ -156,7 +154,6 @@ function ErrorModal({
 
                 <ScrollArea className="flex-1 max-h-[420px] px-6 py-4">
                     <div className="space-y-4">
-                        {/* Summary stats */}
                         <div className="grid grid-cols-3 gap-2">
                             <div className={cn(
                                 "rounded-lg p-3 text-center",
@@ -196,7 +193,6 @@ function ErrorModal({
                             </div>
                         </div>
 
-                        {/* Error details */}
                         {errorCount > 0 && (
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
@@ -265,7 +261,6 @@ function ErrorModal({
                             </div>
                         )}
 
-                        {/* Success products summary */}
                         {successCount > 0 && (
                             <div className={cn(
                                 "rounded-lg border p-3",
@@ -334,14 +329,16 @@ function ErrorModal({
     );
 }
 
+// ============ MAIN COMPONENT ============
 export function PostingConfig({
     postMode, setPostMode,
     scheduleDate, setScheduleDate,
     scheduleTime, setScheduleTime,
     dailySchedule, setDailySchedule,
     dailyTime, setDailyTime,
-    products, selectedProducts, postToAll,
-    onToggleProduct, onSelectAll,
+    products,
+    selectedProduct, // 👈 SINGLE STRING
+    onSelectProduct, // 👈 SINGLE SELECT HANDLER
     article, onPost, isPosting,
     isError = false,
     results = [],
@@ -358,22 +355,6 @@ export function PostingConfig({
             ? dailySchedule ? "Jadwalkan Harian" : "Jadwalkan"
             : "Simpan Draft";
 
-    const getGroupedProducts = () => {
-        if (!products || products.length === 0) return [];
-        const grouped: Product[][] = [];
-        for (let i = 0; i < products.length; i += 5) {
-            grouped.push(products.slice(i, i + 5));
-        }
-        return grouped;
-    };
-
-    const getSelectedProductDetails = () => {
-        return products.filter(product => {
-            const productId = product.id?.toString() || '';
-            return selectedProducts.includes(productId);
-        });
-    };
-
     const hasProductError = (productId: string) => {
         return results.some(r => {
             const rProductId = r?.product?.toString() || '';
@@ -381,27 +362,20 @@ export function PostingConfig({
         });
     };
 
-    const productGroups = getGroupedProducts();
-    const selectedDetails = getSelectedProductDetails();
+    const selectedProductData = products.find(p => p.id?.toString() === selectedProduct);
 
     const handleShowError = () => {
-        if (errorData) {
-            setErrorModalOpen(true);
-        }
+        if (errorData) setErrorModalOpen(true);
     };
 
     const handleRetry = () => {
         setErrorModalOpen(false);
-        if (onRetry) {
-            onRetry();
-        }
+        if (onRetry) onRetry();
     };
 
     const handleCloseError = () => {
         setErrorModalOpen(false);
-        if (onCloseError) {
-            onCloseError();
-        }
+        if (onCloseError) onCloseError();
     };
 
     return (
@@ -412,7 +386,7 @@ export function PostingConfig({
                 `${isError && "border-red-300 dark:border-red-500/30"}`,
                 "dark:bg-[#0f0d1a] dark:border-white/[0.06]",
             )}>
-                {/* Header - sama seperti sebelumnya */}
+                {/* Header */}
                 <div className={cn(
                     "flex items-center gap-3 px-5 py-4 border-b",
                     isError
@@ -446,7 +420,7 @@ export function PostingConfig({
                     )}
                 </div>
 
-                {/* Content - sama seperti sebelumnya */}
+                {/* Content */}
                 <div className="p-5 space-y-5">
                     {/* Mode selector */}
                     <div>
@@ -477,7 +451,7 @@ export function PostingConfig({
                         </div>
                     </div>
 
-                    {/* Schedule options - sama seperti sebelumnya */}
+                    {/* Schedule options */}
                     {postMode === "scheduled" && (
                         <div className={cn(
                             "rounded-xl border p-4 space-y-3",
@@ -541,79 +515,149 @@ export function PostingConfig({
                             )}
                         </div>
                     )}
-
-                    {/* All Products Grid - menggunakan ScrollArea untuk produk */}
                     <div>
-                        <div className="flex items-center justify-between mb-2.5">
-                            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-600">
-                                Semua Produk
-                            </p>
-                            <button
-                                type="button"
-                                onClick={onSelectAll}
-                                className="text-[10px] font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                            >
-                                {postToAll ? 'Batal Semua' : 'Pilih Semua'}
-                            </button>
-                        </div>
 
-                     
-                    </div>
-
-                    {/* Selected Products Box */}
-                    {selectedDetails.length > 0 && (
-                        <div className={cn(
-                            "rounded-xl border p-3.5",
-                            isError
-                                ? "bg-red-50/60 border-red-200/60 dark:bg-red-500/5 dark:border-red-500/20"
-                                : "bg-green-50/60 border-green-200/60 dark:bg-green-500/[0.04] dark:border-green-500/20"
-                        )}>
-                            <div className="flex items-center gap-2 mb-2.5">
-                                <div className={cn(
-                                    "flex h-6 w-6 items-center justify-center rounded-md ring-1",
-                                    isError
-                                        ? "bg-red-100 text-red-600 ring-red-300/60 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20"
-                                        : "bg-green-100 text-green-600 ring-green-300/60 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20"
-                                )}>
-                                    {isError ? (
-                                        <AlertTriangle className="h-3 w-3" />
-                                    ) : (
-                                        <CheckCircle2 className="h-3 w-3" />
-                                    )}
-                                </div>
-                                <div>
-                                    <p className={cn(
-                                        "text-xs font-medium",
-                                        isError
-                                            ? "text-red-800 dark:text-red-300"
-                                            : "text-green-800 dark:text-green-300"
-                                    )}>
-                                        {selectedDetails.length} Produk Terpilih
-                                    </p>
-                                    <p className={cn(
-                                        "text-[10px]",
-                                        isError
-                                            ? "text-red-600/70 dark:text-red-400/60"
-                                            : "text-green-600/70 dark:text-green-400/60"
-                                    )}>
-                                        {isError ? "Beberapa produk gagal diposting" : "Akan diposting ke produk berikut"}
-                                    </p>
-                                </div>
+                        {/* Products - SINGLE SELECT GRID */}
+                        <div>
+                            <div className="flex items-center justify-between mb-2.5">
+                                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-600">
+                                    Pilih Produk
+                                </p>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                    {selectedProduct ? '1 produk dipilih' : 'Pilih 1 produk'}
+                                </span>
                             </div>
 
-                        
+                            <div className="h-[180px] overflow-y-auto rounded-xl border border-slate-200/80 dark:border-white/[0.06]">
+                                <div className="p-2">
+                                    {products.length === 0 ? (
+                                        <div className="py-8 text-center">
+                                            <p className="text-xs text-slate-400 dark:text-slate-500">
+                                                Tidak ada produk tersedia
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            {products.map((product) => {
+                                                const productId = product.id?.toString() || '';
+                                                const isSelected = selectedProduct === productId;
+                                                const isErrorProduct = hasProductError(productId);
+
+                                                return (
+                                                    <button
+                                                        key={productId}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                onSelectProduct(null);
+                                                            } else {
+                                                                onSelectProduct(productId);
+                                                            }
+                                                        }}
+                                                        className={cn(
+                                                            "rounded-lg px-3 py-2.5 transition-all cursor-pointer text-left border",
+                                                            `${isSelected && !isErrorProduct && "border-blue-500 bg-blue-50 dark:bg-blue-500/10"}`,
+                                                            `${isErrorProduct && isSelected && "border-red-400 bg-red-50 dark:bg-red-500/10"}`,
+                                                            `${!isSelected && "border-slate-200 dark:border-white/[0.08]"}`
+                                                        )}
+                                                    >
+                                                        <p className={cn(
+                                                            "text-xs font-medium truncate",
+                                                            isSelected && !isErrorProduct
+                                                                ? "text-blue-700 dark:text-blue-300"
+                                                                : isErrorProduct && isSelected
+                                                                    ? "text-red-700 dark:text-red-300"
+                                                                    : "text-slate-700 dark:text-slate-300",
+                                                        )}>
+                                                            {product.name || 'Unnamed Product'}
+                                                        </p>
+
+                                                        {/* Selected indicator - subtle top-right accent */}
+                                                        {isSelected && !isErrorProduct && (
+                                                            <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-r-[8px] border-t-blue-500 border-r-transparent rounded-tr-lg" />
+                                                        )}
+
+                                                        {isErrorProduct && isSelected && (
+                                                            <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-r-[8px] border-t-red-400 border-r-transparent rounded-tr-lg" />
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between">
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                                <span className="font-medium text-blue-600 dark:text-blue-400">●</span> Pilih 1 produk untuk diposting
+                            </p>
+                            {selectedProduct && (
+                                <button
+                                    type="button"
+                                    onClick={() => onSelectProduct(null)}
+                                    className="text-[10px] font-medium text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors cursor-pointer"
+                                >
+                                    Hapus Pilihan
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Selected Product Box */}
+                    {selectedProductData && (
+                        <div className={cn(
+                            "rounded-xl border p-3.5",
+                            isError && hasProductError(selectedProduct)
+                                ? "bg-red-50/60 border-red-200/60 dark:bg-red-500/5 dark:border-red-500/20"
+                                : "bg-blue-50/60 border-blue-200/60 dark:bg-blue-500/[0.04] dark:border-blue-500/20"
+                        )}>
+                            <div className="flex items-start gap-3">
+                                <div className={cn(
+                                    "flex h-8 w-8 items-center justify-center rounded-lg ring-1 flex-shrink-0",
+                                    isError && hasProductError(selectedProduct)
+                                        ? "bg-red-100 text-red-600 ring-red-300/60 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20"
+                                        : "bg-blue-100 text-blue-600 ring-blue-300/60 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20"
+                                )}>
+                                    {isError && hasProductError(selectedProduct) ? (
+                                        <AlertTriangle className="h-4 w-4" />
+                                    ) : (
+                                        <CheckCircle2 className="h-4 w-4" />
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className={cn(
+                                        "text-sm font-medium",
+                                        isError && hasProductError(selectedProduct)
+                                            ? "text-red-800 dark:text-red-300"
+                                            : "text-blue-800 dark:text-blue-300"
+                                    )}>
+                                        {selectedProductData.name || 'Produk Terpilih'}
+                                    </p>
+                                </div>
+                                {isError && hasProductError(selectedProduct) ? (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 flex-shrink-0">
+                                        Gagal
+                                    </span>
+                                ) : (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400 flex-shrink-0">
+                                        Siap Posting
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     )}
 
-                    {/* Empty state when no products selected */}
-                    {selectedDetails.length === 0 && (
+                    {/* Empty state */}
+                    {!selectedProductData && (
                         <div className={cn(
                             "rounded-xl border p-3.5 text-center",
                             "bg-slate-50/60 border-slate-200/60",
                             "dark:bg-white/[0.02] dark:border-white/[0.05]"
                         )}>
                             <p className="text-xs text-slate-400 dark:text-slate-500">
-                                Belum ada produk yang dipilih
+                                Pilih 1 produk untuk diposting
                             </p>
                         </div>
                     )}
@@ -622,7 +666,7 @@ export function PostingConfig({
                     <div className="space-y-2 pt-1">
                         <Button
                             onClick={onPost}
-                            disabled={selectedProducts.length === 0 || !article || isPosting}
+                            disabled={!selectedProduct || !article || isPosting}
                             className={cn(
                                 "w-full h-9 gap-2 rounded-lg text-sm font-medium",
                                 isError
@@ -639,7 +683,8 @@ export function PostingConfig({
                                     ) : (
                                         <Send className="h-3.5 w-3.5" />
                                     )}
-                                    {isError ? 'Retry Posting' : postLabel} ke {selectedProducts.length} produk
+                                    {isError ? 'Retry Posting' : postLabel}
+                                    {selectedProductData && ` ke ${selectedProductData.name}`}
                                 </>
                             }
                         </Button>
@@ -648,6 +693,12 @@ export function PostingConfig({
                             <p className="flex items-center justify-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
                                 <AlertTriangle className="h-3 w-3" />
                                 Generate artikel terlebih dahulu sebelum posting
+                            </p>
+                        )}
+
+                        {selectedProduct && !isError && article && (
+                            <p className="text-center text-[10px] text-slate-400 dark:text-slate-500">
+                                Akan diposting ke 1 produk
                             </p>
                         )}
                     </div>
