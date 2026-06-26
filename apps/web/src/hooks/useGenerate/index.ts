@@ -174,12 +174,14 @@ export function useGenerate() {
             setPublishing, setPublishResults, setShowResultDialog,
             (result: any) => {
                 // onSuccess callback
-                console.log(result)
+                console.log(result.data.results)
                 if (result) {
-                    setResults(result);
                     if (!result.success) {
                         setIsError(true);
                         setErrorData(result);
+                    }else{
+                        console.log(result.data)
+                        setResults(result.data);
                     }
                 }
             },
@@ -220,9 +222,7 @@ export function useGenerate() {
             } else if (postMode === "scheduled") {
                 result = await handleSaveAsSchedule();
             } else {
-                console.log("kesinmiiiiiiiiiiiiiiiiiii")
                 result = await handlePostInstant();
-                console.log("selesai ikontpol")
             }
         } catch (error: any) {
             console.log("gagalllllllllllllllll kontol")

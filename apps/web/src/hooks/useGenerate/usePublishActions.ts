@@ -46,7 +46,7 @@ export async function saveAsDraft(
             return { success: true, result: response };
         }
     } catch (error) {
-        console.error("Failed to save draft:", error);
+    
         toast.error("Gagal menyimpan draft");
         return { success: false };
     }
@@ -158,8 +158,7 @@ export async function saveAsSchedule(
 
         return { success: true, result: response };
     } catch (error: any) {
-        console.error("Failed to save schedule:", error);
-
+        
         if (error?.results) {
             const errorResponse = {
                 message: error.message || "Publikasi gagal",
@@ -226,9 +225,7 @@ export async function postInstant(
             excerpt: excerpt
         };
 
-        console.log("lkfasnhkfasdnkfsndgknsdeg")
-        console.log(draftData)
-
+     
         let response: any;
         if (currentDraftId) {
             response = await publishDraft(currentDraftId, draftData);
@@ -237,19 +234,18 @@ export async function postInstant(
         }
 
         // Set results
-        setPublishResults(response);
+        setPublishResults(response.data);
         setShowResultDialog(true);
 
-        // Panggil onSuccess dengan response
-        onSuccess(response);
-
-        const hasErrors = response.results?.some((r: any) => !r.success);
+       
+        const hasErrors = response.data.results?.some((r: any) => !r.success);
 
         if (hasErrors) {
             toast.error("Publikasi sebagian gagal", {
                 description: "Beberapa produk tidak dapat dijangkau. Lihat detail untuk info lebih lanjut."
             });
         } else {
+            onSuccess(response);
             toast.success("Berhasil diposting!", {
                 description: `"${topic}" telah diposting ke ${selectedProducts.length} produk`,
             });
@@ -259,18 +255,12 @@ export async function postInstant(
                 onReset();
             }
         }
-
-        console.log("HASIL")
-        console.log(response)
-
         return { success: true, result: response };
     } catch (error: any) {
 
-        const errorResponse = error.response.data
+        const errorResponse = error.response
         setPublishResults(errorResponse);
         setShowResultDialog(true);
-
-        console.log(errorResponse)
 
         // Panggil onSuccess dengan error response
         if (onSuccess) {
