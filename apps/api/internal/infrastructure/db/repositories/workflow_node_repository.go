@@ -193,15 +193,41 @@ func (r *WorkflowNodeRepository) ReorderNodes(ctx context.Context, workflowID st
 
 // ============ TRANSACTION METHODS ============
 
-// InsertBatchWithTx inserts multiple workflow nodes within a transaction
+// InsertBatchWithTx inserts multiple workflow nodes within a transaction.
+//
+// Karena setiap node bisa mereferensikan node lain sebagai "next node",
+// dan node tersebut belum tentu sudah ada di DB saat insert pertama kali,
+// proses dilakukan dalam 2 tahap:
+//
+//	Tahap 1: insert semua node dengan next_node_ids = NULL (atau '[]').
+//	Tahap 2: setelah semua node ter-insert (ID-nya pasti sudah ada),
+//	         baru UPDATE next_node_ids untuk masing-masing node.
 func (r *WorkflowNodeRepository) InsertBatchWithTx(
 	ctx context.Context,
 	tx *sql.Tx,
-	nodes []workflow_node.WorkflowNodeCreate,
-) ([]workflow_node.WorkflowNodeCreate, error) {
+	nodes []workflow_node.WorkflowNode,
+) ([]workflow_node.WorkflowNode, error) {
+
+	if len(nodes) == 0 {
+		log.Println("[WorkflowNodeRepository.InsertBatchWithTx] no nodes to insert, skipping")
+		return nil, nil
+	}
 
 	log.Println("========== InsertBatchWithTx ==========")
 	log.Printf("Total nodes to insert: %d\n", len(nodes))
+
+	// ── Validasi awal: pastikan semua UUID valid sebelum menyentuh DB ───────
+	for _, node := range nodes {
+		if !isValidUUID(node.ID) {
+			return nil, fmt.Errorf("invalid UUID format for node ID: %s", node.ID)
+		}
+		if !isValidUUID(node.WorkflowID) {
+			return nil, fmt.Errorf("invalid UUID format for workflow ID: %s", node.WorkflowID)
+		}
+		if !isValidUUID(node.AdapterConfigID) {
+			return nil, fmt.Errorf("invalid UUID format for adapter config ID: %s", node.AdapterConfigID)
+		}
+	}
 
 	// ── TAHAP 1: Insert semua node tanpa next_node_ids ──────────────────────
 	insertQuery := `
@@ -217,51 +243,43 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 			http_method,
 			created_at
 		)
-		VALUES ($1, $2, $3, $4, $5, NULL, $6,$7,$8, NOW())
+		VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8, NOW())
 		RETURNING created_at
 	`
 
-	var savedNodes []workflow_node.WorkflowNodeCreate
+	savedNodes := make([]workflow_node.WorkflowNode, 0, len(nodes))
 
 	for idx, node := range nodes {
 		log.Printf("--- Inserting node[%d/%d] ID=%s ---\n", idx+1, len(nodes), node.ID)
 
-		// Handle input_mapping
-		var inputMappingJSON []byte
-		switch {
-		case len(node.InputMapping) == 0,
-			string(node.InputMapping) == "null",
-			string(node.InputMapping) == "[]":
-			inputMappingJSON = []byte(`{}`)
-		default:
-			inputMappingJSON = node.InputMapping
+		inputMappingJSON, err := sanitizeJSON(node.AdapterConfig.FieldMapping)
+		if err != nil {
+			log.Printf("[WorkflowNodeRepository.InsertBatchWithTx] failed to sanitize input_mapping for node %s: %v", node.ID, err)
+			return nil, fmt.Errorf("failed to sanitize input_mapping for node %s: %w", node.ID, err)
 		}
-		log.Printf("InputMapping JSON: %s\n", string(inputMappingJSON))
 
 		// Handle previous_node_ids
-		var previousNodeIDsJSON []byte
-		if len(node.PreviousNodeIDs) == 0 {
-			previousNodeIDsJSON = []byte(`[]`)
-		} else {
-			b, err := json.Marshal(node.PreviousNodeIDs)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal previous_node_ids for node %s: %w", node.ID, err)
-			}
-			previousNodeIDsJSON = b
+		previousNodeIDs := node.PreviousNodeIDs
+		if previousNodeIDs == nil {
+			previousNodeIDs = []string{}
+		}
+		previousNodeIDsJSON, err := json.Marshal(previousNodeIDs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal previous_node_ids for node %s: %w", node.ID, err)
 		}
 
 		savedNode := node
-		err := tx.QueryRowContext(
+		err = tx.QueryRowContext(
 			ctx,
 			insertQuery,
 			savedNode.ID,
 			savedNode.WorkflowID,
 			savedNode.AdapterConfigID,
 			savedNode.StepOrder,
-			inputMappingJSON,
-			previousNodeIDsJSON,
-			savedNode.EndpointPath,
-			savedNode.HTTPMethod,
+			json.RawMessage(inputMappingJSON),
+			json.RawMessage(previousNodeIDsJSON),
+			savedNode.AdapterConfig.EndpointPath,
+			savedNode.AdapterConfig.HTTPMethod,
 		).Scan(&savedNode.CreatedAt)
 
 		if err != nil {
@@ -277,39 +295,32 @@ func (r *WorkflowNodeRepository) InsertBatchWithTx(
 	updateQuery := `UPDATE workflow_nodes SET next_node_ids = $1 WHERE id = $2`
 
 	for _, node := range nodes {
-		if node.NextNodeIDs == nil {
-			continue
+		nextNodeIDs := node.NextNodeIDs
+		if nextNodeIDs == nil {
+			nextNodeIDs = []string{}
 		}
 
-		// Handle previous_node_ids
-		var nextNodeIDsJSON []byte
-		if len(node.PreviousNodeIDs) == 0 {
-			nextNodeIDsJSON = []byte(`[]`)
-		} else {
-			b, err := json.Marshal(node.NextNodeIDs)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal previous_node_ids for node %s: %w", node.ID, err)
-			}
-			nextNodeIDsJSON = b
+		nextNodeIDsJSON, err := json.Marshal(nextNodeIDs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal next_node_ids for node %s: %w", node.ID, err)
 		}
 
-		log.Printf("Updating next_node_ids for node %s -> %s\n", node.ID, nextNodeIDsJSON)
+		log.Printf("[WorkflowNodeRepository.InsertBatchWithTx] updating next_node_ids for node id=%s -> %s",
+			node.ID, string(nextNodeIDsJSON))
 
-		_, err := tx.ExecContext(ctx, updateQuery, nextNodeIDsJSON, node.ID)
+		result, err := tx.ExecContext(ctx, updateQuery, json.RawMessage(nextNodeIDsJSON), node.ID)
 		if err != nil {
 			log.Printf("❌ Failed to update next_node_ids for node %s: %v\n", node.ID, err)
 			return nil, fmt.Errorf("failed to update next_node_ids for node %s: %w", node.ID, err)
 		}
 
-		// Update savedNodes juga supaya return value akurat
-		for i := range savedNodes {
-			if savedNodes[i].ID == node.ID {
-				savedNodes[i].NextNodeIDs = node.NextNodeIDs
-				break
-			}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return nil, fmt.Errorf("failed to check rows affected for node %s: %w", node.ID, err)
 		}
-
-		log.Printf("✅ next_node_ids updated for node %s\n", node.ID)
+		if rowsAffected == 0 {
+			return nil, fmt.Errorf("no rows updated for next_node_ids on node %s (node not found?)", node.ID)
+		}
 	}
 
 	log.Printf("✅ All %d nodes inserted successfully\n", len(savedNodes))

@@ -46,11 +46,13 @@ export function useDraftsData() {
                 status: statusFilter !== "all" ? statusFilter : undefined,
             });
 
-            setDrafts(response.drafts.data ?? []);
-            setTotalPages(response.drafts.total_pages);
-            setTotalItems(response.drafts.total_items);
-            setCurrentPage(response.drafts.current_page);
-            setStats(response.stats ?? null);
+           
+
+            setDrafts(response.data.drafts.data ?? []);
+            setTotalPages(response.data.drafts.total_pages);
+            setTotalItems(response.data.drafts.total_items);
+            setCurrentPage(response.data.drafts.current_page);
+          
         } catch (error) {
             console.error("Failed to load drafts:", error);
             toast.error("Gagal memuat draft");

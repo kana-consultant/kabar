@@ -32,6 +32,11 @@ export interface PaginatedResponse<T> {
 }
 
 export interface GetDraftsResponse {
+    data: dataResponse;
+    
+}
+
+export interface dataResponse {
     drafts: PaginatedResponse<Draft>;
     stats: DraftStats;
 }
@@ -50,6 +55,7 @@ export async function getDrafts(params?: PaginationParams): Promise<GetDraftsRes
             limit,
             offset,
         });
+      
         return response;
     } catch (error) {
         console.error('Failed to get drafts:', error);
@@ -65,6 +71,8 @@ export async function getScheduled(params?: PaginationParams): Promise<Paginated
             limit,
             offset,
         });
+
+        console.log(response)
         return response;
     } catch (error) {
         console.error('Failed to get scheduled drafts:', error);

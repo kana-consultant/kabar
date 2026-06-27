@@ -63,5 +63,5 @@ type WorkflowNodeRepository interface {
 	UpsertWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNode) error
 
 	// Methods with transaction support
-	InsertBatchWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNodeCreate) ([]WorkflowNodeCreate, error)
+	InsertBatchWithTx(ctx context.Context, tx *sql.Tx, nodes []WorkflowNode) ([]WorkflowNode, error)
 }

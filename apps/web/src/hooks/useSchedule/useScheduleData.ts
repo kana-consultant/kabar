@@ -13,6 +13,7 @@ export async function loadSchedulesData(
     setLoading(true);
     try {
         const response = await getScheduled(params);
+        console.log(response.data)
         setSchedules(response?.data ?? []);
         setTotalItems(response?.total_items ?? 0);
         setTotalPages(response?.total_pages ?? 0);

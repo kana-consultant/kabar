@@ -5,6 +5,7 @@ import type {
     NestedMapping,
     WorkflowDefinition,
     WorkflowNode,
+    AdapterConfigNode,
 } from "@/types/product";
 
 export type {
@@ -37,19 +38,7 @@ export interface ProductRequest {
         updated_at?: string;
     };
     
-    workflows?: (Omit<WorkflowDefinition, "input_mapping" | "id" |  "created_at" | "updated_at"> & {
-        id? : string
-        created_at?: string;
-        updated_at?: string;
-        nodes?: (Omit<WorkflowNode, "adapter_config_idt"| "adapter_config_idts" | "workflow_id" | "created_at" | "updated_at"> & {
-            created_at?: string;
-            updated_at?: string;
-            adapter_config?: Omit<AdapterConfig, "created_at" | "updated_at"> & {
-                created_at?: string;
-                updated_at?: string;
-            };
-        })[];
-    })[];
+     workflows?: Partial<WorkflowDefinition>[];
 }
 
 export interface UpdateProductRequest {

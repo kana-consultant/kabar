@@ -127,8 +127,10 @@ export function useProductFormHandlers(
                     : "",  // backend akan assign setelah create
                 workflows,
             };
-
+            console.log("hasil==========================================")
             console.log(completeProduct)
+
+           
 
             if (isEdit && productId) {
                 const updateRequest = mapProductToUpdateRequest(completeProduct as Product);
@@ -137,6 +139,7 @@ export function useProductFormHandlers(
             } else {
                 const createRequest = mapProductToCreateRequest(completeProduct as Product);
                 console.log("Hasil Mapping", createRequest);
+
                 const createdProduct = await addProduct(createRequest);
                 console.log("✅ Product created:", createdProduct);
                 toast.success("Produk berhasil ditambahkan");

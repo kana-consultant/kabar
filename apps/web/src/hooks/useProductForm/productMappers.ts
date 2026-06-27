@@ -28,13 +28,13 @@ export const mapProductToCreateRequest = (product: Partial<Product>): ProductReq
                 workflow_id: node.workflow_id || workflow.id,
                 step_order: node.step_order,
                 next_node_ids: node.next_node_ids,
-                previous_node_ids: node.previous_node_ids,
+                previous_node_ids: node.previous_node_ids || [],
                 adapter_config: node.adapter_config ? {
                     id: node.adapter_config.id,
                     endpoint_path: node.adapter_config.endpoint_path,
                     http_method: node.adapter_config.http_method,
-                    field_mapping: toJsonString(node.input_mapping),
-                    retry_count: node.adapter_config.retry_count || 3,
+                    field_mapping: toJsonString(node.adapter_config.field_mapping),
+                    retry_count:  3,
                 } : undefined,
             })) || [],
         }));
@@ -61,11 +61,7 @@ export const mapProductToUpdateRequest = (product: Partial<Product>): UpdateProd
     let adapter_config = undefined;
     if (product.adapter_config) {
         adapter_config = {
-            endpoint_path: product.adapter_config.endpoint_path,
-            http_method: product.adapter_config.http_method,
             custom_headers: toJsonString(product.adapter_config.custom_headers),
-            field_mapping: toJsonString(product.adapter_config.field_mapping),
-            response_mapping: toJsonString(product.adapter_config.response_mapping),
             meta_config: toJsonString(product.adapter_config.meta_config),
             sitemap_config: toJsonString(product.adapter_config.sitemap_config),
             timeout_seconds: product.adapter_config.timeout_seconds,

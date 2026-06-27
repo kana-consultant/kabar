@@ -260,7 +260,7 @@ func (s *ProductService) CreateProduct(
 		}
 
 		// Prepare nodes
-		nodes := make([]workflow_node.WorkflowNodeCreate, 0, len(wfDef.Nodes))
+		nodes := make([]workflow_node.WorkflowNode, 0, len(wfDef.Nodes))
 
 		for nIdx, n := range wfDef.Nodes {
 			if n.AdapterConfigID == "" {
@@ -273,16 +273,14 @@ func (s *ProductService) CreateProduct(
 			log.Printf("  Preparing node[%d:%d]: ID=%s, StepOrder=%d, AdapterConfigID=%s, NextNodeIDs=%v\n",
 				wfIdx, nIdx, n.ID, n.StepOrder, n.AdapterConfigID, n.NextNodeIDs)
 
-			nodes = append(nodes, workflow_node.WorkflowNodeCreate{
+			nodes = append(nodes, workflow_node.WorkflowNode{
 				ID:              n.ID,
 				WorkflowID:      newWorkflow.ID,
 				AdapterConfigID: n.AdapterConfigID,
-				EndpointPath:    &n.AdapterConfig.EndpointPath,
-				StepOrder:       n.StepOrder,
-				InputMapping:    json.RawMessage(n.AdapterConfig.FieldMapping),
-				NextNodeIDs:     n.NextNodeIDs,
+				AdapterConfig:   n.AdapterConfig,
 				PreviousNodeIDs: n.PreviousNodeIDs,
-				HTTPMethod:      n.AdapterConfig.HTTPMethod,
+				StepOrder:       n.StepOrder,
+				NextNodeIDs:     n.NextNodeIDs,
 			})
 		}
 

@@ -2,13 +2,10 @@
 -- FULL SCHEMA + SEED DATA: kabar.com
 -- Idempotent: aman dijalankan berulang kali tanpa duplikat data
 -- ============================================================
-
-
--- ============================================================
 -- 1. EXTENSIONS
 -- ============================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
-
+CREATE EXTENSION IF NOT EXISTS "pgcrypto"  WITH SCHEMA public; 
 
 -- ============================================================
 -- 2. ENUM TYPES
@@ -22,10 +19,22 @@ END $$;
 
 
 -- ============================================================
--- 3. CORE TABLES
+-- 3. FUNCTION: auto-update kolom updated_at
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- ============================================================
+-- 4. CORE TABLES
 -- ============================================================
 
--- 3.1 Users
+-- 4.1 Users
 CREATE TABLE IF NOT EXISTS public.users (
     id            uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     email         varchar(255) NOT NULL UNIQUE,
@@ -36,10 +45,12 @@ CREATE TABLE IF NOT EXISTS public.users (
     status        varchar(20)  DEFAULT 'active',
     last_active   timestamp,
     created_at    timestamp    DEFAULT CURRENT_TIMESTAMP,
-    updated_at    timestamp    DEFAULT CURRENT_TIMESTAMP
+    updated_at    timestamp    DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_users_role   CHECK (role   IN ('superadmin', 'admin', 'manager', 'editor', 'viewer')),
+    CONSTRAINT chk_users_status CHECK (status IN ('active', 'inactive', 'suspended'))
 );
 
--- 3.2 Teams
+-- 4.2 Teams
 CREATE TABLE IF NOT EXISTS public.teams (
     id          uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     name        varchar(255) NOT NULL,
@@ -49,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.teams (
     updated_at  timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3.3 API Providers
+-- 4.3 API Providers
 CREATE TABLE IF NOT EXISTS public.api_providers (
     id              uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     name            varchar(100) NOT NULL,
@@ -60,15 +71,16 @@ CREATE TABLE IF NOT EXISTS public.api_providers (
     auth_header     varchar(100) DEFAULT 'Authorization',
     auth_prefix     varchar(50)  DEFAULT 'Bearer',
     default_headers jsonb        DEFAULT '{}'::jsonb,
-    team_id         uuid,
+    team_id         uuid         REFERENCES public.teams(id) ON DELETE CASCADE,
     is_active       boolean      DEFAULT true,
     created_at      timestamp    DEFAULT CURRENT_TIMESTAMP,
     updated_at      timestamp    DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(team_id, name)
+    UNIQUE (team_id, name)
 );
 
--- 3.4 Request Schemas
--- FIX: HAPUS UNIQUE constraint (provider_id, name)
+-- 4.4 Request Schemas
+-- Catatan: UNIQUE(provider_id, name) sengaja tidak dipasang (sesuai versi asli),
+-- karena id (PK) sudah cukup untuk identitas row dan di-upsert via ON CONFLICT(id).
 CREATE TABLE IF NOT EXISTS public.request_schemas (
     id                    uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     provider_id           uuid         NOT NULL REFERENCES public.api_providers(id) ON DELETE CASCADE,
@@ -83,14 +95,13 @@ CREATE TABLE IF NOT EXISTS public.request_schemas (
     supports_streaming    boolean      DEFAULT true,
     created_at            timestamp    DEFAULT CURRENT_TIMESTAMP,
     updated_at            timestamp    DEFAULT CURRENT_TIMESTAMP
-    -- UNIQUE constraint dihapus!
 );
 
--- 3.5 Model Families
+-- 4.5 Model Families
 CREATE TABLE IF NOT EXISTS public.model_families (
     id            uuid           DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     provider_id   uuid           NOT NULL REFERENCES public.api_providers(id) ON DELETE CASCADE,
-    schema_id     uuid           NOT NULL REFERENCES public.request_schemas(id),
+    schema_id     uuid           NOT NULL REFERENCES public.request_schemas(id) ON DELETE CASCADE,
     name          varchar(100)   NOT NULL,
     display_name  varchar(200)   NOT NULL,
     description   text,
@@ -99,10 +110,10 @@ CREATE TABLE IF NOT EXISTS public.model_families (
     system_prompt text           DEFAULT 'You are a helpful assistant.',
     created_at    timestamp      DEFAULT CURRENT_TIMESTAMP,
     updated_at    timestamp      DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(provider_id, name)
+    UNIQUE (provider_id, name)
 );
 
--- 3.6 API Keys
+-- 4.6 API Keys
 CREATE TABLE IF NOT EXISTS public.api_keys (
     id            uuid        DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     service       varchar(50) NOT NULL,
@@ -110,15 +121,14 @@ CREATE TABLE IF NOT EXISTS public.api_keys (
     model_id      uuid        NOT NULL REFERENCES public.model_families(id) ON DELETE CASCADE,
     key_encrypted text        NOT NULL,
     system_prompt text,
-    team_id       uuid,
+    team_id       uuid        REFERENCES public.teams(id) ON DELETE CASCADE,
     is_active     boolean     DEFAULT true,
     created_by    varchar(255),
     created_at    timestamp   DEFAULT CURRENT_TIMESTAMP,
     updated_at    timestamp   DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3.7 Products
--- 1. Products (ada perubahan)
+-- 4.7 Products
 CREATE TABLE IF NOT EXISTS public.products (
     id                uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     name              varchar(255) NOT NULL,
@@ -128,14 +138,14 @@ CREATE TABLE IF NOT EXISTS public.products (
     status            varchar(20)  DEFAULT 'pending',
     sync_status       varchar(20)  DEFAULT 'idle',
     last_sync         timestamp,
-    created_by        uuid,
+    created_by        uuid         REFERENCES public.users(id) ON DELETE SET NULL,
     team_id           uuid         REFERENCES public.teams(id) ON DELETE SET NULL,
-    user_id           uuid,
+    user_id           uuid         REFERENCES public.users(id) ON DELETE SET NULL,
     created_at        timestamp    DEFAULT CURRENT_TIMESTAMP,
     updated_at        timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Adapter Configs (ada penambahan response_mapping)
+-- 4.8 Adapter Configs
 CREATE TABLE IF NOT EXISTS public.adapter_configs (
     id               uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     product_id       uuid         NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
@@ -152,28 +162,34 @@ CREATE TABLE IF NOT EXISTS public.adapter_configs (
     updated_at       timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. Workflow Definitions
+-- 4.9 Workflow Definitions
 CREATE TABLE IF NOT EXISTS public.workflow_definitions (
-    id          uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
-    product_id  uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    id          uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    product_id  uuid         NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
     name        varchar(255) NOT NULL,
-    created_at  timestamp DEFAULT CURRENT_TIMESTAMP,
-    updated_at  timestamp DEFAULT CURRENT_TIMESTAMP
+    created_at  timestamp    DEFAULT CURRENT_TIMESTAMP,
+    updated_at  timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Workflow Nodes
+-- 4.10 Workflow Nodes
+-- Catatan: endpoint_path diperbaiki dari character(30) -> varchar(500),
+-- karena character(N) adalah fixed-length (di-pad spasi) dan akan
+-- memotong/merusak URL path yang lebih panjang dari 30 karakter.
 CREATE TABLE IF NOT EXISTS public.workflow_nodes (
-    id                 uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
-    workflow_id        uuid NOT NULL REFERENCES public.workflow_definitions(id) ON DELETE CASCADE,
-    adapter_config_id  uuid NOT NULL REFERENCES public.adapter_configs(id) ON DELETE CASCADE,
-    step_order         integer NOT NULL,
-    input_mapping      jsonb DEFAULT '{}'::jsonb,
-    next_node_id       uuid REFERENCES public.workflow_nodes(id),
-    created_at         timestamp DEFAULT CURRENT_TIMESTAMP
+    id                 uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    workflow_id        uuid         NOT NULL REFERENCES public.workflow_definitions(id) ON DELETE CASCADE,
+    adapter_config_id  uuid         NOT NULL REFERENCES public.adapter_configs(id)      ON DELETE CASCADE,
+    step_order         integer      NOT NULL,
+    input_mapping      jsonb        DEFAULT '{}'::jsonb,
+    previous_node_ids  jsonb        DEFAULT '[]'::jsonb,
+    next_node_ids      jsonb        DEFAULT '[]'::jsonb,
+    endpoint_path      varchar(500),
+    http_method        varchar(10),
+    created_at         timestamp    DEFAULT CURRENT_TIMESTAMP,
+    updated_at         timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
-
--- 3.9 Drafts
+-- 4.11 Drafts
 CREATE TABLE IF NOT EXISTS public.drafts (
     id              uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     title           varchar(500) NOT NULL,
@@ -188,25 +204,15 @@ CREATE TABLE IF NOT EXISTS public.drafts (
     excerpt         text,
     slug            text,
     seo_score       int,
-    created_by      uuid,
+    created_by      uuid         REFERENCES public.users(id) ON DELETE SET NULL,
     team_id         uuid         REFERENCES public.teams(id) ON DELETE SET NULL,
-    user_id         uuid,
+    user_id         uuid         REFERENCES public.users(id) ON DELETE SET NULL,
     published_at    timestamp,
     created_at      timestamp    DEFAULT CURRENT_TIMESTAMP,
     updated_at      timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3.10 Keywords
-CREATE TABLE IF NOT EXISTS public.keywords (
-    id         uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
-    id_draft   uuid         REFERENCES public.drafts(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    id_history uuid,
-    name       varchar(255) NOT NULL,
-    created_at timestamp    DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp    DEFAULT CURRENT_TIMESTAMP
-);
-
--- 3.11 Histories
+-- 4.12 Histories
 CREATE TABLE IF NOT EXISTS public.histories (
     id              uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     title           varchar(500) NOT NULL,
@@ -220,23 +226,34 @@ CREATE TABLE IF NOT EXISTS public.histories (
     published_at    timestamp    NOT NULL,
     scheduled_for   timestamp,
     seo_score       int,
-    created_by      uuid,
-    team_id         uuid,
-    user_id         uuid,
+    created_by      uuid         REFERENCES public.users(id) ON DELETE SET NULL,
+    team_id         uuid         REFERENCES public.teams(id) ON DELETE SET NULL,
+    user_id         uuid         REFERENCES public.users(id) ON DELETE SET NULL,
     created_at      timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3.12 Team Members
+-- 4.13 Keywords
+CREATE TABLE IF NOT EXISTS public.keywords (
+    id         uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    id_draft   uuid         REFERENCES public.drafts(id)    ON DELETE CASCADE ON UPDATE CASCADE,
+    id_history uuid         REFERENCES public.histories(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name       varchar(255) NOT NULL,
+    created_at timestamp    DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp    DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4.14 Team Members
 CREATE TABLE IF NOT EXISTS public.team_members (
     id        uuid        DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     team_id   uuid        NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
-    user_id   uuid        NOT NULL,
+    user_id   uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     role      varchar(50) DEFAULT 'member',
     joined_at timestamp   DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (team_id, user_id)
+    UNIQUE (team_id, user_id),
+    CONSTRAINT chk_team_members_role CHECK (role IN ('owner', 'admin', 'member', 'viewer'))
 );
 
--- 3.13 Team Invites
+-- 4.15 Team Invites
 CREATE TABLE IF NOT EXISTS public.team_invites (
     id         uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     email      varchar(255) NOT NULL,
@@ -252,7 +269,7 @@ CREATE TABLE IF NOT EXISTS public.team_invites (
     CONSTRAINT chk_team_invites_role   CHECK (role   IN ('admin', 'member', 'viewer', 'owner'))
 );
 
--- 3.14 Roles
+-- 4.16 Roles
 CREATE TABLE IF NOT EXISTS public.roles (
     id         serial       NOT NULL PRIMARY KEY,
     name       varchar(50)  NOT NULL UNIQUE,
@@ -260,7 +277,7 @@ CREATE TABLE IF NOT EXISTS public.roles (
     created_at timestamptz  DEFAULT NOW()
 );
 
--- 3.15 Permissions
+-- 4.17 Permissions
 CREATE TABLE IF NOT EXISTS public.permissions (
     id          serial           NOT NULL PRIMARY KEY,
     module      varchar(50)      NOT NULL,
@@ -271,7 +288,7 @@ CREATE TABLE IF NOT EXISTS public.permissions (
     UNIQUE (module, action, scope)
 );
 
--- 3.16 Role Permissions
+-- 4.18 Role Permissions
 CREATE TABLE IF NOT EXISTS public.role_permissions (
     role_id       int NOT NULL REFERENCES public.roles(id)       ON DELETE CASCADE,
     permission_id int NOT NULL REFERENCES public.permissions(id) ON DELETE CASCADE,
@@ -280,29 +297,84 @@ CREATE TABLE IF NOT EXISTS public.role_permissions (
 
 
 -- ============================================================
--- 4. INDEXES
+-- 5. TRIGGERS — auto-update updated_at
+-- ============================================================
+DO $$
+DECLARE
+    t text;
+BEGIN
+    FOREACH t IN ARRAY ARRAY[
+        'users', 'teams', 'api_providers', 'request_schemas', 'model_families',
+        'api_keys', 'products', 'adapter_configs', 'workflow_definitions',
+        'workflow_nodes', 'drafts', 'keywords', 'team_invites'
+    ]
+    LOOP
+        EXECUTE format(
+            'DROP TRIGGER IF EXISTS trg_set_updated_at ON public.%I;
+             CREATE TRIGGER trg_set_updated_at
+             BEFORE UPDATE ON public.%I
+             FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();',
+            t, t
+        );
+    END LOOP;
+END $$;
+
+
+-- ============================================================
+-- 6. INDEXES
 -- ============================================================
 
-CREATE INDEX IF NOT EXISTS idx_users_email                ON public.users(email);
-CREATE INDEX IF NOT EXISTS idx_api_providers_team_id      ON public.api_providers(team_id);
-CREATE INDEX IF NOT EXISTS idx_model_families_provider_id ON public.model_families(provider_id);
-CREATE INDEX IF NOT EXISTS idx_request_schemas_provider_id ON public.request_schemas(provider_id);
-CREATE INDEX IF NOT EXISTS idx_products_team              ON public.products(team_id);
-CREATE INDEX IF NOT EXISTS idx_drafts_team                ON public.drafts(team_id);
-CREATE INDEX IF NOT EXISTS idx_team_invites_email         ON public.team_invites(email);
-CREATE INDEX IF NOT EXISTS idx_team_invites_team_id       ON public.team_invites(team_id);
-CREATE INDEX IF NOT EXISTS idx_team_invites_token         ON public.team_invites(token);
-CREATE INDEX IF NOT EXISTS idx_team_invites_status        ON public.team_invites(status);
-CREATE INDEX IF NOT EXISTS idx_team_invites_expires_at    ON public.team_invites(expires_at);
-CREATE INDEX IF NOT EXISTS idx_team_invites_email_status  ON public.team_invites(email, status);
+-- Users / Teams
+CREATE INDEX IF NOT EXISTS idx_users_email                 ON public.users(email);
+CREATE INDEX IF NOT EXISTS idx_team_members_user_id         ON public.team_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_team_id         ON public.team_members(team_id);
+
+-- Providers / Schemas / Models / Keys
+CREATE INDEX IF NOT EXISTS idx_api_providers_team_id        ON public.api_providers(team_id);
+CREATE INDEX IF NOT EXISTS idx_request_schemas_provider_id  ON public.request_schemas(provider_id);
+CREATE INDEX IF NOT EXISTS idx_model_families_provider_id   ON public.model_families(provider_id);
+CREATE INDEX IF NOT EXISTS idx_model_families_schema_id     ON public.model_families(schema_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_provider_id         ON public.api_keys(provider_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_model_id            ON public.api_keys(model_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_team_id             ON public.api_keys(team_id);
+
+-- Products / Adapter / Workflow
+CREATE INDEX IF NOT EXISTS idx_products_team               ON public.products(team_id);
+CREATE INDEX IF NOT EXISTS idx_products_created_by          ON public.products(created_by);
+CREATE INDEX IF NOT EXISTS idx_products_user_id             ON public.products(user_id);
+CREATE INDEX IF NOT EXISTS idx_adapter_configs_product_id   ON public.adapter_configs(product_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_definitions_product ON public.workflow_definitions(product_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_nodes_workflow_id   ON public.workflow_nodes(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_nodes_adapter_id    ON public.workflow_nodes(adapter_config_id);
+
+-- Drafts / Histories / Keywords
+CREATE INDEX IF NOT EXISTS idx_drafts_team                 ON public.drafts(team_id);
+CREATE INDEX IF NOT EXISTS idx_drafts_created_by            ON public.drafts(created_by);
+CREATE INDEX IF NOT EXISTS idx_drafts_user_id               ON public.drafts(user_id);
+CREATE INDEX IF NOT EXISTS idx_histories_team_id            ON public.histories(team_id);
+CREATE INDEX IF NOT EXISTS idx_histories_created_by         ON public.histories(created_by);
+CREATE INDEX IF NOT EXISTS idx_histories_user_id            ON public.histories(user_id);
+CREATE INDEX IF NOT EXISTS idx_keywords_id_draft            ON public.keywords(id_draft);
+CREATE INDEX IF NOT EXISTS idx_keywords_id_history          ON public.keywords(id_history);
+
+-- Team invites
+CREATE INDEX IF NOT EXISTS idx_team_invites_email           ON public.team_invites(email);
+CREATE INDEX IF NOT EXISTS idx_team_invites_team_id         ON public.team_invites(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_invites_token           ON public.team_invites(token);
+CREATE INDEX IF NOT EXISTS idx_team_invites_status          ON public.team_invites(status);
+CREATE INDEX IF NOT EXISTS idx_team_invites_expires_at      ON public.team_invites(expires_at);
+CREATE INDEX IF NOT EXISTS idx_team_invites_email_status    ON public.team_invites(email, status);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_team_invites_email_team_pending
     ON public.team_invites(email, team_id)
     WHERE status = 'pending';
 
+-- RBAC reverse lookup
+CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON public.role_permissions(permission_id);
+
 
 -- ============================================================
--- 5. SEED DATA — Users & Teams
+-- 7. SEED DATA — Users & Teams
 -- ============================================================
 
 INSERT INTO public.users (id, email, name, password_hash, role, status, created_at, updated_at)
@@ -358,7 +430,7 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
 
 
 -- ============================================================
--- 6. SEED DATA — API Providers
+-- 8. SEED DATA — API Providers
 -- ============================================================
 
 INSERT INTO public.api_providers (
@@ -390,7 +462,7 @@ INSERT INTO public.api_providers (
     'google_ai', 'Google AI (Gemini)',
     'Google AI Studio — provider of the Gemini model family.',
     'https://generativelanguage.googleapis.com',
-    'bearer', 'Authorization', 'Bearer',
+    'ApiKey', 'Authorization', 'ApiKey',
     '{"content-type": "application/json"}'::jsonb,
     NULL, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ),
@@ -412,11 +484,26 @@ INSERT INTO public.api_providers (
     '{"content-type": "application/json", "HTTP-Referer": "https://kabar.com", "X-Title": "kabar.com"}'::jsonb,
     NULL, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 )
-ON CONFLICT (team_id, name) DO NOTHING;
+-- Catatan: upsert pakai ON CONFLICT (id), bukan (team_id, name).
+-- team_id bernilai NULL untuk seluruh baris seed ini, dan UNIQUE(team_id, name)
+-- TIDAK pernah ter-trigger saat team_id IS NULL (NULL tidak dianggap sama
+-- dengan NULL lain di pengecekan UNIQUE biasa), sehingga run berulang akan
+-- gagal pada id (primary key) yang sudah hardcoded. id dipakai sebagai
+-- target konflik agar re-run benar-benar idempotent.
+ON CONFLICT (id) DO UPDATE SET
+    display_name    = EXCLUDED.display_name,
+    description     = EXCLUDED.description,
+    base_url        = EXCLUDED.base_url,
+    auth_type       = EXCLUDED.auth_type,
+    auth_header     = EXCLUDED.auth_header,
+    auth_prefix     = EXCLUDED.auth_prefix,
+    default_headers = EXCLUDED.default_headers,
+    is_active       = EXCLUDED.is_active,
+    updated_at      = CURRENT_TIMESTAMP;
 
 
 -- ============================================================
--- 7. SEED DATA — Request Schemas (TANPA ON CONFLICT)
+-- 9. SEED DATA — Request Schemas
 -- ============================================================
 
 INSERT INTO public.request_schemas (
@@ -558,7 +645,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 
 -- ============================================================
--- 8. SEED DATA — Model Families
+-- 10. SEED DATA — Model Families
 -- ============================================================
 
 INSERT INTO public.model_families (
@@ -681,7 +768,7 @@ ON CONFLICT (provider_id, name) DO UPDATE SET
 
 
 -- ============================================================
--- 9. SEED DATA — Roles & Permissions
+-- 11. SEED DATA — Roles & Permissions
 -- ============================================================
 
 INSERT INTO public.roles (name, label) VALUES

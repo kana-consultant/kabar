@@ -541,7 +541,7 @@ export function PostingConfig({
                                             {products.map((product) => {
                                                 const productId = product.id?.toString() || '';
                                                 const isSelected = selectedProduct === productId;
-                                                const isErrorProduct = hasProductError(productId);
+                                              
 
                                                 return (
                                                     <button
@@ -556,28 +556,24 @@ export function PostingConfig({
                                                         }}
                                                         className={cn(
                                                             "rounded-lg px-3 py-2.5 transition-all cursor-pointer text-left border",
-                                                            `${isSelected && !isErrorProduct && "border-blue-500 bg-blue-50 dark:bg-blue-500/10"}`,
-                                                            `${isErrorProduct && isSelected && "border-red-400 bg-red-50 dark:bg-red-500/10"}`,
+                                                            `${isSelected && "border-blue-500 bg-blue-50 dark:bg-blue-500/10"}`,
+                                                            `${ isSelected && "border-red-400 bg-red-50 dark:bg-red-500/10"}`,
                                                             `${!isSelected && "border-slate-200 dark:border-white/[0.08]"}`
                                                         )}
                                                     >
                                                         <p className={cn(
                                                             "text-xs font-medium truncate",
-                                                            isSelected && !isErrorProduct
-                                                                ? "text-blue-700 dark:text-blue-300"
-                                                                : isErrorProduct && isSelected
-                                                                    ? "text-red-700 dark:text-red-300"
-                                                                    : "text-slate-700 dark:text-slate-300",
+                                                            `${isSelected && "text-blue-700 dark:text-blue-300"}`
                                                         )}>
                                                             {product.name || 'Unnamed Product'}
                                                         </p>
 
                                                         {/* Selected indicator - subtle top-right accent */}
-                                                        {isSelected && !isErrorProduct && (
+                                                        {isSelected  && (
                                                             <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-r-[8px] border-t-blue-500 border-r-transparent rounded-tr-lg" />
                                                         )}
 
-                                                        {isErrorProduct && isSelected && (
+                                                        {isSelected && (
                                                             <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-r-[8px] border-t-red-400 border-r-transparent rounded-tr-lg" />
                                                         )}
                                                     </button>
