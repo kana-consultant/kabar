@@ -379,11 +379,11 @@ CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON public.role_per
 
 INSERT INTO public.users (id, email, name, password_hash, role, status, created_at, updated_at)
 VALUES
-    (gen_random_uuid(), 'superadmin@kabar.com', 'Super Admin User', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'superadmin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'admin@kabar.com',      'Admin User',       '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin',      'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'manager@kabar.com',    'Manager User',     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'manager',    'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'editor@kabar.com',     'Editor User',      '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'editor',     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'viewer@kabar.com',     'Viewer User',      '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'viewer',     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    (gen_random_uuid(), 'superadmin@kabar.com', 'Super Admin User', '$2b$10$KgiBPQ9VcJI.Eh2oqESh2uZnNdXqObcq96gE2r0rPxUKEisCYsIfO', 'superadmin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'admin@kabar.com',      'Admin User',       '$2b$10$KgiBPQ9VcJI.Eh2oqESh2uZnNdXqObcq96gE2r0rPxUKEisCYsIfO', 'admin',      'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'manager@kabar.com',    'Manager User',     '$2b$10$KgiBPQ9VcJI.Eh2oqESh2uZnNdXqObcq96gE2r0rPxUKEisCYsIfO', 'manager',    'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'editor@kabar.com',     'Editor User',      '$2b$10$KgiBPQ9VcJI.Eh2oqESh2uZnNdXqObcq96gE2r0rPxUKEisCYsIfO', 'editor',     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'viewer@kabar.com',     'Viewer User',      '$2b$10$KgiBPQ9VcJI.Eh2oqESh2uZnNdXqObcq96gE2r0rPxUKEisCYsIfO', 'viewer',     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO public.teams (id, name, description, created_by, created_at, updated_at)
@@ -462,7 +462,7 @@ INSERT INTO public.api_providers (
     'google_ai', 'Google AI (Gemini)',
     'Google AI Studio — provider of the Gemini model family.',
     'https://generativelanguage.googleapis.com',
-    'ApiKey', 'Authorization', 'ApiKey',
+    'api_key', 'x-goog-api-key', '',
     '{"content-type": "application/json"}'::jsonb,
     NULL, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ),
@@ -599,7 +599,7 @@ INSERT INTO public.request_schemas (
 (
     'b1000000-0000-0000-0000-000000000005',
     'a1000000-0000-0000-0000-000000000004',
-    'groq_chat_completions_v1', '/openai/v1/chat/completions',
+    'groq_chat_completions_v1', '/v1/chat/completions',
     'max_tokens', 'messages',
     'choices[0].message.content', NULL,
     '{
@@ -715,7 +715,7 @@ INSERT INTO public.model_families (
     'c1000000-0000-0000-0000-000000000007',
     'a1000000-0000-0000-0000-000000000003',
     'b1000000-0000-0000-0000-000000000004',
-    'gemini_2_0', 'Gemini 2.0',
+    'gemini-2.0-flash', 'Gemini 2.0',
     'Google Gemini 2.0 family.',
     1024, 1.0, 'You are a helpful assistant.',
     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
@@ -724,7 +724,7 @@ INSERT INTO public.model_families (
     'c1000000-0000-0000-0000-000000000008',
     'a1000000-0000-0000-0000-000000000003',
     'b1000000-0000-0000-0000-000000000004',
-    'gemini_2_5', 'Gemini 2.5',
+    'gemini-2.5-flash', 'Gemini 2.5',
     'Google Gemini 2.5 family — Flash dan Pro.',
     1024, 1.0, 'You are a helpful assistant.',
     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
@@ -734,7 +734,7 @@ INSERT INTO public.model_families (
     'c1000000-0000-0000-0000-000000000009',
     'a1000000-0000-0000-0000-000000000004',
     'b1000000-0000-0000-0000-000000000005',
-    'llama_4', 'Llama 4 (Groq)',
+    'llama-3.3-70b-versatile', 'Llama Versatile',
     'Meta Llama 4 models served via Groq.',
     1024, 1.0, 'You are a helpful assistant.',
     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
@@ -743,7 +743,7 @@ INSERT INTO public.model_families (
     'c1000000-0000-0000-0000-000000000010',
     'a1000000-0000-0000-0000-000000000004',
     'b1000000-0000-0000-0000-000000000005',
-    'deepseek_groq', 'DeepSeek (Groq)',
+    'llama-3.1-8b-instant', 'LLama Instant',
     'DeepSeek models served via Groq.',
     1024, 1.0, 'You are a helpful assistant.',
     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP

@@ -41,6 +41,11 @@ export interface dataResponse {
     stats: DraftStats;
 }
 
+
+export interface draft_response {
+   data : Draft 
+}
+
 function buildPaginationParams(params: PaginationParams): { limit: number; offset: number } {
     const limit = params.limit ?? 10;
     const offset = params.offset ?? ((params.page ?? 1) - 1) * limit;
@@ -80,10 +85,10 @@ export async function getScheduled(params?: PaginationParams): Promise<Paginated
     }
 }
 
-export async function getDraftById(id: string): Promise<Draft | null> {
+export async function getDraftById(id: string): Promise<draft_response | null> {
     try {
-        const response = await apiClient.get<Draft>(`/drafts/${id}`);
-        return response;
+        const response = await apiClient.get<draft_response>(`/drafts/${id}`);
+        return response
     } catch (error) {
         console.error('Failed to get draft:', error);
         return null;

@@ -202,6 +202,7 @@ export function useGenerate() {
 
     const handlePost = async () => {
         try {
+            console.log(selectedProducts)
             if (selectedProducts.length === 0) {
                 toast.error("Pilih minimal 1 produk terlebih dahulu");
                 return;
@@ -225,7 +226,6 @@ export function useGenerate() {
                 result = await handlePostInstant();
             }
         } catch (error: any) {
-            console.log("gagalllllllllllllllll kontol")
             setIsError(true);
             setErrorData({
                 title: 'Error',

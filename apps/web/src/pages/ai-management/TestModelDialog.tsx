@@ -126,7 +126,7 @@ export function TestModelDialog({
     // IMPROVED: Better image detection
     const isImageValue = (value: string): boolean => {
         if (typeof value !== "string") return false;
-        
+
         const imagePatterns = [
             /^https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff?)/i,
             /^https?:\/\/[^\s]+\/(image|img|photo|picture|avatar|thumbnail|cover)/i,
@@ -279,6 +279,39 @@ export function TestModelDialog({
             const requestBodyString = replaceVariables(templateString);
             const parsedBody = JSON.parse(requestBodyString);
 
+            // Convert numeric fields to numbers
+            const convertNumericFields = (obj: any): any => {
+                if (Array.isArray(obj)) {
+                    return obj.map(item => convertNumericFields(item));
+                }
+                if (obj && typeof obj === 'object') {
+                    const converted: any = {};
+                    for (const [key, value] of Object.entries(obj)) {
+                        // Check if the value is a numeric string and should be converted
+                        if (typeof value === 'string' &&
+                            (key === 'max_tokens' || key === 'max_token' || key === 'temperature' ||
+                                key === 'max_completion_tokens' || key === 'top_p' || key === 'frequency_penalty' ||
+                                key === 'presence_penalty')) {
+                            // Try to convert to number
+                            const num = parseFloat(value);
+                            if (!isNaN(num)) {
+                                converted[key] = num;
+                            } else {
+                                converted[key] = value;
+                            }
+                        } else if (value && typeof value === 'object') {
+                            converted[key] = convertNumericFields(value);
+                        } else {
+                            converted[key] = value;
+                        }
+                    }
+                    return converted;
+                }
+                return obj;
+            };
+
+            const finalBody = convertNumericFields(parsedBody);
+
             let defaultHeaders: Record<string, string> = {};
             if (providerConfig?.default_headers) {
                 if (typeof providerConfig.default_headers === "string") {
@@ -293,7 +326,6 @@ export function TestModelDialog({
             }
 
             const headers: Record<string, string> = {
-                "Content-Type": "application/json",
                 ...defaultHeaders,
             };
 
@@ -312,10 +344,14 @@ export function TestModelDialog({
 
             const url = `${baseUrl}${endpoint}`;
 
+            console.log("URL:", url);
+            console.log("Headers:", headers);
+            console.log("Body:", finalBody);
+
             const response = await fetch(url, {
                 method: "POST",
                 headers,
-                body: JSON.stringify(parsedBody),
+                body: JSON.stringify(finalBody),
             });
 
             const responseText = await response.text();

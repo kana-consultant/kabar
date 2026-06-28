@@ -43,7 +43,7 @@ interface PostingConfigProps {
     autoGenerateImage: boolean;
     setAutoGenerateImage: (value: boolean) => void;
     products: Product[];
-    selectedProduct: string; // 👈 SINGLE STRING
+    selectedProduct: string[]; // 👈 SINGLE STRING
     onSelectProduct: (productId: string | null) => void; // 👈 SINGLE SELECT HANDLER
     article: string;
     onPost: () => void;
@@ -362,7 +362,7 @@ export function PostingConfig({
         });
     };
 
-    const selectedProductData = products.find(p => p.id?.toString() === selectedProduct);
+    const selectedProductData = products.find(p => p.id?.toString() === selectedProduct[0]);
 
     const handleShowError = () => {
         if (errorData) setErrorModalOpen(true);
@@ -524,7 +524,7 @@ export function PostingConfig({
                                     Pilih Produk
                                 </p>
                                 <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                    {selectedProduct ? '1 produk dipilih' : 'Pilih 1 produk'}
+                                    {selectedProduct[0] ? '1 produk dipilih' : 'Pilih 1 produk'}
                                 </span>
                             </div>
 
@@ -540,7 +540,7 @@ export function PostingConfig({
                                         <div className="grid grid-cols-2 gap-1.5">
                                             {products.map((product) => {
                                                 const productId = product.id?.toString() || '';
-                                                const isSelected = selectedProduct === productId;
+                                                const isSelected = selectedProduct[0] === productId;
                                               
 
                                                 return (
@@ -589,7 +589,7 @@ export function PostingConfig({
                             <p className="text-[10px] text-slate-400 dark:text-slate-500">
                                 <span className="font-medium text-blue-600 dark:text-blue-400">●</span> Pilih 1 produk untuk diposting
                             </p>
-                            {selectedProduct && (
+                            {selectedProduct[0] && (
                                 <button
                                     type="button"
                                     onClick={() => onSelectProduct(null)}
@@ -605,18 +605,18 @@ export function PostingConfig({
                     {selectedProductData && (
                         <div className={cn(
                             "rounded-xl border p-3.5",
-                            isError && hasProductError(selectedProduct)
+                            isError && hasProductError(selectedProduct[0])
                                 ? "bg-red-50/60 border-red-200/60 dark:bg-red-500/5 dark:border-red-500/20"
                                 : "bg-blue-50/60 border-blue-200/60 dark:bg-blue-500/[0.04] dark:border-blue-500/20"
                         )}>
                             <div className="flex items-start gap-3">
                                 <div className={cn(
                                     "flex h-8 w-8 items-center justify-center rounded-lg ring-1 flex-shrink-0",
-                                    isError && hasProductError(selectedProduct)
+                                    isError && hasProductError(selectedProduct[0])
                                         ? "bg-red-100 text-red-600 ring-red-300/60 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20"
                                         : "bg-blue-100 text-blue-600 ring-blue-300/60 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20"
                                 )}>
-                                    {isError && hasProductError(selectedProduct) ? (
+                                    {isError && hasProductError(selectedProduct[0]) ? (
                                         <AlertTriangle className="h-4 w-4" />
                                     ) : (
                                         <CheckCircle2 className="h-4 w-4" />
@@ -625,14 +625,14 @@ export function PostingConfig({
                                 <div className="flex-1 min-w-0">
                                     <p className={cn(
                                         "text-sm font-medium",
-                                        isError && hasProductError(selectedProduct)
+                                        isError && hasProductError(selectedProduct[0])
                                             ? "text-red-800 dark:text-red-300"
                                             : "text-blue-800 dark:text-blue-300"
                                     )}>
                                         {selectedProductData.name || 'Produk Terpilih'}
                                     </p>
                                 </div>
-                                {isError && hasProductError(selectedProduct) ? (
+                                {isError && hasProductError(selectedProduct[0]) ? (
                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 flex-shrink-0">
                                         Gagal
                                     </span>
@@ -662,7 +662,7 @@ export function PostingConfig({
                     <div className="space-y-2 pt-1">
                         <Button
                             onClick={onPost}
-                            disabled={!selectedProduct || !article || isPosting}
+                            disabled={!selectedProduct[0] || !article || isPosting}
                             className={cn(
                                 "w-full h-9 gap-2 rounded-lg text-sm font-medium",
                                 isError
@@ -692,7 +692,7 @@ export function PostingConfig({
                             </p>
                         )}
 
-                        {selectedProduct && !isError && article && (
+                        {selectedProduct[0] && !isError && article && (
                             <p className="text-center text-[10px] text-slate-400 dark:text-slate-500">
                                 Akan diposting ke 1 produk
                             </p>

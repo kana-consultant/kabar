@@ -15,6 +15,7 @@ export default function Generate() {
         imageUrl,
         loadingArticle, loadingImage,
         selectedProducts, // 👈 array, kita IGNORE
+        setSelectedProducts,
         postMode, setPostMode,
         scheduleTime, setScheduleTime,
         scheduleDate, setScheduleDate,
@@ -44,14 +45,13 @@ export default function Generate() {
     } = useGenerate();
 
     // 👇 STATE KHUSUS UNTUK SINGLE SELECT
-    const [selectedProduct, setSelectedProduct] = useState<string>("");
 
     // 👇 HANDLER UNTUK SINGLE SELECT
     const handleSelectProduct = (productId: string | null) => {
         if (productId === null) {
-            setSelectedProduct("");
+            setSelectedProducts([]);
         } else {
-            setSelectedProduct(productId);
+            setSelectedProducts([...selectedProducts, productId]);
         }
     };
 
@@ -131,7 +131,7 @@ export default function Generate() {
                         autoGenerateImage={autoGenerateImage}
                         setAutoGenerateImage={setAutoGenerateImage}
                         products={products}
-                        selectedProduct={selectedProduct} 
+                        selectedProduct={selectedProducts}
                         onSelectProduct={handleSelectProduct}
                         article={article}
                         onPost={handlePost}
@@ -155,7 +155,7 @@ export default function Generate() {
                 dailyTime={dailyTime}
                 scheduleDate={scheduleDate}
                 scheduleTime={scheduleTime}
-                selectedProductsCount={selectedProduct ? 1 : 0} 
+                selectedProductsCount={selectedProducts ? 1 : 0}
                 autoGenerateImage={autoGenerateImage}
             />
 

@@ -2,8 +2,10 @@ package apikey
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"seo-backend/internal/domain/apikey"
 	"seo-backend/internal/models"
@@ -45,7 +47,7 @@ func (s *Service) CreateAPIKey(ctx context.Context, req apikey.CreateAPIKeyReque
 	defer tx.Rollback()
 
 	// Prepare entity
-	teamID := s.getTeamIDPtr(userCtx.GetTeamID())
+	teamID := userCtx.GetTeamID()
 
 	key := &apikey.APIKey{
 		Service:      req.Service,
@@ -54,9 +56,13 @@ func (s *Service) CreateAPIKey(ctx context.Context, req apikey.CreateAPIKeyReque
 		KeyEncrypted: encryptedKey,
 		SystemPrompt: req.SystemPrompt,
 		IsActive:     true,
-		TeamID:       teamID,
+		TeamID:       &teamID,
 		CreatedBy:    userCtx.GetUserID(),
 	}
+
+	// ===== LOG PAYLOAD =====
+	payload, _ := json.MarshalIndent(key, "", "  ")
+	log.Printf("=== API KEY INSERT PAYLOAD ===\n%s\n", payload)
 
 	// Create via repository
 	id, err := s.repo.Create(ctx, tx, key)

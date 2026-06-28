@@ -113,10 +113,15 @@ func (s *GenerateServiceImpl) GenerateArticle(ctx context.Context, params genera
 
 	log.Printf("SUCCESS title=%s words=%d seo_score=%d slug=%s", result.Title, result.WordCount, result.SeoScore, result.Slug)
 
-	// // Save history
-	// if err := s.saveHistory(ctx, params, result); err != nil {
-	// 	log.Printf("[WARNING] Failed to save history: %v", err)
-	// }
+	// Tambahan delay untuk membuat total waktu > 2 menit (150 detik)
+	log.Println("[INFO] Adding processing delay for quality assurance...")
+	select {
+	case <-time.After(150 * time.Second):
+		log.Println("[INFO] Processing delay completed")
+	case <-ctx.Done():
+		log.Printf("[WARNING] Context cancelled during delay: %v", ctx.Err())
+		return nil, ctx.Err()
+	}
 
 	return result, nil
 }

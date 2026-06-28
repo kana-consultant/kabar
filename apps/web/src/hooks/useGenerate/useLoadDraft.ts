@@ -23,16 +23,18 @@ export function useLoadDraft(
                 try {
                     const draft = await getDraftById(editId);
                     if (draft) {
-                        setTopic(draft.topic);
-                        setArticle(draft.article);
-                        setImageUrl(draft.image_url || "");
-                        setSelectedProducts(draft.target_products || []);
-                        setCurrentDraftId(draft.id as string);
-                        setSlug(draft.slug);
-                        setKeywords(draft.keywords as string[]);
+                        console.log("===============")
+                        console.log(draft.data)
+                        setTopic(draft.data.topic);
+                        setArticle(draft.data.article);
+                        setImageUrl(draft.data.image_url || "");
+                        setSelectedProducts(draft.data.target_products || []);
+                        setCurrentDraftId(draft.data.id as string);
+                        setSlug(draft.data.slug);
+                        setKeywords(draft.data.keywords as string[]);
 
                         toast.info("Memuat draft", { //   Ganti Toast.info dengan toast.info
-                            description: `"${draft.title}" siap diedit`,
+                            description: `"${draft.data.title}" siap diedit`,
                         });
                     } else {
                         toast.error("Draft tidak ditemukan"); //   Ganti toast.error dengan toast.error

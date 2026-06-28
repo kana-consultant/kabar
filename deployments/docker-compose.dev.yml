@@ -3,68 +3,109 @@ version: '3.9'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: kabar-postgres-dev
-    environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-kabar_database}
-    ports:
-      - "5432:5432"
+    container_name: kabar-postgres-prod
+    env_file:
+      - ../apps/api/.env
     volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
+      - postgres_prod_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - kabar-prod
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
 
   redis:
     image: redis:7-alpine
-    container_name: kabar-redis-dev
-    ports:
-      - "6379:6379"
+    container_name: kabar-redis-prod
+    env_file:
+      - ../apps/api/.env
+    command: sh -c "redis-server --requirepass $${REDIS_PASSWORD}"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - kabar-prod
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
 
-  api:
+  minio:
+    image: minio/minio:latest
+    container_name: kabar-minio-prod
+    env_file:
+      - ../apps/api/.env
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    volumes:
+      - minio_prod_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - kabar-prod
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+
+  kabar-api:
     build:
       context: ../apps/api
-      dockerfile: Dockerfile.dev
-    container_name: kabar-api-dev
-    ports:
-      - "8080:8080"
-    volumes:
-      - ../apps/api:/app
-      - /app/tmp
-    env_file :
+      dockerfile: Dockerfile
+    container_name: kabar-api-prod
+    env_file:
       - ../apps/api/.env
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - kabar-prod
+    ports:
+      - "${API_PORT:-8080}:8080"
 
-  web:
+  kabar-web:
     build:
       context: ../apps/web
-      dockerfile: Dockerfile.dev
-    container_name: kabar-web-dev
-    ports:
-      - "5173:5173"
-    volumes:
-      - ../apps/web:/app
-      - /app/node_modules
-    env_file :
-      - ../apps/web/.env
+      dockerfile: Dockerfile
+    container_name: kabar-web-prod
     depends_on:
-      - api
+      - kabar-api
     restart: unless-stopped
+    networks:
+      - kabar-prod
+
+  nginx:
+    image: nginx:alpine
+    container_name: kabar-nginx-prod
+    depends_on:
+      - kabar-api
+      - kabar-web
+      - minio
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+    networks:
+      - kabar-prod
 
 volumes:
-  postgres_dev_data:
+  postgres_prod_data:
+  minio_prod_data:
+
+networks:
+  kabar-prod:
+    driver: bridge
