@@ -1,3 +1,4 @@
+// internal/infrastructure/ai/service/generate_service.go
 package generate
 
 import (
@@ -25,10 +26,11 @@ import (
 )
 
 const (
-	imageDownloadTimeout = 60 * time.Second
-	imageUploadTimeout   = 60 * time.Second
-	imageProcessTimeout  = 5 * time.Minute // budget total utk semua gambar dalam 1 artikel
-	imageDownloadRetries = 2
+	imageDownloadTimeout   = 60 * time.Second
+	imageUploadTimeout     = 60 * time.Second
+	imageProcessTimeout    = 5 * time.Minute // budget total utk semua gambar dalam 1 artikel
+	imageDownloadRetries   = 2
+	imageGenerationTimeout = 60 * time.Second // timeout per image generation
 )
 
 type GenerateServiceImpl struct {
@@ -61,8 +63,8 @@ func NewService(
 func (s *GenerateServiceImpl) GenerateArticle(ctx context.Context, params generate.ArticleGenerationParams) (*generate.ArticleResult, error) {
 	log.Println("========== GENERATE ARTICLE ==========")
 	log.Printf("[INFO] Starting article generation with topic: %s", params.Topic)
-	log.Printf("[INFO] Model ID: %s, Tone: %s, Length: %s, Language: %s",
-		params.ModelID, params.Tone, params.Length, params.Language)
+	log.Printf("[INFO] Model ID: %s, Tone: %s, Length: %s, Language: %s, AutoGenerateImage: %v, ImageModelID: %s",
+		params.ModelID, params.Tone, params.Length, params.Language, params.AutoGenerateImage, params.ImageModelID)
 
 	defer func() {
 		log.Println("========== END GENERATE ARTICLE ==========")
@@ -121,20 +123,52 @@ func (s *GenerateServiceImpl) GenerateArticle(ctx context.Context, params genera
 	}
 	log.Printf("[INFO] Response parsed successfully")
 
-	// 🔥 PROSES GAMBAR LANGSUNG (tanpa cek auto generate)
-	// Selalu proses gambar yang ada di content
+	// 🔥 PROSES GAMBAR - handle both existing images and image placeholders
 	if result.Content != "" {
 		log.Println("[INFO] Processing images from AI-generated content...")
 
-		// 🔥 PENTING: jangan pakai ctx request (HTTP) yang mungkin
-		// sudah hampir/sudah expired setelah AI generation (bisa makan puluhan detik).
-		// Image pipeline diberi budget waktu sendiri yang independen.
 		imgCtx, cancel := context.WithTimeout(context.Background(), imageProcessTimeout)
-		processedContent, stats, err := s.processImages(imgCtx, result.Content, params)
-		cancel()
+		defer cancel()
 
-		if err != nil {
-			log.Printf("[WARNING] Failed to process images: %v", err)
+		var processedContent string
+		var stats imageProcessStats
+		var processErr error
+
+		// Check if auto-generate images is enabled
+		if params.AutoGenerateImage && params.ImageModelID != "" {
+			// 🔥 AUTO GENERATE IMAGES FROM PLACEHOLDERS
+			log.Println("[INFO] Auto-generate images enabled, processing image placeholders...")
+			processedContent, stats, processErr = s.processImagePlaceholders(imgCtx, result.Content, params)
+		} else if params.AutoGenerateImage && params.ImageModelID == "" {
+			// 🔥 FIX: Auto-generate enabled but no model ID - keep placeholders as-is
+			log.Println("[WARNING] Auto-generate images is enabled but no image model ID provided")
+
+			// Check if there are image placeholders
+			if s.hasImagePlaceholders(result.Content) {
+				log.Println("[INFO] Image placeholders found but no image model configured")
+				log.Println("[INFO] Keeping placeholders in content (they will remain as <img prompt='...'>)")
+
+				// Count placeholders
+				placeholderCount := strings.Count(result.Content, "<img prompt=")
+				stats = imageProcessStats{
+					Total:   placeholderCount,
+					Skipped: placeholderCount,
+				}
+				processedContent = result.Content
+				processErr = nil
+			} else {
+				// No placeholders, process existing images with src
+				log.Println("[INFO] No image placeholders found, processing existing images...")
+				processedContent, stats, processErr = s.processImages(imgCtx, result.Content, params)
+			}
+		} else {
+			// 🔥 AUTO GENERATE DISABLED - process existing images with src
+			log.Println("[INFO] Auto-generate images disabled, processing existing images...")
+			processedContent, stats, processErr = s.processImages(imgCtx, result.Content, params)
+		}
+
+		if processErr != nil {
+			log.Printf("[WARNING] Failed to process images: %v", processErr)
 			// Jangan gagalkan proses, lanjutkan dengan content asli
 		} else {
 			result.Content = processedContent
@@ -142,9 +176,9 @@ func (s *GenerateServiceImpl) GenerateArticle(ctx context.Context, params genera
 				stats.Total, stats.Replaced, stats.Failed, stats.Skipped)
 
 			if stats.Total > 0 && stats.Replaced == 0 {
-				log.Printf("[WARNING] No images were successfully rehosted to MinIO; original source URLs are kept in content")
+				log.Printf("[WARNING] No images were successfully processed; original content kept")
 			} else if stats.Failed > 0 {
-				log.Printf("[WARNING] %d/%d images failed to rehost; their original source URLs are kept in content", stats.Failed, stats.Total)
+				log.Printf("[WARNING] %d/%d images failed to process", stats.Failed, stats.Total)
 			}
 		}
 	}
@@ -162,13 +196,130 @@ type imageProcessStats struct {
 	Total    int
 	Replaced int
 	Failed   int
-	Skipped  int // img tanpa src
+	Skipped  int // img tanpa src atau prompt
 }
 
-// 🔥 FUNGSI BARU: Proses semua gambar di HTML
-// Setiap outcome (sukses, gagal, skip) ditrack via `stats` supaya caller
-// tahu hasil REAL, bukan asumsi "processed successfully" padahal 0 yang
-// benar-benar ke-replace.
+// 🔥 HELPER: Check if content has image placeholders
+func (s *GenerateServiceImpl) hasImagePlaceholders(content string) bool {
+	return strings.Contains(content, "<img prompt=")
+}
+
+// 🔥 FUNGSI BARU: Proses placeholder <img prompt="..."> dan generate gambar
+func (s *GenerateServiceImpl) processImagePlaceholders(ctx context.Context, htmlContent string, params generate.ArticleGenerationParams) (string, imageProcessStats, error) {
+	log.Println("[INFO] Starting image placeholder processing...")
+
+	stats := imageProcessStats{}
+
+	// Parse HTML untuk mencari semua tag img dengan attribute prompt
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return "", stats, fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	imgSelections := doc.Find("img[prompt]")
+	stats.Total = imgSelections.Length()
+
+	if stats.Total == 0 {
+		log.Println("[INFO] No image placeholders found in content")
+		return htmlContent, stats, nil
+	}
+
+	log.Printf("[INFO] Found %d image placeholders to generate", stats.Total)
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, 3) // Limit concurrent image generation to 3
+
+	imgSelections.Each(func(i int, img *goquery.Selection) {
+		if ctx.Err() != nil {
+			log.Printf("[WARNING] Context done, stopping image generation")
+			mu.Lock()
+			stats.Failed++
+			mu.Unlock()
+			return
+		}
+
+		// Get prompt attribute
+		prompt, exists := img.Attr("prompt")
+		if !exists || prompt == "" {
+			log.Printf("[WARNING] Image #%d has empty prompt, skipping", i+1)
+			mu.Lock()
+			stats.Skipped++
+			mu.Unlock()
+			return
+		}
+
+		wg.Add(1)
+		go func(index int, promptText string, imgElement *goquery.Selection) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			select {
+			case semaphore <- struct{}{}:
+				defer func() { <-semaphore }()
+			case <-ctx.Done():
+				log.Printf("[WARNING] Context done before processing image #%d", index+1)
+				mu.Lock()
+				stats.Failed++
+				mu.Unlock()
+				return
+			}
+
+			log.Printf("[INFO] Generating image #%d with prompt: %s", index+1, promptText)
+
+			// Generate image using AI
+			imageParams := generate.ImageGenerationParams{
+				Prompt:    promptText,
+				ModelID:   params.ImageModelID,
+				Slug:      params.Slug,
+				ArticleID: params.ArticleID,
+			}
+
+			// Generate image dengan timeout
+			imageCtx, cancel := context.WithTimeout(ctx, imageGenerationTimeout)
+			defer cancel()
+
+			imageResult, err := s.GenerateImage(imageCtx, imageParams)
+			if err != nil {
+				log.Printf("[ERROR] Failed to generate image #%d: %v", index+1, err)
+				mu.Lock()
+				stats.Failed++
+				mu.Unlock()
+				return
+			}
+
+			log.Printf("[INFO] Image #%d generated successfully: %s", index+1, imageResult.ImageURL)
+
+			// Replace img tag with generated image
+			// Remove prompt attribute and set src
+			imgElement.RemoveAttr("prompt")
+			imgElement.SetAttr("src", imageResult.ImageURL)
+
+			// Add alt attribute for accessibility
+			imgElement.SetAttr("alt", promptText)
+
+			mu.Lock()
+			stats.Replaced++
+			mu.Unlock()
+			log.Printf("[INFO] Image #%d placeholder replaced with generated image", index+1)
+		}(i, prompt, img)
+	})
+
+	wg.Wait()
+
+	log.Printf("[INFO] Image placeholders processed - total: %d, replaced: %d, failed: %d, skipped: %d",
+		stats.Total, stats.Replaced, stats.Failed, stats.Skipped)
+
+	// Generate HTML baru
+	newHTML, err := doc.Html()
+	if err != nil {
+		return "", stats, fmt.Errorf("failed to generate new HTML: %w", err)
+	}
+
+	return newHTML, stats, nil
+}
+
+// 🔥 FUNGSI: Proses semua gambar di HTML (download dan rehost ke MinIO)
 func (s *GenerateServiceImpl) processImages(ctx context.Context, htmlContent string, params generate.ArticleGenerationParams) (string, imageProcessStats, error) {
 	log.Println("[INFO] Starting image processing...")
 
@@ -183,12 +334,17 @@ func (s *GenerateServiceImpl) processImages(ctx context.Context, htmlContent str
 	imgSelections := doc.Find("img")
 	stats.Total = imgSelections.Length()
 
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, 5) // Limit concurrent downloads
+
 	imgSelections.Each(func(i int, img *goquery.Selection) {
 		// Kalau budget waktu keseluruhan sudah habis, hentikan lebih awal
-		// daripada mencoba dan pasti gagal dengan deadline exceeded berulang.
 		if ctx.Err() != nil {
 			log.Printf("[WARNING] Image processing context done (%v), skipping remaining images", ctx.Err())
+			mu.Lock()
 			stats.Failed++
+			mu.Unlock()
 			return
 		}
 
@@ -198,37 +354,73 @@ func (s *GenerateServiceImpl) processImages(ctx context.Context, htmlContent str
 		src, exists := img.Attr("src")
 		if !exists || src == "" {
 			log.Printf("[WARNING] Image #%d has no src attribute, skipping", i+1)
+			mu.Lock()
 			stats.Skipped++
+			mu.Unlock()
 			return
 		}
 
-		log.Printf("[INFO] Image #%d src: %s", i+1, src)
-
-		// Download gambar (dengan retry, lebih resilient terhadap kegagalan sementara)
-		imageData, contentType, err := s.downloadImageWithRetry(ctx, src, imageDownloadRetries)
-		if err != nil {
-			log.Printf("[ERROR] Failed to download image #%d: %v", i+1, err)
-			stats.Failed++
+		// Skip if it's already a MinIO URL (to avoid re-processing)
+		if strings.Contains(src, "minio") || strings.Contains(src, "storage.googleapis.com") {
+			log.Printf("[INFO] Image #%d already uses MinIO/storage URL, skipping", i+1)
+			mu.Lock()
+			stats.Skipped++
+			mu.Unlock()
 			return
 		}
 
-		log.Printf("[INFO] Image #%d downloaded (size: %d bytes, type: %s)", i+1, len(imageData), contentType)
+		wg.Add(1)
+		go func(index int, imageSrc string, imgElement *goquery.Selection) {
+			defer wg.Done()
 
-		// Upload ke MinIO
-		minioURL, err := s.uploadToMinio(ctx, imageData, contentType, params)
-		if err != nil {
-			log.Printf("[ERROR] Failed to upload image #%d to MinIO: %v", i+1, err)
-			stats.Failed++
-			return
-		}
+			// Acquire semaphore
+			select {
+			case semaphore <- struct{}{}:
+				defer func() { <-semaphore }()
+			case <-ctx.Done():
+				log.Printf("[WARNING] Context done before processing image #%d", index+1)
+				mu.Lock()
+				stats.Failed++
+				mu.Unlock()
+				return
+			}
 
-		log.Printf("[INFO] Image #%d uploaded to MinIO: %s", i+1, minioURL)
+			log.Printf("[INFO] Image #%d src: %s", index+1, imageSrc)
 
-		// Ganti src attribute dengan URL MinIO
-		img.SetAttr("src", minioURL)
-		stats.Replaced++
-		log.Printf("[INFO] Image #%d src replaced with MinIO URL", i+1)
+			// Download gambar (dengan retry, lebih resilient terhadap kegagalan sementara)
+			imageData, contentType, err := s.downloadImageWithRetry(ctx, imageSrc, imageDownloadRetries)
+			if err != nil {
+				log.Printf("[ERROR] Failed to download image #%d: %v", index+1, err)
+				mu.Lock()
+				stats.Failed++
+				mu.Unlock()
+				return
+			}
+
+			log.Printf("[INFO] Image #%d downloaded (size: %d bytes, type: %s)", index+1, len(imageData), contentType)
+
+			// Upload ke MinIO
+			minioURL, err := s.uploadToMinio(ctx, imageData, contentType, params)
+			if err != nil {
+				log.Printf("[ERROR] Failed to upload image #%d to MinIO: %v", index+1, err)
+				mu.Lock()
+				stats.Failed++
+				mu.Unlock()
+				return
+			}
+
+			log.Printf("[INFO] Image #%d uploaded to MinIO: %s", index+1, minioURL)
+
+			// Ganti src attribute dengan URL MinIO
+			imgElement.SetAttr("src", minioURL)
+			mu.Lock()
+			stats.Replaced++
+			mu.Unlock()
+			log.Printf("[INFO] Image #%d src replaced with MinIO URL", index+1)
+		}(i, src, img)
 	})
+
+	wg.Wait()
 
 	log.Printf("[INFO] Total images found: %d, replaced: %d, failed: %d, skipped: %d",
 		stats.Total, stats.Replaced, stats.Failed, stats.Skipped)
@@ -242,7 +434,7 @@ func (s *GenerateServiceImpl) processImages(ctx context.Context, htmlContent str
 	return newHTML, stats, nil
 }
 
-// 🔥 FUNGSI BARU: Download gambar dari URL
+// 🔥 FUNGSI: Download gambar dari URL
 func (s *GenerateServiceImpl) downloadImage(ctx context.Context, imageURL string) ([]byte, string, error) {
 	log.Printf("[INFO] Downloading image from: %s", imageURL)
 
@@ -252,15 +444,7 @@ func (s *GenerateServiceImpl) downloadImage(ctx context.Context, imageURL string
 		return s.decodeBase64Image(imageURL)
 	}
 
-	// 🔥 Sanitasi URL sebelum request. AI (terutama saat menulis URL
-	// chart-as-a-service seperti QuickChart.io untuk visualisasi) sering
-	// menaruh query string sebagai JS object literal MENTAH tanpa
-	// percent-encoding, contoh:
-	//   ?c={type:'sankey',data:{datasets:[{from:'Raw Data',to:'X'}]}}
-	// Karakter seperti {, }, ', dan spasi mentah membuat server menolak
-	// request dengan 400 Bad Request. sanitizeImageURL bersifat idempotent:
-	// aman dipanggil baik untuk URL yang sudah ter-encode benar maupun
-	// yang belum di-encode sama sekali.
+	// 🔥 Sanitasi URL sebelum request
 	sanitizedURL, sanitizeErr := sanitizeImageURL(imageURL)
 	if sanitizeErr != nil {
 		log.Printf("[WARNING] Failed to sanitize image URL, using as-is: %v", sanitizeErr)
@@ -269,9 +453,7 @@ func (s *GenerateServiceImpl) downloadImage(ctx context.Context, imageURL string
 		log.Printf("[INFO] URL sanitized for request: %s -> %s", imageURL, sanitizedURL)
 	}
 
-	// 🔥 BUAT CONTEXT BARU DENGAN TIMEOUT LEBIH LAMA, tetap "anak" dari ctx
-	// pemanggil (imgCtx di processImages) supaya tetap menghormati pembatalan
-	// budget total, bukan context.Background() yang sepenuhnya lepas.
+	// 🔥 BUAT CONTEXT BARU DENGAN TIMEOUT LEBIH LAMA
 	downloadCtx, cancel := context.WithTimeout(ctx, imageDownloadTimeout)
 	defer cancel()
 
@@ -285,7 +467,7 @@ func (s *GenerateServiceImpl) downloadImage(ctx context.Context, imageURL string
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 
 	client := &http.Client{
-		Timeout: imageDownloadTimeout, // 🔥 60 detik timeout
+		Timeout: imageDownloadTimeout,
 	}
 
 	resp, err := client.Do(req)
@@ -295,9 +477,6 @@ func (s *GenerateServiceImpl) downloadImage(ctx context.Context, imageURL string
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		// Sertakan preview body untuk debugging - kalau provider chart
-		// mengembalikan pesan error berguna (misal "invalid JSON config"),
-		// ini akan kelihatan di log tanpa perlu reproduce manual.
 		bodyPreview, _ := io.ReadAll(io.LimitReader(resp.Body, 500))
 		return nil, "", fmt.Errorf("download failed with status: %s, body: %s", resp.Status, string(bodyPreview))
 	}
@@ -317,32 +496,21 @@ func (s *GenerateServiceImpl) downloadImage(ctx context.Context, imageURL string
 	return imageData, contentType, nil
 }
 
-// sanitizeImageURL membersihkan URL gambar/chart yang berasal dari AI, yang
-// kerap menulis query string (terutama untuk layanan chart-as-a-service
-// seperti QuickChart.io) sebagai JS object literal MENTAH tanpa
-// percent-encoding, contoh:
-//
-//	?c={type:'bar',data:{labels:['Raw Data','Pretraining']}}
-//
-// Strategi: decode-lalu-encode-ulang membuat proses ini idempotent -
-// tidak masalah apakah input sudah ter-encode sebagian, penuh, atau
-// tidak sama sekali; hasil akhirnya selalu valid dan konsisten, dan tidak
-// akan men-double-encode URL yang sebenarnya sudah benar.
+// sanitizeImageURL membersihkan URL gambar/chart yang berasal dari AI
 func sanitizeImageURL(rawURL string) (string, error) {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return "", fmt.Errorf("empty url")
 	}
 
-	// data: URL (base64 atau svg mentah) tidak disentuh sama sekali,
-	// itu ditangani jalur lain (decodeBase64Image).
+	// data: URL (base64 atau svg mentah) tidak disentuh sama sekali
 	if strings.HasPrefix(rawURL, "data:") {
 		return rawURL, nil
 	}
 
 	idx := strings.Index(rawURL, "?")
 	if idx == -1 {
-		// Tidak ada query string sama sekali, tidak ada yang perlu di-encode.
+		// Tidak ada query string sama sekali
 		if _, err := url.ParseRequestURI(rawURL); err != nil {
 			return "", fmt.Errorf("invalid url (no query): %w", err)
 		}
@@ -356,17 +524,13 @@ func sanitizeImageURL(rawURL string) (string, error) {
 		return "", fmt.Errorf("invalid base url: %w", err)
 	}
 
-	// Pisahkan jadi pasangan key=value berdasarkan "&" di level TOP saja,
-	// mengabaikan "&" yang berada di dalam {} atau [] (umum muncul di
-	// JSON/JS object literal milik QuickChart), supaya tidak salah memecah
-	// value JSON yang kebetulan mengandung "&" literal di dalamnya.
+	// Pisahkan jadi pasangan key=value berdasarkan "&" di level TOP saja
 	pairs := splitTopLevelQueryPairs(rawQuery)
 
 	rebuilt := make([]string, 0, len(pairs))
 	for _, pair := range pairs {
 		eqIdx := strings.Index(pair, "=")
 		if eqIdx == -1 {
-			// Param tanpa value, biarkan apa adanya.
 			rebuilt = append(rebuilt, pair)
 			continue
 		}
@@ -380,7 +544,6 @@ func sanitizeImageURL(rawURL string) (string, error) {
 
 	sanitized := base + "?" + strings.Join(rebuilt, "&")
 
-	// Validasi akhir: pastikan hasilnya benar-benar parseable.
 	if _, err := url.Parse(sanitized); err != nil {
 		return "", fmt.Errorf("sanitized url still invalid: %w", err)
 	}
@@ -389,9 +552,6 @@ func sanitizeImageURL(rawURL string) (string, error) {
 }
 
 // splitTopLevelQueryPairs memisahkan query string jadi pasangan key=value
-// berdasarkan "&", TAPI mengabaikan "&" yang berada di dalam tanda kurung
-// {} atau [] (umum muncul di JSON/JS object literal milik QuickChart),
-// supaya tidak salah memecah value JSON yang mengandung "&" literal.
 func splitTopLevelQueryPairs(rawQuery string) []string {
 	var pairs []string
 	depth := 0
@@ -417,12 +577,7 @@ func splitTopLevelQueryPairs(rawQuery string) []string {
 	return pairs
 }
 
-// normalizeQueryValue membuat proses idempotent: kalau value SUDAH
-// ter-percent-encode (mengandung urutan %XX valid), decode dulu supaya
-// tidak terjadi double-encoding saat di-escape ulang nanti. Kalau value
-// memang belum di-encode sama sekali (karakter mentah seperti {, ', spasi),
-// url.QueryUnescape akan gagal secara aman dan value mentah dipakai
-// langsung sebagai basis untuk encoding berikutnya.
+// normalizeQueryValue membuat proses idempotent
 func normalizeQueryValue(value string) string {
 	if decoded, err := url.QueryUnescape(value); err == nil {
 		return decoded
@@ -462,9 +617,7 @@ func (s *GenerateServiceImpl) decodeBase64Image(dataURL string) ([]byte, string,
 	return imageData, contentType, nil
 }
 
-// downloadImageWithRetry - dipanggil oleh processImages. Menghormati ctx:
-// kalau ctx sudah dibatalkan/timeout, hentikan retry lebih awal daripada
-// menunggu backoff yang tidak akan berguna.
+// downloadImageWithRetry - dipanggil oleh processImages
 func (s *GenerateServiceImpl) downloadImageWithRetry(ctx context.Context, imageURL string, maxRetries int) ([]byte, string, error) {
 	var lastErr error
 
@@ -498,15 +651,11 @@ func (s *GenerateServiceImpl) downloadImageWithRetry(ctx context.Context, imageU
 	return nil, "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
 }
 
-// uploadToMinio - pakai ctx (anak dari imgCtx di processImages) dengan
-// timeout sendiri per-upload, jadi tidak lagi tersandung deadline parent
-// yang pendek (penyebab "context deadline exceeded" sebelumnya), tapi
-// tetap bisa dibatalkan kalau budget total imageProcessTimeout habis.
+// uploadToMinio - upload ke MinIO
 func (s *GenerateServiceImpl) uploadToMinio(ctx context.Context, imageData []byte, contentType string, params generate.ArticleGenerationParams) (string, error) {
 	log.Println("[INFO] Uploading image to MinIO...")
 
 	// Generate object name
-	// Format: articles/{slug}/{timestamp}_{random}.{ext}
 	ext := getExtensionFromContentType(contentType)
 	timestamp := time.Now().Unix()
 	random := generateRandomString(8)
@@ -543,47 +692,7 @@ func (s *GenerateServiceImpl) uploadToMinio(ctx context.Context, imageData []byt
 	return imageURLResult, nil
 }
 
-// 🔥 HELPER: Get extension from content type
-func getExtensionFromContentType(contentType string) string {
-	switch contentType {
-	case "image/jpeg":
-		return "jpg"
-	case "image/png":
-		return "png"
-	case "image/gif":
-		return "gif"
-	case "image/webp":
-		return "webp"
-	case "image/svg+xml":
-		return "svg"
-	case "image/bmp":
-		return "bmp"
-	default:
-		return "jpg" // default
-	}
-}
-
-// 🔥 HELPER: Generate random string
-// Pakai *rand.Rand package-level dengan mutex agar thread-safe kalau
-// suatu saat processImages diparalelkan.
-var (
-	randMu  sync.Mutex
-	randSrc = rand.New(rand.NewSource(time.Now().UnixNano()))
-)
-
-func generateRandomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, length)
-
-	randMu.Lock()
-	for i := range b {
-		b[i] = charset[randSrc.Intn(len(charset))]
-	}
-	randMu.Unlock()
-
-	return string(b)
-}
-
+// 🔥 Update GenerateImage method
 func (s *GenerateServiceImpl) GenerateImage(ctx context.Context, params generate.ImageGenerationParams) (*generate.ImageResult, error) {
 	log.Printf("[DEBUG] GenerateImage started, modelID: %s, prompt: %s", params.ModelID, params.Prompt)
 
@@ -648,12 +757,20 @@ func (s *GenerateServiceImpl) GenerateImage(ctx context.Context, params generate
 	ext := s.getImageExtension(contentType)
 	log.Printf("[DEBUG] Image extension: %s", ext)
 
-	objectName := fmt.Sprintf("images/%d.%s", time.Now().UnixNano(), ext)
+	// Generate object name - gunakan slug dari params jika tersedia
+	var objectName string
+	if params.Slug != "" {
+		timestamp := time.Now().UnixNano()
+		random := generateRandomString(8)
+		objectName = fmt.Sprintf("articles/%s/images/%d_%s.%s", params.Slug, timestamp, random, ext)
+	} else if params.ArticleID != "" {
+		objectName = fmt.Sprintf("articles/%s/images/%d.%s", params.ArticleID, time.Now().UnixNano(), ext)
+	} else {
+		objectName = fmt.Sprintf("images/%d.%s", time.Now().UnixNano(), ext)
+	}
 	log.Printf("[DEBUG] Object name: %s", objectName)
 
-	// 🔥 Sama seperti uploadToMinio di processImages: jangan biarkan upload
-	// MinIO terikat pada ctx request yang bisa saja sudah hampir expired
-	// setelah SendRequest ke AI provider untuk image generation (sampai 120s).
+	// 🔥 Upload ke MinIO dengan timeout terpisah
 	uploadCtx, cancel := context.WithTimeout(context.Background(), imageUploadTimeout)
 	defer cancel()
 
@@ -683,6 +800,45 @@ func (s *GenerateServiceImpl) GenerateImage(ctx context.Context, params generate
 
 	log.Printf("[DEBUG] GenerateImage completed successfully, imageURL: %s", imageURL)
 	return result, nil
+}
+
+// 🔥 HELPER: Get extension from content type
+func getExtensionFromContentType(contentType string) string {
+	switch contentType {
+	case "image/jpeg":
+		return "jpg"
+	case "image/png":
+		return "png"
+	case "image/gif":
+		return "gif"
+	case "image/webp":
+		return "webp"
+	case "image/svg+xml":
+		return "svg"
+	case "image/bmp":
+		return "bmp"
+	default:
+		return "jpg"
+	}
+}
+
+// 🔥 HELPER: Generate random string
+var (
+	randMu  sync.Mutex
+	randSrc = rand.New(rand.NewSource(time.Now().UnixNano()))
+)
+
+func generateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, length)
+
+	randMu.Lock()
+	for i := range b {
+		b[i] = charset[randSrc.Intn(len(charset))]
+	}
+	randMu.Unlock()
+
+	return string(b)
 }
 
 // Private helper methods

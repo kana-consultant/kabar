@@ -17,9 +17,9 @@ export async function generateArticleContent(
     setSlug: (val: string | null) => void,
     setKeywords: (val: string[]) => void,
     setExcerpt: (val: string | null) => void,
-    toast: ToastContextType, //   Tambahkan parameter toast
-    autoGenerateImage?: boolean,   // 👈 BARU: apakah generate gambar inline diminta
-    imageModelId?: string          // 👈 BARU: model gambar yang dipilih user
+    toast: ToastContextType, //  
+    autoGenerateImage?: boolean,  
+    imageModelId?: string         
 ) {
     if (!topic) {
         toast.error("Masukkan topik terlebih dahulu"); //   Ganti toast.error dengan toast.error
@@ -43,9 +43,7 @@ export async function generateArticleContent(
             tone: tone,
             length: articleLength,
             language: language,
-            // 👇 BARU: diteruskan ke backend supaya artikel ini juga di-generate
-            // dengan beberapa gambar inline, menggunakan model gambar yang dipilih.
-            generateImages: autoGenerateImage ?? false,
+            autoGenerateImage: autoGenerateImage ?? false,
             imageModelId: autoGenerateImage ? imageModelId : undefined,
         };
 

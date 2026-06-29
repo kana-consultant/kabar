@@ -14,57 +14,42 @@ func NewPromptBuilder() *PromptBuilder {
 }
 
 func (b *PromptBuilder) BuildArticlePrompt(params generate.ArticleGenerationParams) string {
+	imageSection := noImageRules
+
+	if params.AutoGenerateImage {
+		imageSection = imageRules
+	}
+
 	return fmt.Sprintf(`
-TOPIC:
-"%s"
+      ==================================================
+      PRIMARY OBJECTIVE
+      ==================================================
 
-CORE RULES:
-- Write naturally like a human writer
-- Ensure the article is informative, structured, and readable
-- Avoid repetitive sentences and generic AI phrases
-- Do not use placeholders or dummy text
-- Keep explanations relevant to the topic
-- Use a clear logical flow between sections
-- Maintain factual consistency
+      Generate one complete SEO article that fully answers the user's search intent.
 
-CONTENT REQUIREMENTS:
-- Use valid HTML only
-- Use proper heading hierarchy:
-  <h1>, <h2>, <h3>
-- Include:
-  - Introduction
-  - Main discussion sections
-  - Conclusion
-- Use paragraphs, lists, and tables when relevant
-- Do not include markdown
-- Do not wrap output with backticks
+      Return ONLY valid JSON.
 
-SEO REQUIREMENTS:
-- Include the main topic naturally in:
-  - Title
-  - Introduction
-  - At least one subheading
-- Use semantic and related keywords naturally
-- Optimize readability
-- Avoid keyword stuffing
+      ==================================================
+      TOPIC
+      ==================================================
 
-OUTPUT RULES:
-- Return ONLY valid JSON
-- No explanation
-- No additional text outside JSON
-- Ensure JSON is parseable
+      %s
 
-RESPONSE FORMAT:
-{
-  "title": "string",
-  "slug": "string",
-  "excerpt": "string",
-  "content": "<h1>...</h1>",
-  "keywords": ["string"],
-  "imagePrompt": "string",
-  "wordCount": number
-}
+      %s
+
+      %s
+
+      %s
+
+      %s
+
+      %s
 `,
 		params.Topic,
+		articleRules,
+		htmlRules,
+		seoRules,
+		imageSection,
+		outputRules,
 	)
 }

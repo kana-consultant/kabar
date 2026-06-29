@@ -6,7 +6,7 @@ export interface GenerateArticleRequest {
     topic: string;
     tone?: Tone;
     length?: ArticleLength;
-    generateImages? : boolean;
+    autoGenerateImage? : boolean;
     language?: Language;
     modelId?: string;
     imageModelId? : string;

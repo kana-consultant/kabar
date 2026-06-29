@@ -28,7 +28,10 @@ func (h *GenerateHandler) GenerateArticle(w http.ResponseWriter, r *http.Request
 		Tone              string `json:"tone"`
 		Length            string `json:"length"`
 		Language          string `json:"language"`
+		Slug              string `json:"slug,omitempty"`
+		ArticleID         string `json:"articleId,omitempty"`
 		AutoGenerateImage bool   `json:"autoGenerateImage"`
+		ImageModelID      string `json:"imageModelId,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -37,9 +40,16 @@ func (h *GenerateHandler) GenerateArticle(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Validate required fields
 	if req.Topic == "" || req.ModelID == "" {
 		h.writeError(w, "topic and modelId are required", http.StatusBadRequest)
 		return
+	}
+
+	// Validate image configuration
+	if req.AutoGenerateImage && req.ImageModelID == "" {
+		log.Printf("[WARNING] AutoGenerateImage is enabled but ImageModelID is not provided")
+		// Allow the request to proceed, but service will handle this case gracefully
 	}
 
 	params := generate.ArticleGenerationParams{
@@ -48,8 +58,14 @@ func (h *GenerateHandler) GenerateArticle(w http.ResponseWriter, r *http.Request
 		Tone:              req.Tone,
 		Length:            req.Length,
 		Language:          req.Language,
+		Slug:              req.Slug,
+		ArticleID:         req.ArticleID,
 		AutoGenerateImage: req.AutoGenerateImage,
+		ImageModelID:      req.ImageModelID,
 	}
+
+	log.Printf("[INFO] GenerateArticle request: topic=%s, modelId=%s, autoGenerateImage=%v, imageModelId=%s",
+		req.Topic, req.ModelID, req.AutoGenerateImage, req.ImageModelID)
 
 	result, err := h.generateService.GenerateArticle(ctx, params)
 	if err != nil {
@@ -65,8 +81,10 @@ func (h *GenerateHandler) GenerateImage(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 
 	var req struct {
-		Prompt  string `json:"prompt"`
-		ModelID string `json:"modelId"`
+		Prompt    string `json:"prompt"`
+		ModelID   string `json:"modelId"`
+		Slug      string `json:"slug,omitempty"`
+		ArticleID string `json:"articleId,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -81,9 +99,14 @@ func (h *GenerateHandler) GenerateImage(w http.ResponseWriter, r *http.Request) 
 	}
 
 	params := generate.ImageGenerationParams{
-		Prompt:  req.Prompt,
-		ModelID: req.ModelID,
+		Prompt:    req.Prompt,
+		ModelID:   req.ModelID,
+		Slug:      req.Slug,
+		ArticleID: req.ArticleID,
 	}
+
+	log.Printf("[INFO] GenerateImage request: prompt=%s, modelId=%s, slug=%s",
+		req.Prompt, req.ModelID, req.Slug)
 
 	result, err := h.generateService.GenerateImage(ctx, params)
 	if err != nil {

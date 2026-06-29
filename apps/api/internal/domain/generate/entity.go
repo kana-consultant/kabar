@@ -8,18 +8,22 @@ import (
 
 // ========== PARAMETERS ==========
 type ArticleGenerationParams struct {
-	Topic             string
-	Slug              string
-	ModelID           string
-	Tone              string
-	Length            string
-	Language          string
-	AutoGenerateImage bool
+	Topic             string `json:"topic"`
+	ModelID           string `json:"modelId"`
+	Tone              string `json:"tone"`
+	Length            string `json:"length"`
+	Language          string `json:"language"`
+	Slug              string `json:"slug,omitempty"`
+	ArticleID         string `json:"articleId,omitempty"`
+	AutoGenerateImage bool   `json:"autoGenerateImage,omitempty"`
+	ImageModelID      string `json:"imageModelId,omitempty"`
 }
 
 type ImageGenerationParams struct {
-	Prompt  string
-	ModelID string
+	Prompt    string `json:"prompt"`
+	ModelID   string `json:"modelId"`
+	Slug      string `json:"slug,omitempty"`
+	ArticleID string `json:"articleId,omitempty"`
 }
 
 // ========== RESULTS ==========
