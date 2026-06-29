@@ -1,4 +1,3 @@
-// internal/infrastructure/ai/builder/prompt_builder.go
 package builder
 
 import (
@@ -15,35 +14,50 @@ func NewPromptBuilder() *PromptBuilder {
 
 func (b *PromptBuilder) BuildArticlePrompt(params generate.ArticleGenerationParams) string {
 	imageSection := noImageRules
-
 	if params.AutoGenerateImage {
 		imageSection = imageRules
 	}
 
 	return fmt.Sprintf(`
-      ==================================================
-      PRIMARY OBJECTIVE
-      ==================================================
+==================================================
+PRIMARY OBJECTIVE
+==================================================
 
-      Generate one complete SEO article that fully answers the user's search intent.
+Generate a complete, accurate, and SEO-optimized article that satisfies the user's search intent.
 
-      Return ONLY valid JSON.
+Return ONLY valid JSON.
 
-      ==================================================
-      TOPIC
-      ==================================================
+==================================================
+USER TOPIC
+==================================================
 
-      %s
+%s
 
-      %s
+==================================================
+ARTICLE REQUIREMENTS
+==================================================
 
-      %s
+%s
 
-      %s
+==================================================
+HTML REQUIREMENTS
+==================================================
 
-      %s
+%s
 
-      %s
+==================================================
+SEO REQUIREMENTS
+==================================================
+
+%s
+
+%s
+
+==================================================
+OUTPUT FORMAT
+==================================================
+
+%s
 `,
 		params.Topic,
 		articleRules,

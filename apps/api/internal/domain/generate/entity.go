@@ -20,10 +20,12 @@ type ArticleGenerationParams struct {
 }
 
 type ImageGenerationParams struct {
-	Prompt    string `json:"prompt"`
-	ModelID   string `json:"modelId"`
-	Slug      string `json:"slug,omitempty"`
-	ArticleID string `json:"articleId,omitempty"`
+	Prompt         string `json:"prompt"`
+	ModelID        string `json:"modelId"`
+	Slug           string `json:"slug"`
+	ArticleID      string `json:"articleId"`
+	ArticleTitle   string `json:"articleTitle"`   // ← BARU: Konteks artikel
+	OriginalPrompt string `json:"originalPrompt"` // ← BARU: Prompt asli dari AI
 }
 
 // ========== RESULTS ==========
