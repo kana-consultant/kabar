@@ -1,15 +1,13 @@
 import { Input } from "@kana-consultant/ui-kit";
 import { Button } from "@kana-consultant/ui-kit";
-import { Loader2, Sparkles, Image as ImageIcon, Pencil } from "lucide-react";
+import { Loader2, Sparkles, Pencil, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TopicInputProps {
     topic: string;
     setTopic: (value: string) => void;
     loadingArticle: boolean;
-    loadingImage: boolean;
     onGenerateArticle: () => void;
-    onGenerateImage: () => void;
     autoGenerateImage: boolean;
     setAutoGenerateImage: (value: boolean) => void;
     article: string;
@@ -17,9 +15,9 @@ interface TopicInputProps {
 
 export function TopicInput({
     topic, setTopic,
-    loadingArticle, loadingImage,
-    onGenerateArticle, onGenerateImage,
-    autoGenerateImage, article,
+    loadingArticle,
+    onGenerateArticle,
+    autoGenerateImage, setAutoGenerateImage, article,
 }: TopicInputProps) {
     return (
         <div className={cn(
@@ -66,43 +64,65 @@ export function TopicInput({
                     />
                 </div>
 
-                {/* Action buttons */}
-                <div className="flex gap-2">
-                    <Button
-                        onClick={onGenerateArticle}
-                        disabled={!topic || loadingArticle}
-                        className={cn(
-                            "flex-1 h-9 gap-2 rounded-lg text-sm font-medium",
-                            "bg-green-600 hover:bg-green-700 text-white shadow-sm",
-                            "dark:bg-purple-600 dark:hover:bg-purple-700",
-                            "disabled:opacity-50"
-                        )}
-                    >
-                        {loadingArticle
-                            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Mengenerate...</>
-                            : <><Sparkles className="h-3.5 w-3.5" /> Generate Artikel</>
-                        }
-                    </Button>
+                {/* Auto-generate image toggle */}
+                <div className={cn(
+                    "flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5",
+                    "border-slate-200/80 bg-slate-50/60",
+                    "dark:border-white/[0.06] dark:bg-white/[0.02]"
+                )}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1 bg-amber-50 text-amber-600 ring-amber-200/60 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20">
+                            <Wand2 className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
+                                Generate Gambar Otomatis
+                            </p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-600 truncate">
+                                Gambar dibuat otomatis setelah artikel selesai
+                            </p>
+                        </div>
+                    </div>
 
-                    <Button
-                        onClick={onGenerateImage}
-                        disabled={!article || loadingImage}
-                        variant="outline"
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={autoGenerateImage}
+                        aria-label="Toggle generate gambar otomatis"
+                        onClick={() => setAutoGenerateImage(!autoGenerateImage)}
                         className={cn(
-                            "h-9 gap-2 rounded-lg text-xs font-medium",
-                            "border-slate-200/80 text-slate-500",
-                            "hover:text-green-600 hover:border-green-300/60 hover:bg-green-50/50",
-                            "dark:border-white/[0.08] dark:text-slate-400",
-                            "dark:hover:text-purple-400 dark:hover:border-purple-500/30 dark:hover:bg-purple-500/5",
-                            "disabled:opacity-40"
+                            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                            autoGenerateImage
+                                ? "bg-green-600 dark:bg-purple-600 focus-visible:ring-green-500/40 dark:focus-visible:ring-purple-500/40"
+                                : "bg-slate-200 dark:bg-white/[0.08] focus-visible:ring-slate-400/40"
                         )}
                     >
-                        {loadingImage
-                            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating...</>
-                            : <><ImageIcon className="h-3.5 w-3.5" /> Generate Gambar</>
-                        }
-                    </Button>
+                        <span
+                            className={cn(
+                                "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200",
+                                autoGenerateImage ? "translate-x-[19px]" : "translate-x-[3px]"
+                            )}
+                        />
+                    </button>
                 </div>
+
+                {/* Action button */}
+                <Button
+                    onClick={onGenerateArticle}
+                    disabled={!topic || loadingArticle}
+                    className={cn(
+                        "w-full h-9 gap-2 rounded-lg text-sm font-medium",
+                        "bg-green-600 hover:bg-green-700 text-white shadow-sm",
+                        "dark:bg-purple-600 dark:hover:bg-purple-700",
+                        "disabled:opacity-50"
+                    )}
+                >
+                    {loadingArticle
+                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Mengenerate...</>
+                        : <><Sparkles className="h-3.5 w-3.5" /> Generate Artikel</>
+                    }
+                </Button>
 
                 {/* Article ready indicator */}
                 {article && (
@@ -120,7 +140,7 @@ export function TopicInput({
                             Artikel siap.{" "}
                             {autoGenerateImage
                                 ? "Gambar otomatis akan digenerate."
-                                : "Klik 'Generate Gambar' untuk menambahkan ilustrasi."
+                                : "Tidak ada gambar yang akan ditambahkan."
                             }
                         </span>
                     </div>

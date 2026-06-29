@@ -7,6 +7,7 @@ import { PreviewSection } from "./PreviewSection";
 import { PublishResultDialog } from "../draft/PublishResultDialog";
 import { useGenerate } from "@/hooks/useGenerate";
 import { ModelSelector } from "./ModelSelector";
+import { cn } from "@/lib/utils";
 
 export default function Generate() {
     const {
@@ -44,6 +45,10 @@ export default function Generate() {
         onCloseError,
     } = useGenerate();
 
+    // 👇 STATE LOKAL: model khusus untuk generate gambar (step kedua, muncul jika autoGenerateImage true)
+    const [selectedImageModelId, setSelectedImageModelId] = useState("");
+    const [imageModelError, setImageModelError] = useState(false);
+
     // 👇 STATE KHUSUS UNTUK SINGLE SELECT
 
     // 👇 HANDLER UNTUK SINGLE SELECT
@@ -53,6 +58,32 @@ export default function Generate() {
         } else {
             setSelectedProducts([...selectedProducts, productId]);
         }
+    };
+
+    // 👇 VALIDASI: kalau auto-generate gambar aktif, model image wajib sudah dipilih
+    const handleGenerateArticle = () => {
+        if (autoGenerateImage && !selectedImageModelId) {
+            setImageModelError(true);
+            return;
+        }
+        setImageModelError(false);
+        // 👇 selectedImageModelId & autoGenerateImage diteruskan supaya generateArticle
+        // bisa langsung generate gambar-gambar di dalam artikel pakai model ini.
+        // NOTE: signature generateArticle() di useGenerate.ts perlu disesuaikan
+        // untuk menerima & menggunakan kedua argumen ini.
+        generateArticle(autoGenerateImage, selectedImageModelId);
+    };
+
+    // 👇 Toggle auto-generate gambar, sekaligus bersihkan error kalau dimatikan
+    const handleToggleAutoGenerateImage = (value: boolean) => {
+        setAutoGenerateImage(value);
+        if (!value) setImageModelError(false);
+    };
+
+    // 👇 Pilih model image, otomatis hapus error begitu user pilih sesuatu
+    const handleSelectImageModel = (modelId: string) => {
+        setSelectedImageModelId(modelId);
+        if (modelId) setImageModelError(false);
     };
 
     if (productsLoading) {
@@ -101,18 +132,40 @@ export default function Generate() {
                         topic={topic}
                         setTopic={setTopic}
                         loadingArticle={loadingArticle}
-                        loadingImage={loadingImage}
-                        onGenerateArticle={generateArticle}
-                        onGenerateImage={generateImage}
+                        onGenerateArticle={handleGenerateArticle}
                         autoGenerateImage={autoGenerateImage}
-                        setAutoGenerateImage={setAutoGenerateImage}
+                        setAutoGenerateImage={handleToggleAutoGenerateImage}
                         article={article}
                     />
 
-                    <ModelSelector
-                        selectedModelId={selectedModelId}
-                        onModelChange={setSelectedModelId}
-                    />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className={cn(
+                            "rounded-2xl border border-slate-200/80 bg-white p-4 dark:bg-[#0f0d1a] dark:border-white/[0.06]",
+                            `${!autoGenerateImage && "sm:col-span-2"}`
+                        )}>
+                            <ModelSelector
+                                selectedModelId={selectedModelId}
+                                onModelChange={setSelectedModelId}
+                                filterByService="text"
+                            />
+                        </div>
+
+                        {/* Step kedua: muncul hanya kalau auto-generate gambar aktif */}
+                        {autoGenerateImage && (
+                            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:bg-[#0f0d1a] dark:border-white/[0.06]">
+                                <ModelSelector
+                                    selectedModelId={selectedImageModelId}
+                                    onModelChange={handleSelectImageModel}
+                                    filterByService="image"
+                                />
+                                {imageModelError && (
+                                    <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">
+                                        Pilih model gambar dulu sebelum generate artikel.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Right column */}
@@ -129,7 +182,7 @@ export default function Generate() {
                         dailyTime={dailyTime}
                         setDailyTime={setDailyTime}
                         autoGenerateImage={autoGenerateImage}
-                        setAutoGenerateImage={setAutoGenerateImage}
+                        setAutoGenerateImage={handleToggleAutoGenerateImage}
                         products={products}
                         selectedProduct={selectedProducts}
                         onSelectProduct={handleSelectProduct}

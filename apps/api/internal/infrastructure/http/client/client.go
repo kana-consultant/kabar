@@ -75,35 +75,40 @@ func (c *HTTPClient) SendRequest(
 	// =========================
 	maxRetries := 3
 	backoff := 1 * time.Second
+	maxBackoff := 30 * time.Second
 
-	var resp *http.Response
-	var respBody []byte
-	var err error
+	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
 			log.Printf("[INFO] Retry attempt %d/%d after %v", attempt+1, maxRetries, backoff)
+
 			select {
 			case <-time.After(backoff):
+				// Lanjut retry
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				log.Printf("[ERROR] Context cancelled during backoff: %v", ctx.Err())
+				return nil, fmt.Errorf("request cancelled: %w", ctx.Err())
 			}
+
+			// Exponential backoff
 			backoff *= 2
-			if backoff > 30*time.Second {
-				backoff = 30 * time.Second
+			if backoff > maxBackoff {
+				backoff = maxBackoff
 			}
 		}
 
 		// =========================
-		// CREATE NEW CONTEXT WITH TIMEOUT
-		// IMPORTANT: Use context.Background() to ignore parent context deadline
+		// CREATE REQUEST WITH TIMEOUT
 		// =========================
 		reqCtx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
+		// JANGAN PAKAI defer cancel() di sini!
 
 		req, err := http.NewRequestWithContext(reqCtx, "POST", url, bytes.NewBuffer(body))
 		if err != nil {
-			log.Println("[ERROR] Failed to create request:", err)
+			cancel() // Cancel context karena gagal buat request
+			log.Printf("[ERROR] Failed to create request: %v", err)
+			lastErr = fmt.Errorf("failed to create request: %w", err)
 			continue
 		}
 
@@ -131,32 +136,42 @@ func (c *HTTPClient) SendRequest(
 			log.Println("========== END REQUEST DUMP ==========")
 		}
 
-		log.Println("[INFO] Sending request...")
+		log.Printf("[INFO] Sending request (attempt %d/%d)...", attempt+1, maxRetries)
 		startTime := time.Now()
 
-		resp, err = c.client.Do(req)
+		resp, err := c.client.Do(req)
 		elapsed := time.Since(startTime)
 
 		if err != nil {
+			cancel() // Cancel context jika request gagal
 			log.Printf("[ERROR] Request attempt %d failed after %v: %v", attempt+1, elapsed, err)
+			lastErr = fmt.Errorf("request failed: %w", err)
 
-			// Check if it's context error, don't retry
-			if strings.Contains(err.Error(), "context canceled") || strings.Contains(err.Error(), "context deadline") {
-				log.Println("[ERROR] Context error, stopping retries")
-				return nil, fmt.Errorf("request timeout after %v: %w", timeout, err)
+			// Check if it's timeout error
+			if strings.Contains(err.Error(), "context deadline exceeded") ||
+				strings.Contains(err.Error(), "timeout") ||
+				strings.Contains(err.Error(), "deadline") {
+				log.Printf("[ERROR] Request timeout after %v", timeout)
+				continue
 			}
+
+			// Untuk error lain, tetap coba retry
 			continue
 		}
 
 		log.Printf("[INFO] Request completed in %v", elapsed)
 		log.Println("[INFO] Response Status:", resp.Status)
 
-		// Read response body
-		respBody, err = io.ReadAll(resp.Body)
+		// PENTING: Baca response body SEBELUM cancel context
+		respBody, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
+
+		// BARU cancel context setelah selesai baca body
+		cancel()
 
 		if err != nil {
 			log.Printf("[ERROR] Failed to read response body: %v", err)
+			lastErr = fmt.Errorf("failed to read response: %w", err)
 			continue
 		}
 
@@ -171,6 +186,7 @@ func (c *HTTPClient) SendRequest(
 		// Check if status code is retryable
 		if resp.StatusCode == 503 || resp.StatusCode == 429 || resp.StatusCode >= 500 {
 			log.Printf("[WARNING] Got status %d, will retry", resp.StatusCode)
+			lastErr = fmt.Errorf("server error with status %d: %s", resp.StatusCode, respBodyStr)
 			continue
 		}
 
@@ -181,15 +197,15 @@ func (c *HTTPClient) SendRequest(
 			return respBody, nil
 		}
 
-		// Non-retryable error status
-		log.Printf("[ERROR] API returned non-200 status (%d)", resp.StatusCode)
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
+		// Non-retryable error status (400, 401, 403, 404, etc.)
+		log.Printf("[ERROR] API returned non-retryable status (%d)", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, respBodyStr)
 	}
 
 	// Out of retries
-	if resp == nil {
-		return nil, fmt.Errorf("failed after %d retries: %w", maxRetries, err)
+	log.Printf("[ERROR] All %d retries exhausted", maxRetries)
+	if lastErr != nil {
+		return nil, fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
 	}
-
-	return nil, fmt.Errorf("failed after %d retries: status %d", maxRetries, resp.StatusCode)
+	return nil, fmt.Errorf("failed after %d retries with unknown error", maxRetries)
 }

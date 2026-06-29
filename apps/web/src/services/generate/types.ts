@@ -6,8 +6,10 @@ export interface GenerateArticleRequest {
     topic: string;
     tone?: Tone;
     length?: ArticleLength;
+    generateImages? : boolean;
     language?: Language;
     modelId?: string;
+    imageModelId? : string;
 }
 
 export interface GenerateArticleResponse {

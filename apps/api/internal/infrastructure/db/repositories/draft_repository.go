@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"reflect"
 	"strings"
 	"time"
 
@@ -506,7 +507,7 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 	return draftID, nil
 }
 
-func (r *RepositoryImpl) Update(ctx context.Context, TeamID string, id string, data map[string]interface{}) error {
+func (r *RepositoryImpl) Update(ctx context.Context, id string, TeamID string, data map[string]interface{}) error {
 	// Start transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -675,8 +676,20 @@ func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHis
 
 // Helper methods
 func (r *RepositoryImpl) buildUpdateQuery(id string, data map[string]interface{}) (string, []interface{}, error) {
+	log.Println("========== BUILD UPDATE QUERY ==========")
+
 	if len(data) == 0 {
+		log.Println("[ERROR] No data to update")
 		return "", nil, fmt.Errorf("no data to update")
+	}
+
+	log.Printf("[INFO] Building UPDATE query for draft ID: %s", id)
+	log.Printf("[INFO] Number of fields to update: %d", len(data))
+
+	// Log semua data yang akan diupdate
+	log.Println("[INFO] Data to update:")
+	for column, value := range data {
+		log.Printf("  %s => %#v (type: %T)", column, value, value)
 	}
 
 	setClauses := make([]string, 0, len(data))
@@ -684,16 +697,67 @@ func (r *RepositoryImpl) buildUpdateQuery(id string, data map[string]interface{}
 	i := 1
 
 	for column, value := range data {
+		log.Printf("[INFO] Processing column: %s, value: %#v (type: %T)", column, value, value)
+
+		// 🔥 CEK KHUSUS: Jika value adalah slice, log warning
+		if isSlice(value) {
+			log.Printf("[WARNING] Column '%s' contains a slice/array! This might cause SQL error if column doesn't support array type.", column)
+			log.Printf("[WARNING] Slice content: %#v", value)
+		}
+
+		// 🔥 CEK KHUSUS: Jika value adalah JSON bytes
+		if isJSONBytes(value) {
+			log.Printf("[INFO] Column '%s' contains JSON bytes, will be stored as JSONB", column)
+		}
+
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", column, i))
 		args = append(args, value)
+		log.Printf("[INFO] Added to SET clause: %s = $%d", column, i)
 		i++
 	}
 
 	args = append(args, id)
+	log.Printf("[INFO] Added WHERE clause: id = $%d", i)
+
 	query := fmt.Sprintf("UPDATE drafts SET %s WHERE id = $%d",
 		strings.Join(setClauses, ", "), i)
 
+	log.Println("==================================================")
+	log.Printf("[INFO] Generated Query: %s", query)
+	log.Printf("[INFO] Query Arguments: %+v", args)
+
+	// Log tipe data setiap argumen
+	log.Println("[INFO] Arguments type check:")
+	for idx, arg := range args {
+		log.Printf("  $%d => %#v (type: %T)", idx+1, arg, arg)
+	}
+
+	log.Println("[SUCCESS] buildUpdateQuery completed")
+	log.Println("==================================================")
+
 	return query, args, nil
+}
+
+// Helper function untuk cek apakah value adalah slice/array
+func isSlice(value interface{}) bool {
+	switch reflect.TypeOf(value).Kind() {
+	case reflect.Slice, reflect.Array:
+		return true
+	default:
+		return false
+	}
+}
+
+// Helper function untuk cek apakah value adalah JSON bytes
+func isJSONBytes(value interface{}) bool {
+	if b, ok := value.([]byte); ok {
+		// Cek apakah ini JSON valid
+		var js json.RawMessage
+		if json.Unmarshal(b, &js) == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func nullIfEmpty(id string) interface{} {

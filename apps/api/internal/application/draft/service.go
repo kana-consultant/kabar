@@ -509,26 +509,26 @@ func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, useRo
 
 // Helper functions
 func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
-
 	log.Println("========== PREPARE UPDATE DATA ==========")
 
-	// mapping berdasarkan request yang masuk
 	fieldMap := map[string]string{
-		"id":             "id",
-		"title":          "title",
-		"topic":          "topic",
-		"article":        "article",
-		"ImageUrl":       "image_url",
-		"ImagePrompt":    "image_prompt",
-		"targetProducts": "target_products",
-		"status":         "status",
-		"scheduledFor":   "scheduled_for",
-		"hasImage":       "has_image",
-		"teamId":         "team_id",
-		"userId":         "user_id",
-		"createdBy":      "created_by",
-		"createdAt":      "created_at",
-		"updatedAt":      "updated_at",
+		"id":              "id",
+		"title":           "title",
+		"topic":           "topic",
+		"article":         "article",
+		"image_url":       "image_url",
+		"image_prompt":    "image_prompt",
+		"slug":            "slug",
+		"target_products": "target_products",
+		"status":          "status",
+		"scheduled_for":   "scheduled_for",
+		"has_image":       "has_image",
+		"excerpt":         "excerpt",
+		"team_id":         "team_id",
+		"user_id":         "user_id",
+		"created_by":      "created_by",
+		"created_at":      "created_at",
+		"updated_at":      "updated_at",
 	}
 
 	log.Println("[INFO] Incoming Updates:")
@@ -539,48 +539,40 @@ func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
 	data := make(map[string]interface{})
 
 	for key, value := range updates {
-
 		log.Println("--------------------------------------------------")
 		log.Println("[INFO] Processing Field:", key)
 
 		dbField, ok := fieldMap[key]
-
 		if !ok {
-			log.Println("[WARNING] Field not found in fieldMap:", key)
+			log.Printf("[WARNING] Field '%s' not found in fieldMap, skipping", key)
 			continue
 		}
 
-		log.Println("[INFO] Mapped DB Field:", dbField)
+		log.Printf("[INFO] Mapped DB Field: %s", dbField)
 
-		// khusus target products
-		if key == "TargetProducts" {
-
-			log.Println("[INFO] Marshaling TargetProducts to JSON")
+		if key == "target_products" { // lowercase!
+			log.Println("[INFO] Marshaling target_products to JSONB")
 
 			jsonValue, err := json.Marshal(value)
 			if err != nil {
-
-				log.Println("[ERROR] Failed to marshal TargetProducts:", err)
+				log.Printf("[ERROR] Failed to marshal target_products: %v", err)
 				continue
 			}
 
-			log.Println("[INFO] JSON Result:", string(jsonValue))
+			log.Printf("[INFO] JSON Result: %s", string(jsonValue))
 
-			data[dbField] = jsonValue
+			data[dbField] = jsonValue // atau string(jsonValue)
 
 		} else {
-
-			log.Printf("[INFO] Assigning value to '%s'\n", dbField)
-			log.Printf("[INFO] Value Type: %T\n", value)
-			log.Printf("[INFO] Value: %#v\n", value)
-
+			log.Printf("[INFO] Assigning value to '%s'", dbField)
+			log.Printf("[INFO] Value Type: %T", value)
+			log.Printf("[INFO] Value: %#v", value)
 			data[dbField] = value
 		}
 	}
 
 	log.Println("==================================================")
 	log.Println("[INFO] Final Prepared Data:")
-
 	for k, v := range data {
 		log.Printf("  %s => %#v\n", k, v)
 	}
@@ -589,7 +581,6 @@ func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
 
 	return data
 }
-
 func validatePublishRequest(req draft.DraftDataPost) error {
 	if req.Title == "" || req.Article == "" || len(req.TargetProducts) == 0 {
 		return fmt.Errorf("title, article, and target_products are required")

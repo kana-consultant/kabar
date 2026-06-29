@@ -9,6 +9,7 @@ import (
 // ========== PARAMETERS ==========
 type ArticleGenerationParams struct {
 	Topic             string
+	Slug              string
 	ModelID           string
 	Tone              string
 	Length            string

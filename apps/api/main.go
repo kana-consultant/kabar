@@ -72,10 +72,10 @@ func main() {
 
 	// 8. CREATE HTTP SERVER
 	server := &http.Server{
-		Addr:         ":" + cfg.ServerPort,
+		Addr:         ":8080",
 		Handler:      appContainer.Router,
-		ReadTimeout:  120 * time.Second, // tambah ini
-		WriteTimeout: 120 * time.Second, // tambah ini
+		ReadTimeout:  10 * time.Minute, // 10 menit
+		WriteTimeout: 10 * time.Minute, // 10 menit
 		IdleTimeout:  120 * time.Second,
 	}
 

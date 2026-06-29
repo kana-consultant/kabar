@@ -75,10 +75,11 @@ export function useGenerate() {
         toast
     );
 
-    const generateArticle = () => generateArticleContent(
+    const generateArticle = (autoGenerateImage?: boolean, imageModelId?: string) => generateArticleContent(
         topic, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
-        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt, toast
+        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt, toast,
+        autoGenerateImage, imageModelId  // 👈 diteruskan ke generateArticleContent
     );
 
     const generateImage = () => generateImageManually(
@@ -179,7 +180,7 @@ export function useGenerate() {
                     if (!result.success) {
                         setIsError(true);
                         setErrorData(result);
-                    }else{
+                    } else {
                         console.log(result.data)
                         setResults(result.data);
                     }
