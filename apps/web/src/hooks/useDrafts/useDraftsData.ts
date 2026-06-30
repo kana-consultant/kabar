@@ -45,13 +45,11 @@ export function useDraftsData() {
                 search: debouncedSearch || undefined, // ✅ pakai debouncedSearch
                 status: statusFilter !== "all" ? statusFilter : undefined,
             });
-
-           
-
             setDrafts(response.data.drafts.data ?? []);
             setTotalPages(response.data.drafts.total_pages);
             setTotalItems(response.data.drafts.total_items);
             setCurrentPage(response.data.drafts.current_page);
+            setStats(response.data.stats)
           
         } catch (error) {
             console.error("Failed to load drafts:", error);
