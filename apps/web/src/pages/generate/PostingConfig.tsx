@@ -378,6 +378,9 @@ export function PostingConfig({
         if (onCloseError) onCloseError();
     };
 
+
+    console.log( selectedProduct[0],selectedProductData)
+
     return (
         <>
             <div className={cn(
@@ -541,6 +544,7 @@ export function PostingConfig({
                                             {products.map((product) => {
                                                 const productId = product.id?.toString() || '';
                                                 const isSelected = selectedProduct[0] === productId;
+                                                console.log(isSelected, selectedProduct[0], productId);
                                               
 
                                                 return (

@@ -8,6 +8,8 @@ import (
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/domain/workflow_node"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 func BuildRequestBody(
@@ -107,11 +109,18 @@ func getValue(
 	source interface{},
 	draftMap map[string]interface{},
 	cfg *product.ProductConfig,
-	node *workflow_node.WorkflowNode, // TAMBAH PARAMETER
+	node *workflow_node.WorkflowNode,
 ) (interface{}, bool) {
 
 	switch v := source.(type) {
 	case string:
+		// AUTO-GENERATE UUID untuk key "id"
+		if v == "id" || v == "{{id}}" || v == "{id}" {
+			uuid := generateUUID()
+			log.Printf("[SUCCESS] getValue: Auto-generated UUID for 'id' -> '%s'", uuid)
+			return uuid, true
+		}
+
 		// Normalisasi template
 		normalized := v
 		if strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}") {
@@ -120,13 +129,20 @@ func getValue(
 			normalized = v[1 : len(v)-1]
 		}
 
+		// Cek lagi untuk normalized "id"
+		if normalized == "id" {
+			uuid := generateUUID()
+			log.Printf("[SUCCESS] getValue: Auto-generated UUID for 'id' (normalized) -> '%s'", uuid)
+			return uuid, true
+		}
+
 		// Cek template {{...}} atau {...}
 		if (strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}")) ||
 			(strings.HasPrefix(v, "{") && strings.HasSuffix(v, "}")) {
 
 			// Coba resolve via ProductConfig (workflow execution results)
 			if cfg != nil {
-				val, err := cfg.ParseTemplate(v, node) // TAMBAH node
+				val, err := cfg.ParseTemplate(v, node)
 				if err == nil && val != nil {
 					log.Printf("[SUCCESS] getValue: Template '%s' resolved via cfg -> '%v'", v, val)
 					return val, true
@@ -169,7 +185,7 @@ func getValue(
 		hasAny := false
 
 		for key, sub := range v {
-			if val, found := getValue(sub, draftMap, cfg, node); found { // TAMBAH node
+			if val, found := getValue(sub, draftMap, cfg, node); found {
 				result[key] = val
 				hasAny = true
 				log.Printf("[SUCCESS] getValue: Map key '%s' resolved -> '%v'", key, val)
@@ -191,7 +207,7 @@ func getValue(
 		hasAny := false
 
 		for i, item := range v {
-			if val, found := getValue(item, draftMap, cfg, node); found { // TAMBAH node
+			if val, found := getValue(item, draftMap, cfg, node); found {
 				result = append(result, val)
 				hasAny = true
 				log.Printf("[SUCCESS] getValue: Array[%d] resolved -> '%v'", i, val)
@@ -215,6 +231,11 @@ func getValue(
 		log.Printf("[SUCCESS] getValue: Default type '%T' -> '%v'", v, v)
 		return v, true
 	}
+}
+
+// Fungsi helper untuk generate UUID
+func generateUUID() string {
+	return uuid.New().String()
 }
 
 func structToMap(data interface{}) map[string]interface{} {

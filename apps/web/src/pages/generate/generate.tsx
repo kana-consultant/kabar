@@ -56,7 +56,7 @@ export default function Generate() {
         if (productId === null) {
             setSelectedProducts([]);
         } else {
-            setSelectedProducts([...selectedProducts, productId]);
+            setSelectedProducts([productId]);
         }
     };
 
