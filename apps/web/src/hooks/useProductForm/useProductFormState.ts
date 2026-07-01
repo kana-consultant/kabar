@@ -2,8 +2,6 @@ import { useState } from "react";
 import type { Product, AdapterConfig } from "@/services/product";
 
 const createEmptyAdapterConfig = (): AdapterConfig => ({
-    endpoint_path: "",
-    http_method: "POST",
     custom_headers: JSON.stringify({
         "Content-Type": "application/json",
     }),
@@ -27,7 +25,7 @@ const createEmptyProduct = (): Product => ({
 export function useProductFormState() {
     const [loading, setLoading] = useState(false);
     const [testing, setTesting] = useState(false);
-    const [product, setProduct] = useState<Product>(createEmptyProduct());
+    const [product, setProduct] = useState<Product | null>(null);
 
     return {
         loading,

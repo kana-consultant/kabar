@@ -23,7 +23,7 @@ interface WorkflowBuilderProps {
   selectedWorkflowId?: string;
   onWorkflowSelect: (workflowId: string) => void;
   onWorkflowDelete: (workflowId: string) => void;
-  onWorkflowCreate: (name: string) => void;
+  onWorkflowCreate?: (name: string) => void;
   onNodeAdd: (node: WorkflowNodeType) => void;
   onNodeUpdate: (nodeId: string, updates: Partial<WorkflowNodeType>) => void;
   onNodeDelete: (nodeId: string) => void;
@@ -72,7 +72,7 @@ export function WorkflowBuilder({
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // Get current workflow from product
-  const workflows = product.workflows || [];
+  const workflows = product?.workflows || [];
   const currentWorkflow = workflows.find(w => w.id === selectedWorkflowId);
 
   // Simpan posisi node ke localStorage
@@ -129,9 +129,10 @@ export function WorkflowBuilder({
       // onWorkflowSelect(firstWorkflowId);
       // onChange?.(firstWorkflowId);
     } else {
+      console.log("No workflows available");
       if (!workflows || workflows.length === 0) {
         const defaultWorkflowName = "Default Workflow";
-        onWorkflowCreate(defaultWorkflowName);
+        onWorkflowCreate?.(defaultWorkflowName);
       }
     }
   }, [workflows]);
@@ -530,7 +531,7 @@ export function WorkflowBuilder({
                 <h3 className="font-semibold text-sm">WORKFLOWS</h3>
               </div>
               <WorkflowList
-                workflows={product.workflows as WorkflowDefinition[]}
+                workflows={product?.workflows as WorkflowDefinition[]}
                 selectedId={selectedWorkflowId}
                 onSelect={handleSelectWorkflow}
                 onDelete={onWorkflowDelete}

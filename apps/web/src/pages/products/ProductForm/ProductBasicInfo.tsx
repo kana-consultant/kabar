@@ -32,7 +32,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     </Label>
                     <Input
                         id="name"
-                        value={product.name || ''}  // ← FIX: default empty string
+                        value={product?.name || ''}  // ← FIX: default empty string
                         onChange={(e) => onUpdate({ name: e.target.value })}
                         placeholder="Contoh: Toko Saya"
                         className="h-10"
@@ -44,7 +44,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                         Platform
                     </Label>
                     <Select
-                        value={product.platform || ''}  // ← FIX: default empty string
+                        value={product?.platform || ''}  // ← FIX: default empty string
                         onValueChange={(v) => onUpdate({ platform: v as any })}
                     >
                         <SelectTrigger className="h-10">
@@ -64,7 +64,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     </Label>
                     <Input
                         id="apiEndpoint"
-                        value={product.api_endpoint || ''}  // ← FIX: default empty string
+                        value={product?.api_endpoint || ''}  // ← FIX: default empty string
                         onChange={(e) => onUpdate({ api_endpoint: e.target.value })}
                         placeholder="https://domain.com/wp-json/wp/v2"
                         className="h-10 font-mono text-sm"
@@ -81,7 +81,7 @@ export function ProductBasicInfo({ product, onUpdate, onTestConnection, isTestin
                     <Button
                         type="button"
                         onClick={onTestConnection}
-                        disabled={isTesting || !product.api_endpoint}  // ← FIX: disable if no endpoint
+                        disabled={isTesting || !product?.api_endpoint}  // ← FIX: disable if no endpoint
                         className="w-full"
                         variant="outline"
                     >

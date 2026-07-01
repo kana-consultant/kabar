@@ -95,7 +95,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
-
+    console.log({ isEdit, productId, initialData, product }, "ProductForm state");
     const toast = useToast();
     const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(product?.workflow_id || null);
 
@@ -208,7 +208,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
     const handleWorkflowCreate = (name: string) => {
         const newWorkflow: WorkflowDefinition = {
             id: `temp-workflow-${Date.now()}-${Math.random()}`,
-            product_id: product.id || "",
+            product_id: product?.id || "",
             name: name,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -276,13 +276,13 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
             >
                 <div className="grid mt-2 gap-6 lg:grid-cols-2">
                     <ProductBasicInfo
-                        product={product}
+                        product={product as Product}
                         onUpdate={updateProductInfo}
                         onTestConnection={() => setShowModal(true)}
                         isTesting={testing}
                     />
                     <ProductApiConfig
-                        config={product.adapter_config || {}}
+                        config={product?.adapter_config || {}}
                         onUpdate={updateAdapterConfig}
                         onUpdateProduct={updateProductInfo}
                     />
@@ -298,14 +298,14 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                     domain={product?.api_endpoint as string || ""}
                     metaConfig={(() => {
                         try {
-                            return JSON.parse(product.adapter_config?.meta_config || "{}");
+                            return JSON.parse(product?.adapter_config?.meta_config || "{}");
                         } catch (e) {
                             return {};
                         }
                     })()}
                     sitemapConfig={(() => {
                         try {
-                            return JSON.parse(product.adapter_config?.sitemap_config || "{}");
+                            return JSON.parse(product?.adapter_config?.sitemap_config || "{}");
                         } catch (e) {
                             return {};
                         }
@@ -325,12 +325,12 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                 description="Buat workflow multi-step dengan menghubungkan beberapa node"
             >
                 <WorkflowBuilder
-                    productId={product.id || ""}
-                    product={product}
+                    productId={product?.id || ""}
+                    product={product as Product}
                     selectedWorkflowId={selectedWorkflowId || undefined}
                     onWorkflowSelect={handleWorkflowSelect}
                     onWorkflowDelete={handleWorkflowDelete}
-                    onWorkflowCreate={product && product.id ? () => handleWorkflowCreate(product.id) : ()=> {}}
+                    onWorkflowCreate={product?.id === "" ? handleWorkflowCreate : undefined}
                     onNodeAdd={addNodeToWorkflow}
                     onNodeUpdate={handleNodeUpdate}
                     onNodeDelete={handleNodeDelete}
@@ -345,7 +345,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
             <ProductFormActions
                 onCancel={handleCancel}
                 onSave={() => {
-                    handleSave(product);
+                    handleSave(product as Product);
                 }}
                 isSaving={loading}
             />
