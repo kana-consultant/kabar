@@ -330,7 +330,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                     selectedWorkflowId={selectedWorkflowId || undefined}
                     onWorkflowSelect={handleWorkflowSelect}
                     onWorkflowDelete={handleWorkflowDelete}
-                    onWorkflowCreate={handleWorkflowCreate}
+                    onWorkflowCreate={product && product.id ? () => handleWorkflowCreate(product.id) : ()=> {}}
                     onNodeAdd={addNodeToWorkflow}
                     onNodeUpdate={handleNodeUpdate}
                     onNodeDelete={handleNodeDelete}

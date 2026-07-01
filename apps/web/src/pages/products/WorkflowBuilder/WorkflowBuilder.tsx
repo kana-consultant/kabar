@@ -97,11 +97,11 @@ export function WorkflowBuilder({
   // Override onNodesChange untuk menyimpan posisi setelah drag
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
-    
+
     const hasPositionChange = changes.some(
       change => change.type === 'position' && change.dragging === false
     );
-    
+
     if (hasPositionChange && selectedWorkflowId) {
       setTimeout(() => {
         setNodes(currentNodes => {
@@ -112,23 +112,29 @@ export function WorkflowBuilder({
     }
   }, [onNodesChange, selectedWorkflowId, saveNodePositions]);
 
-  // Auto-create workflow on mount
-  useEffect(() => {
-    if (!workflows || workflows.length === 0) {
-      const defaultWorkflowName = "Default Workflow";
-      onWorkflowCreate(defaultWorkflowName);
-    }
-  }, []);
+
 
   // Auto-select first workflow when workflows change
+
+ 
   useEffect(() => {
-    if (workflows.length > 0 && !selectedWorkflowId) {
+    console.log(workflows, "workflows======================");
+    if (workflows.length > 0) {
       const firstWorkflowId = workflows[0].id;
-      setSelectedWorkflowId(firstWorkflowId);
-      onWorkflowSelect(firstWorkflowId);
-      onChange?.(firstWorkflowId);
+      console.log(firstWorkflowId, "firstWorkflowId");
+      handleSelectWorkflow(firstWorkflowId);
+      // setSelectedWorkflowId(firstWorkflowId);
+      // onWorkflowSelect(firstWorkflowId);
+      // console.log(selectedWorkflowId,firstWorkflowId, "selectedWorkflowId");
+      // onWorkflowSelect(firstWorkflowId);
+      // onChange?.(firstWorkflowId);
+    } else {
+      if (!workflows || workflows.length === 0) {
+        const defaultWorkflowName = "Default Workflow";
+        onWorkflowCreate(defaultWorkflowName);
+      }
     }
-  }, [workflows, selectedWorkflowId, onWorkflowSelect, onChange]);
+  }, [workflows]);
 
   // Sync selected workflow dengan external
   useEffect(() => {
@@ -156,12 +162,12 @@ export function WorkflowBuilder({
     // Transform WorkflowNode ke FlowNode
     const flowNodes: FlowNode[] = sortedNodes.map((node, index) => {
       const adapterConfig = node.adapter_config!;
-      
+
       const defaultPosition = {
         x: index * 350 + 100,
         y: 100,
       };
-      
+
       const position = savedPositions[node.id as string] || defaultPosition;
 
       return {
@@ -183,7 +189,7 @@ export function WorkflowBuilder({
     // Create edges from node relationships
     // ONLY use next_node_ids and previous_node_ids (MULTIPLE)
     const flowEdges: Edge[] = [];
-    
+
     sortedNodes.forEach((node) => {
       // Create edges from next_node_ids (MULTIPLE)
       if (node.next_node_ids && node.next_node_ids.length > 0) {
@@ -220,10 +226,13 @@ export function WorkflowBuilder({
   }, [selectedWorkflowId, currentWorkflow, setNodes, setEdges, getNodePositions]);
 
   const handleSelectWorkflow = (workflowId: string) => {
+    console.log(workflowId, "handleSelectWorkflow");
     setSelectedWorkflowId(workflowId);
     onWorkflowSelect(workflowId);
     onChange?.(workflowId);
   };
+
+  console.log(selectedWorkflowId, "selectedWorkflowId");
 
   // Update node data
   const handleUpdateNode = useCallback(async (nodeId: string, updates: Partial<WorkflowNodeType> & { adapter_config?: Partial<AdapterConfig> }) => {
@@ -304,7 +313,7 @@ export function WorkflowBuilder({
       const sourceNode = nodes.find(n => n.id === connection.source);
       if (sourceNode) {
         const currentNextIds = sourceNode.data.workflowNode.next_node_ids || [];
-        
+
         if (!currentNextIds.includes(connection.target)) {
           await handleUpdateNode(connection.source, {
             next_node_ids: [...currentNextIds, connection.target]
@@ -354,7 +363,7 @@ export function WorkflowBuilder({
             await handleUpdateNode(edge.target, { previous_node_ids: updatedPrevIds });
           }
         }
-        
+
         // If this node was the target, remove from source's next_node_ids
         if (edge.target === nodeId && edge.source) {
           const sourceNode = nodes.find(n => n.id === edge.source);
