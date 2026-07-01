@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kana-consultant/ui-kit";
 import { StatsCards } from "@/pages/dashboard/StatsCards";
-import { QuickGenerate } from "@/pages/dashboard/QuickGenerate";
 import { RecentActivity } from "@/pages/dashboard/RecentActivity";
 import { useDrafts } from "@/hooks/useDrafts";
 import { DraftStats } from "@/pages/draft/DraftStats";
@@ -29,8 +28,8 @@ export function Dashboard() {
 
                 <TabsContent value="overview">
                     <StatsCards />
-                    <div className="grid gap-6 md:grid-cols-2 mt-5">
-                        <QuickGenerate />
+                    <div className="grid gap-6 mt-5">
+                        {/* <QuickGenerate /> */}
                         <RecentActivity />
                     </div>
                 </TabsContent>
