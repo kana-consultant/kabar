@@ -15,7 +15,7 @@ export default function Generate() {
         article,
         imageUrl,
         loadingArticle, loadingImage,
-        selectedProducts, // 👈 array, kita IGNORE
+        selectedProducts, 
         setSelectedProducts,
         postMode, setPostMode,
         scheduleTime, setScheduleTime,
@@ -28,9 +28,6 @@ export default function Generate() {
         productsError,
         currentDraftId,
         generateArticle,
-        generateImage,
-        handleProductToggle, // 👈 IGNORE
-        handleSelectAll,
         handlePost,
         publishResults,
         showResultDialog,
