@@ -59,7 +59,7 @@ export function useProductFormActions(
     const addWorkflow = (workflow: WorkflowDefinition) => {
         setProduct((prev: Partial<Product>) => ({
             ...prev,
-            workflows: [...(prev.workflows || []), workflow],
+            workflows: [...(prev?.workflows || []), workflow],
         }));
     };
 

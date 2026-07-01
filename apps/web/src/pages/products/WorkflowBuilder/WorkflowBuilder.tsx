@@ -20,6 +20,8 @@ import type { Product, WorkflowDefinition, WorkflowNode as WorkflowNodeType, Ada
 interface WorkflowBuilderProps {
   productId: string;
   product: Product;
+  isEdit: boolean;
+  productLoaded: boolean;
   selectedWorkflowId?: string;
   onWorkflowSelect: (workflowId: string) => void;
   onWorkflowDelete: (workflowId: string) => void;
@@ -50,6 +52,8 @@ const getPositionStorageKey = (workflowId: string) => `workflow-node-positions-$
 export function WorkflowBuilder({
   productId,
   product,
+  isEdit,
+  productLoaded,
   selectedWorkflowId: externalSelectedWorkflowId,
   onWorkflowSelect,
   onWorkflowDelete,
@@ -71,8 +75,12 @@ export function WorkflowBuilder({
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
+  // Guard supaya default workflow hanya dibuat sekali
+  const hasAutoCreated = useRef(false);
+
   // Get current workflow from product
   const workflows = product?.workflows || [];
+
   const currentWorkflow = workflows.find(w => w.id === selectedWorkflowId);
 
   // Simpan posisi node ke localStorage
@@ -112,39 +120,54 @@ export function WorkflowBuilder({
     }
   }, [onNodesChange, selectedWorkflowId, saveNodePositions]);
 
+  const handleSelectWorkflow = useCallback((workflowId: string) => {
+    setSelectedWorkflowId(workflowId);
+    onWorkflowSelect(workflowId);
+    onChange?.(workflowId);
+  }, [onWorkflowSelect, onChange]);
 
-
-  // Auto-select first workflow when workflows change
-
- 
+  // ─────────────────────────────────────────────────────────
+  // SATU-SATUNYA effect yang mengatur pemilihan / pembuatan workflow.
+  // Menunggu productLoaded supaya tidak "menyerobot" state sebelum
+  // data produk (dan workflow-nya) selesai di-fetch saat mode edit.
+  // ─────────────────────────────────────────────────────────
   useEffect(() => {
-    console.log(workflows, "workflows======================");
+    if (!productLoaded) return;
+
     if (workflows.length > 0) {
-      const firstWorkflowId = workflows[0].id;
-      console.log(firstWorkflowId, "firstWorkflowId");
-      handleSelectWorkflow(firstWorkflowId);
-      // setSelectedWorkflowId(firstWorkflowId);
-      // onWorkflowSelect(firstWorkflowId);
-      // console.log(selectedWorkflowId,firstWorkflowId, "selectedWorkflowId");
-      // onWorkflowSelect(firstWorkflowId);
-      // onChange?.(firstWorkflowId);
-    } else {
-      console.log("No workflows available");
-      if (!workflows || workflows.length === 0) {
-        const defaultWorkflowName = "Default Workflow";
-        onWorkflowCreate?.(defaultWorkflowName);
-      }
-    }
-  }, [workflows]);
+      // Prioritaskan externalSelectedWorkflowId kalau valid & ada di list
+      const targetId =
+        externalSelectedWorkflowId && workflows.some(w => w.id === externalSelectedWorkflowId)
+          ? externalSelectedWorkflowId
+          : workflows[0].id;
 
-  // Sync selected workflow dengan external
+      if (targetId !== selectedWorkflowId) {
+        setSelectedWorkflowId(targetId);
+        onWorkflowSelect(targetId);
+        onChange?.(targetId);
+      }
+    } else if (!isEdit && !hasAutoCreated.current) {
+      // Hanya auto-create default workflow untuk produk BARU
+      // dan hanya sekali.
+      hasAutoCreated.current = true;
+      onWorkflowCreate?.("Default Workflow");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productLoaded, workflows, externalSelectedWorkflowId, isEdit]);
+
+  // Sync kalau parent mengubah externalSelectedWorkflowId di luar effect di atas
   useEffect(() => {
-    if (externalSelectedWorkflowId && externalSelectedWorkflowId !== selectedWorkflowId) {
+    if (
+      externalSelectedWorkflowId &&
+      externalSelectedWorkflowId !== selectedWorkflowId &&
+      workflows.some(w => w.id === externalSelectedWorkflowId)
+    ) {
       setSelectedWorkflowId(externalSelectedWorkflowId);
       onWorkflowSelect(externalSelectedWorkflowId);
       onChange?.(externalSelectedWorkflowId);
     }
-  }, [externalSelectedWorkflowId, selectedWorkflowId, onWorkflowSelect, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalSelectedWorkflowId]);
 
   // Load workflow nodes dari product
   useEffect(() => {
@@ -225,15 +248,6 @@ export function WorkflowBuilder({
 
     setEdges(flowEdges);
   }, [selectedWorkflowId, currentWorkflow, setNodes, setEdges, getNodePositions]);
-
-  const handleSelectWorkflow = (workflowId: string) => {
-    console.log(workflowId, "handleSelectWorkflow");
-    setSelectedWorkflowId(workflowId);
-    onWorkflowSelect(workflowId);
-    onChange?.(workflowId);
-  };
-
-  console.log(selectedWorkflowId, "selectedWorkflowId");
 
   // Update node data
   const handleUpdateNode = useCallback(async (nodeId: string, updates: Partial<WorkflowNodeType> & { adapter_config?: Partial<AdapterConfig> }) => {

@@ -31,15 +31,15 @@ interface ProductFormProps {
 }
 
 // Custom collapsible section component
-function CollapsibleSection({ 
-    title, 
-    description, 
-    defaultOpen = true, 
-    children 
-}: { 
-    title: string; 
-    description?: string; 
-    defaultOpen?: boolean; 
+function CollapsibleSection({
+    title,
+    description,
+    defaultOpen = true,
+    children
+}: {
+    title: string;
+    description?: string;
+    defaultOpen?: boolean;
     children: React.ReactNode;
 }) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -95,11 +95,15 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         handleSave,
         handleCancel,
     } = useProductForm(isEdit, productId, initialData);
-    console.log({ isEdit, productId, initialData, product }, "ProductForm state");
+
     const toast = useToast();
     const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(product?.workflow_id || null);
 
-
+    // Flag ini menandakan data produk sudah selesai di-load dari server.
+    // Untuk mode create (!isEdit), produk baru dianggap "loaded" sejak awal
+    // karena tidak ada fetch yang perlu ditunggu.
+    // Untuk mode edit, tunggu sampai `product` (dan minimal product.id) tersedia.
+    const productLoaded = isEdit ? !!product?.id : true;
 
     // Modal test state
     const [showModal, setShowModal] = useState(false);
@@ -226,26 +230,13 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
     // ProductForm.tsx
     const handleNodeUpdate = (nodeId: string, updates: Partial<WorkflowNode> & { adapter_config?: Partial<AdapterConfig> }) => {
         if (!selectedWorkflowId) return;
-
-        console.log("📝 ProductForm handleNodeUpdate:", {
-            selectedWorkflowId,
-            nodeId,
-            updates
-        });
-
-        // Pastikan ini memanggil updateNodeInWorkflow dari hook
         updateNodeInWorkflow(selectedWorkflowId, nodeId, updates);
-
-        // Tambahkan log setelah pemanggilan
-        console.log("✅ Called updateNodeInWorkflow");
     };
 
     const handleNodeDelete = (nodeId: string) => {
         if (!selectedWorkflowId) return;
         deleteNodeFromWorkflow(selectedWorkflowId, nodeId);
     };
-
-    console.log("PRODUCT WORKFLOWS", product);
 
     return (
         <div className="max-w-full mx-auto space-y-6">
@@ -270,7 +261,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
             </div>
 
             {/* Basic Info & API Config Section */}
-            <CollapsibleSection 
+            <CollapsibleSection
                 title="Informasi Dasar & Konfigurasi API"
                 description="Atur informasi produk dan konfigurasi API endpoint"
             >
@@ -290,7 +281,7 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
             </CollapsibleSection>
 
             {/* Field Mapping Section */}
-            <CollapsibleSection 
+            <CollapsibleSection
                 title="Tag Configuration"
                 description="SiteMap & Meta Tag"
             >
@@ -311,8 +302,6 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                         }
                     })()}
                     onChange={(metaConfig, sitemapConfig) => {
-                        console.log("product form")
-                        console.log(metaConfig)
                         if (metaConfig) updateMetaConfig(JSON.stringify(metaConfig));
                         if (sitemapConfig) updateSitemapConfig(JSON.stringify(sitemapConfig));
                     }}
@@ -320,17 +309,19 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
             </CollapsibleSection>
 
             {/* Workflow Builder Section */}
-            <CollapsibleSection 
+            <CollapsibleSection
                 title="Workflow Builder"
                 description="Buat workflow multi-step dengan menghubungkan beberapa node"
             >
                 <WorkflowBuilder
                     productId={product?.id || ""}
                     product={product as Product}
+                    isEdit={isEdit}
+                    productLoaded={productLoaded}
                     selectedWorkflowId={selectedWorkflowId || undefined}
                     onWorkflowSelect={handleWorkflowSelect}
                     onWorkflowDelete={handleWorkflowDelete}
-                    onWorkflowCreate={product?.id === "" ? handleWorkflowCreate : undefined}
+                    onWorkflowCreate={handleWorkflowCreate}
                     onNodeAdd={addNodeToWorkflow}
                     onNodeUpdate={handleNodeUpdate}
                     onNodeDelete={handleNodeDelete}
