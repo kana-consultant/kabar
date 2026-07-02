@@ -212,31 +212,11 @@ CREATE TABLE IF NOT EXISTS public.drafts (
     updated_at      timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4.12 Histories
-CREATE TABLE IF NOT EXISTS public.histories (
-    id              uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
-    title           varchar(500) NOT NULL,
-    topic           varchar(500) NOT NULL,
-    content         text         NOT NULL,
-    image_url       text,
-    target_products jsonb        DEFAULT '[]'::jsonb,
-    status          varchar(20)  NOT NULL,
-    action          varchar(20)  NOT NULL,
-    error_message   text,
-    published_at    timestamp    NOT NULL,
-    scheduled_for   timestamp,
-    seo_score       int,
-    created_by      uuid         REFERENCES public.users(id) ON DELETE SET NULL,
-    team_id         uuid         REFERENCES public.teams(id) ON DELETE SET NULL,
-    user_id         uuid         REFERENCES public.users(id) ON DELETE SET NULL,
-    created_at      timestamp    DEFAULT CURRENT_TIMESTAMP
-);
 
 -- 4.13 Keywords
 CREATE TABLE IF NOT EXISTS public.keywords (
     id         uuid         DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     id_draft   uuid         REFERENCES public.drafts(id)    ON DELETE CASCADE ON UPDATE CASCADE,
-    id_history uuid         REFERENCES public.histories(id) ON DELETE CASCADE ON UPDATE CASCADE,
     name       varchar(255) NOT NULL,
     created_at timestamp    DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp    DEFAULT CURRENT_TIMESTAMP
@@ -351,9 +331,6 @@ CREATE INDEX IF NOT EXISTS idx_workflow_nodes_adapter_id    ON public.workflow_n
 CREATE INDEX IF NOT EXISTS idx_drafts_team                 ON public.drafts(team_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_created_by            ON public.drafts(created_by);
 CREATE INDEX IF NOT EXISTS idx_drafts_user_id               ON public.drafts(user_id);
-CREATE INDEX IF NOT EXISTS idx_histories_team_id            ON public.histories(team_id);
-CREATE INDEX IF NOT EXISTS idx_histories_created_by         ON public.histories(created_by);
-CREATE INDEX IF NOT EXISTS idx_histories_user_id            ON public.histories(user_id);
 CREATE INDEX IF NOT EXISTS idx_keywords_id_draft            ON public.keywords(id_draft);
 CREATE INDEX IF NOT EXISTS idx_keywords_id_history          ON public.keywords(id_history);
 
