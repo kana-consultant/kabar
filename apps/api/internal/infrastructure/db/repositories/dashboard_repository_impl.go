@@ -18,7 +18,7 @@ func (r *dashboardRepository) GetTotalContent(ctx context.Context, where string,
 		SELECT COUNT(*) FROM (
 			SELECT id FROM drafts WHERE ` + where + `
 			UNION ALL
-			SELECT id FROM histories WHERE ` + where + `
+			SELECT id FROM drafts WHERE ` + where + ` AND status IN ('published', 'generated')  
 		) AS all_content
 	`
 
@@ -37,7 +37,7 @@ func (r *dashboardRepository) GetTotalProducts(ctx context.Context, where string
 
 func (r *dashboardRepository) GetTotalPublished(ctx context.Context, where string, args []interface{}) (int, error) {
 	query := `
-		SELECT COUNT(*) FROM histories 
+		SELECT COUNT(*) FROM drafts  
 		WHERE status IN ('published', 'generated') AND ` + where
 
 	var total int
@@ -47,8 +47,8 @@ func (r *dashboardRepository) GetTotalPublished(ctx context.Context, where strin
 
 func (r *dashboardRepository) GetAverageSeoScore(ctx context.Context, where string, args []interface{}) (float64, error) {
 	query := `
-		SELECT COALESCE(AVG(seo_score), 0) FROM histories 
-		WHERE ` + where + ` AND seo_score IS NOT NULL
+		SELECT COALESCE(AVG(seo_score), 0) FROM drafts where status IN ('published', 'generated') 
+		AND ` + where + ` AND seo_score IS NOT NULL 
 	`
 
 	var avg float64
@@ -61,7 +61,7 @@ func (r *dashboardRepository) GetContentCountByPeriod(ctx context.Context, where
 		SELECT COUNT(*) FROM (
 			SELECT id FROM drafts WHERE ` + where + `
 			UNION ALL
-			SELECT id FROM histories WHERE ` + where + `
+			SELECT id FROM drafts WHERE ` + where + ` AND status IN ('published', 'generated')
 		) AS all_content
 	`
 
@@ -80,8 +80,8 @@ func (r *dashboardRepository) GetProductsCountByPeriod(ctx context.Context, wher
 
 func (r *dashboardRepository) GetSeoScoreByPeriod(ctx context.Context, where string, args []interface{}) (float64, error) {
 	query := `
-		SELECT COALESCE(AVG(seo_score), 0) FROM histories 
-		WHERE ` + where + ` AND seo_score IS NOT NULL
+		SELECT COALESCE(AVG(seo_score), 0) FROM drafts where status IN ('published', 'generated') 
+		AND ` + where + ` AND seo_score IS NOT NULL 
 	`
 
 	var avg float64
