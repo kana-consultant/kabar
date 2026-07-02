@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/domain/workflow_node"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/google/uuid"
 )
 
@@ -105,6 +107,76 @@ func buildPayload(
 	return payload
 }
 
+// ExtractFirstImageFromHTML mengambil URL gambar pertama dari HTML menggunakan goquery
+func ExtractFirstImageFromHTML(htmlContent string) string {
+	if htmlContent == "" {
+		return ""
+	}
+
+	// Parse HTML dengan goquery
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		log.Printf("[ERROR] Failed to parse HTML: %v", err)
+		return ""
+	}
+
+	// Cari tag img pertama
+	var imageURL string
+	doc.Find("img").First().Each(func(i int, s *goquery.Selection) {
+		src, exists := s.Attr("src")
+		if exists && src != "" {
+			imageURL = src
+			return
+		}
+	})
+
+	// Jika tidak ada img tag, coba cari markdown image
+	if imageURL == "" {
+		// goquery tidak support markdown, kita tetap pakai regex untuk markdown
+		reMarkdown := regexp.MustCompile(`!\[.*?\]\(([^)]+)\)`)
+		matches := reMarkdown.FindStringSubmatch(htmlContent)
+		if len(matches) > 1 {
+			imageURL = matches[1]
+		}
+	}
+
+	return imageURL
+}
+
+// ExtractAllImagesFromHTML mengambil semua URL gambar dari HTML
+func ExtractAllImagesFromHTML(htmlContent string) []string {
+	if htmlContent == "" {
+		return []string{}
+	}
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		log.Printf("[ERROR] Failed to parse HTML: %v", err)
+		return []string{}
+	}
+
+	var images []string
+	doc.Find("img").Each(func(i int, s *goquery.Selection) {
+		src, exists := s.Attr("src")
+		if exists && src != "" {
+			images = append(images, src)
+		}
+	})
+
+	// Jika tidak ada img tag, coba markdown
+	if len(images) == 0 {
+		reMarkdown := regexp.MustCompile(`!\[.*?\]\(([^)]+)\)`)
+		matches := reMarkdown.FindAllStringSubmatch(htmlContent, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				images = append(images, match[1])
+			}
+		}
+	}
+
+	return images
+}
+
 func getValue(
 	source interface{},
 	draftMap map[string]interface{},
@@ -129,6 +201,43 @@ func getValue(
 			normalized = v[1 : len(v)-1]
 		}
 
+		// 🔥 NEW: Handle image_url extraction from article using goquery
+		if normalized == "image_url" || normalized == "image" || normalized == "img" {
+			// Cek apakah ada di draftMap langsung
+			if val, exists := draftMap["image_url"]; exists && val != nil {
+				if strVal, ok := val.(string); ok && strVal != "" {
+					log.Printf("[SUCCESS] getValue: image_url found directly -> '%s'", strVal)
+					return strVal, true
+				}
+			}
+
+			// 🔥 Ambil dari article dan extract gambar dengan goquery
+			if articleVal, exists := draftMap["article"]; exists {
+				if articleStr, ok := articleVal.(string); ok && articleStr != "" {
+					imageURL := ExtractFirstImageFromHTML(articleStr)
+					if imageURL != "" {
+						log.Printf("[SUCCESS] getValue: image_url extracted from article with goquery -> '%s'", imageURL)
+						return imageURL, true
+					}
+					log.Printf("[DEBUG] getValue: No image found in article for image_url")
+				}
+			}
+
+			// 🔥 Ambil dari content (alias article)
+			if contentVal, exists := draftMap["content"]; exists {
+				if contentStr, ok := contentVal.(string); ok && contentStr != "" {
+					imageURL := ExtractFirstImageFromHTML(contentStr)
+					if imageURL != "" {
+						log.Printf("[SUCCESS] getValue: image_url extracted from content with goquery -> '%s'", imageURL)
+						return imageURL, true
+					}
+				}
+			}
+
+			log.Printf("[DEBUG] getValue: No image found for image_url")
+			return nil, false
+		}
+
 		// Cek lagi untuk normalized "id"
 		if normalized == "id" {
 			uuid := generateUUID()
@@ -140,7 +249,6 @@ func getValue(
 		if (strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}")) ||
 			(strings.HasPrefix(v, "{") && strings.HasSuffix(v, "}")) {
 
-			// Coba resolve via ProductConfig (workflow execution results)
 			if cfg != nil {
 				val, err := cfg.ParseTemplate(v, node)
 				if err == nil && val != nil {
@@ -153,7 +261,7 @@ func getValue(
 			}
 		}
 
-		// Alias content -> article (untuk lookup di draftMap)
+		// Alias content -> article
 		lookupKey := normalized
 		if normalized == "content" {
 			lookupKey = "article"
@@ -162,12 +270,11 @@ func getValue(
 		// Lookup di draftMap
 		val, exists := draftMap[lookupKey]
 		if exists {
-			// Khusus content: strip HTML tags
 			if normalized == "content" {
 				if strVal, ok := val.(string); ok {
 					stripped := stripHTMLTags(strVal)
-					log.Printf("[SUCCESS] getValue: DraftMap lookup '%s' (alias: '%s') -> content stripped (%d chars)",
-						normalized, lookupKey, len(stripped))
+					log.Printf("[SUCCESS] getValue: DraftMap lookup '%s' -> content stripped (%d chars)",
+						normalized, len(stripped))
 					return stripped, true
 				}
 			}
@@ -175,8 +282,7 @@ func getValue(
 			return val, true
 		}
 
-		// Not found
-		log.Printf("[DEBUG] getValue: Not found for '%s' (lookup key: '%s')", normalized, lookupKey)
+		log.Printf("[DEBUG] getValue: Not found for '%s'", normalized)
 		return nil, false
 
 	case map[string]interface{}:
@@ -195,7 +301,7 @@ func getValue(
 		}
 
 		if !hasAny {
-			log.Printf("[DEBUG] getValue: Map returned empty, no keys resolved")
+			log.Printf("[DEBUG] getValue: Map returned empty")
 			return nil, false
 		}
 		log.Printf("[SUCCESS] getValue: Map resolved with %d/%d keys", len(result), len(v))
@@ -217,7 +323,7 @@ func getValue(
 		}
 
 		if !hasAny {
-			log.Printf("[DEBUG] getValue: Array returned empty, no items resolved")
+			log.Printf("[DEBUG] getValue: Array returned empty")
 			return nil, false
 		}
 		log.Printf("[SUCCESS] getValue: Array resolved with %d/%d items", len(result), len(v))
