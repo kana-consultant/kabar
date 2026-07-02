@@ -57,10 +57,10 @@ func (r *HistoryRepository) Create(ctx context.Context, req draft.PublishHistory
     `
 
 	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
-	historyID := uuid.New().String() // Assuming UUID, adjust as needed
+	draftID := uuid.New().String() // Assuming UUID, adjust as needed
 
 	err = tx.QueryRowContext(ctx, query,
-		historyID,          // $1 - id
+		draftID,            // $1 - id
 		req.Title,          // $2 - title
 		req.Topic,          // $3 - topic
 		req.Article,        // $4 - article
@@ -70,12 +70,12 @@ func (r *HistoryRepository) Create(ctx context.Context, req draft.PublishHistory
 		now,                // $8 - published_at
 		userID,             // $10 - created_by
 		teamID,             // $11 - team_id
-	).Scan(&historyID)
+	).Scan(&draftID)
 	if err != nil {
 		return fmt.Errorf("failed to insert history: %w", err)
 	}
 
-	if err := keywords.UpdateKeywords(ctx, tx, keywords.HistorySource{HistoryID: historyID}, req.Keywords); err != nil {
+	if err := keywords.UpdateKeywords(ctx, tx, keywords.DraftSource{DraftID: draftID}, req.Keywords); err != nil {
 		return fmt.Errorf("failed to update keywords: %w", err)
 	}
 
@@ -178,7 +178,7 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 		h.TeamID = &teamID.String
 	}
 
-	keywords, err := keywords.GetKeywords(ctx, r.db, keywords.HistorySource{HistoryID: id})
+	keywords, err := keywords.GetKeywords(ctx, r.db, keywords.DraftSource{DraftID: id})
 
 	if err != nil {
 

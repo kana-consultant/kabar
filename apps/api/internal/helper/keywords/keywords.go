@@ -11,7 +11,7 @@ import (
 )
 
 type KeywordSource interface {
-	Column() string // "id_draft" atau "id_history"
+	Column() string // "id_draft"
 	ID() string     // nilai UUID-nya
 }
 
@@ -22,14 +22,7 @@ type DraftSource struct {
 func (d DraftSource) Column() string { return "id_draft" }
 func (d DraftSource) ID() string     { return d.DraftID }
 
-type HistorySource struct {
-	HistoryID string
-}
-
-func (h HistorySource) Column() string { return "id_history" }
-func (h HistorySource) ID() string     { return h.HistoryID }
-
-// keyword baru berdasarkan sumber yang diberikan (draft atau history).
+// keyword baru berdasarkan sumber yang diberikan (draft).
 func ReplaceKeywords(ctx context.Context, tx *sql.Tx, source KeywordSource, keywordNames []string) error {
 	// Hapus semua keyword yang ada
 	deleteQuery := fmt.Sprintf(`DELETE FROM keywords WHERE %s = $1`, source.Column())

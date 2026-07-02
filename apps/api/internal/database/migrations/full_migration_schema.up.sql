@@ -332,7 +332,6 @@ CREATE INDEX IF NOT EXISTS idx_drafts_team                 ON public.drafts(team
 CREATE INDEX IF NOT EXISTS idx_drafts_created_by            ON public.drafts(created_by);
 CREATE INDEX IF NOT EXISTS idx_drafts_user_id               ON public.drafts(user_id);
 CREATE INDEX IF NOT EXISTS idx_keywords_id_draft            ON public.keywords(id_draft);
-CREATE INDEX IF NOT EXISTS idx_keywords_id_history          ON public.keywords(id_history);
 
 -- Team invites
 CREATE INDEX IF NOT EXISTS idx_team_invites_email           ON public.team_invites(email);
