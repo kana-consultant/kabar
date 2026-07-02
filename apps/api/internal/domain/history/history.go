@@ -33,7 +33,7 @@ type History struct {
 	Status         HistoryStatus `json:"status"`
 	SeoScore       int           `json:"seo_score"`
 	Action         HistoryAction `json:"action"`
-	PublishedAt    time.Time     `json:"publishedAt"`
+	PublishedAt    *time.Time    `json:"publishedAt"`
 	ScheduledFor   *string       `json:"scheduledFor,omitempty"`
 	CreatedBy      *string       `json:"createdBy,omitempty"`
 	TeamID         *string       `json:"teamId,omitempty"`

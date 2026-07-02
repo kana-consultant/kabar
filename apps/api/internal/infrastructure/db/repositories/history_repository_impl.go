@@ -148,7 +148,7 @@ func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserConte
 			created_by, team_id, created_at
 		FROM drafts
 		WHERE %s
-		AND status = 'published'
+		AND status IN ('published', 'failed')
 		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, whereClause, len(args)-1, len(args))

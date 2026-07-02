@@ -50,7 +50,7 @@ func (s *Service) Create(ctx context.Context, req history.CreateHistoryRequest) 
 		ImageURL:       req.ImageURL,
 		TargetProducts: req.TargetProducts,
 		Status:         "pending",
-		PublishedAt:    now,
+		PublishedAt:    &now,
 		ScheduledFor:   req.ScheduledFor,
 		CreatedBy:      &req.CreatedBy,
 		TeamID:         &req.TeamID,
