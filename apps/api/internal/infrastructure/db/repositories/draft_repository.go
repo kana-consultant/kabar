@@ -51,8 +51,7 @@ func (r *RepositoryImpl) GetByID(
 		article, 
 		image_url, 
 		COALESCE(image_prompt, ''),
-		target_products,
-		seo_score
+		target_products
 	FROM drafts 
 	WHERE id = $1
 	`
@@ -65,7 +64,6 @@ func (r *RepositoryImpl) GetByID(
 		&d.ImageURL,
 		&d.ImagePrompt,
 		&targetProductsJSON,
-		&d.SEOScore,
 	)
 
 	if err != nil {
@@ -145,7 +143,7 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, filter models.UserContext, 
 	query := fmt.Sprintf(`
         SELECT 
             id, title, topic, article, target_products, team_id,
-            image_url, status, seo_score, COALESCE(image_prompt, '')
+            image_url, status, COALESCE(image_prompt, '')
         FROM drafts
         WHERE %s
         ORDER BY created_at DESC
@@ -167,7 +165,7 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, filter models.UserContext, 
 		err := rows.Scan(
 			&d.ID, &d.Title, &d.Topic, &d.Article,
 			&targetProductsJSON, &d.TeamID, &d.ImageURL,
-			&d.Status, &d.SeoScore, &d.ImagePrompt,
+			&d.Status, &d.ImagePrompt,
 		)
 		if err != nil {
 			log.Printf("[GetAll] scan error | filter=%+v | err=%v", filter, err)

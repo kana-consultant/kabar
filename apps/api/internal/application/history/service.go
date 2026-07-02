@@ -50,8 +50,6 @@ func (s *Service) Create(ctx context.Context, req history.CreateHistoryRequest) 
 		ImageURL:       req.ImageURL,
 		TargetProducts: req.TargetProducts,
 		Status:         "pending",
-		Action:         "created",
-		ErrorMessage:   nil,
 		PublishedAt:    now,
 		ScheduledFor:   req.ScheduledFor,
 		CreatedBy:      &req.CreatedBy,

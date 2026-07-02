@@ -92,7 +92,8 @@ export function useDrafts() {
         setSeoData(null);
         try {
             const result = await handlegetSeoScore(draft);
-            setSeoData(result);
+            console.log("SEO Score Result:", result);
+            setSeoData(result.data);
         } finally {
             setSeoLoading(false);
         }

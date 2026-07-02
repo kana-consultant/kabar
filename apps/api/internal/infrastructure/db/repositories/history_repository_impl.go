@@ -31,18 +31,18 @@ func (r *HistoryRepository) Create(ctx context.Context, data *history.History) (
 	targetProductsJSON, _ := json.Marshal(data.TargetProducts)
 
 	query := `
-		INSERT INTO history (
-			id, title, topic, content, image_url, target_products,
-			status, action, error_message, published_at, scheduled_for,
+		INSERT INTO drafts (
+			id, title, topic, article, image_url, target_products,
+			status, published_at, scheduled_for,
 			created_by, team_id, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
 		RETURNING id
 	`
 
 	var id string
 	err = r.db.QueryRowContext(ctx, query,
 		data.ID, data.Title, data.Topic, data.Content, data.ImageURL, targetProductsJSON,
-		data.Status, data.Action, data.ErrorMessage, data.PublishedAt, data.ScheduledFor,
+		data.Status, data.PublishedAt, data.ScheduledFor,
 		data.CreatedBy, data.TeamID,
 	).Scan(&id)
 
@@ -60,21 +60,20 @@ func (r *HistoryRepository) Create(ctx context.Context, data *history.History) (
 // GetByID retrieves history by ID
 func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.History, error) {
 	query := `
-		SELECT id, title, topic, content, image_url, target_products,
-			status, action, error_message, published_at, scheduled_for,
+		SELECT id, title, topic, article, image_url, target_products,
+			status, published_at, scheduled_for,
 			created_by, team_id, created_at
-		FROM histories WHERE id = $1
+		FROM drafts WHERE id = $1
 	`
 
 	var h history.History
 	var targetProductsJSON []byte
-	var errorMessage sql.NullString
 	var createdBy sql.NullString
 	var teamID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&h.ID, &h.Title, &h.Topic, &h.Content, &h.ImageURL, &targetProductsJSON,
-		&h.Status, &h.Action, &errorMessage, &h.PublishedAt, &h.ScheduledFor,
+		&h.Status, &h.PublishedAt, &h.ScheduledFor,
 		&createdBy, &teamID, &h.CreatedAt,
 	)
 
@@ -88,9 +87,6 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 	// Unmarshal JSON
 	if len(targetProductsJSON) > 0 {
 		json.Unmarshal(targetProductsJSON, &h.TargetProducts)
-	}
-	if errorMessage.Valid {
-		h.ErrorMessage = &errorMessage.String
 	}
 	if createdBy.Valid {
 		h.CreatedBy = &createdBy.String
@@ -126,16 +122,18 @@ func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserConte
 
 	// Count total + per status dalam satu query
 	var totalItems, totalSuccess, totalFailed int
+
 	countQuery := fmt.Sprintf(`
-		SELECT
-			COUNT(*) AS total,
-			COUNT(*) FILTER (WHERE status = 'published') AS total_success,
-			COUNT(*) FILTER (WHERE status = 'failed')  AS total_failed
-		FROM histories
-		WHERE %s
-	`, whereClause)
+	SELECT
+		COUNT(*) FILTER (WHERE status = 'published') AS total_success,
+		COUNT(*) FILTER (WHERE status IN ('published', 'failed')) AS total,
+		COUNT(*) FILTER (WHERE status = 'failed') AS total_failed
+	FROM drafts
+	WHERE %s
+`, whereClause)
+
 	if err := r.db.QueryRowContext(ctx, countQuery, whereArgs...).
-		Scan(&totalItems, &totalSuccess, &totalFailed); err != nil {
+		Scan(&totalSuccess, &totalItems, &totalFailed); err != nil {
 		return nil, fmt.Errorf("failed to count histories: %w", err)
 	}
 
@@ -145,11 +143,12 @@ func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserConte
 	// Append LIMIT & OFFSET
 	args := append(whereArgs, params.Limit, params.Offset)
 	query := fmt.Sprintf(`
-		SELECT id, title, topic, content, image_url, target_products,
-			status, action, error_message, published_at, scheduled_for,
+		SELECT id, title, topic, article, image_url, target_products,
+			status, published_at, scheduled_for,
 			created_by, team_id, created_at
-		FROM histories
+		FROM drafts
 		WHERE %s
+		AND status = 'published'
 		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, whereClause, len(args)-1, len(args))
@@ -195,10 +194,10 @@ func (r *HistoryRepository) GetAllWithQuery(ctx context.Context, query string, a
 // GetByTeamID retrieves history by team ID
 func (r *HistoryRepository) GetByTeamID(ctx context.Context, teamID string) ([]history.History, error) {
 	query := `
-		SELECT id, title, topic, content, image_url, target_products,
-			status, action, error_message, published_at, scheduled_for,
+		SELECT id, title, topic, article, image_url, target_products,
+			status,  published_at, scheduled_for,
 			created_by, team_id, created_at
-		FROM histories WHERE team_id = $1
+		FROM drafts WHERE team_id = $1
 		ORDER BY created_at DESC
 	`
 
@@ -214,10 +213,10 @@ func (r *HistoryRepository) GetByTeamID(ctx context.Context, teamID string) ([]h
 // GetByCreatedBy retrieves history by creator
 func (r *HistoryRepository) GetByCreatedBy(ctx context.Context, createdBy string) ([]history.History, error) {
 	query := `
-		SELECT id, title, topic, content, image_url, target_products,
-			status, action, error_message, published_at, scheduled_for,
+		SELECT id, title, topic, article, image_url, target_products,
+			status,  published_at, scheduled_for,
 			created_by, team_id, created_at
-		FROM histories WHERE created_by = $1
+		FROM drafts WHERE created_by = $1
 		ORDER BY created_at DESC
 	`
 
@@ -233,10 +232,10 @@ func (r *HistoryRepository) GetByCreatedBy(ctx context.Context, createdBy string
 // GetByStatus retrieves history by status
 func (r *HistoryRepository) GetByStatus(ctx context.Context, status string) ([]history.History, error) {
 	query := `
-		SELECT id, title, topic, content, image_url, target_products,
-			status, action, error_message, published_at, scheduled_for,
+		SELECT id, title, topic, article, image_url, target_products,
+			status,  published_at, scheduled_for,
 			created_by, team_id, created_at
-		FROM histories WHERE status = $1
+		FROM drafts WHERE status = $1
 		ORDER BY created_at DESC
 	`
 
@@ -252,10 +251,10 @@ func (r *HistoryRepository) GetByStatus(ctx context.Context, status string) ([]h
 // GetRecentActivity retrieves recent history activity
 func (r *HistoryRepository) GetRecentActivity(ctx context.Context, teamID string, limit int) ([]history.History, error) {
 	query := `
-		SELECT id, title, topic, content, image_url, target_products,
-			status, action, error_message, published_at, scheduled_for,
+		SELECT id, title, topic, article, image_url, target_products,
+			status,  published_at, scheduled_for,
 			created_by, team_id, created_at
-		FROM histories 
+		FROM drafts 
 		WHERE team_id = $1
 		ORDER BY created_at DESC
 		LIMIT $2
@@ -273,7 +272,7 @@ func (r *HistoryRepository) GetRecentActivity(ctx context.Context, teamID string
 // Count returns total count based on filters
 func (r *HistoryRepository) Count(ctx context.Context, query history.HistoryFilter) (int, error) {
 	fmt.Println("============== team_id", query.TeamID)
-	countQuery := `SELECT COUNT(*) FROM histories WHERE 1=1`
+	countQuery := `SELECT COUNT(*) FROM drafts WHERE 1=1`
 	args := []interface{}{}
 	argIndex := 1
 
@@ -294,7 +293,7 @@ func (r *HistoryRepository) Count(ctx context.Context, query history.HistoryFilt
 	}
 	if query.Search != "" {
 		searchPattern := "%" + query.Search + "%"
-		countQuery += fmt.Sprintf(" AND (title ILIKE $%d OR content ILIKE $%d)", argIndex, argIndex)
+		countQuery += fmt.Sprintf(" AND (title ILIKE $%d OR article ILIKE $%d)", argIndex, argIndex)
 		args = append(args, searchPattern)
 		argIndex++
 	}
@@ -312,7 +311,7 @@ func (r *HistoryRepository) Count(ctx context.Context, query history.HistoryFilt
 func (r *HistoryRepository) GetCountByStatus(ctx context.Context, teamID string) (map[string]int, error) {
 	query := `
 		SELECT status, COUNT(*) 
-		FROM histories 
+		FROM drafts 
 		WHERE team_id = $1 
 		GROUP BY status
 	`
@@ -357,7 +356,7 @@ func (r *HistoryRepository) Update(ctx context.Context, id string, updates map[s
 	argIndex++
 
 	args = append(args, id)
-	query := fmt.Sprintf("UPDATE history SET %s WHERE id = $%d",
+	query := fmt.Sprintf("UPDATE drafts SET %s WHERE id = $%d",
 		strings.Join(setClauses, ", "), argIndex)
 
 	result, err := r.db.ExecContext(ctx, query, args...)
@@ -379,7 +378,7 @@ func (r *HistoryRepository) Update(ctx context.Context, id string, updates map[s
 
 // Delete deletes a history record
 func (r *HistoryRepository) Delete(ctx context.Context, id string) error {
-	query := `DELETE FROM histories WHERE id = $1`
+	query := `DELETE FROM drafts WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -400,7 +399,7 @@ func (r *HistoryRepository) Delete(ctx context.Context, id string) error {
 
 // DeleteByTeamID deletes all history for a team
 func (r *HistoryRepository) DeleteByTeamID(ctx context.Context, teamID string) error {
-	query := `DELETE FROM histories WHERE team_id = $1`
+	query := `DELETE FROM drafts WHERE team_id = $1`
 
 	_, err := r.db.ExecContext(ctx, query, teamID)
 	if err != nil {
@@ -412,7 +411,7 @@ func (r *HistoryRepository) DeleteByTeamID(ctx context.Context, teamID string) e
 
 // DeleteByStatus deletes history by status
 func (r *HistoryRepository) DeleteByStatus(ctx context.Context, status string) error {
-	query := `DELETE FROM histories WHERE status = $1`
+	query := `DELETE FROM drafts WHERE status = $1`
 
 	_, err := r.db.ExecContext(ctx, query, status)
 	if err != nil {
@@ -470,13 +469,12 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 	for rows.Next() {
 		var h history.History
 		var targetProductsJSON []byte
-		var errorMessage sql.NullString
 		var createdBy sql.NullString
 		var teamID sql.NullString
 
 		err := rows.Scan(
 			&h.ID, &h.Title, &h.Topic, &h.Content, &h.ImageURL, &targetProductsJSON,
-			&h.Status, &h.Action, &errorMessage, &h.PublishedAt, &h.ScheduledFor,
+			&h.Status, &h.PublishedAt, &h.ScheduledFor,
 			&createdBy, &teamID, &h.CreatedAt,
 		)
 		if err != nil {
@@ -485,9 +483,6 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 
 		if len(targetProductsJSON) > 0 {
 			json.Unmarshal(targetProductsJSON, &h.TargetProducts)
-		}
-		if errorMessage.Valid {
-			h.ErrorMessage = &errorMessage.String
 		}
 		if createdBy.Valid {
 			h.CreatedBy = &createdBy.String
