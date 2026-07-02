@@ -7,21 +7,18 @@ import (
 
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/domain/paginate"
-	historyBuilder "seo-backend/internal/infrastructure/db/query_builder"
 	"seo-backend/internal/models"
 )
 
 // Service handles all history business logic
 type Service struct {
-	repo         history.HistoryRepository
-	queryBuilder historyBuilder.QueryBuilder
+	repo history.HistoryRepository
 }
 
 // NewService creates a new history service
-func NewService(repo history.HistoryRepository, queryBuilder historyBuilder.QueryBuilder) *Service {
+func NewService(repo history.HistoryRepository) *Service {
 	return &Service{
-		repo:         repo,
-		queryBuilder: queryBuilder,
+		repo: repo,
 	}
 }
 
@@ -68,10 +65,10 @@ func (s *Service) GetByID(ctx context.Context, id string) (*history.History, err
 }
 
 // GetWithFilters retrieves history with filters
-func (s *Service) GetWithFilters(ctx context.Context, filters history.HistoryFilter, user models.UserContext) ([]history.History, int, error) {
+func (s *Service) GetWithFilters(ctx context.Context, filters history.HistoryFilter, user models.UserContext) (*paginate.PaginatedResult[history.History], int, error) {
 
 	// Build query from filters
-	query, args := s.queryBuilder.BuildListQuery(user, filters)
+	// query, args := s.queryBuilder.BuildListQuery(user, filters)
 
 	// Get total count
 	total, err := s.repo.Count(ctx, filters)
@@ -80,7 +77,7 @@ func (s *Service) GetWithFilters(ctx context.Context, filters history.HistoryFil
 	}
 
 	// Get records
-	records, err := s.repo.GetAllWithQuery(ctx, query, args)
+	records, err := s.repo.GetAll(ctx, user, filters)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get history: %w", err)
 	}

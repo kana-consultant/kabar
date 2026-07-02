@@ -5,7 +5,6 @@ import (
 	historyService "seo-backend/internal/application/history"
 	baseRoutes "seo-backend/internal/domain/base"
 	"seo-backend/internal/domain/history"
-	historyBuilder "seo-backend/internal/infrastructure/db/query_builder"
 	rbacCache "seo-backend/internal/infrastructure/db/repositories/rbac"
 	authmw "seo-backend/internal/middleware"
 
@@ -19,8 +18,7 @@ type Route struct {
 }
 
 func NewHistoryRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache, historyRepo history.HistoryRepository) *Route {
-	qb_history := historyBuilder.NewQueryBuilder()
-	HistoryService := historyService.NewService(historyRepo, *qb_history)
+	HistoryService := historyService.NewService(historyRepo)
 	historyHandler := NewHistoryHandler(HistoryService)
 
 	return &Route{
