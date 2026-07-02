@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 )
 
 type HistoryRepository struct {
@@ -35,30 +36,40 @@ func (r *HistoryRepository) Create(ctx context.Context, req draft.PublishHistory
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
 
-	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
-
-	status := "published"
-	if action == "failed" {
-		status = "failed"
+	targetProductsJSON, err := json.Marshal(req.TargetProducts)
+	if err != nil {
+		return fmt.Errorf("failed to marshal target products: %w", err)
 	}
 
 	query := `
-		INSERT INTO histories (
-			title, topic, content, image_url, target_products,
-			status, action, published_at, created_by, team_id, created_at,seo_score
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		RETURNING id
-	`
+        INSERT INTO drafts (
+            id, title, topic, article, image_url, target_products,
+            status, published_at,
+            created_by, team_id, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        RETURNING id
+    `
 
 	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
+	historyID := uuid.New().String() // Assuming UUID, adjust as needed
 
-	var historyID string
 	err = tx.QueryRowContext(ctx, query,
-		req.Title, req.Topic, req.Article, req.ImageURL,
-		targetProductsJSON, status, action, now,
-		userID, teamID, now, req.SEOScore,
+		historyID,          // $1 - id
+		req.Title,          // $2 - title
+		req.Topic,          // $3 - topic
+		req.Article,        // $4 - article
+		req.ImageURL,       // $5 - image_url
+		targetProductsJSON, // $6 - target_products
+		action,             // $7 - status
+		now,                // $8 - published_at
+		userID,             // $10 - created_by
+		teamID,             // $11 - team_id
 	).Scan(&historyID)
 	if err != nil {
 		return fmt.Errorf("failed to insert history: %w", err)
@@ -68,16 +79,15 @@ func (r *HistoryRepository) Create(ctx context.Context, req draft.PublishHistory
 		return fmt.Errorf("failed to update keywords: %w", err)
 	}
 
-	r.invalidateCache(ctx,
-		fmt.Sprintf("dashboard_stats:%s", teamID))
-
+	// Cache invalidation
+	r.invalidateCache(ctx, fmt.Sprintf("dashboard_stats:%s", teamID))
 	if err := r.InvalidateDraftCacheByTeam(ctx, teamID); err != nil {
+		// Log but don't fail the transaction
 		log.Printf("failed to invalidate draft cache: %v", err)
 	}
 
 	return tx.Commit()
 }
-
 func (r *HistoryRepository) invalidateCache(ctx context.Context, keys ...string) {
 	if len(keys) == 0 {
 		return
