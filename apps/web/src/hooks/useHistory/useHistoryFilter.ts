@@ -11,11 +11,11 @@ export function useHistoryFilter(
         let filtered = [...history];
         
         if (statusFilter !== "all") {
-            filtered = filtered.filter(h => h.action === statusFilter);
+            filtered = filtered.filter(h => h.status === statusFilter);
         }
         
         if (actionFilter !== "all") {
-            filtered = filtered.filter(h => h.action === actionFilter);
+            filtered = filtered.filter(h => h.status === actionFilter);
         }
         
         if (searchQuery) {
