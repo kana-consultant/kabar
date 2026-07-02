@@ -6,24 +6,19 @@ import (
 	"seo-backend/internal/domain/draft"
 	rbacCache "seo-backend/internal/infrastructure/db/repositories/rbac"
 	authmw "seo-backend/internal/middleware"
-	"seo-backend/internal/scheduler"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-redis/redis/v8"
 )
 
 type Route struct {
-	baseRoute      baseRoutes.Route
-	DraftHandler   DraftHandler
-	RedisScheduler *scheduler.RedisScheduler
-	permCache      *rbacCache.PermissionCache // ← tambah ini
+	baseRoute    baseRoutes.Route
+	DraftHandler DraftHandler
+	permCache    *rbacCache.PermissionCache // ← tambah ini
 }
 
 func NewRoute(
 	db *sql.DB,
 	chi chi.Router,
-	redisClient *redis.Client,
-	redisScheduler *scheduler.RedisScheduler,
 	permCache *rbacCache.PermissionCache,
 	DraftService draft.Service,
 ) *Route {
@@ -35,9 +30,8 @@ func NewRoute(
 			DB:  db,
 			CHI: chi,
 		},
-		DraftHandler:   *DraftHandler,
-		RedisScheduler: redisScheduler,
-		permCache:      permCache, // ← simpan di sini, bukan di baseRoute
+		DraftHandler: *DraftHandler,
+		permCache:    permCache, // ← simpan di sini, bukan di baseRoute
 	}
 }
 

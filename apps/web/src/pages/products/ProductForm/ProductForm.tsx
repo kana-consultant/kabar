@@ -82,7 +82,6 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
         testing,
         updateProductInfo,
         updateAdapterConfig,
-        updateFieldMapping,
         updateMetaConfig,
         updateSitemapConfig,
         updateWorkflowId,
