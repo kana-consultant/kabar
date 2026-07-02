@@ -49,7 +49,7 @@ export function useDraftsActions({
                     message: response.message || "Sebagian produk gagal dipublikasikan",
                     results: response.results
                 });
-                setShowResultDialog(true);
+                
                 toast.error("Publikasi sebagian gagal", {
                     description: "Beberapa produk tidak dapat dijangkau. Lihat detail untuk info lebih lanjut."
                 });
@@ -110,7 +110,7 @@ export function useDraftsActions({
                     message: error.response.data.message || "Publikasi gagal",
                     results: error.response.data.results
                 });
-                setShowResultDialog(true);
+               
             }
 
             return false;

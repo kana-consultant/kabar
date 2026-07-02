@@ -94,25 +94,7 @@ export function useGenerate() {
         setErrorData(null);
     };
 
-    // Handle success dari post/schedule
-    const handlePublishSuccess = (result: any) => {
-        if (result) {
-            setResults(result.results || []);
-            if (result.some_failed || result.all_failed) {
-                setIsError(true);
-                setErrorData({
-                    title: result.all_failed
-                        ? 'Semua Produk Gagal Diposting'
-                        : 'Beberapa Produk Gagal Diposting',
-                    message: result.message || 'Terjadi kesalahan saat memposting konten',
-                    errors: result.errors || ['Unknown error'],
-                    results: result.results || [],
-                    someFailed: result.some_failed,
-                    allFailed: result.all_failed,
-                });
-            }
-        }
-    };
+
 
     // Handle reset form setelah publish
     const handleResetAfterPublish = () => {
@@ -138,20 +120,11 @@ export function useGenerate() {
             (result: any) => {
                 // onSuccess callback
                 if (result) {
+                    console.log("Hasil")
+                    console.log(result.data)
                     setResults(result.results || []);
-                    if (result.some_failed || result.all_failed) {
-                        setIsError(true);
-                        setErrorData({
-                            title: result.all_failed
-                                ? 'Semua Produk Gagal Dijadwalkan'
-                                : 'Beberapa Produk Gagal Dijadwalkan',
-                            message: result.message || 'Terjadi kesalahan saat menjadwalkan konten',
-                            errors: result.errors || ['Unknown error'],
-                            results: result.results || [],
-                            someFailed: result.some_failed,
-                            allFailed: result.all_failed,
-                        });
-                    }
+                    setIsError(true);
+                  
                 }
             },
             () => {
@@ -175,16 +148,8 @@ export function useGenerate() {
             setPublishing, setPublishResults, setShowResultDialog,
             (result: any) => {
                 // onSuccess callback
-                console.log(result.data.results)
-                if (result) {
-                    if (!result.success) {
-                        setIsError(true);
-                        setErrorData(result);
-                    } else {
-                        console.log(result.data)
-                        setResults(result.data);
-                    }
-                }
+                console.log("Hasil")
+                console.log(result.data)
             },
             () => {
                 // onReset callback
@@ -227,16 +192,10 @@ export function useGenerate() {
                 result = await handlePostInstant();
             }
         } catch (error: any) {
+            console.log("Error saat posting:", error.response?.data || error.message || error);
             setIsError(true);
-            setErrorData({
-                title: 'Error',
-                message: error.message || 'Terjadi kesalahan yang tidak diketahui',
-                errors: [error.message || 'Unknown error'],
-                results: [],
-                someFailed: true,
-                allFailed: true,
-            });
-            // toast.error(error.message || 'Gagal memposting konten');
+            setErrorData(error.response?.data.results);
+            toast.error("Terjadi kesalahan saat memposting. Silakan coba lagi.");
         } finally {
             setIsPosting(false);
         }
@@ -268,6 +227,8 @@ export function useGenerate() {
         resetErrorState();
         closeResultDialog(setShowResultDialog, setPublishResults);
     };
+
+   
 
     return {
         topic, setTopic,

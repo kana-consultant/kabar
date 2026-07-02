@@ -624,54 +624,6 @@ func (r *RepositoryImpl) InsertScheduledDraft(ctx context.Context, req draft.Sch
 	return draftID, err
 }
 
-func (r *RepositoryImpl) InsertHistory(ctx context.Context, req draft.PublishHistoryRequest, userID, teamID, action string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
-
-	status := "published"
-	if action == "failed" {
-		status = "failed"
-	}
-
-	query := `
-		INSERT INTO histories (
-			title, topic, content, image_url, target_products,
-			status, action, published_at, created_by, team_id, created_at,seo_score
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		RETURNING id
-	`
-
-	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
-
-	var historyID string
-	err = tx.QueryRowContext(ctx, query,
-		req.Title, req.Topic, req.Article, req.ImageURL,
-		targetProductsJSON, status, action, now,
-		userID, teamID, now, req.SEOScore,
-	).Scan(&historyID)
-	if err != nil {
-		return fmt.Errorf("failed to insert history: %w", err)
-	}
-
-	if err := keywords.UpdateKeywords(ctx, tx, keywords.HistorySource{HistoryID: historyID}, req.Keywords); err != nil {
-		return fmt.Errorf("failed to update keywords: %w", err)
-	}
-
-	r.invalidateCache(ctx,
-		fmt.Sprintf("dashboard_stats:%s", teamID))
-
-	if err := r.InvalidateDraftCacheByTeam(ctx, teamID); err != nil {
-		log.Printf("failed to invalidate draft cache: %v", err)
-	}
-
-	return tx.Commit()
-}
-
 // Helper methods
 func (r *RepositoryImpl) buildUpdateQuery(id string, data map[string]interface{}) (string, []interface{}, error) {
 	log.Println("========== BUILD UPDATE QUERY ==========")

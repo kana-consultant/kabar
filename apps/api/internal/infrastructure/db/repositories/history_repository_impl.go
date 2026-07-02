@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
@@ -15,46 +16,118 @@ import (
 	"seo-backend/internal/models"
 	"strings"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 type HistoryRepository struct {
-	db *sql.DB
+	db          *sql.DB
+	redisClient redis.Client
 }
 
-func NewHistoryRepository(db *sql.DB) history.HistoryRepository {
-	return &HistoryRepository{db: db}
+func NewHistoryRepository(db *sql.DB, redisClient redis.Client) history.HistoryRepository {
+	return &HistoryRepository{db: db, redisClient: redisClient}
 }
 
 // Create inserts a new history record
-func (r *HistoryRepository) Create(ctx context.Context, data *history.History) (string, error) {
+func (r *HistoryRepository) Create(ctx context.Context, req draft.PublishHistoryRequest, userID, teamID, action string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
-	targetProductsJSON, _ := json.Marshal(data.TargetProducts)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
+
+	status := "published"
+	if action == "failed" {
+		status = "failed"
+	}
 
 	query := `
-		INSERT INTO drafts (
-			id, title, topic, article, image_url, target_products,
-			status, published_at, scheduled_for,
-			created_by, team_id, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+		INSERT INTO histories (
+			title, topic, content, image_url, target_products,
+			status, action, published_at, created_by, team_id, created_at,seo_score
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id
 	`
 
-	var id string
-	err = r.db.QueryRowContext(ctx, query,
-		data.ID, data.Title, data.Topic, data.Content, data.ImageURL, targetProductsJSON,
-		data.Status, data.PublishedAt, data.ScheduledFor,
-		data.CreatedBy, data.TeamID,
-	).Scan(&id)
+	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
-	if err := keywords.UpdateKeywords(ctx, tx, keywords.HistorySource{HistoryID: id}, data.Keywords); err != nil {
-		return "", fmt.Errorf("failed to update keywords: %w", err)
-	}
-
+	var historyID string
+	err = tx.QueryRowContext(ctx, query,
+		req.Title, req.Topic, req.Article, req.ImageURL,
+		targetProductsJSON, status, action, now,
+		userID, teamID, now, req.SEOScore,
+	).Scan(&historyID)
 	if err != nil {
-		return "", fmt.Errorf("failed to create history: %w", err)
+		return fmt.Errorf("failed to insert history: %w", err)
 	}
 
-	return id, nil
+	if err := keywords.UpdateKeywords(ctx, tx, keywords.HistorySource{HistoryID: historyID}, req.Keywords); err != nil {
+		return fmt.Errorf("failed to update keywords: %w", err)
+	}
+
+	r.invalidateCache(ctx,
+		fmt.Sprintf("dashboard_stats:%s", teamID))
+
+	if err := r.InvalidateDraftCacheByTeam(ctx, teamID); err != nil {
+		log.Printf("failed to invalidate draft cache: %v", err)
+	}
+
+	return tx.Commit()
+}
+
+func (r *HistoryRepository) invalidateCache(ctx context.Context, keys ...string) {
+	if len(keys) == 0 {
+		return
+	}
+
+	if err := r.redisClient.Del(ctx, keys...).Err(); err != nil {
+		log.Printf("[Cache] failed to delete keys | keys=%v | err=%v", keys, err)
+		return
+	}
+
+	log.Printf("[Cache] keys deleted | keys=%v", keys)
+}
+
+func (r *HistoryRepository) InvalidateDraftCacheByTeam(
+	ctx context.Context,
+	teamID string,
+) error {
+	pattern := fmt.Sprintf("draft_list:*:%s:*", teamID)
+
+	iter := r.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+
+	deleted := 0
+
+	for iter.Next(ctx) {
+		key := iter.Val()
+
+		if err := r.redisClient.Del(ctx, key).Err(); err != nil {
+			log.Printf(
+				"[InvalidateDraftCacheByTeam] failed to delete cache | team_id=%s | key=%s | err=%v",
+				teamID,
+				key,
+				err,
+			)
+			continue
+		}
+
+		deleted++
+	}
+
+	if err := iter.Err(); err != nil {
+		return err
+	}
+
+	log.Printf(
+		"[InvalidateDraftCacheByTeam] cache invalidated | team_id=%s | deleted=%d",
+		teamID,
+		deleted,
+	)
+
+	return nil
 }
 
 // GetByID retrieves history by ID

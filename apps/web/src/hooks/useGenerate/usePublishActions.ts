@@ -130,7 +130,7 @@ export async function saveAsSchedule(
 
         // Set results
         setPublishResults(response);
-        setShowResultDialog(true);
+        
 
         // Panggil onSuccess dengan response
         if (onSuccess) {
@@ -166,7 +166,7 @@ export async function saveAsSchedule(
                 status: "failed"
             };
             setPublishResults(errorResponse);
-            setShowResultDialog(true);
+            
 
             // Panggil onSuccess dengan error response
             if (onSuccess) {
@@ -235,7 +235,7 @@ export async function postInstant(
 
         // Set results
         setPublishResults(response.data);
-        setShowResultDialog(true);
+       
 
        
         const hasErrors = response.data.results?.some((r: any) => !r.success);
@@ -260,7 +260,7 @@ export async function postInstant(
 
         const errorResponse = error.response
         setPublishResults(errorResponse);
-        setShowResultDialog(true);
+        
 
         // Panggil onSuccess dengan error response
         if (onSuccess) {

@@ -181,7 +181,7 @@ export default function Generate() {
                         autoGenerateImage={autoGenerateImage}
                         setAutoGenerateImage={handleToggleAutoGenerateImage}
                         products={products}
-                        selectedProduct={selectedProducts}
+                        selectedProduct={selectedProducts[0]}
                         onSelectProduct={handleSelectProduct}
                         article={article}
                         onPost={handlePost}

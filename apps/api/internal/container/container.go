@@ -116,7 +116,8 @@ func NewContainer(
 	defer scheduler.Stop()
 
 	DraftRepo := repositories.NewDraftRepository(db, redisClient)
-	DraftService := draft.NewService(DraftRepo, scheduler, productService, productRepo, *PostService)
+	repoHistory := repositories.NewHistoryRepository(db, *redisClient)
+	DraftService := draft.NewService(DraftRepo, repoHistory, scheduler, productService, productRepo, *PostService)
 
 	// Protected routes
 	r.Route("/api/", func(protected chi.Router) {
@@ -126,7 +127,7 @@ func NewContainer(
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
 		draftHandler.NewRoute(db, protected, permCache, DraftService).SetupRoutes()
 		generateHandler.NewRoute(db, protected, cfg).SetupRoutes()
-		historyHandler.NewHistoryRoute(db, protected, permCache).SetupRoute()
+		historyHandler.NewHistoryRoute(db, protected, permCache, repoHistory).SetupRoute()
 		productHandler.NewRoute(db, protected, permCache, productService).SetupRoutes()
 		providerHandler.NewRoute(db, protected, redisClient).SetupRoutes()
 		teamHandler.NewRoute(db, protected, emailService).SetupRoutes()

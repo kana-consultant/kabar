@@ -114,31 +114,6 @@ func (h *HistoryHandler) parseFilters(r *http.Request) history.HistoryFilter {
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /history [post]
-func (h *HistoryHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userCtx := h.getUserContext(r)
-
-	var req history.CreateHistoryRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Set user context
-	req.CreatedBy = userCtx.GetUserID()
-	req.TeamID = userCtx.GetTeamID()
-
-	id, err := h.service.Create(r.Context(), req)
-	if err != nil {
-		log.Printf("Failed to create history: %v", err)
-		h.handleServiceError(w, err)
-		return
-	}
-
-	h.writeJSON(w, map[string]string{
-		"id":      id,
-		"message": "History created successfully",
-	}, http.StatusCreated)
-}
 
 // =======================
 // GET HISTORY BY ID

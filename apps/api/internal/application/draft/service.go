@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"seo-backend/internal/domain/draft"
+	"seo-backend/internal/domain/history"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
@@ -25,6 +26,7 @@ import (
 type DraftServiceImpl struct {
 	repo              draft.Repository
 	redisScheduler    *scheduler.RedisScheduler
+	repoHistory       history.HistoryRepository
 	productController product.ProductService
 	productService    product.ProductRepository
 	postService       helper.PostService
@@ -32,6 +34,7 @@ type DraftServiceImpl struct {
 
 func NewService(
 	repo draft.Repository,
+	repoHistory history.HistoryRepository,
 	redisScheduler *scheduler.RedisScheduler,
 	productController product.ProductService,
 	productService product.ProductRepository,
@@ -40,8 +43,10 @@ func NewService(
 
 	return &DraftServiceImpl{
 		repo:              repo,
+		repoHistory:       repoHistory,
 		redisScheduler:    redisScheduler,
 		productController: productController,
+		productService:    productService,
 		postService:       postService,
 	}
 }
@@ -180,7 +185,7 @@ func (s *DraftServiceImpl) PublishDraft(
 	if err != nil {
 		log.Printf("[PublishDraft] ERROR processPublish id=%s err=%v", id, err)
 
-		if histErr := s.repo.InsertHistory(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
+		if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
 			log.Printf("[PublishDraft] ERROR InsertHistory(failed) id=%s err=%v", id, histErr)
 		} else {
 			log.Printf("[PublishDraft] SUCCESS InsertHistory(failed) id=%s", id)
@@ -191,7 +196,7 @@ func (s *DraftServiceImpl) PublishDraft(
 
 	log.Printf("[PublishDraft] SUCCESS processPublish id=%s result=%+v", id, result)
 
-	if histErr := s.repo.InsertHistory(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "published"); histErr != nil {
+	if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "published"); histErr != nil {
 		log.Printf("[PublishDraft] ERROR InsertHistory(published) id=%s err=%v", id, histErr)
 	} else {
 		log.Printf("[PublishDraft] SUCCESS InsertHistory(published) id=%s", id)
@@ -320,7 +325,7 @@ func (s *DraftServiceImpl) insertPublishHistory(
 			time.Sleep(time.Duration(i) * time.Second)
 		}
 
-		err := s.repo.InsertHistory(
+		err := s.repoHistory.Create(
 			ctx,
 			historyReq,
 			userCtx.GetUserID(),

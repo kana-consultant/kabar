@@ -18,6 +18,5 @@ type Repository interface {
 	UpdateStatus(ctx context.Context, id string, status string, scheduledFor *time.Time) error
 	Delete(ctx context.Context, TeamID string, id string) error
 	InsertScheduledDraft(ctx context.Context, req ScheduleRequest, scheduledFor time.Time, teamID, userID string) (string, error)
-	InsertHistory(ctx context.Context, req PublishHistoryRequest, userID, teamID, action string) error
 	GetAllScheduled(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
 }

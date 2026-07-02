@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	historyService "seo-backend/internal/application/history"
 	baseRoutes "seo-backend/internal/domain/base"
+	"seo-backend/internal/domain/history"
 	historyBuilder "seo-backend/internal/infrastructure/db/query_builder"
-	"seo-backend/internal/infrastructure/db/repositories"
 	rbacCache "seo-backend/internal/infrastructure/db/repositories/rbac"
 	authmw "seo-backend/internal/middleware"
 
@@ -18,11 +18,10 @@ type Route struct {
 	permCache      *rbacCache.PermissionCache
 }
 
-func NewHistoryRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache) *Route {
-	repoHistory := repositories.NewHistoryRepository(db)
+func NewHistoryRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache, historyRepo history.HistoryRepository) *Route {
 	qb_history := historyBuilder.NewQueryBuilder()
-	HistoryRepo := historyService.NewService(repoHistory, *qb_history)
-	historyHandler := NewHistoryHandler(HistoryRepo)
+	HistoryService := historyService.NewService(historyRepo, *qb_history)
+	historyHandler := NewHistoryHandler(HistoryService)
 
 	return &Route{
 		baseroute: baseRoutes.Route{
@@ -46,7 +45,6 @@ func (h *Route) SetupRoute() chi.Router {
 
 		// endpoint ini tidak ada di schema permission history,
 		// tapi tetap dijaga minimal dengan HistoryView
-		r.With(authmw.HistoryView(c)).Post("/", h.HistoryHandler.Create)
 		r.With(authmw.HistoryView(c)).Put("/{id}", h.HistoryHandler.Update)
 	})
 

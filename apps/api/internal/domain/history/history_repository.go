@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"seo-backend/internal/domain/draft"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/models"
 )
@@ -24,7 +25,7 @@ type HistoryQuery struct {
 // Repository interface
 type HistoryRepository interface {
 	// Create
-	Create(ctx context.Context, data *History) (string, error)
+	Create(ctx context.Context, req draft.PublishHistoryRequest, userID, teamID, action string) error
 
 	// Read
 	GetByID(ctx context.Context, id string) (*History, error)

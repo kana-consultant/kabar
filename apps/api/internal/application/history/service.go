@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/domain/paginate"
-	"seo-backend/internal/helper"
 	historyBuilder "seo-backend/internal/infrastructure/db/query_builder"
 	"seo-backend/internal/models"
 )
@@ -31,34 +28,6 @@ func NewService(repo history.HistoryRepository, queryBuilder historyBuilder.Quer
 // =======================
 // CREATE
 // =======================
-
-// Create creates a new history record
-func (s *Service) Create(ctx context.Context, req history.CreateHistoryRequest) (string, error) {
-	// Validation
-	if err := s.validateCreateRequest(req); err != nil {
-		return "", err
-	}
-
-	id := uuid.New().String()
-	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
-
-	data := &history.History{
-		ID:             id,
-		Title:          req.Title,
-		Topic:          req.Topic,
-		Content:        req.Content,
-		ImageURL:       req.ImageURL,
-		TargetProducts: req.TargetProducts,
-		Status:         "pending",
-		PublishedAt:    &now,
-		ScheduledFor:   req.ScheduledFor,
-		CreatedBy:      &req.CreatedBy,
-		TeamID:         &req.TeamID,
-		CreatedAt:      now,
-	}
-
-	return s.repo.Create(ctx, data)
-}
 
 // validateCreateRequest validates create request
 func (s *Service) validateCreateRequest(req history.CreateHistoryRequest) error {

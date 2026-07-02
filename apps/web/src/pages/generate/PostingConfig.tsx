@@ -7,6 +7,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogFooter
 } from "@kana-consultant/ui-kit";
 import {
@@ -21,14 +22,16 @@ import {
     CheckCircle2,
     RotateCcw,
     AlertCircle,
-    XCircle
+    XCircle,
+    Copy,
+    ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/services/product";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollArea } from "./scroll-area";
 
-// ============ INTERFACE ============
+// ============ INTERFACES ============
 interface PostingConfigProps {
     postMode: "instant" | "scheduled" | "draft";
     setPostMode: (mode: "instant" | "scheduled" | "draft") => void;
@@ -43,23 +46,48 @@ interface PostingConfigProps {
     autoGenerateImage: boolean;
     setAutoGenerateImage: (value: boolean) => void;
     products: Product[];
-    selectedProduct: string[]; // 👈 SINGLE STRING
-    onSelectProduct: (productId: string | null) => void; // 👈 SINGLE SELECT HANDLER
+    selectedProduct: string;
+    onSelectProduct: (productId: string | null) => void;
     article: string;
     onPost: () => void;
     isPosting: boolean;
     isError?: boolean;
-    results?: any[];
-    errorData?: {
-        title: string;
-        message: string;
-        errors: string[];
-        results: any[];
-        someFailed: boolean;
-        allFailed: boolean;
-    } | null;
+    results?: PostingResult[];
+    errorData?: ErrorData | null;
     onRetry?: () => void;
     onCloseError?: () => void;
+}
+
+interface PostingResult {
+    success: boolean;
+    product: string;
+    node?: string;
+    error?: string;
+    statusCode?: number;
+}
+
+interface ErrorData {
+    title: string;
+    message: string;
+    errors: string[];
+    results: PostingResult[];
+}
+
+interface GroupedError {
+    node: string;
+    error: string;
+    statusCode: number;
+}
+
+interface ErrorModalProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    title?: string;
+    message?: string;
+    results?: PostingResult[];
+    errors?: string[];
+    onRetry?: () => void;
+    onClose?: () => void;
 }
 
 // ============ CONSTANTS ============
@@ -69,39 +97,136 @@ const modes = [
     { value: "draft", label: "Draft", icon: FileText },
 ] as const;
 
-// ============ ERROR MODAL ============
-function ErrorModal({
+type ParsedFailure = {
+    success: false;
+    product: string;
+    node: string;
+    error: string;
+    statusCode: number;
+};
+
+// ============ UTILITY FUNCTIONS ============
+function parseBackendErrorMessage(message: string): ParsedFailure[] {
+    if (!message) return [];
+
+    const results: ParsedFailure[] = [];
+
+    // Split by "Product " to get individual product blocks
+    const blocks = message.split(/Product\s+/);
+
+    for (const block of blocks) {
+        if (!block.trim()) continue;
+
+        // Extract product ID
+        const productMatch = block.match(/^([\w-]+)\s+failed:/);
+        if (!productMatch) continue;
+
+        const productId = productMatch[1];
+
+        // Extract node errors - improved regex
+        const nodePattern = /Node\s+([\w-]+):\s*request failed with status\s+(\d+)[^:]*:\s*(.+?)(?=(?:Node\s+[\w-]+:)|$)/gs;
+        let nodeMatch;
+        let hasNodes = false;
+
+        while ((nodeMatch = nodePattern.exec(block)) !== null) {
+            hasNodes = true;
+            const nodeId = nodeMatch[1];
+            const statusCode = Number(nodeMatch[2]);
+            let errorText = nodeMatch[3].trim();
+
+            // Clean up error message
+            // Remove HTTP prefix and attempt info
+            errorText = errorText.replace(/^HTTP\s+\d+\s*(?:\(attempt\s*\d+\/\d+\))?:\s*/, '').trim();
+
+            // Extract JSON message if present
+            if (errorText.includes('{')) {
+                try {
+                    const jsonMatch = errorText.match(/\{[^}]*"message"\s*:\s*"([^"]+)"[^}]*\}/);
+                    if (jsonMatch) {
+                        errorText = jsonMatch[1];
+                    }
+                } catch {
+                    // Keep original if parsing fails
+                }
+            }
+
+            results.push({
+                success: false,
+                product: productId,
+                node: nodeId,
+                error: errorText,
+                statusCode,
+            });
+        }
+
+        // If no nodes found, extract what we can
+        if (!hasNodes) {
+            const anyNodeMatch = block.match(/Node\s+([\w-]+)/);
+            const statusMatch = block.match(/status\s+(\d+)/);
+            const messageMatch = block.match(/"message"\s*:\s*"([^"]+)"/);
+
+            results.push({
+                success: false,
+                product: productId,
+                node: anyNodeMatch ? anyNodeMatch[1] : 'Unknown Node',
+                error: messageMatch ? messageMatch[1] : 'Unknown error',
+                statusCode: statusMatch ? Number(statusMatch[1]) : 0,
+            });
+        }
+    }
+
+    return results.length > 0 ? results : [];
+}
+
+// ============ ERROR MODAL COMPONENT ============
+export function ErrorModal({
     open,
     onOpenChange,
-    title,
-    message,
-    errors,
-    results,
-    someFailed,
-    allFailed,
-    onRetry,
-    onClose,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    title: string;
-    message: string;
-    errors: string[];
-    results: any[];
-    someFailed: boolean;
-    allFailed: boolean;
-    onRetry: () => void;
-    onClose: () => void;
-}) {
-    const totalProducts = results.length || 0;
-    const successCount = results.filter((r: any) => r?.success === true).length || 0;
-    const failedCount = results.filter((r: any) => r?.success === false).length || 0;
+    title = 'Posting Gagal',
+    message = '',
+    results = [],
+    errors = [],
+    onRetry = () => { },
+    onClose = () => { },
+}: ErrorModalProps) {
+    const [copiedId, setCopiedId] = useState<string | null>(null);
 
-    const groupedErrors = results
-        .filter((r: any) => r?.success === false)
-        .reduce((acc: Record<string, Array<{ node: string; error: string; statusCode: number }>>, r: any) => {
+    // Derive structured rows from results or fallback parsing
+    const effectiveResults = useMemo(() => {
+        if (results && results.length > 0) {
+            return results;
+        }
+
+        const fromMessage = parseBackendErrorMessage(message);
+        if (fromMessage.length > 0) {
+            return fromMessage;
+        }
+
+        if (errors && errors.length > 0) {
+            const fromErrors = errors.flatMap((e) => parseBackendErrorMessage(e));
+            if (fromErrors.length > 0) {
+                return fromErrors;
+            }
+        }
+
+        return results || [];
+    }, [results, message, errors]);
+
+    const totalProducts = new Set(effectiveResults.map((r) => r?.product)).size;
+    const successCount = effectiveResults.filter((r) => r?.success === true).length || 0;
+    const failedCount = effectiveResults.filter((r) => r?.success === false).length || 0;
+
+    // Derived booleans based on actual data
+    const someFailed = failedCount > 0;
+    const allFailed = failedCount > 0 && successCount === 0 && totalProducts > 0;
+
+    const groupedErrors = effectiveResults
+        .filter((r) => r?.success === false)
+        .reduce<Record<string, GroupedError[]>>((acc, r) => {
             const productName = r?.product || 'Unknown Product';
-            if (!acc[productName]) acc[productName] = [];
+            if (!acc[productName]) {
+                acc[productName] = [];
+            }
             acc[productName].push({
                 node: r?.node || 'Unknown Node',
                 error: r?.error || 'Unknown error',
@@ -111,96 +236,89 @@ function ErrorModal({
         }, {});
 
     const errorCount = Object.keys(groupedErrors).length;
+    const showRawErrorsFallback = errorCount === 0 && errors && errors.length > 0;
+
+    const handleOpenChange = (newOpen: boolean) => {
+        if (!newOpen) {
+            onClose();
+        }
+        onOpenChange(newOpen);
+    };
+
+    const handleRetry = () => {
+        onRetry();
+        if (allFailed) {
+            onClose();
+        }
+    };
+
+    const handleCopyError = async (text: string, id: string) => {
+        await navigator.clipboard.writeText(text);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
+
+    const getStatusColor = (code: number) => {
+        if (code >= 500) return "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/20";
+        if (code >= 400) return "text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-500/20";
+        if (code >= 300) return "text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-500/20";
+        return "text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-500/20";
+    };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={cn(
-                "sm:max-w-[640px] max-h-[90vh] p-0 overflow-hidden",
-                "bg-white dark:bg-[#0f0d1a]",
-                "border border-red-200/80 dark:border-red-500/20",
-                "shadow-2xl"
-            )}>
-                <DialogHeader className={cn(
-                    "px-6 py-4 border-b",
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent
+                className={cn(
+                    'sm:max-w-[680px] max-h-[90vh] p-0 overflow-hidden',
+                    'bg-white dark:bg-[#0f0d1a]',
+                    'border shadow-2xl',
                     allFailed
-                        ? "bg-red-50/60 border-red-200/60 dark:bg-red-500/10 dark:border-red-500/20"
-                        : "bg-amber-50/60 border-amber-200/60 dark:bg-amber-500/10 dark:border-amber-500/20"
+                        ? 'border-red-300 dark:border-red-500/30'
+                        : 'border-orange-200/80 dark:border-orange-500/20'
+                )}
+            >
+                {/* Header */}
+                <DialogHeader className={cn(
+                    "px-6 pt-6 pb-4 border-b",
+                    allFailed
+                        ? "border-red-200/60 dark:border-red-500/20"
+                        : "border-orange-200/60 dark:border-orange-500/20"
                 )}>
                     <div className="flex items-start gap-3">
                         <div className={cn(
-                            "flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0",
+                            "flex h-10 w-10 items-center justify-center rounded-xl ring-1 flex-shrink-0",
                             allFailed
-                                ? "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400"
-                                : "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
+                                ? "bg-red-100 text-red-600 ring-red-200/60 dark:bg-red-500/20 dark:text-red-400 dark:ring-red-500/20"
+                                : "bg-orange-100 text-orange-600 ring-orange-200/60 dark:bg-orange-500/20 dark:text-orange-400 dark:ring-orange-500/20"
                         )}>
-                            <AlertTriangle className="h-5 w-5" />
+                            <XCircle className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <DialogTitle className="text-base font-semibold text-slate-800 dark:text-slate-100">
+                            <DialogTitle className={cn(
+                                "text-lg font-semibold",
+                                allFailed ? "text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"
+                            )}>
                                 {title}
                             </DialogTitle>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                                {message}
-                            </p>
+
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
                     </div>
+
+                    {/* Stats */}
+
                 </DialogHeader>
 
-                <ScrollArea className="flex-1 max-h-[420px] px-6 py-4">
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-3 gap-2">
-                            <div className={cn(
-                                "rounded-lg p-3 text-center",
-                                "bg-slate-50 border border-slate-200/60",
-                                "dark:bg-white/[0.02] dark:border-white/[0.05]"
-                            )}>
-                                <p className="text-xl font-bold text-slate-800 dark:text-slate-200">
-                                    {totalProducts}
-                                </p>
-                                <p className="text-[10px] uppercase tracking-wider text-slate-400">
-                                    Total
-                                </p>
-                            </div>
-                            <div className={cn(
-                                "rounded-lg p-3 text-center",
-                                "bg-green-50 border border-green-200/60",
-                                "dark:bg-green-500/10 dark:border-green-500/20"
-                            )}>
-                                <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                                    {successCount}
-                                </p>
-                                <p className="text-[10px] uppercase tracking-wider text-green-600/70 dark:text-green-400/60">
-                                    Sukses
-                                </p>
-                            </div>
-                            <div className={cn(
-                                "rounded-lg p-3 text-center",
-                                "bg-red-50 border border-red-200/60",
-                                "dark:bg-red-500/10 dark:border-red-500/20"
-                            )}>
-                                <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                                    {failedCount}
-                                </p>
-                                <p className="text-[10px] uppercase tracking-wider text-red-600/70 dark:text-red-400/60">
-                                    Gagal
-                                </p>
-                            </div>
-                        </div>
-
+                {/* Error Details */}
+                <ScrollArea className="flex-1 max-h-[400px]">
+                    <div className="px-6 py-4 space-y-4">
                         {errorCount > 0 && (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                                        Detail Error ({errorCount} produk gagal)
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                        Detail Error
                                     </p>
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400">
-                                        {failedCount} error
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 font-medium">
+                                        {errorCount} produk
                                     </span>
                                 </div>
 
@@ -208,95 +326,164 @@ function ErrorModal({
                                     <div
                                         key={productName}
                                         className={cn(
-                                            "rounded-lg border p-3",
-                                            "bg-red-50/50 border-red-200/60",
-                                            "dark:bg-red-500/5 dark:border-red-500/20"
+                                            'rounded-xl border overflow-hidden',
+                                            'bg-white dark:bg-white/[0.02]',
+                                            'border-red-200/60 dark:border-red-500/20',
+                                            'shadow-sm'
                                         )}
                                     >
-                                        <div className="flex items-center gap-2 mb-2">
+                                        {/* Product Header */}
+                                        <div className={cn(
+                                            "flex items-center gap-2 px-4 py-2.5",
+                                            "bg-red-50/60 dark:bg-red-500/5",
+                                            "border-b border-red-200/40 dark:border-red-500/10"
+                                        )}>
                                             <XCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-400 flex-shrink-0" />
-                                            <p className="text-xs font-medium text-red-800 dark:text-red-300 truncate">
-                                                {productName}
-                                            </p>
-                                            <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-red-200/60 text-red-700 dark:bg-red-500/20 dark:text-red-400">
-                                                {productErrors.length} error
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-semibold text-red-800 dark:text-red-300 truncate">
+                                                    {productName}
+                                                </p>
+                                            </div>
+                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-200/60 text-red-700 dark:bg-red-500/20 dark:text-red-400 font-medium">
+                                                {productErrors.length} error{productErrors.length > 1 ? 's' : ''}
                                             </span>
                                         </div>
 
-                                        <div className="space-y-1.5 ml-5">
-                                            {productErrors.map((err, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="text-[11px] text-red-700/80 dark:text-red-400/80"
-                                                >
-                                                    <span className="font-medium text-red-800 dark:text-red-300">
-                                                        {err.node}:
-                                                    </span>
-                                                    <span className="ml-1">{err.error}</span>
-                                                    {err.statusCode > 0 && (
-                                                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] bg-red-200/60 text-red-800/80 dark:bg-red-500/20 dark:text-red-400">
-                                                            {err.statusCode}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            ))}
+                                        {/* Error Items */}
+                                        <div className="divide-y divide-red-100/60 dark:divide-red-500/10">
+                                            {productErrors.map((err, idx) => {
+                                                const copyId = `${productName}-${idx}`;
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className="px-4 py-3 hover:bg-red-50/30 dark:hover:bg-red-500/5 transition-colors"
+                                                    >
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="flex-1 min-w-0 space-y-1.5">
+                                                                {/* Node ID */}
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                                                                        Node:
+                                                                    </span>
+                                                                    <code className="text-[11px] font-mono text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded truncate">
+                                                                        {err.node}
+                                                                    </code>
+                                                                    <button
+                                                                        onClick={() => handleCopyError(err.node, copyId)}
+                                                                        className="flex-shrink-0 p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+                                                                        title="Copy node ID"
+                                                                    >
+                                                                        {copiedId === copyId ? (
+                                                                            <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                                                        ) : (
+                                                                            <Copy className="h-3 w-3 text-slate-400" />
+                                                                        )}
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Error Message */}
+                                                                <div className="pl-4 border-l-2 border-red-200 dark:border-red-500/20">
+                                                                    <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
+                                                                        {err.error}
+                                                                    </p>
+                                                                </div>
+
+                                                                {/* Status Code */}
+                                                                {err.statusCode > 0 && (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                                                            Status:
+                                                                        </span>
+                                                                        <span className={cn(
+                                                                            "text-[10px] px-1.5 py-0.5 rounded font-mono font-medium",
+                                                                            getStatusColor(err.statusCode)
+                                                                        )}>
+                                                                            {err.statusCode}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                                                            {err.statusCode >= 500 ? 'Server Error' :
+                                                                                err.statusCode >= 400 ? 'Client Error' :
+                                                                                    err.statusCode >= 300 ? 'Redirect' : 'Unknown'}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 ))}
-
-                                {errors && errors.length > 0 && Object.keys(groupedErrors).length === 0 && (
-                                    <div className={cn(
-                                        "rounded-lg border p-3",
-                                        "bg-red-50/50 border-red-200/60",
-                                        "dark:bg-red-500/5 dark:border-red-500/20"
-                                    )}>
-                                        {errors.map((err, idx) => (
-                                            <div key={idx} className="text-xs text-red-700 dark:text-red-400 flex items-start gap-2">
-                                                <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                                                <span>{err}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         )}
 
+                        {/* Raw errors fallback */}
+                        {showRawErrorsFallback && (
+                            <div className={cn(
+                                'rounded-xl border p-4 space-y-3',
+                                'bg-red-50/50 border-red-200/60',
+                                'dark:bg-red-500/5 dark:border-red-500/20'
+                            )}>
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                    Error Messages
+                                </p>
+                                {errors.map((err, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="flex items-start gap-2 text-xs text-red-700 dark:text-red-400 bg-white dark:bg-white/[0.02] rounded-lg p-3 border border-red-100 dark:border-red-500/10"
+                                    >
+                                        <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                        <span className="break-words leading-relaxed">{err}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Success summary */}
                         {successCount > 0 && (
                             <div className={cn(
-                                "rounded-lg border p-3",
-                                "bg-green-50/50 border-green-200/60",
-                                "dark:bg-green-500/5 dark:border-green-500/20"
+                                'rounded-xl border p-4',
+                                'bg-green-50/50 border-green-200/60',
+                                'dark:bg-green-500/5 dark:border-green-500/20'
                             )}>
                                 <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 dark:text-green-400 flex-shrink-0" />
-                                    <p className="text-xs text-green-700 dark:text-green-300">
+                                    <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400 flex-shrink-0" />
+                                    <p className="text-sm font-medium text-green-700 dark:text-green-300">
                                         {successCount} produk berhasil diposting
                                     </p>
                                 </div>
                             </div>
                         )}
 
-                        {totalProducts === 0 && (
-                            <div className="text-center py-8">
+                        {/* Empty state */}
+                        {totalProducts === 0 && errorCount === 0 && !showRawErrorsFallback && (
+                            <div className="text-center py-12">
                                 <AlertCircle className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Tidak ada data yang tersedia
+                                    Tidak ada detail error yang tersedia
+                                </p>
+                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                    Silakan coba lagi atau hubungi administrator
                                 </p>
                             </div>
                         )}
                     </div>
                 </ScrollArea>
 
-                <DialogFooter className={cn(
-                    "px-6 py-4 border-t",
-                    "bg-slate-50/60 border-slate-200/60",
-                    "dark:bg-white/[0.02] dark:border-white/[0.05]"
-                )}>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                {/* Footer */}
+                <DialogFooter
+                    className={cn(
+                        'px-6 py-4 border-t',
+                        'bg-slate-50/60 border-slate-200/60',
+                        'dark:bg-white/[0.02] dark:border-white/[0.05]'
+                    )}
+                >
+                    <div className="flex items-center gap-2 w-full">
                         <Button
                             onClick={onClose}
                             variant="outline"
-                            className="flex-1 sm:flex-none h-9 px-4 text-sm"
+                            className="flex-1 h-9 px-4 text-sm"
                         >
                             <X className="h-3.5 w-3.5 mr-1.5" />
                             Tutup
@@ -304,19 +491,16 @@ function ErrorModal({
                         {someFailed && !allFailed && (
                             <Button
                                 onClick={onRetry}
-                                className="flex-1 sm:flex-none h-9 px-4 text-sm bg-blue-600 hover:bg-blue-700 text-white"
+                                className="flex-1 h-9 px-4 text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
                             >
                                 <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                                Retry Gagal
+                                Retry yang Gagal
                             </Button>
                         )}
                         {allFailed && (
                             <Button
-                                onClick={() => {
-                                    onClose();
-                                    onRetry();
-                                }}
-                                className="flex-1 sm:flex-none h-9 px-4 text-sm bg-red-600 hover:bg-red-700 text-white"
+                                onClick={handleRetry}
+                                className="flex-1 h-9 px-4 text-sm bg-red-600 hover:bg-red-700 text-white shadow-sm"
                             >
                                 <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                                 Retry Semua
@@ -336,9 +520,10 @@ export function PostingConfig({
     scheduleTime, setScheduleTime,
     dailySchedule, setDailySchedule,
     dailyTime, setDailyTime,
+    autoGenerateImage, setAutoGenerateImage,
     products,
-    selectedProduct, // 👈 SINGLE STRING
-    onSelectProduct, // 👈 SINGLE SELECT HANDLER
+    selectedProduct,
+    onSelectProduct,
     article, onPost, isPosting,
     isError = false,
     results = [],
@@ -362,7 +547,8 @@ export function PostingConfig({
         });
     };
 
-    const selectedProductData = products.find(p => p.id?.toString() === selectedProduct[0]);
+    const selectedProductData = products.find(p => p.id?.toString() === selectedProduct);
+    const isProductError = selectedProduct ? hasProductError(selectedProduct) : false;
 
     const handleShowError = () => {
         if (errorData) setErrorModalOpen(true);
@@ -377,9 +563,6 @@ export function PostingConfig({
         setErrorModalOpen(false);
         if (onCloseError) onCloseError();
     };
-
-
-    console.log( selectedProduct[0],selectedProductData)
 
     return (
         <>
@@ -483,11 +666,11 @@ export function PostingConfig({
                                     <Input
                                         type="time"
                                         value={dailyTime}
-                                        onChange={(e: any) => setDailyTime(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDailyTime(e.target.value)}
                                         className="h-8 text-sm rounded-lg border-slate-200/80 dark:border-white/[0.08]"
                                     />
                                     <p className="text-[10px] text-slate-400">
-                                        Setiap hari jam {dailyTime}
+                                        Setiap hari jam {dailyTime || '00:00'}
                                     </p>
                                 </div>
                             ) : (
@@ -499,7 +682,7 @@ export function PostingConfig({
                                         <Input
                                             type="date"
                                             value={scheduleDate}
-                                            onChange={(e: any) => setScheduleDate(e.target.value)}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setScheduleDate(e.target.value)}
                                             className="h-8 text-sm rounded-lg border-slate-200/80 dark:border-white/[0.08]"
                                         />
                                     </div>
@@ -510,7 +693,7 @@ export function PostingConfig({
                                         <Input
                                             type="time"
                                             value={scheduleTime}
-                                            onChange={(e: any) => setScheduleTime(e.target.value)}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setScheduleTime(e.target.value)}
                                             className="h-8 text-sm rounded-lg border-slate-200/80 dark:border-white/[0.08]"
                                         />
                                     </div>
@@ -518,74 +701,71 @@ export function PostingConfig({
                             )}
                         </div>
                     )}
+
+                    {/* Products - SINGLE SELECT GRID */}
                     <div>
+                        <div className="flex items-center justify-between mb-2.5">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-600">
+                                Pilih Produk
+                            </p>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                {selectedProduct ? '1 produk dipilih' : 'Pilih 1 produk'}
+                            </span>
+                        </div>
 
-                        {/* Products - SINGLE SELECT GRID */}
-                        <div>
-                            <div className="flex items-center justify-between mb-2.5">
-                                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-600">
-                                    Pilih Produk
-                                </p>
-                                <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                    {selectedProduct[0] ? '1 produk dipilih' : 'Pilih 1 produk'}
-                                </span>
-                            </div>
+                        <div className="h-[180px] overflow-y-auto rounded-xl border border-slate-200/80 dark:border-white/[0.06]">
+                            <div className="p-2">
+                                {products.length === 0 ? (
+                                    <div className="py-8 text-center">
+                                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                                            Tidak ada produk tersedia
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        {products.map((product) => {
+                                            const productId = product.id?.toString() || '';
+                                            const isSelected = selectedProduct === productId;
+                                            const productHasError = hasProductError(productId);
 
-                            <div className="h-[180px] overflow-y-auto rounded-xl border border-slate-200/80 dark:border-white/[0.06]">
-                                <div className="p-2">
-                                    {products.length === 0 ? (
-                                        <div className="py-8 text-center">
-                                            <p className="text-xs text-slate-400 dark:text-slate-500">
-                                                Tidak ada produk tersedia
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-2 gap-1.5">
-                                            {products.map((product) => {
-                                                const productId = product.id?.toString() || '';
-                                                const isSelected = selectedProduct[0] === productId;
-                                                console.log(isSelected, selectedProduct[0], productId);
-                                              
+                                            return (
+                                                <button
+                                                    key={productId}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            onSelectProduct(null);
+                                                        } else {
+                                                            onSelectProduct(productId);
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        "relative rounded-lg px-3 py-2.5 transition-all cursor-pointer text-left border",
+                                                        `${isSelected ? "bg-blue-50 dark:bg-blue-500/10" : "bg-white dark:bg-white/[0.02]"}`,
+                                                        `${isSelected && productHasError ? "border-red-400 bg-red-50 dark:bg-red-500/10" : ""}`,
+                                                        `${!isSelected ? "border-slate-200 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.15]" : ""}`
+                                                    )}
+                                                >
+                                                    <p className={cn(
+                                                        "text-xs font-medium truncate",
+                                                        `${isSelected && !productHasError ? "text-blue-700 dark:text-blue-300" : ""}`,
+                                                        `${isSelected && productHasError ? "text-red-700 dark:text-red-300" : ""}`
+                                                    )}>
+                                                        {product.name || 'Unnamed Product'}
+                                                    </p>
 
-                                                return (
-                                                    <button
-                                                        key={productId}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (isSelected) {
-                                                                onSelectProduct(null);
-                                                            } else {
-                                                                onSelectProduct(productId);
-                                                            }
-                                                        }}
-                                                        className={cn(
-                                                            "rounded-lg px-3 py-2.5 transition-all cursor-pointer text-left border",
-                                                            `${isSelected && "border-blue-500 bg-blue-50 dark:bg-blue-500/10"}`,
-                                                            `${ isSelected && "border-red-400 bg-red-50 dark:bg-red-500/10"}`,
-                                                            `${!isSelected && "border-slate-200 dark:border-white/[0.08]"}`
-                                                        )}
-                                                    >
-                                                        <p className={cn(
-                                                            "text-xs font-medium truncate",
-                                                            `${isSelected && "text-blue-700 dark:text-blue-300"}`
-                                                        )}>
-                                                            {product.name || 'Unnamed Product'}
-                                                        </p>
+                                                    {isSelected && !productHasError && (
+                                                        <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-r-[8px] border-t-blue-500 border-r-transparent rounded-tr-lg" />
+                                                    )}
 
-                                                        {/* Selected indicator - subtle top-right accent */}
-                                                        {isSelected  && (
-                                                            <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-r-[8px] border-t-blue-500 border-r-transparent rounded-tr-lg" />
-                                                        )}
-
-                                                        {isSelected && (
-                                                            <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-r-[8px] border-t-red-400 border-r-transparent rounded-tr-lg" />
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
+                                                    {isSelected && productHasError && (
+                                                        <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-r-[8px] border-t-red-400 border-r-transparent rounded-tr-lg" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -593,7 +773,7 @@ export function PostingConfig({
                             <p className="text-[10px] text-slate-400 dark:text-slate-500">
                                 <span className="font-medium text-blue-600 dark:text-blue-400">●</span> Pilih 1 produk untuk diposting
                             </p>
-                            {selectedProduct[0] && (
+                            {selectedProduct && (
                                 <button
                                     type="button"
                                     onClick={() => onSelectProduct(null)}
@@ -609,18 +789,18 @@ export function PostingConfig({
                     {selectedProductData && (
                         <div className={cn(
                             "rounded-xl border p-3.5",
-                            isError && hasProductError(selectedProduct[0])
+                            isProductError
                                 ? "bg-red-50/60 border-red-200/60 dark:bg-red-500/5 dark:border-red-500/20"
                                 : "bg-blue-50/60 border-blue-200/60 dark:bg-blue-500/[0.04] dark:border-blue-500/20"
                         )}>
                             <div className="flex items-start gap-3">
                                 <div className={cn(
                                     "flex h-8 w-8 items-center justify-center rounded-lg ring-1 flex-shrink-0",
-                                    isError && hasProductError(selectedProduct[0])
+                                    isProductError
                                         ? "bg-red-100 text-red-600 ring-red-300/60 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20"
                                         : "bg-blue-100 text-blue-600 ring-blue-300/60 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20"
                                 )}>
-                                    {isError && hasProductError(selectedProduct[0]) ? (
+                                    {isProductError ? (
                                         <AlertTriangle className="h-4 w-4" />
                                     ) : (
                                         <CheckCircle2 className="h-4 w-4" />
@@ -629,14 +809,14 @@ export function PostingConfig({
                                 <div className="flex-1 min-w-0">
                                     <p className={cn(
                                         "text-sm font-medium",
-                                        isError && hasProductError(selectedProduct[0])
+                                        isProductError
                                             ? "text-red-800 dark:text-red-300"
                                             : "text-blue-800 dark:text-blue-300"
                                     )}>
                                         {selectedProductData.name || 'Produk Terpilih'}
                                     </p>
                                 </div>
-                                {isError && hasProductError(selectedProduct[0]) ? (
+                                {isProductError ? (
                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 flex-shrink-0">
                                         Gagal
                                     </span>
@@ -666,7 +846,7 @@ export function PostingConfig({
                     <div className="space-y-2 pt-1">
                         <Button
                             onClick={onPost}
-                            disabled={!selectedProduct[0] || !article || isPosting}
+                            disabled={!selectedProduct || !article || isPosting}
                             className={cn(
                                 "w-full h-9 gap-2 rounded-lg text-sm font-medium",
                                 isError
@@ -696,7 +876,7 @@ export function PostingConfig({
                             </p>
                         )}
 
-                        {selectedProduct[0] && !isError && article && (
+                        {selectedProduct && !isError && article && (
                             <p className="text-center text-[10px] text-slate-400 dark:text-slate-500">
                                 Akan diposting ke 1 produk
                             </p>
@@ -714,8 +894,6 @@ export function PostingConfig({
                     message={errorData.message}
                     errors={errorData.errors}
                     results={errorData.results}
-                    someFailed={errorData.someFailed}
-                    allFailed={errorData.allFailed}
                     onRetry={handleRetry}
                     onClose={handleCloseError}
                 />
