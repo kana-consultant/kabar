@@ -57,15 +57,15 @@ export function ProductList({ products, testingId, onTest, onEdit, onDelete }: P
                     </div>
 
                     <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2.5 mb-3">
-                        <p className="font-mono text-xs truncate text-slate-500 dark:text-slate-400" title={product.apiEndpoint}>
-                            {product.apiEndpoint}
+                        <p className="font-mono text-xs truncate text-slate-500 dark:text-slate-400" title={product.api_endpoint}>
+                            {product.api_endpoint}
                         </p>
                     </div>
 
                     <div className="flex justify-between text-xs text-slate-500 mb-4">
                         <span>Dibuat:</span>
                         <span className="font-medium text-slate-700 dark:text-slate-300">
-                            {new Date(product.createdAt).toLocaleDateString("id-ID")}
+                            {new Date(product.created_at).toLocaleDateString("id-ID")}
                         </span>
                     </div>
 
