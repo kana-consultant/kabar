@@ -35,6 +35,7 @@ type HistoryRepository interface {
 	GetByCreatedBy(ctx context.Context, createdBy string) ([]History, error)
 	GetByStatus(ctx context.Context, status string) ([]History, error)
 	GetRecentActivity(ctx context.Context, teamID string, limit int) ([]History, error)
+	GetAllPublished(ctx context.Context, filter HistoryFilter) (*paginate.PaginatedResult[History], error)
 
 	// Count
 	Count(ctx context.Context, query HistoryFilter) (int, error)

@@ -579,3 +579,55 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 
 	return histories, nil
 }
+
+func (r *HistoryRepository) GetAllPublished(
+	ctx context.Context,
+	filter history.HistoryFilter,
+) (*paginate.PaginatedResult[history.History], error) {
+
+	// Set default limit
+	if filter.Limit == 0 {
+		filter.Limit = 1000 // Atau sesuai kebutuhan
+	}
+
+	// Build query untuk ambil semua published
+	query := `
+		SELECT id, title, topic, article, image_url, target_products,
+			status, published_at, scheduled_for,
+			created_by, team_id, created_at, seo_score, keywords
+		FROM drafts
+		WHERE status = 'published'
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, filter.Limit, filter.Offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query published histories: %w", err)
+	}
+	defer rows.Close()
+
+	histories, err := r.scanHistory(rows)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan history: %w", err)
+	}
+
+	// Count total published
+	var totalItems int
+	countQuery := `SELECT COUNT(*) FROM drafts WHERE status = 'published'`
+	if err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalItems); err != nil {
+		return nil, fmt.Errorf("failed to count published histories: %w", err)
+	}
+
+	totalPages := int(math.Ceil(float64(totalItems) / float64(filter.Limit)))
+	currentPage := (filter.Offset / filter.Limit) + 1
+
+	return &paginate.PaginatedResult[history.History]{
+		Data:        histories,
+		TotalItems:  totalItems,
+		TotalPages:  totalPages,
+		CurrentPage: currentPage,
+		Limit:       filter.Limit,
+		Offset:      filter.Offset,
+	}, nil
+}
