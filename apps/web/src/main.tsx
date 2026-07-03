@@ -43,6 +43,7 @@ import CreateModelPage from "./pages/ai-management/Model/create";
 import EditModelPage from "./pages/ai-management/Model/[id]/edit";
 
 import { Outlet } from '@tanstack/react-router';
+import SitemapPage from "./pages/sitemap/Sitemap";
 
 // 1. Buat root route (tanpa layout)
 const rootRoute = createRootRoute({
@@ -148,6 +149,14 @@ const providerLayoutRoute = createRoute({
   path: '/provider',
 })
 
+
+// Provider Routes (nested under protected layout)
+const SitemapLayoutRoute = createRoute({
+  getParentRoute: () => protectedLayoutRoute,
+  path: '/sitemap',
+  component: SitemapPage,
+})
+
 const providerListRoute = createRoute({
   getParentRoute: () => providerLayoutRoute,
   path: '/',
@@ -215,6 +224,7 @@ const routeTree = rootRoute.addChildren([
     settingsRoute,
     scheduleRoute,
     aiManagementRoute,
+    SitemapLayoutRoute,
     // Provider routes
     providerLayoutRoute.addChildren([
       providerListRoute,

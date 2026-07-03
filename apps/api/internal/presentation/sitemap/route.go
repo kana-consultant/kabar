@@ -17,7 +17,7 @@ type Route struct {
 	permCache      *rbacCache.PermissionCache
 }
 
-func NewSitemapRoute(
+func NewRoute(
 	db *sql.DB,
 	chi chi.Router,
 	permCache *rbacCache.PermissionCache,

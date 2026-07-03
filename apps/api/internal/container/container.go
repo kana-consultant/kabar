@@ -30,6 +30,7 @@ import (
 	productHandler "seo-backend/internal/presentation/product"
 	providerHandler "seo-backend/internal/presentation/provider"
 	schemasHandler "seo-backend/internal/presentation/request_schema"
+	sitemapHandler "seo-backend/internal/presentation/sitemap"
 	teamHandler "seo-backend/internal/presentation/team"
 	userHandler "seo-backend/internal/presentation/user"
 
@@ -133,6 +134,7 @@ func NewContainer(
 		teamHandler.NewRoute(db, protected, emailService).SetupRoutes()
 		userHandler.NewRoute(db, protected, permCache).SetupRoutes()
 		apikeyHandler.NewRoute(db, protected).SetupRoutes()
+		sitemapHandler.NewRoute(db, protected, permCache, repoHistory).SetupRoute()
 		aimodelHandler.NewRoute(db, protected, redisClient).SetupRoute()
 		schemasHandler.NewRoute(db, protected, redisClient).SetupRoutes()
 		familiesHandler.NewRoute(db, protected, redisClient).SetupRoute()

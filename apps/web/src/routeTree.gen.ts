@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapRouteImport } from './routes/sitemap'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as RegisterRouteImport } from './routes/register'
@@ -32,6 +33,11 @@ import { Route as ProviderIdEditRouteImport } from './routes/provider.$id.edit'
 import { Route as ProductsIdEditRouteImport } from './routes/products.$id.edit'
 import { Route as ModelIdEditRouteImport } from './routes/model.$id.edit'
 
+const SitemapRoute = SitemapRouteImport.update({
+  id: '/sitemap',
+  path: '/sitemap',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/sitemap': typeof SitemapRoute
   '/model/$id': typeof ModelIdRouteWithChildren
   '/model/add': typeof ModelAddRoute
   '/products/add': typeof ProductsAddRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/sitemap': typeof SitemapRoute
   '/model/$id': typeof ModelIdRouteWithChildren
   '/model/add': typeof ModelAddRoute
   '/products/add': typeof ProductsAddRoute
@@ -207,6 +215,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/sitemap': typeof SitemapRoute
   '/model/$id': typeof ModelIdRouteWithChildren
   '/model/add': typeof ModelAddRoute
   '/products/add': typeof ProductsAddRoute
@@ -233,6 +242,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/schedule'
     | '/settings'
+    | '/sitemap'
     | '/model/$id'
     | '/model/add'
     | '/products/add'
@@ -257,6 +267,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/schedule'
     | '/settings'
+    | '/sitemap'
     | '/model/$id'
     | '/model/add'
     | '/products/add'
@@ -281,6 +292,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/schedule'
     | '/settings'
+    | '/sitemap'
     | '/model/$id'
     | '/model/add'
     | '/products/add'
@@ -306,10 +318,18 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ScheduleRoute: typeof ScheduleRoute
   SettingsRoute: typeof SettingsRoute
+  SitemapRoute: typeof SitemapRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap': {
+      id: '/sitemap'
+      path: '/sitemap'
+      fullPath: '/sitemap'
+      preLoaderRoute: typeof SitemapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -545,6 +565,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ScheduleRoute: ScheduleRoute,
   SettingsRoute: SettingsRoute,
+  SitemapRoute: SitemapRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
