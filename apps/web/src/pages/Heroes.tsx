@@ -55,7 +55,7 @@ export default function Heroes() {
                                 Kabar
                             </h1>
                         </div>
-                        <p className="text-xs text-purple-300/60 font-medium tracking-wide">Multi-Site Content Network</p>
+                        <p className="text-xs text-purple-300/60 font-medium tracking-wide">Kana Automation Builder for Article executoR</p>
                     </div>
                 </div>
 
