@@ -278,35 +278,6 @@ export function ProductForm({ isEdit, productId, initialData }: ProductFormProps
                     />
                 </div>
             </CollapsibleSection>
-
-            {/* Field Mapping Section */}
-            <CollapsibleSection
-                title="Tag Configuration"
-                description="SiteMap & Meta Tag"
-            >
-                <ProductFieldMapping
-                    domain={product?.api_endpoint as string || ""}
-                    metaConfig={(() => {
-                        try {
-                            return JSON.parse(product?.adapter_config?.meta_config || "{}");
-                        } catch (e) {
-                            return {};
-                        }
-                    })()}
-                    sitemapConfig={(() => {
-                        try {
-                            return JSON.parse(product?.adapter_config?.sitemap_config || "{}");
-                        } catch (e) {
-                            return {};
-                        }
-                    })()}
-                    onChange={(metaConfig, sitemapConfig) => {
-                        if (metaConfig) updateMetaConfig(JSON.stringify(metaConfig));
-                        if (sitemapConfig) updateSitemapConfig(JSON.stringify(sitemapConfig));
-                    }}
-                />
-            </CollapsibleSection>
-
             {/* Workflow Builder Section */}
             <CollapsibleSection
                 title="Workflow Builder"

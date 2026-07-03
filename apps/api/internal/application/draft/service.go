@@ -141,6 +141,9 @@ func (s *DraftServiceImpl) PublishDraft(
 		excerpt = req.Excerpt
 	}
 
+	// TAMBAHAN: Generate meta tags dan inject ke article
+	article = s.injectMetaTagsToArticle(article, title, topic, excerpt, *imageURL)
+
 	draftData.Title = title
 	draftData.Topic = topic
 	draftData.Article = article
@@ -234,6 +237,15 @@ func (s *DraftServiceImpl) PublishContent(
 
 	log.Println("VALIDATION SUCCESS")
 
+	// TAMBAHAN: Generate meta tags dan inject ke article
+	req.Article = s.injectMetaTagsToArticle(
+		req.Article,
+		req.Title,
+		req.Topic,
+		req.Excerpt,
+		*req.ImageURL,
+	)
+
 	// Prepare history request
 	historyReq := draft.PublishHistoryRequest{
 		Title:          req.Title,
@@ -255,7 +267,7 @@ func (s *DraftServiceImpl) PublishContent(
 	log.Printf("PROCESS FLAGS => someFailed=%v allFailed=%v", someFailed, allFailed)
 
 	// Determine status based on result
-	status := determinePublishStatus(someFailed, allFailed, err)
+	status := helper.DeterminePublishStatus(someFailed, allFailed, err)
 
 	// Insert history (always attempt, even on error)
 	historyErr := s.insertPublishHistory(ctx, historyReq, userCtx, status)
@@ -279,7 +291,7 @@ func (s *DraftServiceImpl) PublishContent(
 		SomeFailed: someFailed,
 		AllFailed:  allFailed,
 		Status:     status,
-		Message:    getStatusMessage(someFailed, allFailed),
+		Message:    helper.GetStatusMessage(someFailed, allFailed),
 	}
 
 	log.Printf("FINAL RESPONSE => %+v", finalResult)
@@ -288,26 +300,36 @@ func (s *DraftServiceImpl) PublishContent(
 	return finalResult, nil
 }
 
-// Helper function to determine publish status
-func determinePublishStatus(someFailed bool, allFailed bool, err error) string {
-	if err != nil || allFailed {
-		return "failed"
+// injectMetaTagsToArticle menambahkan meta tag ke dalam article HTML
+func (s *DraftServiceImpl) injectMetaTagsToArticle(
+	article string,
+	title string,
+	topic string,
+	excerpt string,
+	imageURL string,
+) string {
+	// Jika article kosong, return apa adanya
+	if article == "" {
+		return article
 	}
-	if someFailed {
-		return "partial"
-	}
-	return "published"
-}
 
-// Helper function to get status message
-func getStatusMessage(someFailed bool, allFailed bool) string {
-	if allFailed {
-		return "All products failed to publish"
+	// Generate meta tags
+	metaTags := helper.GenerateMetaTags(title, topic, excerpt, imageURL)
+
+	// Inject meta tags ke dalam <head> atau di awal article
+	// Cek apakah ada tag <head>
+	if strings.Contains(article, "<head>") {
+		// Inject setelah <head>
+		article = strings.Replace(article, "<head>", "<head>\n"+metaTags, 1)
+	} else if strings.Contains(article, "<html") {
+		// Inject setelah <html>
+		article = strings.Replace(article, "<html", "<html>\n<head>\n"+metaTags+"\n</head>", 1)
+	} else {
+		// Jika tidak ada struktur HTML, tambahkan di awal
+		article = "<!DOCTYPE html>\n<html>\n<head>\n" + metaTags + "\n</head>\n<body>\n" + article + "\n</body>\n</html>"
 	}
-	if someFailed {
-		return "Some products failed to publish"
-	}
-	return "All products published successfully"
+
+	return article
 }
 
 // Helper function to insert history with retry

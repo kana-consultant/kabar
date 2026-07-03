@@ -377,10 +377,3 @@ func safeJSON(b []byte) []byte {
 	escaped, _ := json.Marshal(string(b))
 	return escaped
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
