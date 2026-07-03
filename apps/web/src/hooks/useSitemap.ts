@@ -16,8 +16,6 @@ interface UseSitemapReturn {
     // Actions
     generateSitemap: (params: GenerateSitemapRequest) => Promise<void>;
     downloadSitemap: () => void;
-    fetchHistory: () => Promise<void>;
-    fetchProducts: () => Promise<void>;
     clearError: () => void;
     reset: () => void;
 }
@@ -38,7 +36,6 @@ export function useSitemap(): UseSitemapReturn {
         try {
             const data = await sitemapService.generateSitemap(params);
             setSitemapData(data);
-            await fetchHistory();
         } catch (err: any) {
             setError(err.message || "Failed to generate sitemap");
             setSitemapData(null);
@@ -53,19 +50,6 @@ export function useSitemap(): UseSitemapReturn {
         }
     }, [sitemapData]);
 
-    const fetchHistory = useCallback(async () => {
-        setIsHistoryLoading(true);
-        setError(null);
-
-        try {
-            const data = await sitemapService.getSitemapHistory();
-            setHistory(data);
-        } catch (err: any) {
-            setError(err.message || "Failed to fetch history");
-        } finally {
-            setIsHistoryLoading(false);
-        }
-    }, []);
 
     const fetchProducts = useCallback(async () => {
         setIsProductsLoading(true);
@@ -93,8 +77,7 @@ export function useSitemap(): UseSitemapReturn {
 
     useEffect(() => {
         fetchProducts();
-        fetchHistory();
-    }, [fetchProducts, fetchHistory]);
+    }, [fetchProducts]);
 
     return {
         isLoading,
@@ -106,8 +89,6 @@ export function useSitemap(): UseSitemapReturn {
         products,
         generateSitemap,
         downloadSitemap,
-        fetchHistory,
-        fetchProducts,
         clearError,
         reset,
     };

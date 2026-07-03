@@ -62,12 +62,9 @@ export default function SitemapPage() {
         isProductsLoading,
         error,
         sitemapData,
-        history,
-        isHistoryLoading,
         products,
         generateSitemap,
         downloadSitemap,
-        fetchHistory,
         clearError,
     } = useSitemap();
 
@@ -81,9 +78,6 @@ export default function SitemapPage() {
     const [isBaseURLManuallyEdited, setIsBaseURLManuallyEdited] = useState(false);
     const [showPlaceholderHelp, setShowPlaceholderHelp] = useState(false);
 
-    useEffect(() => {
-        fetchHistory();
-    }, [fetchHistory]);
 
     useEffect(() => {
         if (selectedProductId && products.length > 0 && !isBaseURLManuallyEdited) {
@@ -580,82 +574,6 @@ export default function SitemapPage() {
                     </CardContent>
                 </Card>
             )}
-
-            {/* History Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-slate-500" />
-                        Sitemap History
-                    </CardTitle>
-                    <CardDescription>Recent sitemap generation history</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {isHistoryLoading ? (
-                        <div className="space-y-3">
-                            <Skeleton className="h-16 w-full" />
-                            <Skeleton className="h-16 w-full" />
-                            <Skeleton className="h-16 w-full" />
-                        </div>
-                    ) : history.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500">
-                            <FileText className="h-12 w-12 mx-auto text-slate-300 mb-3" />
-                            <p>No sitemap history yet</p>
-                            <p className="text-sm">Generate your first sitemap above</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {history.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors"
-                                >
-                                    <div className="flex items-center gap-4 min-w-0 flex-1">
-                                        <div className="flex-shrink-0">
-                                            <FileText className="h-8 w-8 text-slate-400" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                                                    {item.title || "Sitemap Generation"}
-                                                </p>
-                                                <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium", getStatusColor(item.status))}>
-                                                    {getStatusIcon(item.status)}
-                                                    {item.status}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-4 mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                <span className="flex items-center gap-1">
-                                                    <Clock className="h-3 w-3" />
-                                                    {new Date(item.createdAt).toLocaleString()}
-                                                </span>
-                                                <span className="flex items-center gap-1">
-                                                    <FileText className="h-3 w-3" />
-                                                    {item.totalURLs} URLs
-                                                </span>
-                                                {item.productId && (
-                                                    <span className="flex items-center gap-1">
-                                                        <Package className="h-3 w-3" />
-                                                        {item.productName || item.productId}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                                        {item.sitemapURL && (
-                                            <Button variant="ghost" size="sm" onClick={() => window.open(item.sitemapURL, "_blank")} className="gap-1">
-                                                <ExternalLink className="h-3 w-3" />
-                                                <span className="hidden sm:inline">View</span>
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
         </div>
     );
 }

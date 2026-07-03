@@ -602,7 +602,7 @@ func (r *HistoryRepository) GetAllPublished(
 	argIndex := 1
 
 	// Base WHERE clause
-	whereClause := "status = 'published' AND deleted_at IS NULL"
+	whereClause := "status = 'published'"
 
 	// Jika ada ProductID, filter berdasarkan target_products (JSON array)
 	if filter.ProductID != "" {
