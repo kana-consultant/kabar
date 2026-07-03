@@ -4,7 +4,6 @@ import { Button } from "@kana-consultant/ui-kit";
 import { ProductBasicInfo } from "./ProductBasicInfo";
 import { ProductApiConfig } from "./ProductApiConfig";
 import { ProductFormActions } from "./ProductFormActions";
-import { ProductFieldMapping } from "@/pages/products/ProductFieldMapping";
 import { useProductForm } from "@/hooks/useProductForm";
 import {
     Dialog,
