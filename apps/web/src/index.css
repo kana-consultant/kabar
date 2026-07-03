@@ -1,4 +1,3 @@
-
 @import 'tailwindcss';
 @import '@kana-consultant/ui-kit/styles';
 @plugin "@tailwindcss/typography";
@@ -132,17 +131,61 @@
 @layer base {
     * {
         @apply border-border outline-ring/50;
+        box-sizing: border-box;
     }
-    body {
-        @apply bg-background text-foreground;
+    
+    *::before,
+    *::after {
+        box-sizing: border-box;
     }
+    
     html {
         @apply font-sans;
+        height: 100%;
+        /* DIPERBAIKI: Ubah overflow:hidden jadi overflow-y:auto agar bisa scroll */
+        overflow-y: auto; 
+        overflow-x: hidden;
     }
+    
+    body {
+        @apply bg-background text-foreground;
+        /* DIPERBAIKI: Hapus height:100% & overflow:hidden agar konten bisa mengalir ke bawah */
+        min-height: 100vh;
+        min-height: 100dvh;
+        position: relative;
+    }
+    
+    #root {
+        min-height: 100vh;
+        min-height: 100dvh;
+        position: relative;
+        /* DIPERBAIKI: Hapus overflow:hidden agar scroll bekerja */
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* --- PERBAIKAN AUTO-FILL BACKGROUND BROWSER (CHROME/EDGE) --- */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus, 
+    input:-webkit-autofill:active {
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: #ffffff !important; /* Warna teks saat terisi otomatis */
+        transition: background-color 5000s ease-in-out 0s !important;
+        box-shadow: inset 0 0 20px 20px rgba(0, 0, 0, 0) !important; /* Menyembunyikan background warna browser */
+        background-color: transparent !important;
+    }
+    
+    /* Pastikan di mode dark teks tidak berubah warna */
+    .dark input:-webkit-autofill,
+    .dark input:-webkit-autofill:hover, 
+    .dark input:-webkit-autofill:focus, 
+    .dark input:-webkit-autofill:active {
+        -webkit-text-fill-color: #ffffff !important;
+        caret-color: #ffffff !important; /* Warna kursor tetap putih */
+    }
+    /* --------------------------------------------------------- */
 }
-
-
-
 
 /* Keyframes for Custom Animations */
 @keyframes fadeIn {
@@ -192,3 +235,29 @@
     @apply bg-cyan-600;
 }
 
+/* Utility classes untuk mencegah overlap */
+@layer utilities {
+    .no-overlap {
+        isolation: isolate;
+    }
+    
+    .safe-area {
+        position: relative;
+        z-index: 1;
+    }
+
+    .full-height {
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
+        overflow: hidden;
+    }
+    
+    .scrollable-y {
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+}

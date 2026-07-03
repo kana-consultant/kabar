@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Rocket, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
-
-import { Button, Input, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Label } from '@kana-consultant/ui-kit';
+import { Rocket, Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, Zap, Globe, Calendar, BarChart3, Sparkles } from 'lucide-react';
+import { Button, Input, Label } from '@kana-consultant/ui-kit';
 import { useAuth } from '@/hooks/auth/useAuth';
+import AnimatedBackground from './AnimatedBackground';
+import Heroes from './Heroes';
+
+// Component untuk background animasi futuristik 3D Interaktif
+// Component untuk background animasi gerakan abstrak interaktif (Cosmic Flow)
+
 
 export default function Login() {
     const navigate = useNavigate();
@@ -15,11 +20,9 @@ export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Handler submit yang benar
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();        // ← Ini yang paling penting
-        e.stopPropagation();       // Tambahan pencegahan
-
+        e.preventDefault();
+        e.stopPropagation();
         setError('');
 
         if (!email || !password) {
@@ -30,13 +33,11 @@ export default function Login() {
         try {
             const response = await login(email, password);
             if (response) {
-                console.log(response)
-                console.log("dasdaf")
-                navigate({ to: "/dashboard" })
+                navigate({ to: '/dashboard' });
             }
         } catch (err: any) {
-
-        } finally {
+            setError(err?.message || 'Terjadi kesalahan saat login');
+        }finally{
             setIsLoading(false);
         }
     };
@@ -46,132 +47,181 @@ export default function Login() {
         navigate({ to: '/register' });
     };
 
-    // const goToForgotPassword = (e: React.MouseEvent) => {
-    //     e.preventDefault();
-    //     navigate({ to: "/forgot-password" });
-    // };
+    const isLoadingState = isLoading || authLoading;
 
-    const isLoadingState = isLoading 
+    const features = [
+        {
+            icon: Zap,
+            title: 'AI-Powered Content',
+            description: 'Generate artikel dan gambar berkualitas tinggi dengan AI.'
+        },
+        {
+            icon: Globe,
+            title: 'Multi-Platform Publish',
+            description: 'Terbitkan ke semua platform dalam satu klik.'
+        },
+        {
+            icon: Calendar,
+            title: 'Smart Scheduling',
+            description: 'Atur waktu terbit paling strategis secara otomatis.'
+        },
+        {
+            icon: BarChart3,
+            title: 'SEO & Analytics',
+            description: 'Optimasi SEO otomatis dan pantau performa konten.'
+        }
+    ];
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader className="space-y-1 text-center">
-                    <div className="flex justify-center mb-4">
-                        <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-cyan-500/25">
-                            <Rocket className="h-6 w-6 text-white" />
+        <div className="h-screen flex flex-col lg:flex-row overflow-hidden font-sans">
+            {/* HERO SECTION - LEFT SIDE */}
+            <Heroes />
+            {/* LOGIN FORM - RIGHT SIDE */}
+            <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-10 xl:p-12 overflow-y-auto bg-slate-50 dark:bg-[#080612]">
+                <div className="w-full max-w-md">
+                    {/* Mobile Logo Layout */}
+                    <div className="lg:hidden flex justify-center mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-purple-500/20 rounded-xl blur-lg" />
+                                <div className="relative h-11 w-11 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-xl">
+                                    <Rocket className="h-5 w-5 text-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-wide">Kabar</h1>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">AI Content Workspace</p>
+                            </div>
                         </div>
                     </div>
-                    <CardTitle className="text-2xl font-bold tracking-tight dark:bg-gradient-to-r dark:from-white dark:to-zinc-400 dark:bg-clip-text dark:text-transparent">
-                        Welcome Back
-                    </CardTitle>
-                    <CardDescription>
-                        Masuk ke akun Anda untuk melanjutkan
-                    </CardDescription>
-                </CardHeader>
 
-                {/* FORM DENGAN onSubmit */}
-                <form onSubmit={handleSubmit} noValidate>
-                    <CardContent className="space-y-4">
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1.5">
+                            <span className="bg-gradient-to-br from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                                Welcome Back
+                            </span>
+                        </h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+                            Masuk ke akun Anda untuk melanjutkan manajemen automasi
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} noValidate className="space-y-4.5">
                         {error && (
-                            <div className="flex items-start gap-3 rounded-md bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-600 dark:text-red-400">
-                                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                <span>{error}</span>
+                            <div className="flex items-start gap-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 p-4">
+                                <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0 text-red-600 dark:text-red-400" />
+                                <div className="flex-1">
+                                    <p className="text-sm font-semibold text-red-800 dark:text-red-300">Gagal masuk</p>
+                                    <p className="text-sm text-red-600 dark:text-red-400 mt-0.5">{error}</p>
+                                </div>
                             </div>
                         )}
 
-                        <div className="space-y-2">
-                            <Label htmlFor="email" className="text-slate-700 dark:text-zinc-400">Email</Label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-zinc-500" />
+                        {/* Email Field */}
+                        <div className="space-y-1.5">
+                            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                                Alamat Email
+                            </Label>
+                            <div className="relative group">
+                                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-purple-500 transition-colors duration-200">
+                                    <Mail className="h-4 w-4" />
+                                </div>
                                 <Input
                                     id="email"
                                     type="email"
-                                    placeholder="admin@seo.com"
+                                    placeholder="nama@perusahaan.com"
                                     value={email}
-                                    onChange={(e : any) => setEmail(e.target.value)}
-                                    className="pl-10 bg-white dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800 focus:border-cyan-500"
+                                    onChange={(e: any) => setEmail(e.target.value)}
+                                    className="pl-11 h-11 text-sm bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl transition-all duration-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
                                     disabled={isLoadingState}
                                     autoComplete="email"
+                                    required
                                 />
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="password" className="text-slate-700 dark:text-zinc-400">Password</Label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-zinc-500" />
+                        {/* Password Field */}
+                        <div className="space-y-1.5">
+                            <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                                Password
+                            </Label>
+                            <div className="relative group">
+                                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-purple-500 transition-colors duration-200">
+                                    <Lock className="h-4 w-4" />
+                                </div>
                                 <Input
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="••••••••"
                                     value={password}
-                                    onChange={(e : any) => setPassword(e.target.value)}
-                                    className="pl-10 pr-10 bg-white dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800 focus:border-cyan-500"
+                                    onChange={(e: any) => setPassword(e.target.value)}
+                                    className="pl-11 pr-12 h-11 text-sm bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl transition-all duration-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
                                     disabled={isLoadingState}
                                     autoComplete="current-password"
+                                    required
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                                     disabled={isLoadingState}
+                                    tabIndex={-1}
                                 >
                                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </button>
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm">
-                            <label className="flex items-center gap-2 cursor-pointer">
+                        {/* Remember Me */}
+                        <div className="flex items-center pt-0.5">
+                            <label className="flex items-center gap-2.5 cursor-pointer group">
                                 <input
                                     type="checkbox"
-                                    className="rounded border-slate-300 dark:border-zinc-700 accent-cyan-500"
+                                    className="h-4 w-4 rounded border-slate-300 dark:border-slate-800 text-purple-600 focus:ring-purple-500/20 transition-colors cursor-pointer"
                                     disabled={isLoadingState}
                                 />
-                                <span className="text-slate-600 dark:text-zinc-400">Ingat saya</span>
+                                <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">
+                                    Ingat saya di perangkat ini
+                                </span>
                             </label>
-                            {/* <button
-                                type="button"
-                                onClick={goToForgotPassword}
-                                className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 hover:underline transition-colors"
-                                disabled={isLoadingState}
-                            >
-                                Lupa password?
-                            </button> */}
                         </div>
-                    </CardContent>
 
-                    <CardFooter className="flex flex-col gap-4">
-                        <Button
-                            type="submit"
-                            className="w-full bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-medium shadow-lg shadow-cyan-500/25"
-                            disabled={isLoadingState}
-                        >
-                            {isLoadingState ? (
-                                <>
-                                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                    Memproses...
-                                </>
-                            ) : (
-                                'Masuk'
-                            )}
-                        </Button>
-
-                        <p className="text-center text-sm text-slate-600 dark:text-zinc-400">
-                            Belum punya akun?{' '}
-                            <button
-                                type="button"
-                                onClick={goToRegister}
-                                className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 hover:underline font-medium transition-colors"
+                        {/* Submit Actions */}
+                        <div className="pt-2 space-y-4">
+                            <Button
+                                type="submit"
+                                className="w-full h-11 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-semibold rounded-xl shadow-xl shadow-purple-500/10 hover:shadow-purple-500/20 transition-all duration-300 hover:scale-[1.01] disabled:opacity-50"
                                 disabled={isLoadingState}
                             >
-                                Daftar sekarang
-                            </button>
-                        </p>
-                    </CardFooter>
-                </form>
-            </Card>
+                                {isLoadingState ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                        <span>Memproses...</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                        <span>Masuk ke Workspace</span>
+                                        <ArrowRight className="h-4 w-4" />
+                                    </div>
+                                )}
+                            </Button>
+
+                            <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
+                                Belum punya akses?{' '}
+                                <button
+                                    type="button"
+                                    onClick={goToRegister}
+                                    className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-semibold hover:underline underline-offset-4 transition-all"
+                                    disabled={isLoadingState}
+                                >
+                                    Daftar sekarang
+                                </button>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     );
 }
