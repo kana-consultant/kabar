@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -51,7 +52,9 @@ func (r *RepositoryImpl) GetByID(
 		article, 
 		image_url, 
 		COALESCE(image_prompt, ''),
-		target_products
+		target_products,
+		slug,
+		excerpt
 	FROM drafts 
 	WHERE id = $1
 	`
@@ -64,6 +67,8 @@ func (r *RepositoryImpl) GetByID(
 		&d.ImageURL,
 		&d.ImagePrompt,
 		&targetProductsJSON,
+		&d.Slug,
+		&d.Excerpt,
 	)
 
 	if err != nil {
@@ -441,7 +446,32 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 	}
 	defer tx.Rollback()
 
-	// ✅ Fix: hapus duplikat excerpt, sesuaikan jumlah kolom & placeholder ($1-$14)
+	// Generate slug if not provided or generate from title
+	slug := req.Slug
+	if slug == "" {
+		slug = generateSlug(req.Title)
+		// Ensure unique slug
+		slug, err = r.generateUniqueSlug(ctx, slug, "")
+		if err != nil {
+			return "", fmt.Errorf("failed to generate unique slug: %w", err)
+		}
+	} else {
+		// Validate and clean provided slug
+		slug = cleanSlug(slug)
+		// Check if slug already exists
+		exists, err := r.slugExists(ctx, slug, "")
+		if err != nil {
+			return "", fmt.Errorf("failed to check slug existence: %w", err)
+		}
+		if exists {
+			// Make slug unique by adding suffix
+			slug, err = r.generateUniqueSlug(ctx, slug, "")
+			if err != nil {
+				return "", fmt.Errorf("failed to generate unique slug: %w", err)
+			}
+		}
+	}
+
 	query := `INSERT INTO drafts (
 		title, topic, article, image_url, image_prompt,
 		status, target_products, has_image, created_by, team_id, user_id, slug, excerpt, seo_score
@@ -453,7 +483,7 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 		ctx,
 		query,
 		req.Title, req.Topic, req.Article, req.ImageURL, req.ImagePrompt,
-		"draft", targetProductsJSON, req.HasImage, nullIfEmpty(userID), nullIfEmpty(teamID), nullIfEmpty(userID), req.Slug, req.Excerpt, req.SEOScore,
+		"draft", targetProductsJSON, req.HasImage, nullIfEmpty(userID), nullIfEmpty(teamID), nullIfEmpty(userID), slug, req.Excerpt, req.SEOScore,
 	).Scan(&draftID)
 
 	if err != nil {
@@ -503,6 +533,147 @@ func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftReques
 	}
 
 	return draftID, nil
+}
+
+// generateSlug generates a URL slug from title
+func generateSlug(title string) string {
+	if title == "" {
+		return "untitled"
+	}
+
+	// Convert to lowercase
+	slug := strings.ToLower(title)
+
+	// Replace spaces with hyphens
+	slug = strings.ReplaceAll(slug, " ", "-")
+
+	// Remove special characters, keep only alphanumeric and dash
+	var result strings.Builder
+	for _, ch := range slug {
+		if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' {
+			result.WriteRune(ch)
+		}
+	}
+
+	// Get the cleaned string
+	slug = result.String()
+
+	// Remove multiple consecutive dashes
+	re := regexp.MustCompile(`-+`)
+	slug = re.ReplaceAllString(slug, "-")
+
+	// Trim dashes from start and end
+	slug = strings.Trim(slug, "-")
+
+	// Limit length to 100 characters
+	if len(slug) > 100 {
+		slug = slug[:100]
+		// Trim any trailing dash after truncation
+		slug = strings.TrimSuffix(slug, "-")
+	}
+
+	return slug
+}
+
+// cleanSlug cleans and validates a slug
+func cleanSlug(slug string) string {
+	if slug == "" {
+		return "untitled"
+	}
+
+	// Convert to lowercase
+	slug = strings.ToLower(slug)
+
+	// Replace spaces and special chars with hyphens
+	re := regexp.MustCompile(`[^a-z0-9]+`)
+	slug = re.ReplaceAllString(slug, "-")
+
+	// Remove multiple consecutive dashes
+	re = regexp.MustCompile(`-+`)
+	slug = re.ReplaceAllString(slug, "-")
+
+	// Trim dashes from start and end
+	slug = strings.Trim(slug, "-")
+
+	// Limit length
+	if len(slug) > 100 {
+		slug = slug[:100]
+		slug = strings.TrimSuffix(slug, "-")
+	}
+
+	if slug == "" {
+		return "untitled"
+	}
+
+	return slug
+}
+
+// generateUniqueSlug generates a unique slug by adding a number suffix if needed
+func (r *RepositoryImpl) generateUniqueSlug(ctx context.Context, baseSlug, excludeID string) (string, error) {
+	slug := baseSlug
+	counter := 1
+
+	for {
+		exists, err := r.slugExists(ctx, slug, excludeID)
+		if err != nil {
+			return "", err
+		}
+
+		if !exists {
+			return slug, nil
+		}
+
+		// Add counter suffix
+		slug = fmt.Sprintf("%s-%d", baseSlug, counter)
+		counter++
+
+		// Safety limit to prevent infinite loop
+		if counter > 1000 {
+			return "", fmt.Errorf("unable to generate unique slug after 1000 attempts")
+		}
+	}
+}
+
+// slugExists checks if a slug already exists in drafts or published articles
+func (r *RepositoryImpl) slugExists(ctx context.Context, slug, excludeID string) (bool, error) {
+	var count int
+
+	query := `
+		SELECT COUNT(*) FROM drafts WHERE slug = $1
+	`
+	args := []interface{}{slug}
+
+	if excludeID != "" {
+		query += " AND id != $2"
+		args = append(args, excludeID)
+	}
+
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	if count > 0 {
+		return true, nil
+	}
+
+	// Also check published articles
+	query = `
+		SELECT COUNT(*) FROM articles WHERE slug = $1
+	`
+	args = []interface{}{slug}
+
+	if excludeID != "" {
+		query += " AND id != $2"
+		args = append(args, excludeID)
+	}
+
+	err = r.db.QueryRowContext(ctx, query, args...).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
 
 func (r *RepositoryImpl) Update(ctx context.Context, id string, TeamID string, data map[string]interface{}) error {

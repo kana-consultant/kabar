@@ -14,6 +14,16 @@ import {
     Skeleton,
     Alert,
     AlertDescription,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+    Badge,
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
 } from "@kana-consultant/ui-kit";
 import {
     Download,
@@ -26,18 +36,35 @@ import {
     Image,
     RefreshCw,
     Clock,
-    Link,
+    ExternalLink,
+    Package,
+    Pencil,
+    Info,
+    HelpCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+// Placeholder options
+const PLACEHOLDER_OPTIONS = [
+    { value: "{slug}", label: "{slug} - URL-friendly product name" },
+    { value: "{title}", label: "{title} - Product title" },
+    { value: "{id}", label: "{id} - Product ID" },
+    { value: "{category}", label: "{category} - Product category" },
+    { value: "{sku}", label: "{sku} - Product SKU" },
+    { value: "{date}", label: "{date} - Current date (YYYY-MM-DD)" },
+    { value: "{timestamp}", label: "{timestamp} - Unix timestamp" },
+];
+
 export default function SitemapPage() {
     const {
         isLoading,
+        isProductsLoading,
         error,
         sitemapData,
         history,
         isHistoryLoading,
+        products,
         generateSitemap,
         downloadSitemap,
         fetchHistory,
@@ -46,26 +73,56 @@ export default function SitemapPage() {
 
     const toast = useToast();
 
+    const [selectedProductId, setSelectedProductId] = useState<string>("");
     const [baseURL, setBaseURL] = useState("");
     const [includeImages, setIncludeImages] = useState(true);
     const [limit, setLimit] = useState<string>("0");
     const [copied, setCopied] = useState(false);
+    const [isBaseURLManuallyEdited, setIsBaseURLManuallyEdited] = useState(false);
+    const [showPlaceholderHelp, setShowPlaceholderHelp] = useState(false);
 
-    // Load history on mount
     useEffect(() => {
         fetchHistory();
     }, [fetchHistory]);
 
-    // Handle generate
+    useEffect(() => {
+        if (selectedProductId && products.length > 0 && !isBaseURLManuallyEdited) {
+            const selected = products.find(p => p.id === selectedProductId);
+            if (selected) {
+                // Gunakan template default dengan {slug}
+                const url = selected.api_endpoint || 
+                           selected.domain || 
+                           `https://${selected.name.toLowerCase().replace(/\s+/g, '-')}.com/{slug}`;
+                setBaseURL(url);
+            }
+        }
+    }, [selectedProductId, products, isBaseURLManuallyEdited]);
+
+    useEffect(() => {
+        setIsBaseURLManuallyEdited(false);
+    }, [selectedProductId]);
+
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!selectedProductId) {
+            toast.error("Please select a product");
+            return;
+        }
 
         if (!baseURL.trim()) {
             toast.error("Base URL is required");
             return;
         }
 
+        // Validasi placeholder
+        const hasPlaceholder = PLACEHOLDER_OPTIONS.some(opt => baseURL.includes(opt.value));
+        if (!hasPlaceholder) {
+            toast.warning("No placeholder detected. Consider using {slug} or {title} for dynamic URLs");
+        }
+
         await generateSitemap({
+            productId: selectedProductId,
             baseURL: baseURL.trim(),
             includeImages,
             limit: parseInt(limit) || 0,
@@ -74,30 +131,106 @@ export default function SitemapPage() {
         toast.success("Sitemap generated successfully!");
     };
 
-    // Handle copy URL
+    const handleBaseURLChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setBaseURL(e.target.value);
+        setIsBaseURLManuallyEdited(true);
+    };
+
     const handleCopyURL = () => {
         if (!sitemapData) return;
 
-        const sitemapURL = `${window.location.origin}/sitemap?base_url=${encodeURIComponent(baseURL)}`;
+        const sitemapURL = `${window.location.origin}/sitemap?product_id=${selectedProductId}&base_url=${encodeURIComponent(baseURL)}&include_images=${includeImages}`;
         navigator.clipboard.writeText(sitemapURL);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         toast.success("Sitemap URL copied!");
     };
 
-    // Handle download
     const handleDownload = () => {
         downloadSitemap();
         toast.success("Sitemap downloaded!");
     };
 
-    // Handle regenerate
     const handleRegenerate = () => {
         handleGenerate(new Event("submit") as any);
     };
 
+    const handleResetToDefault = () => {
+        setIsBaseURLManuallyEdited(false);
+        if (selectedProductId) {
+            const selected = products.find(p => p.id === selectedProductId);
+            if (selected) {
+                const url = selected.api_endpoint || 
+                           selected.domain || 
+                           `https://${selected.name.toLowerCase().replace(/\s+/g, '-')}.com/{slug}`;
+                setBaseURL(url);
+                toast.info("Base URL reset to product default");
+            }
+        }
+    };
+
+    const insertPlaceholder = (placeholder: string) => {
+        const input = document.getElementById('baseURL') as HTMLInputElement;
+        if (input) {
+            const start = input.selectionStart || 0;
+            const end = input.selectionEnd || 0;
+            const value = baseURL;
+            const newValue = value.substring(0, start) + placeholder + value.substring(end);
+            setBaseURL(newValue);
+            setIsBaseURLManuallyEdited(true);
+            
+            // Set cursor position after inserted placeholder
+            setTimeout(() => {
+                input.focus();
+                const newPosition = start + placeholder.length;
+                input.setSelectionRange(newPosition, newPosition);
+            }, 0);
+        } else {
+            // Fallback: append to end
+            setBaseURL(baseURL + placeholder);
+            setIsBaseURLManuallyEdited(true);
+        }
+    };
+
+    const getPlaceholderPreview = () => {
+        if (!baseURL) return null;
+        
+        const preview = baseURL
+            .replace(/{slug}/g, "product-name")
+            .replace(/{title}/g, "Product Title")
+            .replace(/{id}/g, "123")
+            .replace(/{category}/g, "electronics")
+            .replace(/{sku}/g, "SKU-001")
+            .replace(/{date}/g, new Date().toISOString().split('T')[0])
+            .replace(/{timestamp}/g, Date.now().toString());
+        
+        return preview;
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case "success":
+                return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+            case "failed":
+                return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+            default:
+                return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case "success":
+                return <Check className="h-3 w-3 mr-1" />;
+            case "failed":
+                return <AlertCircle className="h-3 w-3 mr-1" />;
+            default:
+                return <Loader2 className="h-3 w-3 mr-1 animate-spin" />;
+        }
+    };
+
     return (
-        <div className="container mx-auto py-6 space-y-6 max-w-5xl">
+        <div className="container space-y-6 max-w-full">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -132,34 +265,174 @@ export default function SitemapPage() {
                         Sitemap Configuration
                     </CardTitle>
                     <CardDescription>
-                        Enter your website base URL and configure sitemap options
+                        Select a product and configure sitemap options
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleGenerate} className="space-y-4">
+                        {/* Select Product */}
+                        <div className="space-y-2">
+                            <Label htmlFor="product">Select Product</Label>
+                            {isProductsLoading ? (
+                                <Skeleton className="h-10 w-full" />
+                            ) : (
+                                <Select
+                                    value={selectedProductId}
+                                    onValueChange={setSelectedProductId}
+                                >
+                                    <SelectTrigger id="product" className="w-full">
+                                        <SelectValue placeholder="Select a product..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {products.map((product) => (
+                                            <SelectItem key={product.id} value={product.id}>
+                                                <div className="flex items-center gap-2">
+                                                    <Package className="h-4 w-4" />
+                                                    <span>{product.name}</span>
+                                                    {product.domain && (
+                                                        <span className="text-xs text-slate-400">
+                                                            ({product.domain})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                            <p className="text-xs text-slate-400">
+                                Select a product to generate sitemap for its content
+                            </p>
+                        </div>
+
                         {/* Base URL */}
                         <div className="space-y-2">
-                            <Label htmlFor="baseURL">Base URL</Label>
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="baseURL" className="flex items-center gap-2">
+                                    Base URL Template
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <HelpCircle className="h-4 w-4 text-slate-400 cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-xs">
+                                                <p>Use placeholders for dynamic URLs. Example: https://domain.com/{'{slug}'}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </Label>
+                                {isBaseURLManuallyEdited && selectedProductId && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleResetToDefault}
+                                        className="h-6 text-xs gap-1 text-slate-500 hover:text-slate-700"
+                                    >
+                                        <RefreshCw className="h-3 w-3" />
+                                        Reset to default
+                                    </Button>
+                                )}
+                            </div>
                             <div className="relative">
                                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                                 <Input
                                     id="baseURL"
-                                    type="url"
-                                    placeholder="https://your-website.com"
+                                    type="text"
+                                    placeholder="https://your-website.com/{slug}"
                                     value={baseURL}
-                                    onChange={(e) => setBaseURL(e.target.value)}
-                                    className="pl-9"
+                                    onChange={handleBaseURLChange}
+                                    className={cn(
+                                        "pl-9 font-mono text-sm",
+                                        `${isBaseURLManuallyEdited && "border-amber-400 dark:border-amber-500"}`
+                                    )}
                                     required
                                 />
+                                {isBaseURLManuallyEdited && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        <Pencil className="h-4 w-4 text-amber-500" />
+                                    </div>
+                                )}
                             </div>
+                            
+                            {/* Placeholder Preview */}
+                            {baseURL && (
+                                <div className="mt-2 p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                                            <Info className="h-3 w-3" />
+                                            Preview
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setShowPlaceholderHelp(!showPlaceholderHelp)}
+                                            className="h-6 text-xs"
+                                        >
+                                            {showPlaceholderHelp ? "Hide placeholders" : "Show placeholders"}
+                                        </Button>
+                                    </div>
+                                    <code className="text-xs text-slate-700 dark:text-slate-300 break-all">
+                                        {getPlaceholderPreview()}
+                                    </code>
+                                </div>
+                            )}
+
+                            {/* Placeholder Buttons */}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {PLACEHOLDER_OPTIONS.map((opt) => (
+                                    <Button
+                                        key={opt.value}
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => insertPlaceholder(opt.value)}
+                                        className="h-7 text-xs font-mono gap-1"
+                                    >
+                                        {opt.value}
+                                        <Badge tone="neutral" className="text-[10px] h-4">
+                                            {opt.label.split(' - ')[1] || 'dynamic'}
+                                        </Badge>
+                                    </Button>
+                                ))}
+                            </div>
+
+                            {/* Placeholder Help */}
+                            {showPlaceholderHelp && (
+                                <div className="mt-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                    <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                                        Available Placeholders
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        {PLACEHOLDER_OPTIONS.map((opt) => (
+                                            <div key={opt.value} className="flex items-start gap-2 text-xs">
+                                                <code className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 rounded text-blue-800 dark:text-blue-300 font-mono">
+                                                    {opt.value}
+                                                </code>
+                                                <span className="text-blue-700 dark:text-blue-400">
+                                                    {opt.label.split(' - ')[1] || opt.label}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-2">
+                                        ℹ️ Placeholders will be replaced with actual data when generating the sitemap
+                                    </p>
+                                </div>
+                            )}
+
                             <p className="text-xs text-slate-400">
-                                Example: https://client.com (without trailing slash)
+                                {selectedProductId && !isBaseURLManuallyEdited
+                                    ? "Auto-filled from selected product (you can edit and use placeholders)"
+                                    : isBaseURLManuallyEdited
+                                        ? "✏️ Manually edited - use placeholders for dynamic content"
+                                        : "Use placeholders like {slug} or {title} for dynamic URLs"}
                             </p>
                         </div>
 
-                        {/* Options Row */}
+                        {/* Options */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Include Images */}
                             <div className="flex items-center space-x-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3">
                                 <Switch
                                     id="includeImages"
@@ -174,7 +447,6 @@ export default function SitemapPage() {
                                 </div>
                             </div>
 
-                            {/* Limit */}
                             <div className="flex items-center space-x-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3">
                                 <div className="flex items-center gap-2 flex-1">
                                     <FileText className="h-4 w-4 text-slate-400" />
@@ -194,11 +466,11 @@ export default function SitemapPage() {
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
+                        {/* Generate Button */}
                         <div className="flex flex-wrap gap-3 pt-2">
                             <Button
                                 type="submit"
-                                disabled={isLoading}
+                                disabled={isLoading || !selectedProductId}
                                 className="bg-green-600 hover:bg-green-700 dark:bg-purple-600 dark:hover:bg-purple-700"
                             >
                                 {isLoading ? (
@@ -231,7 +503,6 @@ export default function SitemapPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {/* Stats */}
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             <div className="rounded-lg bg-slate-50 dark:bg-white/[0.03] p-4 text-center">
                                 <p className="text-2xl font-bold text-slate-900 dark:text-white">
@@ -253,22 +524,35 @@ export default function SitemapPage() {
                             </div>
                         </div>
 
-                        {/* Actions */}
+                        <div className="rounded-lg bg-slate-50 dark:bg-white/[0.03] p-3 text-sm">
+                            <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4 text-slate-400" />
+                                <span className="font-medium text-slate-700 dark:text-slate-300">Product ID:</span>
+                                <span className="text-slate-600 dark:text-slate-400">
+                                    {sitemapData.productId || selectedProductId}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                                <Globe className="h-4 w-4 text-slate-400" />
+                                <span className="font-medium text-slate-700 dark:text-slate-300">Base URL Template:</span>
+                                <span className="text-slate-600 dark:text-slate-400 break-all font-mono">
+                                    {sitemapData.baseURL || baseURL}
+                                </span>
+                            </div>
+                            {baseURL && baseURL.includes('{') && (
+                                <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                                    <Info className="h-3 w-3" />
+                                    <span>Placeholders will be replaced with actual data</span>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-                            <Button
-                                variant="outline"
-                                onClick={handleDownload}
-                                className="gap-2"
-                            >
+                            <Button variant="outline" onClick={handleDownload} className="gap-2">
                                 <Download className="h-4 w-4" />
                                 Download Sitemap
                             </Button>
-
-                            <Button
-                                variant="outline"
-                                onClick={handleCopyURL}
-                                className="gap-2"
-                            >
+                            <Button variant="outline" onClick={handleCopyURL} className="gap-2">
                                 {copied ? (
                                     <>
                                         <Check className="h-4 w-4 text-green-600" />
@@ -281,25 +565,16 @@ export default function SitemapPage() {
                                     </>
                                 )}
                             </Button>
-
-                            <Button
-                                variant="outline"
-                                onClick={handleRegenerate}
-                                disabled={isLoading}
-                                className="gap-2"
-                            >
-                                <RefreshCw className={cn("h-4 w-4", `${isLoading && "animate-spin"}`)} />
+                            <Button variant="outline" onClick={handleRegenerate} disabled={isLoading} className="gap-2">
+                                <RefreshCw className={cn("h-4 w-4",`${ isLoading && "animate-spin"}`)} />
                                 Regenerate
                             </Button>
                         </div>
 
-                        {/* Preview */}
                         <div className="mt-4">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Sitemap URL:
-                            </p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Sitemap URL:</p>
                             <code className="block w-full rounded-lg bg-slate-100 dark:bg-slate-800 p-3 text-xs text-slate-600 dark:text-slate-300 break-all">
-                                {`${window.location.origin}/sitemap?base_url=${encodeURIComponent(baseURL)}&include_images=${includeImages}`}
+                                {`${window.location.origin}/sitemap?product_id=${selectedProductId}&base_url=${encodeURIComponent(baseURL)}&include_images=${includeImages}`}
                             </code>
                         </div>
                     </CardContent>
@@ -313,16 +588,14 @@ export default function SitemapPage() {
                         <Clock className="h-5 w-5 text-slate-500" />
                         Sitemap History
                     </CardTitle>
-                    <CardDescription>
-                        Recent sitemap generation history
-                    </CardDescription>
+                    <CardDescription>Recent sitemap generation history</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {isHistoryLoading ? (
                         <div className="space-y-3">
-                            <Skeleton className="h-12 w-full" />
-                            <Skeleton className="h-12 w-full" />
-                            <Skeleton className="h-12 w-full" />
+                            <Skeleton className="h-16 w-full" />
+                            <Skeleton className="h-16 w-full" />
+                            <Skeleton className="h-16 w-full" />
                         </div>
                     ) : history.length === 0 ? (
                         <div className="text-center py-8 text-slate-500">
@@ -331,61 +604,54 @@ export default function SitemapPage() {
                             <p className="text-sm">Generate your first sitemap above</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-slate-200 dark:border-slate-700">
-                                        <th className="text-left py-3 px-4 font-medium text-slate-500">Date</th>
-                                        <th className="text-left py-3 px-4 font-medium text-slate-500">URLs</th>
-                                        <th className="text-left py-3 px-4 font-medium text-slate-500">Status</th>
-                                        <th className="text-right py-3 px-4 font-medium text-slate-500">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {history.map((item) => (
-                                        <tr
-                                            key={item.id}
-                                            className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
-                                        >
-                                            <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                                                {new Date(item.createdAt).toLocaleString()}
-                                            </td>
-                                            <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                                                {item.totalURLs}
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <span
-                                                    className={cn(
-                                                        "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
-                                                        item.status === "success"
-                                                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                                                            : item.status === "failed"
-                                                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                                                : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                                                    )}
-                                                >
-                                                    {item.status === "success" && <Check className="h-3 w-3 mr-1" />}
-                                                    {item.status === "failed" && <AlertCircle className="h-3 w-3 mr-1" />}
+                        <div className="space-y-3">
+                            {history.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors"
+                                >
+                                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                                        <div className="flex-shrink-0">
+                                            <FileText className="h-8 w-8 text-slate-400" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                                                    {item.title || "Sitemap Generation"}
+                                                </p>
+                                                <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium", getStatusColor(item.status))}>
+                                                    {getStatusIcon(item.status)}
                                                     {item.status}
                                                 </span>
-                                            </td>
-                                            <td className="py-3 px-4 text-right">
-                                                {item.sitemapURL && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => window.open(item.sitemapURL, "_blank")}
-                                                        className="gap-1"
-                                                    >
-                                                        <Link className="h-3 w-3" />
-                                                        View
-                                                    </Button>
+                                            </div>
+                                            <div className="flex items-center gap-4 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                <span className="flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {new Date(item.createdAt).toLocaleString()}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <FileText className="h-3 w-3" />
+                                                    {item.totalURLs} URLs
+                                                </span>
+                                                {item.productId && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Package className="h-3 w-3" />
+                                                        {item.productName || item.productId}
+                                                    </span>
                                                 )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                                        {item.sitemapURL && (
+                                            <Button variant="ghost" size="sm" onClick={() => window.open(item.sitemapURL, "_blank")} className="gap-1">
+                                                <ExternalLink className="h-3 w-3" />
+                                                <span className="hidden sm:inline">View</span>
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </CardContent>

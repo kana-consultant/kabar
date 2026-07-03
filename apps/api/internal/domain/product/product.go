@@ -110,23 +110,24 @@ type AdapterConfig struct {
 }
 
 // Product struct utama
+
 type Product struct {
 	ID              string                      `json:"id"`
 	Name            string                      `json:"name"`
 	Platform        string                      `json:"platform"`
-	APIEndpoint     string                      `json:"apiEndpoint"`
-	APIKeyEncrypted string                      `json:"apiKey,omitempty"`
+	APIEndpoint     string                      `json:"api_endpoint"`
+	APIKeyEncrypted string                      `json:"api_key,omitempty"`
 	Status          ProductStatus               `json:"status"`
-	LastSync        *time.Time                  `json:"lastSync,omitempty"`
-	SyncStatus      SyncStatus                  `json:"syncStatus"`
-	CreatedBy       *string                     `json:"createdBy,omitempty"`
-	TeamID          *string                     `json:"teamId,omitempty"`
-	UserID          *string                     `json:"userId,omitempty"`
-	CreatedAt       time.Time                   `json:"createdAt"`
-	UpdatedAt       time.Time                   `json:"updatedAt"`
+	LastSync        *time.Time                  `json:"last_sync,omitempty"`
+	SyncStatus      SyncStatus                  `json:"sync_status"`
+	CreatedBy       *string                     `json:"created_by,omitempty"`
+	TeamID          *string                     `json:"team_id,omitempty"`
+	UserID          *string                     `json:"user_id,omitempty"`
+	CreatedAt       time.Time                   `json:"created_at"`
+	UpdatedAt       time.Time                   `json:"updated_at"`
 	WorkflowID      string                      `json:"workflow_id"`
-	AdapterConfig   *AdapterConfig              `json:"adapterConfig,omitempty"`
-	AdapterConfigs  []AdapterConfig             `json:"adapterConfigs,omitempty"`
+	AdapterConfig   *AdapterConfig              `json:"adapter_config,omitempty"`
+	AdapterConfigs  []AdapterConfig             `json:"adapter_configs,omitempty"`
 	Workflows       workflow.WorkflowDefinition `json:"workflows,omitempty"`
 }
 

@@ -51,8 +51,8 @@ func (r *HistoryRepository) Create(ctx context.Context, req draft.PublishHistory
         INSERT INTO drafts (
             id, title, topic, article, image_url, target_products,
             status, published_at,
-            created_by, team_id, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+            created_by, team_id, created_at,slug,excerpt
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11, $12)
         RETURNING id
     `
 
@@ -70,6 +70,8 @@ func (r *HistoryRepository) Create(ctx context.Context, req draft.PublishHistory
 		now,                // $8 - published_at
 		userID,             // $10 - created_by
 		teamID,             // $11 - team_id
+		req.Slug,           // $12 - slug
+		req.Excerpt,        // $13 - excerpt
 	).Scan(&draftID)
 	if err != nil {
 		return fmt.Errorf("failed to insert history: %w", err)
@@ -580,6 +582,9 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 	return histories, nil
 }
 
+// repositories/history_repository.go
+
+// GetAllPublished retrieves published histories with optional product filter
 func (r *HistoryRepository) GetAllPublished(
 	ctx context.Context,
 	filter history.HistoryFilter,
@@ -587,35 +592,93 @@ func (r *HistoryRepository) GetAllPublished(
 
 	// Set default limit
 	if filter.Limit == 0 {
-		filter.Limit = 1000 // Atau sesuai kebutuhan
+		filter.Limit = 1000
 	}
 
-	// Build query untuk ambil semua published
-	query := `
-		SELECT id, title, topic, article, image_url, target_products,
-			status, published_at, scheduled_for,
-			created_by, team_id, created_at, seo_score, keywords
-		FROM drafts
-		WHERE status = 'published'
-		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`
+	var query string
+	var countQuery string
+	var args []interface{}
+	var countArgs []interface{}
+	argIndex := 1
 
-	rows, err := r.db.QueryContext(ctx, query, filter.Limit, filter.Offset)
+	// Base WHERE clause
+	whereClause := "status = 'published' AND deleted_at IS NULL"
+
+	// Jika ada ProductID, filter berdasarkan target_products (JSON array)
+	if filter.ProductID != "" {
+		// PostgreSQL JSONB containment: @> berarti "contains"
+		// '["product-id"]' @> target_products
+		whereClause += fmt.Sprintf(` AND target_products @> $%d`, argIndex)
+		// Convert product ID ke JSON array format
+		productJSON := fmt.Sprintf(`["%s"]`, filter.ProductID)
+		args = append(args, productJSON)
+		countArgs = append(countArgs, productJSON)
+		argIndex++
+	}
+
+	// Search filter
+	if filter.Search != "" {
+		whereClause += fmt.Sprintf(` AND (title ILIKE $%d OR topic ILIKE $%d)`, argIndex, argIndex+1)
+		searchPattern := "%" + filter.Search + "%"
+		args = append(args, searchPattern, searchPattern)
+		countArgs = append(countArgs, searchPattern, searchPattern)
+		argIndex += 2
+	}
+
+	// Build main query dengan LIMIT & OFFSET
+	query = fmt.Sprintf(`
+		SELECT 
+			id, 
+			title, 
+			slug,
+			topic, 
+			article, 
+			excerpt,
+			image_url, 
+			image_prompt,
+			target_products, 
+			status, 
+			published_at, 
+			scheduled_for,
+			created_by, 
+			team_id, 
+			user_id,
+			has_image,
+			seo_score,
+			created_at
+		FROM drafts
+		WHERE %s
+		ORDER BY 
+			CASE 
+				WHEN published_at IS NOT NULL THEN published_at 
+				ELSE created_at 
+			END DESC,
+			created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, whereClause, argIndex, argIndex+1)
+
+	args = append(args, filter.Limit, filter.Offset)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query published histories: %w", err)
 	}
 	defer rows.Close()
 
-	histories, err := r.scanHistory(rows)
+	histories, err := r.scanHistoryPublished(rows)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan history: %w", err)
 	}
 
-	// Count total published
+	// Count total published dengan filter yang sama
+	countQuery = fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM drafts 
+		WHERE %s
+	`, whereClause)
+
 	var totalItems int
-	countQuery := `SELECT COUNT(*) FROM drafts WHERE status = 'published'`
-	if err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalItems); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&totalItems); err != nil {
 		return nil, fmt.Errorf("failed to count published histories: %w", err)
 	}
 
@@ -630,4 +693,73 @@ func (r *HistoryRepository) GetAllPublished(
 		Limit:       filter.Limit,
 		Offset:      filter.Offset,
 	}, nil
+}
+
+// scanHistory scans rows into History objects
+func (r *HistoryRepository) scanHistoryPublished(rows *sql.Rows) ([]history.History, error) {
+	var histories []history.History
+
+	for rows.Next() {
+		var h history.History
+		var imageURL, imagePrompt sql.NullString
+		var publishedAt, scheduledFor sql.NullTime
+		var targetProductsJSON []byte
+		var excerpt sql.NullString
+		var seoScore sql.NullInt32
+		var hasImage sql.NullBool
+		var userID sql.NullString
+		var teamID sql.NullString
+
+		err := rows.Scan(
+			&h.ID,
+			&h.Title,
+			&h.Slug,
+			&h.Topic,
+			&h.Content,
+			&excerpt,
+			&imageURL,
+			&imagePrompt,
+			&targetProductsJSON,
+			&h.Status,
+			&publishedAt,
+			&scheduledFor,
+			&h.CreatedBy,
+			&teamID,
+			&userID,
+			&hasImage,
+			&seoScore,
+			&h.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		// Set nullable fields
+		if imageURL.Valid {
+			h.ImageURL = &imageURL.String
+		}
+
+		if publishedAt.Valid {
+			h.PublishedAt = &publishedAt.Time
+		}
+
+		// Parse target products JSON
+		if len(targetProductsJSON) > 0 {
+			var targetProducts []string
+			if err := json.Unmarshal(targetProductsJSON, &targetProducts); err != nil {
+				// Log error but continue
+				log.Printf("Warning: failed to parse target_products JSON: %v", err)
+			} else {
+				h.TargetProducts = targetProducts
+			}
+		}
+
+		histories = append(histories, h)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return histories, nil
 }

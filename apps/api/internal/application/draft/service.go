@@ -165,6 +165,8 @@ func (s *DraftServiceImpl) PublishDraft(
 		TargetProducts: targetProducts,
 		Keywords:       draftData.Keywords,
 		SEOScore:       draftData.SEOScore,
+		Excerpt:        excerpt,
+		Slug:           draftData.Slug,
 	}
 
 	// Jika ada schedule

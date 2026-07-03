@@ -6,6 +6,7 @@ import (
 	sitemapService "seo-backend/internal/application/sitemap"
 	baseRoutes "seo-backend/internal/domain/base"
 	"seo-backend/internal/domain/history"
+	"seo-backend/internal/domain/product"
 	rbacCache "seo-backend/internal/infrastructure/db/repositories/rbac"
 
 	"github.com/go-chi/chi/v5"
@@ -22,11 +23,9 @@ func NewRoute(
 	chi chi.Router,
 	permCache *rbacCache.PermissionCache,
 	historyRepo history.HistoryRepository,
+	productRepo product.ProductRepository,
 ) *Route {
-	// Initialize service
-	service := sitemapService.NewSitemapService(historyRepo)
-
-	// Initialize handler
+	service := sitemapService.NewService(historyRepo, productRepo)
 	sitemapHandler := NewSitemapHandler(service)
 
 	return &Route{
@@ -43,12 +42,11 @@ func (r *Route) SetupRoute() chi.Router {
 	router := r.baseroute.CHI
 
 	router.Route("/sitemap", func(router chi.Router) {
-		// Public endpoint - no auth required (sitemap should be accessible)
-		// But we can add optional auth if needed
+		// Public endpoint - generate sitemap
 		router.Get("/", r.sitemapHandler.GenerateSitemap)
 
-		// If you want to protect it with auth, uncomment below:
-		// router.With(authmw.SitemapView(c)).Get("/", r.sitemapHandler.GenerateSitemap)
+		// Protected endpoint - get sitemap history
+		router.Get("/history", r.sitemapHandler.GetSitemapHistory)
 	})
 
 	return router

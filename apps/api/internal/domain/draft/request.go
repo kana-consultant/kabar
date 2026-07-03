@@ -49,4 +49,6 @@ type PublishHistoryRequest struct {
 	SEOScore       int
 	TargetProducts []string
 	Keywords       []string
+	Excerpt        string
+	Slug           string
 }

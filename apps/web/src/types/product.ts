@@ -19,6 +19,7 @@ export interface NestedMapping {
 export interface Product {
   id: string;
   name: string;
+  domain? : string;
   platform: 'wordpress' | 'shopify' | 'custom';
   api_endpoint: string;
   api_key?: string;

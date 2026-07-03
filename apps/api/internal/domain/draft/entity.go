@@ -41,6 +41,7 @@ type DraftData struct {
 	SEOScore       int      `json:"seo_score"`
 	Keywords       []string `json:"keywords,omitempty"` // Tambahkan ini
 	Excerpt        string   `json:"excerpt"`
+	Slug           string   `json:"slug"`
 }
 
 // draft/models.go
