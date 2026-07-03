@@ -497,13 +497,7 @@ export default function SitemapPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="rounded-lg bg-slate-50 dark:bg-white/[0.03] p-4 text-center">
-                                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                                    {sitemapData.totalURLs}
-                                </p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">Total URLs</p>
-                            </div>
+                        <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                             <div className="rounded-lg bg-slate-50 dark:bg-white/[0.03] p-4 text-center">
                                 <p className="text-2xl font-bold text-slate-900 dark:text-white">
                                     {new Date(sitemapData.generatedAt).toLocaleDateString()}
@@ -563,13 +557,6 @@ export default function SitemapPage() {
                                 <RefreshCw className={cn("h-4 w-4",`${ isLoading && "animate-spin"}`)} />
                                 Regenerate
                             </Button>
-                        </div>
-
-                        <div className="mt-4">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Sitemap URL:</p>
-                            <code className="block w-full rounded-lg bg-slate-100 dark:bg-slate-800 p-3 text-xs text-slate-600 dark:text-slate-300 break-all">
-                                {`${window.location.origin}/sitemap?product_id=${selectedProductId}&base_url=${encodeURIComponent(baseURL)}&include_images=${includeImages}`}
-                            </code>
                         </div>
                     </CardContent>
                 </Card>
