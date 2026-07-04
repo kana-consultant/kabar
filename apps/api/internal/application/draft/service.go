@@ -2,11 +2,15 @@
 package draft
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,11 +19,13 @@ import (
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
+	"seo-backend/internal/infrastructure/http/minio"
 	"seo-backend/internal/scheduler"
 
 	// "seo-backend/internal/helper"
 	"seo-backend/internal/models"
 
+	"github.com/google/uuid"
 	"golang.org/x/net/html"
 )
 
@@ -30,6 +36,7 @@ type DraftServiceImpl struct {
 	productController product.ProductService
 	productService    product.ProductRepository
 	postService       helper.PostService
+	minioClient       *minio.MinioService
 }
 
 func NewService(
@@ -39,6 +46,7 @@ func NewService(
 	productController product.ProductService,
 	productService product.ProductRepository,
 	postService helper.PostService,
+	minioClient *minio.MinioService,
 ) draft.Service {
 
 	return &DraftServiceImpl{
@@ -48,6 +56,7 @@ func NewService(
 		productController: productController,
 		productService:    productService,
 		postService:       postService,
+		minioClient:       minioClient,
 	}
 }
 
@@ -72,7 +81,7 @@ func (s *DraftServiceImpl) CreateDraft(ctx context.Context, req draft.CreateDraf
 
 // UpdateDraft implements draft.Service
 func (s *DraftServiceImpl) UpdateDraft(ctx context.Context, id string, TeamID string, updates map[string]interface{}) error {
-	data := prepareUpdateData(updates)
+	data := prepareUpdateData(updates, s.minioClient)
 
 	if len(data) == 0 {
 		return fmt.Errorf("no fields to update")
@@ -87,7 +96,64 @@ func (s *DraftServiceImpl) DeleteDraft(ctx context.Context, TeamID string, id st
 
 // GetDraftByID implements draft.Service
 func (s *DraftServiceImpl) GetDraftByID(ctx context.Context, id string) (*draft.DraftData, error) {
-	return s.repo.GetByID(ctx, id)
+	log.Printf("[INFO] GetDraftByID: %s", id)
+
+	draftData, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		log.Printf("[ERROR] GetDraftByID failed: %v", err)
+		return nil, err
+	}
+
+	// Refresh image_url
+	if draftData.ImageURL != nil && *draftData.ImageURL != "" {
+		log.Printf("[INFO] Refreshing image_url: %s", *draftData.ImageURL)
+		newURL, err := s.minioClient.GetURL(ctx, *draftData.ImageURL, 7*24*time.Hour)
+		if err != nil {
+			log.Printf("[ERROR] Failed to refresh image_url: %v", err)
+		} else {
+			log.Printf("[SUCCESS] image_url refreshed: %s", newURL)
+			*draftData.ImageURL = newURL
+		}
+	} else {
+		log.Println("[INFO] No image_url to refresh")
+	}
+
+	// Refresh semua <img> di article
+	if draftData.Article != "" {
+		log.Println("[INFO] Refreshing images in article...")
+
+		re := regexp.MustCompile(`<img[^>]+src="([^"]+)"`)
+		count := 0
+
+		draftData.Article = re.ReplaceAllStringFunc(draftData.Article, func(tag string) string {
+			reSrc := regexp.MustCompile(`src="([^"]+)"`)
+			match := reSrc.FindStringSubmatch(tag)
+			if len(match) < 2 {
+				log.Printf("[WARNING] Cannot extract src from tag: %s", tag[:min(50, len(tag))])
+				return tag
+			}
+
+			oldURL := match[1]
+			log.Printf("[INFO] Refreshing image #%d: %s", count+1, oldURL[:min(80, len(oldURL))])
+
+			newURL, err := s.minioClient.GetURL(ctx, oldURL, 7*24*time.Hour)
+			if err != nil {
+				log.Printf("[ERROR] Failed to refresh image #%d: %v", count+1, err)
+				return tag
+			}
+
+			count++
+			log.Printf("[SUCCESS] Image #%d refreshed", count)
+			return strings.Replace(tag, oldURL, newURL, 1)
+		})
+
+		log.Printf("[INFO] Refreshed %d images in article", count)
+	} else {
+		log.Println("[INFO] No article to refresh")
+	}
+
+	log.Printf("[SUCCESS] GetDraftByID completed: %s", id)
+	return draftData, nil
 }
 
 // PublishDraft implements draft.Service
@@ -537,7 +603,8 @@ func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, useRo
 }
 
 // Helper functions
-func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
+// Tambahkan parameter minioService
+func prepareUpdateData(updates map[string]interface{}, minioService *minio.MinioService) map[string]interface{} {
 	log.Println("========== PREPARE UPDATE DATA ==========")
 
 	fieldMap := map[string]string{
@@ -562,8 +629,49 @@ func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
 
 	log.Println("[INFO] Incoming Updates:")
 	for k, v := range updates {
-		log.Printf("  %s => %#v\n", k, v)
+		if k == "article" {
+			log.Printf("  %s => [LENGTH: %d chars]\n", k, len(v.(string)))
+		} else {
+			log.Printf("  %s => %#v\n", k, v)
+		}
 	}
+
+	// ========== PROSES IMAGES ==========
+	ctx := context.Background()
+
+	// Proses image_url
+	if imageURL, exists := updates["image_url"]; exists {
+		if imageURLStr, ok := imageURL.(string); ok {
+			if isBase64Image(imageURLStr) {
+
+				log.Println("[INFO] Detected base64 in image_url, uploading...")
+				uploadedURL, err := uploadBase64ToMinio(ctx, minioService, imageURLStr, "image_url")
+				if err != nil {
+					log.Printf("[ERROR] Failed to upload: %v", err)
+				} else {
+					log.Printf("[SUCCESS] Uploaded: %s", uploadedURL)
+					updates["image_url"] = uploadedURL
+				}
+			} else if strings.Contains(imageURLStr, minioService.Bucket) {
+
+				objectName := extractObjectName(imageURLStr)
+				log.Printf("[INFO] Extracted object name: %s", objectName)
+				updates["image_url"] = objectName
+			} else {
+				log.Printf("[INFO] Keeping original image_url")
+			}
+		}
+	}
+
+	// Proses article
+	if article, exists := updates["article"]; exists {
+		if articleStr, ok := article.(string); ok {
+			log.Printf("[INFO] Processing article images...")
+			processedArticle := processArticleImages(ctx, minioService, articleStr)
+			updates["article"] = processedArticle
+		}
+	}
+	// ========== END IMAGE PROCESSING ==========
 
 	data := make(map[string]interface{})
 
@@ -579,37 +687,176 @@ func prepareUpdateData(updates map[string]interface{}) map[string]interface{} {
 
 		log.Printf("[INFO] Mapped DB Field: %s", dbField)
 
-		if key == "target_products" { // lowercase!
+		if key == "target_products" {
 			log.Println("[INFO] Marshaling target_products to JSONB")
-
 			jsonValue, err := json.Marshal(value)
 			if err != nil {
-				log.Printf("[ERROR] Failed to marshal target_products: %v", err)
+				log.Printf("[ERROR] Failed to marshal: %v", err)
 				continue
 			}
-
-			log.Printf("[INFO] JSON Result: %s", string(jsonValue))
-
-			data[dbField] = jsonValue // atau string(jsonValue)
-
+			data[dbField] = jsonValue
 		} else {
-			log.Printf("[INFO] Assigning value to '%s'", dbField)
-			log.Printf("[INFO] Value Type: %T", value)
-			log.Printf("[INFO] Value: %#v", value)
+			log.Printf("[INFO] Assigning to '%s' [%T]", dbField, value)
 			data[dbField] = value
 		}
 	}
 
-	log.Println("==================================================")
-	log.Println("[INFO] Final Prepared Data:")
-	for k, v := range data {
-		log.Printf("  %s => %#v\n", k, v)
-	}
-
 	log.Println("[SUCCESS] prepareUpdateData completed")
-
 	return data
 }
+
+func processArticleImages(ctx context.Context, minioService *minio.MinioService, article string) string {
+	re := regexp.MustCompile(`<img[^>]+src="([^"]+)"`)
+
+	return re.ReplaceAllStringFunc(article, func(tag string) string {
+		reSrc := regexp.MustCompile(`src="([^"]+)"`)
+		match := reSrc.FindStringSubmatch(tag)
+		if len(match) < 2 {
+			return tag
+		}
+
+		oldURL := match[1]
+
+		// Base64 → Upload
+		if isBase64Image(oldURL) {
+			newURL, err := uploadBase64ToMinio(ctx, minioService, oldURL, "article_img")
+			if err != nil {
+				log.Printf("[ERROR] Failed to upload: %v", err)
+				return tag
+			}
+			log.Printf("[SUCCESS] Base64 uploaded: %s", newURL)
+			return strings.Replace(tag, oldURL, newURL, 1)
+		}
+
+		// URL Minio → Ambil object name
+		if strings.Contains(oldURL, minioService.Bucket) {
+			objectName := extractObjectName(oldURL)
+			log.Printf("[INFO] Extracted object name: %s", objectName)
+			return strings.Replace(tag, oldURL, objectName, 1)
+		}
+
+		// URL external → Biarkan
+		return tag
+	})
+}
+
+func extractObjectName(imageURL string) string {
+	parsedURL, err := url.Parse(imageURL)
+	if err != nil {
+		return imageURL
+	}
+
+	// /kabar-storage/blog-images/2026/07/05/uuid.jpg?X-Amz-...
+	// → blog-images/2026/07/05/uuid.jpg
+	path := strings.TrimPrefix(parsedURL.Path, "/")
+	parts := strings.SplitN(path, "/", 2) // ["kabar-storage", "blog-images/..."]
+
+	if len(parts) == 2 {
+		return parts[1]
+	}
+
+	return path
+}
+
+// Helper function: Proses semua base64 images di article
+func processArticleBase64Images(ctx context.Context, minioService *minio.MinioService, article string) (string, error) {
+	// Regex untuk mencari tag <img> dengan src base64
+	imgTagRegex := regexp.MustCompile(`<img[^>]+src="(data:image\/[^"]+)"[^>]*>`)
+	matches := imgTagRegex.FindAllStringSubmatch(article, -1)
+
+	log.Printf("[INFO] Found %d base64 images in article", len(matches))
+
+	processedArticle := article
+	for i, match := range matches {
+		fullTag := match[0]   // full <img ...> tag
+		base64Src := match[1] // hanya data:image... base64
+
+		log.Printf("[INFO] Processing article image %d/%d", i+1, len(matches))
+
+		// Upload ke Minio
+		uploadedURL, err := uploadBase64ToMinio(ctx, minioService, base64Src, fmt.Sprintf("article_img_%d", i))
+		if err != nil {
+			log.Printf("[ERROR] Failed to upload article image %d: %v", i, err)
+			continue
+		}
+
+		// Replace src di tag img
+		newTag := strings.Replace(fullTag, base64Src, uploadedURL, 1)
+		processedArticle = strings.Replace(processedArticle, fullTag, newTag, 1)
+		log.Printf("[SUCCESS] Replaced image %d with: %s", i+1, uploadedURL)
+	}
+
+	return processedArticle, nil
+}
+
+// Helper function: Cek apakah string adalah base64 image
+func isBase64Image(data string) bool {
+	base64Pattern := regexp.MustCompile(`^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,`)
+	return base64Pattern.MatchString(data)
+}
+
+// Helper function: Upload base64 image ke Minio
+func uploadBase64ToMinio(ctx context.Context, minioService *minio.MinioService, base64Data string, source string) (string, error) {
+	log.Printf("[INFO] Uploading base64 from %s to Minio", source)
+
+	re := regexp.MustCompile(`^data:(image\/[^;]+);base64,(.*)`)
+	matches := re.FindStringSubmatch(base64Data)
+	if len(matches) != 3 {
+		return "", fmt.Errorf("invalid base64 image format")
+	}
+
+	mimeType := matches[1]
+	base64String := matches[2]
+
+	imageData, err := base64.StdEncoding.DecodeString(base64String)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	ext := getExtensionFromMimeType(mimeType)
+	objectName := fmt.Sprintf("blog-images/%s/%s%s",
+		time.Now().Format("2006/01/02"),
+		uuid.New().String(),
+		ext,
+	)
+	log.Printf("[INFO] Object name: %s", objectName)
+
+	reader := bytes.NewReader(imageData)
+	uploadedResult, err := minioService.Upload(
+		ctx,
+		objectName,
+		reader,
+		int64(len(imageData)),
+		mimeType,
+	)
+	if err != nil {
+		log.Printf("[ERROR] Failed to upload to Minio: %v", err)
+		return "", fmt.Errorf("failed to upload image to Minio: %w", err)
+	}
+	log.Printf("[DEBUG] Minio upload result: %s", uploadedResult)
+
+	// 🔥 LANGSUNG RETURN PRESIGNED URL, JANGAN DI PARSE!
+	return uploadedResult, nil
+}
+
+// Helper function: Dapatkan extension dari MIME type
+func getExtensionFromMimeType(mimeType string) string {
+	switch mimeType {
+	case "image/png":
+		return ".png"
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	case "image/svg+xml":
+		return ".svg"
+	default:
+		return ".jpg"
+	}
+}
+
 func validatePublishRequest(req draft.DraftDataPost) error {
 	if req.Title == "" || req.Article == "" || len(req.TargetProducts) == 0 {
 		return fmt.Errorf("title, article, and target_products are required")

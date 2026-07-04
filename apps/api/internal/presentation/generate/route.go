@@ -2,7 +2,6 @@ package generate
 
 import (
 	"database/sql"
-	"log"
 	generateService "seo-backend/internal/application/generate"
 	"seo-backend/internal/config"
 	BaseRoutes "seo-backend/internal/domain/base"
@@ -20,26 +19,15 @@ type Route struct {
 	GenerateHandler GenerateHandler
 }
 
-func NewRoute(db *sql.DB, chi chi.Router, cfg *config.Config) *Route {
+func NewRoute(db *sql.DB, chi chi.Router, cfg *config.Config, minioClient *minio.MinioService) *Route {
 
 	promptBuilder := aiBuilder.NewPromptBuilder()
 	requestBuilder := aiBuilder.NewRequestBuilder()
 	responseParser := aiParser.NewResponseParser()
 	generateRepo := repositories.NewRepository(db)
 	client := client.NewHTTPClient()
-	minioStorage, err := minio.NewMinioService(
-		cfg.MinioEndpoint,
-		cfg.MinioPublicEndpoint,
-		cfg.MinioAccessKey,
-		cfg.MinioSecretKey,
-		cfg.MinioBucket,
-	)
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	generateService := generateService.NewService(generateRepo, client, minioStorage, promptBuilder, requestBuilder, responseParser)
+	generateService := generateService.NewService(generateRepo, client, minioClient, promptBuilder, requestBuilder, responseParser)
 	GenerateHandler := NewGenerateHandler(generateService)
 
 	return &Route{

@@ -2,6 +2,7 @@ package container
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"seo-backend/internal/helper"
 	"seo-backend/internal/infrastructure/db/repositories"
 	"seo-backend/internal/infrastructure/db/repositories/rbac"
+	"seo-backend/internal/infrastructure/http/minio"
 	auth "seo-backend/internal/middleware"
 	"seo-backend/internal/pkg/jwt"
 	"seo-backend/internal/scheduler"
@@ -116,9 +118,21 @@ func NewContainer(
 	scheduler.Start()
 	defer scheduler.Stop()
 
+	minioStorage, err := minio.NewMinioService(
+		cfg.MinioEndpoint,
+		cfg.MinioPublicEndpoint,
+		cfg.MinioAccessKey,
+		cfg.MinioSecretKey,
+		cfg.MinioBucket,
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	DraftRepo := repositories.NewDraftRepository(db, redisClient)
 	repoHistory := repositories.NewHistoryRepository(db, *redisClient)
-	DraftService := draft.NewService(DraftRepo, repoHistory, scheduler, productService, productRepo, *PostService)
+	DraftService := draft.NewService(DraftRepo, repoHistory, scheduler, productService, productRepo, *PostService, minioStorage)
 
 	// Protected routes
 	r.Route("/api/", func(protected chi.Router) {
@@ -127,7 +141,7 @@ func NewContainer(
 		authHandler.NewRoute(db, protected, jwtGenerator, permCache).AuthSettingRoute()
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
 		draftHandler.NewRoute(db, protected, permCache, DraftService).SetupRoutes()
-		generateHandler.NewRoute(db, protected, cfg).SetupRoutes()
+		generateHandler.NewRoute(db, protected, cfg, minioStorage).SetupRoutes()
 		historyHandler.NewHistoryRoute(db, protected, permCache, repoHistory).SetupRoute()
 		productHandler.NewRoute(db, protected, permCache, productService).SetupRoutes()
 		providerHandler.NewRoute(db, protected, redisClient).SetupRoutes()
