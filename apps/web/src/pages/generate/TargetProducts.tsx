@@ -41,7 +41,7 @@ export function TargetProducts({
                                 checked
                                     ? "border-green-200/80 bg-green-50 dark:border-purple-500/30 dark:bg-purple-500/10"
                                     : "border-slate-200/80 hover:bg-slate-50/80 dark:border-white/[0.06] dark:hover:bg-white/[0.03]",
-                                postToAll && "opacity-50 cursor-not-allowed"
+                                `${postToAll && "opacity-50 cursor-not-allowed"}`
                             )}
                         >
                             <div className={cn(

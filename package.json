@@ -8,6 +8,7 @@
 		"prepare": "husky"
 	},
 	"dependencies": {
-		"@kana-consultant/ui-kit": "^0.3.0"
+		"@kana-consultant/ui-kit": "^0.3.0",
+		"@tinymce/tinymce-react": "^6.3.0"
 	}
 }

@@ -1,5 +1,5 @@
 // components/Generate.tsx
-import { useState } from "react"; // 👈 PENTING: Import useState
+import { useState } from "react";
 import { GenerateHeader } from "./GenerateHeader";
 import { TopicInput } from "./TopicInput";
 import { PostingConfig } from "./PostingConfig";
@@ -42,13 +42,14 @@ export default function Generate() {
         onCloseError,
     } = useGenerate();
 
-    // 👇 STATE LOKAL: model khusus untuk generate gambar (step kedua, muncul jika autoGenerateImage true)
+    // STATE LOKAL: model khusus untuk generate gambar
     const [selectedImageModelId, setSelectedImageModelId] = useState("");
     const [imageModelError, setImageModelError] = useState(false);
 
-    // 👇 STATE KHUSUS UNTUK SINGLE SELECT
+    // STATE UNTUK ARTIKEL YANG SUDAH DIEDIT
+    const [editedArticle, setEditedArticle] = useState<string | null>(null);
 
-    // 👇 HANDLER UNTUK SINGLE SELECT
+    // HANDLER UNTUK SINGLE SELECT PRODUCT
     const handleSelectProduct = (productId: string | null) => {
         if (productId === null) {
             setSelectedProducts([]);
@@ -57,31 +58,43 @@ export default function Generate() {
         }
     };
 
-    // 👇 VALIDASI: kalau auto-generate gambar aktif, model image wajib sudah dipilih
+    // HANDLER UNTUK UPDATE ARTIKEL DARI PREVIEW
+    const handleArticleUpdate = async (newArticle: string) => {
+        console.log("Artikel diperbarui:", newArticle);
+        setEditedArticle(newArticle);
+        
+        // Jika ada draft ID, bisa juga langsung update ke backend
+        // if (currentDraftId) {
+        //   await updateDraft(currentDraftId, { article: newArticle });
+        // }
+        
+        return Promise.resolve();
+    };
+
+    // VALIDASI: kalau auto-generate gambar aktif, model image wajib dipilih
     const handleGenerateArticle = () => {
         if (autoGenerateImage && !selectedImageModelId) {
             setImageModelError(true);
             return;
         }
         setImageModelError(false);
-        // 👇 selectedImageModelId & autoGenerateImage diteruskan supaya generateArticle
-        // bisa langsung generate gambar-gambar di dalam artikel pakai model ini.
-        // NOTE: signature generateArticle() di useGenerate.ts perlu disesuaikan
-        // untuk menerima & menggunakan kedua argumen ini.
         generateArticle(autoGenerateImage, selectedImageModelId);
     };
 
-    // 👇 Toggle auto-generate gambar, sekaligus bersihkan error kalau dimatikan
+    // TOGGLE AUTO-GENERATE GAMBAR
     const handleToggleAutoGenerateImage = (value: boolean) => {
         setAutoGenerateImage(value);
         if (!value) setImageModelError(false);
     };
 
-    // 👇 Pilih model image, otomatis hapus error begitu user pilih sesuatu
+    // PILIH MODEL IMAGE
     const handleSelectImageModel = (modelId: string) => {
         setSelectedImageModelId(modelId);
         if (modelId) setImageModelError(false);
     };
+
+    // Gunakan artikel yang sudah diedit, atau artikel original
+    const currentArticle = editedArticle || article;
 
     if (productsLoading) {
         return (
@@ -132,7 +145,7 @@ export default function Generate() {
                         onGenerateArticle={handleGenerateArticle}
                         autoGenerateImage={autoGenerateImage}
                         setAutoGenerateImage={handleToggleAutoGenerateImage}
-                        article={article}
+                        article={currentArticle}
                     />
 
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -183,7 +196,7 @@ export default function Generate() {
                         products={products}
                         selectedProduct={selectedProducts[0]}
                         onSelectProduct={handleSelectProduct}
-                        article={article}
+                        article={currentArticle}
                         onPost={handlePost}
                         isPosting={isPosting}
                         isError={isError}
@@ -197,7 +210,7 @@ export default function Generate() {
 
             {/* Preview Section */}
             <PreviewSection
-                article={article}
+                article={currentArticle}
                 imageUrl={imageUrl}
                 hasImage={!loadingImage}
                 postMode={postMode}
@@ -205,8 +218,9 @@ export default function Generate() {
                 dailyTime={dailyTime}
                 scheduleDate={scheduleDate}
                 scheduleTime={scheduleTime}
-                selectedProductsCount={selectedProducts ? 1 : 0}
+                selectedProductsCount={selectedProducts.length}
                 autoGenerateImage={autoGenerateImage}
+                onArticleUpdate={handleArticleUpdate}
             />
 
             {/* Publish Result Dialog */}
