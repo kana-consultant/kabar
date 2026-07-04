@@ -53,7 +53,7 @@ export function ProductList({ products, testingId, onTest, onEdit, onDelete }: P
                                 {product.platform === "custom" && "Custom API"}
                             </p>
                         </div>
-                        {getStatusBadge(product.status)}
+                      
                     </div>
 
                     <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2.5 mb-3">

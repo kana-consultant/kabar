@@ -13,7 +13,9 @@ export default function Generate() {
     const {
         topic, setTopic,
         article,
+        setArticle,
         imageUrl,
+        setImageUrl,
         loadingArticle, loadingImage,
         selectedProducts, 
         setSelectedProducts,
@@ -62,6 +64,7 @@ export default function Generate() {
     const handleArticleUpdate = async (newArticle: string) => {
         console.log("Artikel diperbarui:", newArticle);
         setEditedArticle(newArticle);
+        setArticle(newArticle);
         
         // Jika ada draft ID, bisa juga langsung update ke backend
         // if (currentDraftId) {
@@ -70,6 +73,12 @@ export default function Generate() {
         
         return Promise.resolve();
     };
+
+    const handleImageUpload = async (base64Image: string) => {
+        console.log("Gambar diupload:", base64Image);
+        setImageUrl(base64Image);
+        return Promise.resolve();
+    }
 
     // VALIDASI: kalau auto-generate gambar aktif, model image wajib dipilih
     const handleGenerateArticle = () => {
@@ -221,6 +230,7 @@ export default function Generate() {
                 selectedProductsCount={selectedProducts.length}
                 autoGenerateImage={autoGenerateImage}
                 onArticleUpdate={handleArticleUpdate}
+                onImageUpload={handleImageUpload}
             />
 
             {/* Publish Result Dialog */}
