@@ -702,9 +702,10 @@ func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.
 
 	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(ctx, draftPost, userCtx)
 	log.Printf("IS ERROR,%v", err)
-
-	if err := s.repo.Delete(ctx, userCtx.GetTeamID(), id); err != nil {
-		log.Printf("Failed to delete draft: %v", err)
+	if !allFailed {
+		if err := s.repo.Delete(ctx, userCtx.GetTeamID(), id); err != nil {
+			log.Printf("Failed to delete draft: %v", err)
+		}
 	}
 
 	return &draft.PublishResult{

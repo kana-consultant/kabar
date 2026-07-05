@@ -11,9 +11,11 @@ import { handleAddKeyword, handleRemoveKeyword, handleProductToggle, handleSelec
 import { quickGenerate } from "./useQuickGenerate";
 import { closeResultDialog } from "./useDialogState";
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 
 export function useGenerate() {
     const toast = useToast();
+    const navigate = useNavigate();
     const location = useLocation();
     const searchParams = new URLSearchParams(location.search);
     const editId = searchParams.get("edit") || undefined;
@@ -191,9 +193,9 @@ export function useGenerate() {
                 result = await handlePostInstant();
             }
         } catch (error: any) {
-            console.log("Error saat posting:", error.response?.data || error.message || error);
             setIsError(true);
-            setErrorData(error.response?.data.results);
+            setErrorData(error.response?.data.data);
+
             toast.error("Terjadi kesalahan saat memposting. Silakan coba lagi.");
         } finally {
             setIsPosting(false);

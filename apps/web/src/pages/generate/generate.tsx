@@ -47,7 +47,7 @@ export default function Generate() {
         onCloseError,
     } = useGenerate();
 
-    console.log(keywords,excerpt,slug)
+    console.log(errorData)
 
     // STATE LOKAL: model khusus untuk generate gambar
     const [selectedImageModelId, setSelectedImageModelId] = useState("");
