@@ -551,6 +551,7 @@ export function PostingConfig({
     const isProductError = selectedProduct ? hasProductError(selectedProduct) : false;
 
     const handleShowError = () => {
+        console.log(errorData)
         if (errorData) setErrorModalOpen(true);
     };
 

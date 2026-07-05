@@ -164,156 +164,243 @@ func (s *DraftServiceImpl) PublishDraft(
 	userCtx models.UserContext,
 ) (*draft.PublishResult, error) {
 
-	log.Printf("[PublishDraft] START id=%s", id)
+	log.Printf("========== START PublishDraft ==========")
+	log.Printf("DRAFT_ID=%s TEAM_ID=%s USER_ID=%s", id, userCtx.GetTeamID(), userCtx.GetUserID())
 
+	// Get draft data from repository
+	log.Printf("Fetching draft data for ID: %s", id)
 	draftData, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		log.Printf("[PublishDraft] ERROR GetByID id=%s err=%v", id, err)
+		log.Printf("ERROR GetByID: %v", err)
 		return nil, err
 	}
+	log.Printf("SUCCESS GetByID for ID: %s", id)
 
-	log.Printf("[PublishDraft] SUCCESS GetByID id=%s", id)
+	// Log draft data with safe dereference
+	imageURLStr := "nil"
+	if draftData.ImageURL != nil {
+		imageURLStr = *draftData.ImageURL
+	}
 
-	// Log draft data untuk debugging
-	log.Printf("[PublishDraft] DRAFT_DATA id=%s title=%s topic=%s hasImage=%v imageURL=%v excerpt=%s slug=%s keywords=%v",
+	log.Printf("DRAFT_DATA => ID=%s Title=%s Topic=%s ImageURL=%s TargetProducts=%v keywords=%v slug=%s excerpt=%s",
 		id,
 		draftData.Title,
 		draftData.Topic,
-		draftData.ImageURL != nil,
-		func() string {
-			if draftData.ImageURL != nil {
-				return *draftData.ImageURL
-			}
-			return "nil"
-		}(),
-		draftData.Excerpt,
-		draftData.Slug,
+		imageURLStr,
+		draftData.TargetProducts,
 		draftData.Keywords,
+		draftData.Slug,
+		draftData.Excerpt,
 	)
 
 	// Fallback ke draftData jika req kosong
 	title := draftData.Title
 	if req.Title != "" {
 		title = req.Title
-		log.Printf("[PublishDraft] Using request title: %s", title)
+		log.Printf("Using request title: %s", title)
 	}
 
 	topic := draftData.Topic
 	if req.Topic != "" {
 		topic = req.Topic
-		log.Printf("[PublishDraft] Using request topic: %s", topic)
+		log.Printf("Using request topic: %s", topic)
 	}
 
 	article := draftData.Article
 	if req.Article != "" {
 		article = req.Article
-		log.Printf("[PublishDraft] Using request article (length: %d)", len(article))
+		log.Printf("Using request article (length: %d)", len(article))
 	}
 
+	// FIX: Safe handling imageURL
 	imageURL := draftData.ImageURL
 	if req.ImageURL != nil {
 		imageURL = req.ImageURL
-		log.Printf("[PublishDraft] Using request imageURL: %v", *imageURL)
+		log.Printf("Using request imageURL: %s", *imageURL)
 	}
 
+	// Safe handling imageURL for logging
+	var finalImageURLStr string
+	if imageURL != nil {
+		finalImageURLStr = *imageURL
+		log.Printf("IMAGE_URL from request: %s", finalImageURLStr)
+	} else {
+		finalImageURLStr = ""
+		log.Printf("WARNING: ImageURL is nil, using empty string")
+	}
+
+	// Safe handling targetProducts
 	targetProducts := draftData.TargetProducts
 	if len(req.TargetProducts) > 0 {
 		targetProducts = req.TargetProducts
-		log.Printf("[PublishDraft] Using request targetProducts: %v", targetProducts)
+		log.Printf("Using request targetProducts: %v", targetProducts)
+	}
+	if len(targetProducts) == 0 {
+		log.Printf("WARNING: TargetProducts is empty")
 	}
 
-	seoScore := draftData.SEOScore
-
+	// Safe handling excerpt
 	excerpt := draftData.Excerpt
 	if req.Excerpt != "" {
 		excerpt = req.Excerpt
-		log.Printf("[PublishDraft] Using request excerpt: %s", excerpt)
+		log.Printf("Using request excerpt: %s", excerpt)
+	}
+	if excerpt == "" {
+		log.Printf("WARNING: Excerpt is empty")
 	}
 
-	// FIX: Cek imageURL sebelum dereference
-	var imageURLStr string
-	if imageURL != nil {
-		imageURLStr = *imageURL
-		log.Printf("[PublishDraft] Image URL available: %s", imageURLStr)
-	} else {
-		imageURLStr = ""
-		log.Printf("[PublishDraft] WARNING: Image URL is nil, using empty string")
+	// Safe handling slug
+	slug := draftData.Slug
+	if slug == "" {
+		log.Printf("WARNING: Slug is empty")
 	}
 
-	// TAMBAHAN: Generate meta tags dan inject ke article
-	if imageURLStr != "" {
-		log.Printf("[PublishDraft] Injecting meta tags with image")
-		article = s.injectMetaTagsToArticle(article, title, topic, excerpt, imageURLStr)
-	} else {
-		log.Printf("[PublishDraft] Injecting meta tags without image")
-		article = s.injectMetaTagsToArticle(article, title, topic, excerpt, "")
+	// Safe handling keywords
+	keywords := draftData.Keywords
+	if len(keywords) == 0 {
+		log.Printf("WARNING: Keywords is empty")
 	}
 
+	// Cek jika article juga bisa kosong
+	if article == "" {
+		log.Printf("WARNING: Article is empty")
+	}
+
+	// Inject meta tags dengan safe imageURL
+	log.Printf("Injecting meta tags to article...")
+	article = s.injectMetaTagsToArticle(
+		article,
+		title,
+		topic,
+		excerpt,
+		finalImageURLStr, // Gunakan string, bukan pointer
+	)
+	log.Printf("Article injected successfully (length: %d)", len(article))
+
+	// Update draftData with all values
 	draftData.Title = title
 	draftData.Topic = topic
 	draftData.Article = article
 	draftData.ImageURL = imageURL
 	draftData.TargetProducts = targetProducts
-	draftData.SEOScore = seoScore
 	draftData.Excerpt = excerpt
+	// Keep existing SEOScore and Slug
 
-	log.Printf(
-		"[PublishDraft] FINAL_PAYLOAD id=%s title=%s topic=%s imageURL=%s target_products=%v excerpt=%s slug=%s keywords=%v",
-		id, title, topic, imageURLStr, targetProducts, excerpt, draftData.Slug, draftData.Keywords,
+	log.Printf("DRAFT_DATA updated: slug=%s keywords_count=%d products_count=%d",
+		slug,
+		len(keywords),
+		len(targetProducts),
 	)
 
+	// Prepare history request
 	historyReq := draft.PublishHistoryRequest{
 		Title:          title,
 		Topic:          topic,
 		Article:        article,
 		ImageURL:       imageURL,
 		TargetProducts: targetProducts,
-		Keywords:       draftData.Keywords,
+		Keywords:       keywords,
 		SEOScore:       draftData.SEOScore,
 		Excerpt:        excerpt,
-		Slug:           draftData.Slug,
+		Slug:           slug,
 	}
-
-	log.Printf("[PublishDraft] HISTORY_REQ prepared id=%s", id)
+	log.Printf("HISTORY_REQ prepared for ID: %s", id)
 
 	// Jika ada schedule
 	if req.ScheduledFor != "" {
-		log.Printf("[PublishDraft] SCHEDULE_MODE id=%s scheduledFor=%s", id, req.ScheduledFor)
+		log.Printf("SCHEDULE_MODE: scheduledFor=%s", req.ScheduledFor)
 
+		log.Printf("Calling scheduleDraft...")
 		result, err := s.scheduleDraft(ctx, id, req.ScheduledFor, draftData, userCtx)
 		if err != nil {
-			log.Printf("[PublishDraft] ERROR scheduleDraft id=%s err=%v", id, err)
+			log.Printf("ERROR scheduleDraft: %v", err)
+
+			// Log history failed
+			if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
+				log.Printf("ERROR InsertHistory(failed): %v", histErr)
+			}
+
 			return nil, err
 		}
 
-		log.Printf("[PublishDraft] SUCCESS scheduleDraft id=%s result=%+v", id, result)
+		// Log history scheduled
+		if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "scheduled"); histErr != nil {
+			log.Printf("ERROR InsertHistory(scheduled): %v", histErr)
+		} else {
+			log.Printf("SUCCESS InsertHistory(scheduled)")
+		}
+
+		log.Printf("SUCCESS scheduleDraft for ID: %s", id)
+		log.Printf("========== END PublishDraft ==========")
 		return result, nil
 	}
 
-	log.Printf("[PublishDraft] DIRECT_PUBLISH_MODE id=%s", id)
+	// DIRECT PUBLISH MODE
+	log.Printf("DIRECT_PUBLISH_MODE for ID: %s", id)
 
+	// Process publish
+	log.Printf("Calling processPublish...")
 	result, err := s.processPublish(ctx, draftData, id, userCtx)
+	if result.AllFailed {
+		log.Printf("ERROR processPublish: %v", err)
 
-	if err != nil {
-		log.Printf("[PublishDraft] ERROR processPublish id=%s err=%v", id, err)
-
-		if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
-			log.Printf("[PublishDraft] ERROR InsertHistory(failed) id=%s err=%v", id, histErr)
-		} else {
-			log.Printf("[PublishDraft] SUCCESS InsertHistory(failed) id=%s", id)
+		// Log history failed
+		historyReq := draft.PublishHistoryRequest{
+			Title:          req.Title,
+			Topic:          req.Topic,
+			Article:        article,
+			ImageURL:       req.ImageURL,
+			TargetProducts: req.TargetProducts,
+			Keywords:       keywords,
+			SEOScore:       0,
+			Excerpt:        excerpt,
+			Slug:           slug,
 		}
 
-		return nil, err
+		if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
+			log.Printf("ERROR InsertHistory(failed): %v", histErr)
+		}
+
+		return result, err
+	}
+
+	log.Printf("SUCCESS processPublish")
+
+	// Log history success
+	historyReq = draft.PublishHistoryRequest{
+		Title:          req.Title,
+		Topic:          req.Topic,
+		Article:        article,
+		ImageURL:       req.ImageURL,
+		TargetProducts: req.TargetProducts,
+		Keywords:       keywords,
+		SEOScore:       draftData.SEOScore,
+		Excerpt:        excerpt,
+		Slug:           slug,
 	}
 
 	if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "published"); histErr != nil {
-		log.Printf("[PublishDraft] ERROR InsertHistory(published) id=%s err=%v", id, histErr)
+		log.Printf("ERROR InsertHistory(published): %v", histErr)
 	} else {
-		log.Printf("[PublishDraft] SUCCESS InsertHistory(published) id=%s", id)
+		log.Printf("SUCCESS InsertHistory(published)")
 	}
 
-	log.Printf("[PublishDraft] COMPLETED id=%s", id)
+	log.Printf("========== END PublishContent ==========")
 	return result, nil
+}
+
+// Helper function untuk insert history
+func (s *DraftServiceImpl) insertHistory(
+	ctx context.Context,
+	historyReq draft.PublishHistoryRequest,
+	userCtx models.UserContext,
+	status string,
+) {
+	if err := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), status); err != nil {
+		log.Printf("[PublishDraft] ERROR InsertHistory(%s) slug=%s err=%v", status, historyReq.Slug, err)
+	} else {
+		log.Printf("[PublishDraft] SUCCESS InsertHistory(%s) slug=%s", status, historyReq.Slug)
+	}
 }
 
 // PublishContent implements draft.Service
@@ -427,7 +514,7 @@ func (s *DraftServiceImpl) PublishContent(
 	// Process publish
 	log.Printf("Calling processPublish...")
 	result, err := s.processPublish(ctx, draftData, "", userCtx)
-	if err != nil {
+	if result.AllFailed {
 		log.Printf("ERROR processPublish: %v", err)
 
 		// Log history failed
@@ -447,7 +534,7 @@ func (s *DraftServiceImpl) PublishContent(
 			log.Printf("ERROR InsertHistory(failed): %v", histErr)
 		}
 
-		return nil, err
+		return result, err
 	}
 
 	log.Printf("SUCCESS processPublish")
@@ -516,41 +603,6 @@ func (s *DraftServiceImpl) injectMetaTagsToArticle(
 	}
 
 	return article
-}
-
-// Helper function to insert history with retry
-func (s *DraftServiceImpl) insertPublishHistory(
-	ctx context.Context,
-	historyReq draft.PublishHistoryRequest,
-	userCtx models.UserContext,
-	status string,
-) error {
-	const maxRetries = 3
-
-	var lastErr error
-	for i := 0; i < maxRetries; i++ {
-		if i > 0 {
-			time.Sleep(time.Duration(i) * time.Second)
-		}
-
-		err := s.repoHistory.Create(
-			ctx,
-			historyReq,
-			userCtx.GetUserID(),
-			userCtx.GetTeamID(),
-			status,
-		)
-
-		if err == nil {
-			log.Printf("INSERT HISTORY SUCCESS (status=%s)", status)
-			return nil
-		}
-
-		lastErr = err
-		log.Printf("INSERT HISTORY ATTEMPT %d/%d FAILED: %v", i+1, maxRetries, err)
-	}
-
-	return fmt.Errorf("failed to insert history after %d attempts: %w", maxRetries, lastErr)
 }
 
 // ScheduleDraft implements draft.Service
