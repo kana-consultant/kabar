@@ -660,7 +660,7 @@ func (r *RepositoryImpl) slugExists(ctx context.Context, slug, excludeID string)
 	return count > 0, nil
 }
 
-func (r *RepositoryImpl) Update(ctx context.Context, id string, TeamID string, data map[string]interface{}) error {
+func (r *RepositoryImpl) Update(ctx context.Context, id string, TeamID string, data draft.CreateDraftRequest) error {
 	// Start transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -673,7 +673,7 @@ func (r *RepositoryImpl) Update(ctx context.Context, id string, TeamID string, d
 	}()
 
 	// Update draft
-	data["updated_at"] = helper.ParseWIBTime(time.Now().Format(time.RFC3339))
+	data.UpdateAt = helper.ParseWIBTime(time.Now().Format(time.RFC3339))
 
 	query, args, err := r.buildUpdateQuery(id, data)
 	if err != nil {
@@ -686,8 +686,8 @@ func (r *RepositoryImpl) Update(ctx context.Context, id string, TeamID string, d
 	}
 
 	// Handle keywords update if present in data
-	if kw, ok := data["keywords"]; ok {
-		if err := keywords.UpdateKeywords(ctx, tx, keywords.DraftSource{DraftID: id}, kw); err != nil {
+	if data.Keywords != nil {
+		if err := keywords.UpdateKeywords(ctx, tx, keywords.DraftSource{DraftID: id}, data.Keywords); err != nil {
 			return fmt.Errorf("failed to update keywords: %w", err)
 		}
 	}
@@ -780,54 +780,100 @@ func (r *RepositoryImpl) InsertScheduledDraft(ctx context.Context, req draft.Sch
 }
 
 // Helper methods
-func (r *RepositoryImpl) buildUpdateQuery(id string, data map[string]interface{}) (string, []interface{}, error) {
+func (r *RepositoryImpl) buildUpdateQuery(id string, data draft.CreateDraftRequest) (string, []interface{}, error) {
 	log.Println("========== BUILD UPDATE QUERY ==========")
 
-	if len(data) == 0 {
+	// Build update data directly
+	setClauses := make([]string, 0)
+	args := make([]interface{}, 0)
+	i := 1
+
+	// Helper function to add field
+	addField := func(column string, value interface{}) {
+		if value != nil {
+			// Skip empty strings for optional fields
+			if str, ok := value.(string); ok && str == "" {
+				return
+			}
+			// Skip zero time
+			if t, ok := value.(time.Time); ok && t.IsZero() {
+				return
+			}
+			// Handle pointer to string
+			if ptr, ok := value.(*string); ok && ptr != nil && *ptr != "" {
+				value = *ptr
+			}
+			// Handle pointer to time
+			if ptr, ok := value.(*time.Time); ok && ptr != nil && !(*ptr).IsZero() {
+				value = *ptr
+			}
+			// Handle bool (always include)
+			if _, ok := value.(bool); ok {
+				// Booleans are always included
+			}
+
+			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", column, i))
+			args = append(args, value)
+			i++
+		}
+	}
+
+	// Add all fields from CreateDraftRequest
+	addField("title", data.Title)
+	addField("topic", data.Topic)
+	addField("article", data.Article)
+	addField("image_url", data.ImageURL)
+	addField("image_prompt", data.ImagePrompt)
+	addField("slug", data.Slug)
+	addField("excerpt", data.Excerpt)
+	addField("status", data.Status)
+	addField("team_id", data.TeamID)
+	addField("user_id", data.UserID)
+	addField("created_by", data.CreatedBy)
+	addField("created_at", time.Now())
+
+	// Handle target_products (JSONB)
+	if len(data.TargetProducts) > 0 {
+		jsonValue, err := json.Marshal(data.TargetProducts)
+		if err != nil {
+			log.Printf("[ERROR] Failed to marshal target_products: %v", err)
+			return "", nil, fmt.Errorf("failed to marshal target_products: %w", err)
+		}
+		addField("target_products", jsonValue)
+	}
+
+	// Handle keywords (JSONB)
+	if len(data.Keywords) > 0 {
+		jsonValue, err := json.Marshal(data.Keywords)
+		if err != nil {
+			log.Printf("[ERROR] Failed to marshal keywords: %v", err)
+			return "", nil, fmt.Errorf("failed to marshal keywords: %w", err)
+		}
+		addField("keywords", jsonValue)
+	}
+
+	// Handle scheduled_for (string)
+	if data.ScheduledFor != "" {
+		addField("scheduled_for", data.ScheduledFor)
+	}
+
+	// Always update has_image, seo_score, and updated_at
+	addField("has_image", data.HasImage)
+	addField("seo_score", data.SEOScore)
+	addField("updated_at", time.Now())
+
+	// Check if we have any data to update
+	if len(setClauses) == 0 {
 		log.Println("[ERROR] No data to update")
 		return "", nil, fmt.Errorf("no data to update")
 	}
 
-	log.Printf("[INFO] Building UPDATE query for draft ID: %s", id)
-	log.Printf("[INFO] Number of fields to update: %d", len(data))
-
-	// Log semua data yang akan diupdate
-	log.Println("[INFO] Data to update:")
-	for column, value := range data {
-		log.Printf("  %s => %#v (type: %T)", column, value, value)
-	}
-
-	setClauses := make([]string, 0, len(data))
-	args := make([]interface{}, 0, len(data)+1)
-	i := 1
-
-	for column, value := range data {
-		log.Printf("[INFO] Processing column: %s, value: %#v (type: %T)", column, value, value)
-
-		// 🔥 CEK KHUSUS: Jika value adalah slice, log warning
-		if isSlice(value) {
-			log.Printf("[WARNING] Column '%s' contains a slice/array! This might cause SQL error if column doesn't support array type.", column)
-			log.Printf("[WARNING] Slice content: %#v", value)
-		}
-
-		// 🔥 CEK KHUSUS: Jika value adalah JSON bytes
-		if isJSONBytes(value) {
-			log.Printf("[INFO] Column '%s' contains JSON bytes, will be stored as JSONB", column)
-		}
-
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", column, i))
-		args = append(args, value)
-		log.Printf("[INFO] Added to SET clause: %s = $%d", column, i)
-		i++
-	}
-
+	// Add WHERE clause
 	args = append(args, id)
-	log.Printf("[INFO] Added WHERE clause: id = $%d", i)
 
 	query := fmt.Sprintf("UPDATE drafts SET %s WHERE id = $%d",
 		strings.Join(setClauses, ", "), i)
 
-	log.Println("==================================================")
 	log.Printf("[INFO] Generated Query: %s", query)
 	log.Printf("[INFO] Query Arguments: %+v", args)
 
@@ -838,9 +884,38 @@ func (r *RepositoryImpl) buildUpdateQuery(id string, data map[string]interface{}
 	}
 
 	log.Println("[SUCCESS] buildUpdateQuery completed")
-	log.Println("==================================================")
-
 	return query, args, nil
+}
+
+// Helper function to validate column names (prevent SQL injection)
+func isValidColumnName(column string) bool {
+	// List of allowed column names
+	allowedColumns := map[string]bool{
+		"id":              true,
+		"title":           true,
+		"topic":           true,
+		"article":         true,
+		"image_url":       true,
+		"image_prompt":    true,
+		"slug":            true,
+		"target_products": true,
+		"status":          true,
+		"scheduled_for":   true,
+		"has_image":       true,
+		"excerpt":         true,
+		"team_id":         true,
+		"user_id":         true,
+		"created_by":      true,
+		"created_at":      true,
+		"updated_at":      true,
+	}
+
+	// Allow only alphanumeric characters and underscores
+	if !regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`).MatchString(column) {
+		return false
+	}
+
+	return allowedColumns[column]
 }
 
 // Helper function untuk cek apakah value adalah slice/array

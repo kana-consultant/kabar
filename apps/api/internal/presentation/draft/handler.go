@@ -206,16 +206,23 @@ func (h *DraftHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *DraftHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	teamID := auth.GetUserContext(r).GetTeamID()
+	userID := auth.GetUserContext(r).GetUserID()
 	id := chi.URLParam(r, "id")
 
-	var updates map[string]interface{}
+	// Decode request body ke CreateDraftRequest
+	var updates draft.CreateDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		log.Printf("[ERROR] Invalid request body: %v", err)
 		writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 
-	if err := h.draftService.UpdateDraft(ctx, id, teamID, updates); err != nil {
+	// Set team_id dan user_id dari context
+	updates.TeamID = teamID
+	updates.UserID = userID
+
+	// Panggil service dengan CreateDraftRequest
+	if err := h.draftService.UpdateDraft(ctx, id, userID, teamID, updates); err != nil {
 		log.Printf("[ERROR] Failed to update draft: %v", err)
 		writeErrorResponse(w, http.StatusInternalServerError, "Failed to update draft", err)
 		return

@@ -14,7 +14,7 @@ type Repository interface {
 	GetAll(ctx context.Context, filter models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
 	GetDashboardStats(ctx context.Context, filter models.UserContext) (*DraftStats, error)
 	Create(ctx context.Context, req CreateDraftRequest, userID, teamID string) (string, error)
-	Update(ctx context.Context, TeamID string, id string, data map[string]interface{}) error
+	Update(ctx context.Context, TeamID string, id string, data CreateDraftRequest) error
 	UpdateStatus(ctx context.Context, id string, status string, scheduledFor *time.Time) error
 	Delete(ctx context.Context, TeamID string, id string) error
 	InsertScheduledDraft(ctx context.Context, req ScheduleRequest, scheduledFor time.Time, teamID, userID string) (string, error)
