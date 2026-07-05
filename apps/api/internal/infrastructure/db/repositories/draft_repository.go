@@ -131,7 +131,7 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, filter models.UserContext, 
 	}
 
 	// Combine WHERE
-	fullWhere := whereClause + searchClause + " AND status != 'scheduled' AND status != 'published'"
+	fullWhere := whereClause + searchClause + " AND status != 'scheduled' AND status != 'failed' AND status != 'published'"
 
 	// Count query
 	var totalItems int
