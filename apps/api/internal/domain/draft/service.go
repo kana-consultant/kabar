@@ -17,7 +17,7 @@ type Service interface {
 	GetAllScheduled(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
 	// Publishing
 	PublishDraft(ctx context.Context, id string, req CreateDraftRequest, userContext models.UserContext) (*PublishResult, error)
-	PublishContent(ctx context.Context, req DraftDataPost, userCtx models.UserContext) (*PublishResult, error)
+	PublishContent(ctx context.Context, req CreateDraftRequest, userCtx models.UserContext) (*PublishResult, error)
 
 	// Scheduling
 	ScheduleDraft(ctx context.Context, req ScheduleRequest, userCtx models.UserContext) (string, error)

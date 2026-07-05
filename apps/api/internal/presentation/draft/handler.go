@@ -291,7 +291,7 @@ func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	log.Printf("RAW BODY: %s\n", string(bodyBytes))
 	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-	var req draft.DraftDataPost
+	var req draft.CreateDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("Failed decode request body: %v\n", err)
 		writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)

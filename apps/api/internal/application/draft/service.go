@@ -319,93 +319,171 @@ func (s *DraftServiceImpl) PublishDraft(
 // PublishContent implements draft.Service
 func (s *DraftServiceImpl) PublishContent(
 	ctx context.Context,
-	req draft.DraftDataPost,
+	req draft.CreateDraftRequest,
 	userCtx models.UserContext,
 ) (*draft.PublishResult, error) {
 
-	log.Println("========== START PublishContent ==========")
-
+	log.Printf("========== START PublishContent ==========")
 	log.Printf("REQUEST TEAM_ID=%s USER_ID=%s", userCtx.GetTeamID(), userCtx.GetUserID())
 
-	log.Printf(
-		"REQUEST DATA => Title=%s Topic=%s ImageURL=%v TargetProducts=%v keywords=%v",
+	// Log request data dengan safe dereference
+	imageURLStr := "nil"
+	if req.ImageURL != nil {
+		imageURLStr = *req.ImageURL
+	}
+
+	log.Printf("REQUEST DATA => Title=%s Topic=%s ImageURL=%s TargetProducts=%v keywords=%v slug=%s excerpt=%s",
 		req.Title,
 		req.Topic,
-		req.ImageURL,
+		imageURLStr,
 		req.TargetProducts,
 		req.Keywords,
+		req.Slug,
+		req.Excerpt,
 	)
 
-	// Validasi request
-	if err := validatePublishRequest(req); err != nil {
-		log.Printf("VALIDATION ERROR => %v", err)
-		log.Println("========== END PublishContent ==========")
+	// Validasi basic
+	if req.Title == "" {
+		log.Printf("VALIDATION ERROR: Title is empty")
+		return nil, fmt.Errorf("title is required")
+	}
+	if req.Topic == "" {
+		log.Printf("VALIDATION ERROR: Topic is empty")
+		return nil, fmt.Errorf("topic is required")
+	}
+
+	log.Printf("VALIDATION SUCCESS")
+
+	// FIX: Safe handling imageURL
+	var articleImageURL string
+	if req.ImageURL != nil {
+		articleImageURL = *req.ImageURL
+		log.Printf("IMAGE_URL from request: %s", articleImageURL)
+	} else {
+		articleImageURL = ""
+		log.Printf("WARNING: ImageURL is nil, using empty string")
+	}
+
+	// Safe handling excerpt
+	excerpt := req.Excerpt
+	if excerpt == "" {
+		log.Printf("WARNING: Excerpt is empty")
+	}
+
+	// Safe handling slug
+	slug := req.Slug
+	if slug == "" {
+		log.Printf("WARNING: Slug is empty, generating from title")
+		slug = s.generateSlug(req.Title)
+	}
+
+	// Safe handling keywords
+	keywords := req.Keywords
+	if len(keywords) == 0 {
+		log.Printf("WARNING: Keywords is empty")
+	}
+
+	// BARIS 354: Kemungkinan error disini - injectMetaTagsToArticle dengan imageURL
+	// FIX: Gunakan articleImageURL yang sudah di-safe
+	log.Printf("Generating article with meta tags...")
+	article := req.Article
+
+	// Cek jika article juga bisa kosong
+	if article == "" {
+		log.Printf("WARNING: Article is empty")
+	}
+
+	// Inject meta tags dengan safe imageURL
+	article = s.injectMetaTagsToArticle(
+		article,
+		req.Title,
+		req.Topic,
+		excerpt,
+		articleImageURL, // Gunakan string, bukan pointer
+	)
+
+	log.Printf("Article generated successfully (length: %d)", len(article))
+
+	// Create draft data untuk dipublish
+	draftData := &draft.DraftData{
+		Title:          req.Title,
+		Topic:          req.Topic,
+		Article:        article,
+		ImageURL:       req.ImageURL,
+		ImagePrompt:    req.ImagePrompt,
+		TargetProducts: req.TargetProducts,
+		Keywords:       keywords,
+		Slug:           slug,
+		Excerpt:        excerpt,
+		SEOScore:       0, // Akan dihitung ulang
+	}
+
+	log.Printf("DRAFT_DATA created: slug=%s keywords_count=%d products_count=%d",
+		slug,
+		len(keywords),
+		len(req.TargetProducts),
+	)
+
+	// Process publish
+	log.Printf("Calling processPublish...")
+	result, err := s.processPublish(ctx, draftData, "", userCtx)
+	if err != nil {
+		log.Printf("ERROR processPublish: %v", err)
+
+		// Log history failed
+		historyReq := draft.PublishHistoryRequest{
+			Title:          req.Title,
+			Topic:          req.Topic,
+			Article:        article,
+			ImageURL:       req.ImageURL,
+			TargetProducts: req.TargetProducts,
+			Keywords:       keywords,
+			SEOScore:       0,
+			Excerpt:        excerpt,
+			Slug:           slug,
+		}
+
+		if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
+			log.Printf("ERROR InsertHistory(failed): %v", histErr)
+		}
+
 		return nil, err
 	}
 
-	log.Println("VALIDATION SUCCESS")
+	log.Printf("SUCCESS processPublish")
 
-	// TAMBAHAN: Generate meta tags dan inject ke article
-	req.Article = s.injectMetaTagsToArticle(
-		req.Article,
-		req.Title,
-		req.Topic,
-		req.Excerpt,
-		*req.ImageURL,
-	)
-
-	// Prepare history request
+	// Log history success
 	historyReq := draft.PublishHistoryRequest{
 		Title:          req.Title,
 		Topic:          req.Topic,
-		Article:        req.Article,
+		Article:        article,
 		ImageURL:       req.ImageURL,
 		TargetProducts: req.TargetProducts,
-		Keywords:       req.Keywords,
+		Keywords:       keywords,
+		SEOScore:       draftData.SEOScore,
+		Excerpt:        excerpt,
+		Slug:           slug,
 	}
 
-	log.Printf("HISTORY REQUEST => %+v", historyReq)
-
-	log.Println("CALLING ProcessDraftProducts...")
-
-	// Process products
-	result, someFailed, allFailed, err := s.postService.ProcessDraftProducts(ctx, req, userCtx)
-
-	log.Printf("PROCESS RESULT => %+v", result)
-	log.Printf("PROCESS FLAGS => someFailed=%v allFailed=%v", someFailed, allFailed)
-
-	// Determine status based on result
-	status := helper.DeterminePublishStatus(someFailed, allFailed, err)
-
-	// Insert history (always attempt, even on error)
-	historyErr := s.insertPublishHistory(ctx, historyReq, userCtx, status)
-	if historyErr != nil {
-		log.Printf("WARNING: Failed to insert history: %v", historyErr)
-		// Don't return error, just log it
+	if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "published"); histErr != nil {
+		log.Printf("ERROR InsertHistory(published): %v", histErr)
+	} else {
+		log.Printf("SUCCESS InsertHistory(published)")
 	}
 
-	// Handle processing error
-	if err != nil {
-		log.Printf("PROCESS ERROR => %v", err)
-		log.Println("========== END PublishContent ==========")
-		return nil, fmt.Errorf("failed to process products: %w", err)
-	}
+	log.Printf("========== END PublishContent ==========")
+	return result, nil
+}
 
-	log.Println("PROCESS SUCCESS")
-
-	// Build final result
-	finalResult := &draft.PublishResult{
-		Results:    result,
-		SomeFailed: someFailed,
-		AllFailed:  allFailed,
-		Status:     status,
-		Message:    helper.GetStatusMessage(someFailed, allFailed),
-	}
-
-	log.Printf("FINAL RESPONSE => %+v", finalResult)
-	log.Println("========== END PublishContent ==========")
-
-	return finalResult, nil
+// Helper function untuk generate slug jika kosong
+func (s *DraftServiceImpl) generateSlug(title string) string {
+	// Simple slug generation
+	slug := strings.ToLower(title)
+	slug = strings.ReplaceAll(slug, " ", "-")
+	// Remove special characters
+	reg := regexp.MustCompile("[^a-z0-9-]")
+	slug = reg.ReplaceAllString(slug, "")
+	return slug
 }
 
 // injectMetaTagsToArticle menambahkan meta tag ke dalam article HTML
