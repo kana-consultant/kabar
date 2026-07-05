@@ -657,22 +657,6 @@ func (r *RepositoryImpl) slugExists(ctx context.Context, slug, excludeID string)
 		return true, nil
 	}
 
-	// Also check published articles
-	query = `
-		SELECT COUNT(*) FROM articles WHERE slug = $1
-	`
-	args = []interface{}{slug}
-
-	if excludeID != "" {
-		query += " AND id != $2"
-		args = append(args, excludeID)
-	}
-
-	err = r.db.QueryRowContext(ctx, query, args...).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-
 	return count > 0, nil
 }
 

@@ -9,6 +9,9 @@ import { ConfigSummaryPanel } from "./preview-section/ConfigSummaryPanel";
 
 export function PreviewSection({
     article,
+    keywords,
+    excerpt,
+    slug,
     imageUrl,
     hasImage,
     postMode,
@@ -23,6 +26,7 @@ export function PreviewSection({
 }: PreviewSectionProps) {
     // uploadedImage diangkat ke sini karena dipakai bareng oleh tab Gambar & tab Ringkasan
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+    console.log(keywords,slug,excerpt)
 
     useEffect(() => {
         if (imageUrl) {
@@ -83,6 +87,9 @@ export function PreviewSection({
                     autoGenerateImage={autoGenerateImage}
                     uploadedImage={uploadedImage}
                     imageUrl={imageUrl}
+                    slug={slug}
+                    keywords={keywords}
+                    excerpt={excerpt}
                 />
             </TabsContent>
         </Tabs>

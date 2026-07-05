@@ -1,14 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Rocket, Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, Zap, Globe, Calendar, BarChart3, Sparkles } from 'lucide-react';
+import { Rocket, Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, Zap, Globe, Calendar, BarChart3 } from 'lucide-react';
 import { Button, Input, Label } from '@kana-consultant/ui-kit';
 import { useAuth } from '@/hooks/auth/useAuth';
-import AnimatedBackground from './AnimatedBackground';
 import Heroes from './Heroes';
-
-// Component untuk background animasi futuristik 3D Interaktif
-// Component untuk background animasi gerakan abstrak interaktif (Cosmic Flow)
-
 
 export default function Login() {
     const navigate = useNavigate();
@@ -35,9 +30,10 @@ export default function Login() {
             if (response) {
                 navigate({ to: '/dashboard' });
             }
-        } catch (err: any) {
-            setError(err?.message || 'Terjadi kesalahan saat login');
-        }finally{
+        } catch (err: unknown) {
+            const error = err as { message?: string };
+            setError(error?.message || 'Terjadi kesalahan saat login');
+        } finally {
             setIsLoading(false);
         }
     };
@@ -49,33 +45,11 @@ export default function Login() {
 
     const isLoadingState = isLoading || authLoading;
 
-    const features = [
-        {
-            icon: Zap,
-            title: 'AI-Powered Content',
-            description: 'Generate artikel dan gambar berkualitas tinggi dengan AI.'
-        },
-        {
-            icon: Globe,
-            title: 'Multi-Platform Publish',
-            description: 'Terbitkan ke semua platform dalam satu klik.'
-        },
-        {
-            icon: Calendar,
-            title: 'Smart Scheduling',
-            description: 'Atur waktu terbit paling strategis secara otomatis.'
-        },
-        {
-            icon: BarChart3,
-            title: 'SEO & Analytics',
-            description: 'Optimasi SEO otomatis dan pantau performa konten.'
-        }
-    ];
-
     return (
         <div className="h-screen flex flex-col lg:flex-row overflow-hidden font-sans">
             {/* HERO SECTION - LEFT SIDE */}
             <Heroes />
+
             {/* LOGIN FORM - RIGHT SIDE */}
             <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-10 xl:p-12 overflow-y-auto bg-slate-50 dark:bg-[#080612]">
                 <div className="w-full max-w-md">
@@ -89,8 +63,12 @@ export default function Login() {
                                 </div>
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-wide">Kabar</h1>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">AI Content Workspace</p>
+                                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-wide">
+                                    Kabar
+                                </h1>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    AI Content Workspace
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -112,15 +90,22 @@ export default function Login() {
                             <div className="flex items-start gap-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 p-4">
                                 <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0 text-red-600 dark:text-red-400" />
                                 <div className="flex-1">
-                                    <p className="text-sm font-semibold text-red-800 dark:text-red-300">Gagal masuk</p>
-                                    <p className="text-sm text-red-600 dark:text-red-400 mt-0.5">{error}</p>
+                                    <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+                                        Gagal masuk
+                                    </p>
+                                    <p className="text-sm text-red-600 dark:text-red-400 mt-0.5">
+                                        {error}
+                                    </p>
                                 </div>
                             </div>
                         )}
 
                         {/* Email Field */}
                         <div className="space-y-1.5">
-                            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                            <Label
+                                htmlFor="email"
+                                className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
+                            >
                                 Alamat Email
                             </Label>
                             <div className="relative group">
@@ -132,8 +117,10 @@ export default function Login() {
                                     type="email"
                                     placeholder="nama@perusahaan.com"
                                     value={email}
-                                    onChange={(e: any) => setEmail(e.target.value)}
-                                    className="pl-11 h-11 text-sm bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl transition-all duration-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                        setEmail(e.target.value)
+                                    }
+                                    className="pl-11 h-11 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl transition-all duration-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
                                     disabled={isLoadingState}
                                     autoComplete="email"
                                     required
@@ -143,7 +130,10 @@ export default function Login() {
 
                         {/* Password Field */}
                         <div className="space-y-1.5">
-                            <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                            <Label
+                                htmlFor="password"
+                                className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
+                            >
                                 Password
                             </Label>
                             <div className="relative group">
@@ -155,8 +145,10 @@ export default function Login() {
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="••••••••"
                                     value={password}
-                                    onChange={(e: any) => setPassword(e.target.value)}
-                                    className="pl-11 pr-12 h-11 text-sm bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl transition-all duration-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                        setPassword(e.target.value)
+                                    }
+                                    className="pl-11 pr-12 h-11 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl transition-all duration-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
                                     disabled={isLoadingState}
                                     autoComplete="current-password"
                                     required
@@ -168,7 +160,11 @@ export default function Login() {
                                     disabled={isLoadingState}
                                     tabIndex={-1}
                                 >
-                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    {showPassword ? (
+                                        <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                        <Eye className="h-4 w-4" />
+                                    )}
                                 </button>
                             </div>
                         </div>

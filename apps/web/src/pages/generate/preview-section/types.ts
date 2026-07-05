@@ -7,6 +7,9 @@ export interface Paragraph {
 
 export interface PreviewSectionProps {
     article: string;
+    keywords : string[];
+    excerpt : string;
+    slug : string;
     imageUrl: string;
     hasImage: boolean;
     postMode: "instant" | "scheduled" | "draft";

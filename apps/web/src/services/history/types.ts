@@ -14,6 +14,7 @@ export interface HistoryItem {
     teamId?: string;
     createdAt: string;
     keywords : string[];
+    excerpt : string;
 }
 
 // services/types.ts

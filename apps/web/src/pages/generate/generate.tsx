@@ -14,6 +14,9 @@ export default function Generate() {
         topic, setTopic,
         article,
         setArticle,
+        keywords,
+        excerpt,
+        slug,
         imageUrl,
         setImageUrl,
         loadingArticle, loadingImage,
@@ -43,6 +46,8 @@ export default function Generate() {
         onRetry,
         onCloseError,
     } = useGenerate();
+
+    console.log(keywords,excerpt,slug)
 
     // STATE LOKAL: model khusus untuk generate gambar
     const [selectedImageModelId, setSelectedImageModelId] = useState("");
@@ -220,6 +225,9 @@ export default function Generate() {
             {/* Preview Section */}
             <PreviewSection
                 article={currentArticle}
+                keywords={keywords}
+                excerpt={excerpt as string}
+                slug={slug as string}
                 imageUrl={imageUrl}
                 hasImage={!loadingImage}
                 postMode={postMode}

@@ -15,6 +15,7 @@ export function useLoadDraft(
     setCurrentDraftId: (val: string | null) => void,
     setSlug: (val: string) => void,
     setKeywords: (val: string[]) => void,
+    setExcerpt : (val : string) => void,
     toast: ToastContextType //   Tambahkan parameter toast
 ) {
     useEffect(() => {
@@ -32,6 +33,7 @@ export function useLoadDraft(
                         setCurrentDraftId(draft.data.id as string);
                         setSlug(draft.data.slug);
                         setKeywords(draft.data.keywords as string[]);
+                        setExcerpt(draft.data.excerpt)
 
                         toast.info("Memuat draft", { //   Ganti Toast.info dengan toast.info
                             description: `"${draft.data.title}" siap diedit`,
@@ -47,11 +49,13 @@ export function useLoadDraft(
                 try {
                     const draft = await getHistoryById(TopicId);
                     if (draft) {
+                        console.log(draft)
                         setTopic(draft.topic);
                         setArticle(draft.content);
                         setImageUrl(draft.imageUrl || "");
                         setSelectedProducts(draft.targetProducts || []);
                         setKeywords(draft.keywords as string[]);
+                        setExcerpt(draft.excerpt)
                         
                         toast.info("Memuat draft", { //   Ganti Toast.info dengan toast.info
                             description: `"${draft.title}" siap diedit`,

@@ -71,15 +71,14 @@ export function useGenerate() {
     useLoadDraft(
         editId, TopicId,
         setTopic, setArticle, setImageUrl, setSelectedProducts, setCurrentDraftId,
-        setSlug, setKeywords,
-        toast
+        setSlug, setKeywords,setExcerpt,toast
     );
 
     const generateArticle = (autoGenerateImage?: boolean, imageModelId?: string) => generateArticleContent(
         topic, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
         setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt, toast,
-        autoGenerateImage, imageModelId  // 👈 diteruskan ke generateArticleContent
+        autoGenerateImage, imageModelId  
     );
 
     const generateImage = () => generateImageManually(
@@ -233,6 +232,7 @@ export function useGenerate() {
     return {
         topic, setTopic,
         article, setArticle,
+        excerpt,slug,
         articleResponse,
         imageUrl, setImageUrl,
         loadingArticle, loadingImage,

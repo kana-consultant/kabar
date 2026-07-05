@@ -17,6 +17,7 @@ export interface Draft {
     created_at?: string;
     updated_at?: string;
     slug : string;
+    excerpt : string;
     keywords : string[] | null;
 }
 
