@@ -63,10 +63,10 @@ export function useHistory() {
     };
 
     const handleDelete = () => handleDeleteHistory(
-        selectedHistory, setSelectedHistory, setShowDeleteDialog, setHistory, setLoading, toast
+        selectedHistory, setSelectedHistory, setShowDeleteDialog, setHistory, setLoading, setPagination, toast, 1
     );
 
-    const handleClearAll = () => handleClearAllHistory(setHistory, setLoading, toast);
+    const handleClearAll = () => handleClearAllHistory(setHistory, setLoading, setPagination, toast, 1);
 
     const addToHistoryWrapper = async (data: {
         title: string;
@@ -79,8 +79,10 @@ export function useHistory() {
         errorMessage?: string;
         scheduledFor?: string;
         keywords: string[];
+        excerpt: string;
+        slug: string;
     }) => {
-        return addToHistory(data, setHistory, setLoading, toast);
+        return addToHistory(data, setHistory, setLoading, setPagination, toast, 1);
     };
 
     return {

@@ -24,7 +24,7 @@ export async function loadHistoryData({
     setPagination,
     toast,
     page = 1,
-    limit = 5,
+    limit = 5
 }: LoadHistoryParams) {
     setLoading(true);
     try {
