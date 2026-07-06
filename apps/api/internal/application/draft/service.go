@@ -322,13 +322,6 @@ func (s *DraftServiceImpl) PublishDraft(
 			return nil, err
 		}
 
-		// Log history scheduled
-		if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "scheduled"); histErr != nil {
-			log.Printf("ERROR InsertHistory(scheduled): %v", histErr)
-		} else {
-			log.Printf("SUCCESS InsertHistory(scheduled)")
-		}
-
 		log.Printf("SUCCESS scheduleDraft for ID: %s", id)
 		log.Printf("========== END PublishDraft ==========")
 		return result, nil
