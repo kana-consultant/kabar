@@ -50,7 +50,7 @@ export function useSchedule() {
 
     const { handlePublishNow, handleDelete, handleReschedule } = useScheduleActions(
         setSchedules, setLoading, setShowDeleteDialog, setSelectedSchedule,
-        setShowRescheduleDialog, setNewScheduleDate, setNewScheduleTime, toast
+        setShowRescheduleDialog, setNewScheduleDate, setNewScheduleTime, toast, 1, setTotalItems, setTotalPages
     );
 
     return {

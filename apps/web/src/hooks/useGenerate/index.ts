@@ -124,8 +124,6 @@ export function useGenerate() {
                     console.log("Hasil")
                     console.log(result.data)
                     setResults(result.results || []);
-                    setIsError(true);
-                  
                 }
             },
             () => {

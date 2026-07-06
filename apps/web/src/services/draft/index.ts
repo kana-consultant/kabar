@@ -22,5 +22,6 @@ export {
     deleteDraft, 
     publishDraft, 
     publishDraftInstant, 
-    draftSchedule 
+    draftSchedule ,
+    rescheduleDraft
 } from './draftMutations';

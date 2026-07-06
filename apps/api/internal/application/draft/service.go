@@ -632,7 +632,7 @@ func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.Schedule
 		UserID:         userCtx.GetUserID(),
 	}
 
-	if err := s.redisScheduler.ScheduleDraftTask(draftID, scheduledFor, taskData, userCtx); err != nil {
+	if err := s.redisScheduler.ScheduleDraftTask(ctx, draftID, scheduledFor, taskData, userCtx); err != nil {
 		s.repo.Delete(ctx, userCtx.GetTeamID(), draftID)
 		log.Printf("ERROR ScheduleDraftTask : %v", err)
 		return "", fmt.Errorf("failed to schedule in Redis: %w", err)
@@ -676,7 +676,7 @@ func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForSt
 		UserID:         userCtx.GetUserID(),
 	}
 
-	if err := s.redisScheduler.ScheduleDraftTask(id, scheduledFor, taskData, userCtx); err != nil {
+	if err := s.redisScheduler.ScheduleDraftTask(ctx, id, scheduledFor, taskData, userCtx); err != nil {
 		log.Printf("ERROR on redis: %v", err)
 		return nil, err
 	}

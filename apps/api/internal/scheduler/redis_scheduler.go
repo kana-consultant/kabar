@@ -73,7 +73,13 @@ func (s *RedisScheduler) RegisterTaskHandler(taskName string, handler TaskHandle
 }
 
 // ScheduleDraftTask schedules a draft for publishing
-func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Time, taskData *ScheduledTask, userCtx models.UserContext) error {
+func (s *RedisScheduler) ScheduleDraftTask(
+	ctx context.Context,
+	draftID string,
+	scheduledFor time.Time,
+	taskData *ScheduledTask,
+	userCtx models.UserContext,
+) error {
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 
 	taskID := fmt.Sprintf(
@@ -100,36 +106,31 @@ func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Tim
 		CreatedAt:      time.Now().In(loc),
 	}
 
-	// Save to Redis with TTL
 	taskKey := fmt.Sprintf("schedule:draft:%s", taskID)
 	taskDataBytes, err := json.Marshal(task)
 	if err != nil {
 		return fmt.Errorf("failed to marshal task: %w", err)
 	}
 
-	// 🔥 FIX 1: Set TTL sesuai dengan waktu yang dijadwalkan
 	ttl := time.Until(scheduledFor)
 	if ttl < 0 {
-		ttl = 0 // Sudah lewat, eksekusi segera
+		ttl = 0
 	}
 
 	log.Printf("📝 Scheduling task: key=%s, ttl=%v, scheduledFor=%v", taskKey, ttl, scheduledFor)
 
-	err = s.redisClient.Set(s.ctx, taskKey, taskDataBytes, ttl).Err()
+	// ✅ Gunakan context dari parameter
+	err = s.redisClient.Set(ctx, taskKey, taskDataBytes, ttl).Err()
 	if err != nil {
 		return fmt.Errorf("failed to save task: %w", err)
 	}
 
-	// 🔥 FIX 2: Schedule dengan cron yang benar
-	// Format: second minute hour day month weekday
 	cronExpr := s.buildCronExpression(scheduledFor)
-
 	log.Printf("🕐 Cron expression: %s", cronExpr)
 
-	// Simpan userCtx ke Redis juga (untuk recovery)
 	userCtxKey := fmt.Sprintf("%s:userctx", taskKey)
 	userCtxBytes, _ := json.Marshal(userCtx)
-	s.redisClient.Set(s.ctx, userCtxKey, userCtxBytes, ttl)
+	s.redisClient.Set(ctx, userCtxKey, userCtxBytes, ttl)
 
 	entryID, err := s.cron.AddFunc(cronExpr, func() {
 		s.executeDraftTask(taskID)
@@ -145,9 +146,7 @@ func (s *RedisScheduler) ScheduleDraftTask(draftID string, scheduledFor time.Tim
 		entryID,
 		taskID)
 
-	// Log semua cron entries untuk debugging
 	s.logCronEntries()
-
 	return nil
 }
 

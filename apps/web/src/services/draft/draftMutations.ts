@@ -61,12 +61,40 @@ export async function publishDraftInstant(draftData: CreateDraftRequest): Promis
    return await apiClient.post<PublishResponse>(`/drafts/publish`, draftData);
 }
 
+// Schedule draft
 export async function draftSchedule(scheduleData: ScheduleRequest): Promise<PublishResponse> {
     try {
-        const response = await apiClient.post<PublishResponse>("/drafts/schedule ", scheduleData);
+        const response = await apiClient.post<PublishResponse>("/drafts/schedule", scheduleData);
         return response;
     } catch (error) {
-        console.error('Failed to update draft:', error);
+        console.error('Failed to schedule draft:', error);
+        throw error;
+    }
+}
+
+// Reschedule draft
+export async function rescheduleDraft(
+    id: string, 
+    scheduleData: { scheduled_for: string }
+): Promise<PublishResponse> {
+    try {
+        const response = await apiClient.put<PublishResponse>(
+            `/drafts/${id}/reschedule`, 
+            scheduleData
+        );
+        return response;
+    } catch (error: any) {
+        console.error('Failed to reschedule draft:', error);
+
+        // If error response contains results, pass them through
+        if (error?.response?.data?.results) {
+            throw {
+                message: error.response.data.message || 'Failed to reschedule draft',
+                results: error.response.data.results,
+                response: error.response
+            };
+        }
+
         throw error;
     }
 }
