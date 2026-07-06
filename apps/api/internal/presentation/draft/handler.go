@@ -468,6 +468,119 @@ func (h *DraftHandler) writePublishResponse(w http.ResponseWriter, result *draft
 	writeJSONResponse(w, statusCode, response)
 }
 
+// RescheduleDraft - reschedule a scheduled draft to new date/time
+func (h *DraftHandler) RescheduleDraft(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userCtx := auth.GetUserContext(r)
+	id := chi.URLParam(r, "id")
+
+	log.Printf("========== START RESCHEDULE DRAFT ==========")
+	log.Printf("DRAFT_ID=%s TEAM_ID=%s USER_ID=%s",
+		id,
+		userCtx.GetTeamID(),
+		userCtx.GetUserID(),
+	)
+
+	// Read raw body for debugging
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("[ERROR] Failed to read request body: %v", err)
+		writeErrorResponse(w, http.StatusBadRequest, "Failed to read request body", err)
+		return
+	}
+
+	log.Printf("RAW BODY => %s", string(bodyBytes))
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// Decode request body
+	var req struct {
+		ScheduledFor string `json:"scheduled_for"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("[ERROR] Invalid request body: %v", err)
+		writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+
+	log.Printf("REQUEST => scheduled_for=%s", req.ScheduledFor)
+
+	// Validate input
+	if req.ScheduledFor == "" {
+		log.Printf("[ERROR] scheduled_for is required")
+		writeErrorResponse(w, http.StatusBadRequest, "scheduled_for is required", nil)
+		return
+	}
+
+	// Parse and validate datetime format
+	scheduledTime, err := time.Parse(time.RFC3339, req.ScheduledFor)
+	if err != nil {
+		// Coba parse format lain jika RFC3339 gagal
+		scheduledTime, err = time.Parse("2006-01-02T15:04:05", req.ScheduledFor)
+		if err != nil {
+			log.Printf("[ERROR] Invalid date format: %v", err)
+			writeErrorResponse(w, http.StatusBadRequest,
+				"Invalid date format. Use ISO 8601 format (e.g., 2026-07-07T15:30:00+07:00)",
+				err,
+			)
+			return
+		}
+	}
+
+	// Validasi waktu harus di masa depan
+	if scheduledTime.Before(time.Now()) {
+		log.Printf("[ERROR] Scheduled time must be in the future: %v", scheduledTime)
+		writeErrorResponse(w, http.StatusBadRequest,
+			"Scheduled time must be in the future",
+			fmt.Errorf("scheduled time %v is in the past", scheduledTime),
+		)
+		return
+	}
+
+	log.Printf("PARSED SCHEDULED TIME => %v", scheduledTime)
+
+	// Panggil service untuk reschedule
+	result, err := h.draftService.RescheduleDraft(ctx, id, scheduledTime, userCtx)
+	if err != nil {
+		log.Printf("[ERROR] Failed to reschedule draft: %v", err)
+
+		// Handle specific errors
+		switch err.Error() {
+		case "draft not found":
+			writeErrorResponse(w, http.StatusNotFound, "Draft not found", err)
+		case "draft is not in scheduled status":
+			writeErrorResponse(w, http.StatusBadRequest, "Draft is not in scheduled status", err)
+		default:
+			writeErrorResponse(w, http.StatusInternalServerError, "Failed to reschedule draft", err)
+		}
+		return
+	}
+
+	log.Printf("✅ RESCHEDULE SUCCESS => draftID=%s, newTime=%v", id, scheduledTime)
+
+	// Build response
+	response := APIResponse{
+		Success: true,
+		Data: map[string]interface{}{
+			"draft_id":      id,
+			"scheduled_for": scheduledTime.Format(time.RFC3339),
+			"status":        "scheduled",
+			"updated_at":    time.Now().Format(time.RFC3339),
+		},
+		Message: "Draft rescheduled successfully",
+	}
+
+	// Add publish result info jika ada
+	if result != nil {
+		if result.ScheduledFor != nil {
+			response.Data.(map[string]interface{})["previous_scheduled_for"] = result.ScheduledFor.Format(time.RFC3339)
+		}
+	}
+
+	writeJSONResponse(w, http.StatusOK, response)
+	log.Printf("========== END RESCHEDULE DRAFT ==========")
+}
+
 func validateCreateRequest(req draft.CreateDraftRequest) error {
 	if req.Title == "" || req.Topic == "" || req.Article == "" {
 		return fmt.Errorf("title, topic, and article are required")

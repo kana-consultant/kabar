@@ -643,7 +643,7 @@ func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.Schedule
 
 // CancelSchedule implements draft.Service
 func (s *DraftServiceImpl) CancelSchedule(ctx context.Context, draftID string) error {
-	if err := s.redisScheduler.CancelScheduledTask(draftID); err != nil {
+	if err := s.redisScheduler.CancelScheduledTask(ctx, draftID); err != nil {
 		log.Printf("Failed to cancel Redis task: %v", err)
 	}
 	return s.repo.UpdateStatus(ctx, draftID, "draft", nil)
@@ -1130,4 +1130,126 @@ func structToMap(data interface{}) map[string]interface{} {
 	var result map[string]interface{}
 	json.Unmarshal(jsonBytes, &result)
 	return result
+}
+
+func (s *DraftServiceImpl) RescheduleDraft(
+	ctx context.Context,
+	draftID string,
+	newScheduleTime time.Time,
+	userCtx models.UserContext,
+) (*draft.PublishResult, error) {
+
+	log.Printf("========== RESCHEDULE DRAFT SERVICE ==========")
+	log.Printf("DraftID: %s, NewScheduleTime: %v", draftID, newScheduleTime)
+
+	// 1. Get existing draft
+	existingDraft, err := s.repo.GetByID(ctx, draftID)
+	if err != nil {
+		log.Printf("[ERROR] Draft not found: %v", err)
+		return nil, fmt.Errorf("draft not found")
+	}
+
+	log.Printf("Existing draft found: ID=%s, Status=%s", existingDraft.ID, existingDraft.Status)
+
+	// 2. Validate status
+	if existingDraft.Status != "scheduled" {
+		log.Printf("[ERROR] Draft is not in scheduled status: %s", existingDraft.Status)
+		return nil, fmt.Errorf("draft is not in scheduled status")
+	}
+
+	// 3. Cancel existing schedule di Redis
+	if err := s.redisScheduler.CancelScheduledTask(ctx, draftID); err != nil {
+		log.Printf("[WARNING] Failed to cancel existing schedule: %v", err)
+		// Continue anyway - jangan block proses
+	}
+
+	// Simpan scheduled time lama untuk response
+	oldScheduledTime := existingDraft.ScheduledFor
+
+	// 4. Konversi existingDraft ke CreateDraftRequest untuk update
+	updateRequest := draft.CreateDraftRequest{
+		Title:        existingDraft.Title,
+		Topic:        existingDraft.Topic,
+		Article:      existingDraft.Article,
+		ImageURL:     existingDraft.ImageURL,
+		ImagePrompt:  existingDraft.ImagePrompt,
+		ScheduledFor: newScheduleTime.Format(time.RFC3339), // Format waktu baru
+		Slug:         existingDraft.Slug,
+		Keywords:     existingDraft.Keywords,
+		SEOScore:     existingDraft.SEOScore,
+		Excerpt:      existingDraft.Excerpt,
+		UpdateAt:     time.Now(),
+		Status:       "scheduled", // Tetap scheduled
+		TeamID:       userCtx.GetTeamID(),
+		UserID:       userCtx.GetUserID(),
+	}
+
+	log.Printf("Update request prepared: Title=%s, ScheduledFor=%s",
+		updateRequest.Title,
+		updateRequest.ScheduledFor,
+	)
+
+	// 5. Update scheduled time in database menggunakan CreateDraftRequest
+	if err := s.repo.Update(ctx, userCtx.GetTeamID(), draftID, updateRequest); err != nil {
+		log.Printf("[ERROR] Failed to update draft schedule: %v", err)
+		return nil, fmt.Errorf("failed to update draft schedule: %w", err)
+	}
+
+	log.Printf("✅ Database updated successfully")
+
+	// 6. Buat task data untuk scheduler
+	taskData := &scheduler.ScheduledTask{
+		ID:             draftID,
+		Title:          existingDraft.Title,
+		Topic:          existingDraft.Topic,
+		Article:        existingDraft.Article,
+		ImageURL:       *existingDraft.ImageURL,
+		ImagePrompt:    existingDraft.ImagePrompt,
+		TargetProducts: existingDraft.TargetProducts,
+		TeamID:         userCtx.GetTeamID(),
+		UserID:         userCtx.GetUserID(),
+	}
+
+	// 7. Schedule ulang di Redis
+	if err := s.redisScheduler.ScheduleDraftTask(
+		ctx, // ⚠️ Gunakan context yang benar (dari parameter)
+		draftID,
+		newScheduleTime,
+		taskData,
+		userCtx,
+	); err != nil {
+		log.Printf("[ERROR] Failed to create new schedule: %v", err)
+
+		// Rollback: kembalikan ke status draft jika gagal schedule
+		rollbackRequest := updateRequest
+		rollbackRequest.Status = "draft"
+		rollbackRequest.ScheduledFor = ""
+
+		if rollbackErr := s.repo.Update(ctx, userCtx.GetTeamID(), draftID, rollbackRequest); rollbackErr != nil {
+			log.Printf("[CRITICAL] Failed to rollback draft status: %v", rollbackErr)
+		}
+
+		return nil, fmt.Errorf("failed to create new schedule: %w", err)
+	}
+
+	log.Printf("✅ Redis rescheduled successfully")
+	log.Printf("========== END RESCHEDULE DRAFT SERVICE ==========")
+
+	// 8. Return result
+	return &draft.PublishResult{
+		Status:       "scheduled",
+		ScheduledFor: &newScheduleTime,
+		Results: []draft.PublishResult{
+			{
+				Status: "scheduled",
+				Message: fmt.Sprintf("Rescheduled from %s to %s",
+					oldScheduledTime.Format(time.RFC3339),
+					newScheduleTime.Format(time.RFC3339),
+				),
+			},
+		},
+		TotalProducts: 1,
+		SuccessCount:  1,
+		FailedCount:   0,
+	}, nil
 }

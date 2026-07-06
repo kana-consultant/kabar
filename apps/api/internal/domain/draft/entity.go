@@ -42,6 +42,8 @@ type DraftData struct {
 	Keywords       []string `json:"keywords,omitempty"` // Tambahkan ini
 	Excerpt        string   `json:"excerpt"`
 	Slug           string   `json:"slug"`
+	Status         string
+	ScheduledFor   *time.Time
 }
 
 // draft/models.go

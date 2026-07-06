@@ -4,6 +4,7 @@ import (
 	"context"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/models"
+	"time"
 )
 
 type Service interface {
@@ -15,6 +16,7 @@ type Service interface {
 	GetAll(ctx context.Context, userFilter models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
 	GetDashboardStats(ctx context.Context, userFilter models.UserContext) (*DraftStats, error)
 	GetAllScheduled(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[Draft], error)
+	RescheduleDraft(ctx context.Context, draftID string, newScheduleTime time.Time, userCtx models.UserContext) (*PublishResult, error)
 	// Publishing
 	PublishDraft(ctx context.Context, id string, req CreateDraftRequest, userContext models.UserContext) (*PublishResult, error)
 	PublishContent(ctx context.Context, req CreateDraftRequest, userCtx models.UserContext) (*PublishResult, error)

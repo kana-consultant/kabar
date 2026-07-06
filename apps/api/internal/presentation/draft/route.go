@@ -52,6 +52,7 @@ func (h *Route) SetupRoutes() chi.Router {
 		r.With(authmw.DraftView(c)).Get("/{id}", h.DraftHandler.GetByID)
 		r.With(authmw.DraftEdit(c)).Put("/{id}", h.DraftHandler.Update)
 		r.With(authmw.DraftDelete(c)).Delete("/{id}", h.DraftHandler.Delete)
+		r.With(authmw.DraftDelete(c)).Patch("/{id}/reschedule", h.DraftHandler.RescheduleDraft)
 		r.With(authmw.DraftPublish(c)).Post("/{id}/publish", h.DraftHandler.Publish)
 		r.With(authmw.DraftView(c)).Get("/{id}/seo-score", h.DraftHandler.GetSEOScore)
 		r.With(authmw.DraftView(c)).Get("/{id}/check-similarity", h.DraftHandler.CheckSimilarity)
