@@ -13,10 +13,9 @@ export async function loadSchedulesData(
     setLoading(true);
     try {
         const response = await getScheduled(params);
-        console.log(response.data)
         setSchedules(response?.data ?? []);
-        setTotalItems(response?.total_items ?? 0);
-        setTotalPages(response?.total_pages ?? 0);
+        setTotalItems(response?.data.total_items ?? 0);
+        setTotalPages(response?.data.total_pages ?? 0);
     } catch (error) {
         console.error("Failed to load schedules:", error);
         toast.error("Gagal memuat jadwal");
