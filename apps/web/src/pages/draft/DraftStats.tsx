@@ -300,7 +300,7 @@ export function DraftStats({
         : 0;
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-2">
             {/* Stat Cards */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {stats.map(({ label, value, icon: Icon, trend, trendUp, iconColor, dotColor, description }) => (

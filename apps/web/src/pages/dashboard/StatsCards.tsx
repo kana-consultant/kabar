@@ -46,39 +46,50 @@ const statConfig = [
     },
 ];
 
-export function StatsCards() {
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [loading, setLoading] = useState(true);
+interface StatsCardsProps {
+    isLoading?: boolean; // ✅ Props dari parent (opsional)
+    stats?: DashboardStats | null; // ✅ Stats dari parent (opsional)
+}
+
+export function StatsCards({ isLoading: externalLoading, stats: externalStats }: StatsCardsProps) {
+    const [internalStats, setInternalStats] = useState<DashboardStats | null>(null);
+    const [internalLoading, setInternalLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // ✅ Jika stats diberikan dari parent, gunakan itu
+        if (externalStats !== undefined) {
+            setInternalStats(externalStats);
+            setInternalLoading(false);
+            return;
+        }
+
+        // ✅ Jika tidak, fetch sendiri
         const fetch = async () => {
             try {
-                setLoading(true);
-                setStats(await getDashboardStats());
+                setInternalLoading(true);
                 setError(null);
-            } catch {
+                const data = await getDashboardStats();
+                setInternalStats(data);
+            } catch (err) {
+                console.error("Failed to fetch dashboard stats:", err);
                 setError("Gagal memuat statistik");
             } finally {
-                setLoading(false);
+                setInternalLoading(false);
             }
         };
         fetch();
-    }, []);
+    }, [externalStats]);
 
-    if (loading) return <StatsCardsSkeleton />;
+    // ✅ Gunakan loading dari props jika ada, jika tidak gunakan internal loading
+    const isLoading = externalLoading !== undefined ? externalLoading : internalLoading;
+    
+    // ✅ Gunakan stats dari props jika ada, jika tidak gunakan internal stats
+    const stats = externalStats !== undefined ? externalStats : internalStats;
 
-    if (error) return (
-        <div className="rounded-xl border border-red-200/80 bg-red-50 p-4 text-center dark:border-red-500/20 dark:bg-red-500/10">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            <button
-                onClick={() => window.location.reload()}
-                className="mt-1.5 text-xs text-red-500 underline hover:no-underline"
-            >
-                Coba lagi
-            </button>
-        </div>
-    );
+    if (isLoading) return <StatsCardsSkeleton />;
+
+    if (error) return <StatsCardsError message={error} onRetry={() => window.location.reload()} />;
 
     return (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
@@ -129,6 +140,22 @@ export function StatsCards() {
     );
 }
 
+// ✅ Extract error component untuk reusability
+function StatsCardsError({ message, onRetry }: { message: string; onRetry: () => void }) {
+    return (
+        <div className="rounded-xl border border-red-200/80 bg-red-50 p-4 text-center dark:border-red-500/20 dark:bg-red-500/10">
+            <p className="text-sm text-red-600 dark:text-red-400">{message}</p>
+            <button
+                onClick={onRetry}
+                className="mt-1.5 text-xs text-red-500 underline hover:no-underline transition-colors"
+            >
+                Coba lagi
+            </button>
+        </div>
+    );
+}
+
+// ✅ Skeleton component
 function StatsCardsSkeleton() {
     return (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
