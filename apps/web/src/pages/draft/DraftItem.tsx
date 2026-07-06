@@ -62,9 +62,7 @@ export function DraftItem({
         { icon: Edit, label: "Edit", action: onEdit, permission: "draft:edit:team" },
         { icon: GitCompare, label: "Cek Kemiripan", action: checkSimilarity, permission: "draft:view:team" },
         { icon: BarChart2, label: "SEO Score", action: getSeoScore, permission: "draft:view:team" },
-        ...(draft.status === "draft"
-            ? [{ icon: Calendar, label: "Jadwalkan", action: onSchedule, permission: "draft:edit:team" }]
-            : []),
+       
     ];
 
     const {can} = useAuth()
@@ -153,7 +151,7 @@ export function DraftItem({
                         ))}
                     </Can>
 
-                    <Can permission="draft:publish:team">
+                    {/* <Can permission="draft:publish:team">
                         {(draft.status === "draft" || draft.status === "scheduled") && (
                             <Button
                                 size="sm"
@@ -168,7 +166,7 @@ export function DraftItem({
                                 Terbitkan
                             </Button>
                         )}
-                    </Can>
+                    </Can> */}
 
                     <Can permission="draft:delete:team">
                         <Button

@@ -1203,7 +1203,7 @@ func (s *DraftServiceImpl) RescheduleDraft(
 
 	// 7. Schedule ulang di Redis
 	if err := s.redisScheduler.ScheduleDraftTask(
-		ctx, // ⚠️ Gunakan context yang benar (dari parameter)
+		ctx,
 		draftID,
 		newScheduleTime,
 		taskData,

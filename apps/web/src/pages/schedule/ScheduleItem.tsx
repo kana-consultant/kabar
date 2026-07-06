@@ -74,7 +74,7 @@ export function ScheduleItem({
                 </Button>
 
                 {/* edit */}
-                <Can permission="schedule:edit:team">
+                {/* <Can permission="schedule:edit:team">
                     <Button
                         variant="outline"
                         size="sm"
@@ -83,7 +83,7 @@ export function ScheduleItem({
                         <Edit className="h-4 w-4" />
                         <span className="hidden sm:inline">Edit</span>
                     </Button>
-                </Can>
+                </Can> */}
 
                 {/* reschedule = edit */}
                 <Can permission="schedule:edit:team">
@@ -97,7 +97,7 @@ export function ScheduleItem({
                 </Can>
 
                 {/* publish */}
-                <Can permission="schedule:publish:team">
+                {/* <Can permission="schedule:publish:team">
                     <Button
                         variant="primary"
                         size="sm"
@@ -105,7 +105,7 @@ export function ScheduleItem({
                     >
                         <Send className="h-4 w-4" />
                     </Button>
-                </Can>
+                </Can> */}
 
                 {/* delete */}
                 <Can permission="schedule:delete:team">
