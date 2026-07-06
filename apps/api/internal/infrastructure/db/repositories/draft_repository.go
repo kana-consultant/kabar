@@ -54,7 +54,8 @@ func (r *RepositoryImpl) GetByID(
 		COALESCE(image_prompt, ''),
 		target_products,
 		slug,
-		excerpt
+		excerpt,
+		status
 	FROM drafts 
 	WHERE id = $1
 	`
@@ -69,6 +70,7 @@ func (r *RepositoryImpl) GetByID(
 		&targetProductsJSON,
 		&d.Slug,
 		&d.Excerpt,
+		&d.Status,
 	)
 
 	if err != nil {
@@ -840,16 +842,6 @@ func (r *RepositoryImpl) buildUpdateQuery(id string, data draft.CreateDraftReque
 			return "", nil, fmt.Errorf("failed to marshal target_products: %w", err)
 		}
 		addField("target_products", jsonValue)
-	}
-
-	// Handle keywords (JSONB)
-	if len(data.Keywords) > 0 {
-		jsonValue, err := json.Marshal(data.Keywords)
-		if err != nil {
-			log.Printf("[ERROR] Failed to marshal keywords: %v", err)
-			return "", nil, fmt.Errorf("failed to marshal keywords: %w", err)
-		}
-		addField("keywords", jsonValue)
 	}
 
 	// Handle scheduled_for (string)

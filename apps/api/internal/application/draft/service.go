@@ -1168,7 +1168,6 @@ func (s *DraftServiceImpl) RescheduleDraft(
 		ImagePrompt:  existingDraft.ImagePrompt,
 		ScheduledFor: newScheduleTime.Format(time.RFC3339), // Format waktu baru
 		Slug:         existingDraft.Slug,
-		Keywords:     existingDraft.Keywords,
 		SEOScore:     existingDraft.SEOScore,
 		Excerpt:      existingDraft.Excerpt,
 		UpdateAt:     time.Now(),
@@ -1196,7 +1195,6 @@ func (s *DraftServiceImpl) RescheduleDraft(
 		Title:          existingDraft.Title,
 		Topic:          existingDraft.Topic,
 		Article:        existingDraft.Article,
-		ImageURL:       *existingDraft.ImageURL,
 		ImagePrompt:    existingDraft.ImagePrompt,
 		TargetProducts: existingDraft.TargetProducts,
 		TeamID:         userCtx.GetTeamID(),
@@ -1236,8 +1234,8 @@ func (s *DraftServiceImpl) RescheduleDraft(
 			{
 				Status: "scheduled",
 				Message: fmt.Sprintf("Rescheduled from %s to %s",
-					oldScheduledTime.Format(time.RFC3339),
-					newScheduleTime.Format(time.RFC3339),
+					oldScheduledTime,
+					newScheduleTime,
 				),
 			},
 		},
