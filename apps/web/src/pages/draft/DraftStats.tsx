@@ -7,7 +7,6 @@ import {
     Hash,
     Target,
     Zap,
-    AlertCircle
 } from "lucide-react";
 import {
     Chart as ChartJS,
@@ -19,7 +18,7 @@ import {
     ArcElement,
     Tooltip,
     Filler,
-    type ChartOptions
+    type ChartOptions,
 } from "chart.js";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
 
@@ -115,15 +114,9 @@ export function DraftStats({
     weeklyTrend = [],
     scheduledUpcoming = [],
     topKeywords = [],
+    cacheMetadata,
 }: DraftStatsProps) {
     const [timeRange, setTimeRange] = useState<TimeRange>("30d");
-    
-    const isDark = typeof window !== "undefined"
-        ? window.matchMedia("(prefers-color-scheme: dark)").matches
-        : false;
-
-    const textColor = isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)";
-    const gridColor = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
 
     const filteredActivity = useMemo(() => {
         const daysMap = { "7d": 7, "30d": 30, "90d": 90 };
@@ -175,21 +168,21 @@ export function DraftStats({
                 data: filteredActivity.map(a => a.count),
                 backgroundColor: "#378ADD",
                 borderRadius: 3,
-                borderSkipped: false as const,
+                borderSkipped: false as any,
             },
             {
                 label: "Scheduled",
                 data: filteredActivity.map(a => a.scheduled),
                 backgroundColor: "#7F77DD",
                 borderRadius: 3,
-                borderSkipped: false as const,
+                borderSkipped: false as any,
             },
             {
                 label: "Published",
                 data: filteredActivity.map(a => a.published),
                 backgroundColor: "#1D9E75",
                 borderRadius: 3,
-                borderSkipped: false as const,
+                borderSkipped: false as any,
             },
         ],
     };
@@ -200,26 +193,25 @@ export function DraftStats({
         plugins: {
             legend: { 
                 display: true,
-                position: "bottom" as const,
+                position: "bottom" as any,
                 labels: {
-                    color: textColor,
-                    font: { size: 10 },
+                    font: { size: 10, weight: "500" as any },
                     padding: 10,
                     usePointStyle: true,
+                    pointStyleWidth: 8,
                 }
             },
         },
         scales: {
             x: {
                 stacked: true,
-                ticks: { color: textColor, font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+                ticks: { font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
                 grid: { display: false },
                 border: { display: false },
             },
             y: {
                 stacked: true,
-                ticks: { color: textColor, font: { size: 10 } },
-                grid: { color: gridColor },
+                ticks: { font: { size: 10 } },
                 border: { display: false },
             },
         },
@@ -238,7 +230,7 @@ export function DraftStats({
                 data: seoEntries.map(([, count]) => count),
                 backgroundColor: ["#EF4444", "#F97316", "#F59E0B", "#84CC16", "#22C55E", "#10B981"],
                 borderRadius: 3,
-                borderSkipped: false as const,
+                borderSkipped: false as any,
             },
         ],
     };
@@ -248,8 +240,8 @@ export function DraftStats({
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-            x: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false }, border: { display: false } },
-            y: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor }, border: { display: false } },
+            x: { ticks: { font: { size: 10 } }, grid: { display: false }, border: { display: false } },
+            y: { ticks: { font: { size: 10 } }, border: { display: false } },
         },
     };
 
@@ -261,19 +253,19 @@ export function DraftStats({
                 data: productEntries.map(([, count]) => count),
                 backgroundColor: "#7F77DD",
                 borderRadius: 3,
-                borderSkipped: false as const,
+                borderSkipped: false as any,
             },
         ],
     };
 
     const productChartOptions: ChartOptions<"bar"> = {
-        indexAxis: "y" as const,
+        indexAxis: "y" as any,
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-            x: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor }, border: { display: false } },
-            y: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false }, border: { display: false } },
+            x: { ticks: { font: { size: 10 } }, border: { display: false } },
+            y: { ticks: { font: { size: 11 } }, grid: { display: false }, border: { display: false } },
         },
     };
 
@@ -319,20 +311,25 @@ export function DraftStats({
         plugins: {
             legend: { 
                 display: true,
-                position: "bottom" as const,
-                labels: { color: textColor, font: { size: 10 }, padding: 10, usePointStyle: true }
+                position: "bottom" as any,
+                labels: { 
+                    font: { size: 10, weight: "500" as any }, 
+                    padding: 10, 
+                    usePointStyle: true,
+                    pointStyleWidth: 8,
+                }
             },
         },
         scales: {
-            x: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false }, border: { display: false } },
-            y: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor }, border: { display: false } },
+            x: { ticks: { font: { size: 11 } }, grid: { display: false }, border: { display: false } },
+            y: { ticks: { font: { size: 10 } }, border: { display: false } },
         },
     };
 
     const donutData = {
         datasets: [{
             data: [completionRate, 100 - completionRate],
-            backgroundColor: ["#378ADD", isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)"],
+            backgroundColor: ["#378ADD", "rgba(0,0,0,0.06)"],
             borderWidth: 0,
             borderRadius: 3,
         }],
@@ -350,11 +347,11 @@ export function DraftStats({
                 {statsCards.map((stat, index) => (
                     <div key={index} className="rounded-xl border p-3 bg-white border-slate-200/80 dark:bg-[#0f0d1a] dark:border-white/[0.06]">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px] text-slate-400 font-medium">{stat.label}</span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{stat.label}</span>
                             {stat.icon}
                         </div>
                         <div className="text-xl font-bold text-slate-800 dark:text-slate-100">{stat.value}</div>
-                        <p className="text-[10px] text-slate-400 mt-1">{stat.subtext}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{stat.subtext}</p>
                     </div>
                 ))}
             </div>
@@ -375,8 +372,8 @@ export function DraftStats({
                     <div className="space-y-2">
                         <div>
                             <div className="flex justify-between text-xs mb-1">
-                                <span className="text-slate-500">Gambar</span>
-                                <span className="text-slate-600 font-medium">{totalWithImage}/{totalDraft}</span>
+                                <span className="text-slate-500 dark:text-slate-400">Gambar</span>
+                                <span className="text-slate-600 dark:text-slate-300 font-medium">{totalWithImage}/{totalDraft}</span>
                             </div>
                             <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                                 <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${completionRate}%` }} />
@@ -384,8 +381,8 @@ export function DraftStats({
                         </div>
                         <div>
                             <div className="flex justify-between text-xs mb-1">
-                                <span className="text-slate-500">Keywords</span>
-                                <span className="text-slate-600 font-medium">{totalWithKeywords}/{totalDraft}</span>
+                                <span className="text-slate-500 dark:text-slate-400">Keywords</span>
+                                <span className="text-slate-600 dark:text-slate-300 font-medium">{totalWithKeywords}/{totalDraft}</span>
                             </div>
                             <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                                 <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${totalDraft > 0 ? (totalWithKeywords / totalDraft) * 100 : 0}%` }} />
@@ -393,8 +390,8 @@ export function DraftStats({
                         </div>
                         <div>
                             <div className="flex justify-between text-xs mb-1">
-                                <span className="text-slate-500">SEO</span>
-                                <span className="text-slate-600 font-medium">{totalWithSEO}/{totalDraft}</span>
+                                <span className="text-slate-500 dark:text-slate-400">SEO</span>
+                                <span className="text-slate-600 dark:text-slate-300 font-medium">{totalWithSEO}/{totalDraft}</span>
                             </div>
                             <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                                 <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${totalDraft > 0 ? (totalWithSEO / totalDraft) * 100 : 0}%` }} />
@@ -408,9 +405,9 @@ export function DraftStats({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {Object.entries(statusBreakdown).map(([status, count]) => (
                     <div key={status} className="rounded-xl border p-3 bg-white border-slate-200/80 dark:bg-[#0f0d1a] dark:border-white/[0.06]">
-                        <div className="text-[11px] text-slate-400 capitalize mb-1">{status}</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 capitalize mb-1">{status}</div>
                         <div className="text-lg font-bold text-slate-800 dark:text-slate-100">{count}</div>
-                        <div className="text-[10px] text-slate-400 mt-1">
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
                             {totalDraft > 0 ? `${((count / totalDraft) * 100).toFixed(1)}%` : '0%'}
                         </div>
                     </div>
@@ -423,9 +420,9 @@ export function DraftStats({
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <TrendingUp className="h-4 w-4 text-blue-500" />
-                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Aktivitas Harian</span>
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">Aktivitas Harian</span>
                         </div>
-                        <select value={timeRange} onChange={e => setTimeRange(e.target.value as TimeRange)} className="text-xs text-slate-500 bg-transparent border border-slate-200 dark:border-white/10 rounded-md px-2 py-1 cursor-pointer">
+                        <select value={timeRange} onChange={e => setTimeRange(e.target.value as TimeRange)} className="text-xs text-slate-500 dark:text-slate-400 bg-transparent border border-slate-200 dark:border-white/10 rounded-md px-2 py-1 cursor-pointer">
                             <option value="7d">7 hari</option>
                             <option value="30d">30 hari</option>
                             <option value="90d">90 hari</option>
@@ -439,9 +436,9 @@ export function DraftStats({
                 <div className="rounded-xl border p-4 bg-white border-slate-200/80 dark:bg-[#0f0d1a] dark:border-white/[0.06]">
                     <div className="flex items-center gap-2 mb-3">
                         <Target className="h-4 w-4 text-orange-500" />
-                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Distribusi SEO Score</span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">Distribusi SEO Score</span>
                     </div>
-                    <p className="text-xs text-slate-400 mb-2">Avg: {seoScoreAvg.toFixed(1)} · {totalWithSEO} optimized</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Avg: {seoScoreAvg.toFixed(1)} · {totalWithSEO} optimized</p>
                     <div className="relative h-64">
                         <Bar data={seoChartData} options={seoChartOptions} />
                     </div>
@@ -453,7 +450,7 @@ export function DraftStats({
                 <div className="rounded-xl border p-4 bg-white border-slate-200/80 dark:bg-[#0f0d1a] dark:border-white/[0.06]">
                     <div className="flex items-center gap-2 mb-3">
                         <BarChart2 className="h-4 w-4 text-purple-500" />
-                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Coverage Produk</span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">Coverage Produk</span>
                     </div>
                     <div className="relative" style={{ height: `${productEntries.length * 36 + 32}px`, minHeight: "200px" }}>
                         <Bar data={productChartData} options={productChartOptions} />
@@ -463,17 +460,17 @@ export function DraftStats({
                 <div className="rounded-xl border p-4 bg-white border-slate-200/80 dark:bg-[#0f0d1a] dark:border-white/[0.06]">
                     <div className="flex items-center gap-2 mb-3">
                         <Hash className="h-4 w-4 text-yellow-500" />
-                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Top Keywords</span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">Top Keywords</span>
                     </div>
-                    <p className="text-xs text-slate-400 mb-3">Avg {keywordsAvgCount.toFixed(1)} keywords/draft</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Avg {keywordsAvgCount.toFixed(1)} keywords/draft</p>
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
                         {topKeywords.slice(0, 15).map((kw, index) => (
                             <div key={kw.keyword} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-white/5">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-slate-400 w-5">#{index + 1}</span>
+                                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500 w-5">#{index + 1}</span>
                                     <span className="text-sm text-slate-700 dark:text-slate-300">{kw.keyword}</span>
                                 </div>
-                                <span className="text-xs font-medium text-slate-500 bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded-full">{kw.count}x</span>
+                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded-full">{kw.count}x</span>
                             </div>
                         ))}
                     </div>
@@ -485,7 +482,7 @@ export function DraftStats({
                 <div className="rounded-xl border p-4 bg-white border-slate-200/80 dark:bg-[#0f0d1a] dark:border-white/[0.06]">
                     <div className="flex items-center gap-2 mb-3">
                         <TrendingUp className="h-4 w-4 text-green-500" />
-                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Tren Mingguan</span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">Tren Mingguan</span>
                     </div>
                     <div className="relative h-64">
                         <Line data={trendChartData} options={trendChartOptions} />
@@ -498,7 +495,7 @@ export function DraftStats({
                 <div className="rounded-xl border p-4 bg-white border-slate-200/80 dark:bg-[#0f0d1a] dark:border-white/[0.06]">
                     <div className="flex items-center gap-2 mb-3">
                         <Calendar className="h-4 w-4 text-purple-500" />
-                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Jadwal Mendatang</span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">Jadwal Mendatang</span>
                     </div>
                     <div className="space-y-2">
                         {scheduledUpcoming.slice(0, 5).map((item) => (
@@ -507,7 +504,7 @@ export function DraftStats({
                                     <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.title}</h4>
                                     <div className="flex items-center gap-2 mt-1">
                                         <Calendar className="h-3 w-3 text-slate-400" />
-                                        <span className="text-xs text-slate-400">
+                                        <span className="text-xs text-slate-500 dark:text-slate-400">
                                             {new Date(item.scheduled_for).toLocaleDateString('id-ID', {
                                                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
                                             })}
@@ -521,7 +518,7 @@ export function DraftStats({
                                                 </span>
                                             ))}
                                             {item.products.length > 3 && (
-                                                <span className="text-[10px] text-slate-400">+{item.products.length - 3}</span>
+                                                <span className="text-[10px] text-slate-500 dark:text-slate-400">+{item.products.length - 3}</span>
                                             )}
                                         </div>
                                     )}
@@ -529,6 +526,13 @@ export function DraftStats({
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Cache Metadata */}
+            {cacheMetadata && (
+                <div className="text-[10px] text-slate-400 dark:text-slate-500 text-right">
+                    Cached: {new Date(cacheMetadata.cached_at).toLocaleTimeString()} · TTL: {cacheMetadata.ttl} · {cacheMetadata.generation_time_ms.toFixed(0)}ms
                 </div>
             )}
         </div>

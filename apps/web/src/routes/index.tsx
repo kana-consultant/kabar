@@ -64,9 +64,6 @@ export function Dashboard() {
                 // UI state
                 isLoading={loading}
             />
-
-            {/* Recent Activity */}
-            <RecentActivity />
         </div>
     );
 }

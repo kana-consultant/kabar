@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -20,10 +19,8 @@ import (
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/infrastructure/http/minio"
-	"seo-backend/internal/scheduler"
-
-	// "seo-backend/internal/helper"
 	"seo-backend/internal/models"
+	"seo-backend/internal/scheduler"
 
 	"github.com/google/uuid"
 	"golang.org/x/net/html"
@@ -69,20 +66,39 @@ func (s *DraftServiceImpl) GetDashboardStats(ctx context.Context, filter models.
 }
 
 func (s *DraftServiceImpl) GetAllScheduled(ctx context.Context, usrCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
-
 	return s.repo.GetAllScheduled(ctx, usrCtx, params)
 }
 
 // CreateDraft implements draft.Service
 func (s *DraftServiceImpl) CreateDraft(ctx context.Context, req draft.CreateDraftRequest, userID, teamID string) (string, error) {
 	data := prepareUpdateData(req, s.minioClient)
-	data.SEOScore = draft.CalculateSEOScore(req.Title, req.Article, req.Topic, req.Topic, req.Keywords).Total
+
+	// Inject meta tags saat create draft
+	data.Article = s.injectMetaTagsToArticle(
+		data.Article,
+		data.Title,
+		data.Topic,
+		data.Excerpt,
+		getImageURLString(data.ImageURL),
+	)
+
+	data.SEOScore = CalculateSEOScore(req.Title, req.Article, req.Topic, req.Excerpt, req.Keywords).Total
 	return s.repo.Create(ctx, data, userID, teamID)
 }
 
 // UpdateDraft implements draft.Service
 func (s *DraftServiceImpl) UpdateDraft(ctx context.Context, id string, userID, TeamID string, updates draft.CreateDraftRequest) error {
 	data := prepareUpdateData(updates, s.minioClient)
+
+	// Inject meta tags saat update draft
+	data.Article = s.injectMetaTagsToArticle(
+		data.Article,
+		data.Title,
+		data.Topic,
+		data.Excerpt,
+		getImageURLString(data.ImageURL),
+	)
+
 	data.TeamID = TeamID
 	data.UserID = userID
 	return s.repo.Update(ctx, id, TeamID, data)
@@ -113,46 +129,41 @@ func (s *DraftServiceImpl) GetDraftByID(ctx context.Context, id string) (*draft.
 			log.Printf("[SUCCESS] image_url refreshed: %s", newURL)
 			*draftData.ImageURL = newURL
 		}
-	} else {
-		log.Println("[INFO] No image_url to refresh")
 	}
 
 	// Refresh semua <img> di article
 	if draftData.Article != "" {
 		log.Println("[INFO] Refreshing images in article...")
-
-		re := regexp.MustCompile(`<img[^>]+src="([^"]+)"`)
-		count := 0
-
-		draftData.Article = re.ReplaceAllStringFunc(draftData.Article, func(tag string) string {
-			reSrc := regexp.MustCompile(`src="([^"]+)"`)
-			match := reSrc.FindStringSubmatch(tag)
-			if len(match) < 2 {
-				log.Printf("[WARNING] Cannot extract src from tag: %s", tag[:min(50, len(tag))])
-				return tag
-			}
-
-			oldURL := match[1]
-			log.Printf("[INFO] Refreshing image #%d: %s", count+1, oldURL[:min(80, len(oldURL))])
-
-			newURL, err := s.minioClient.GetURL(ctx, oldURL, 7*24*time.Hour)
-			if err != nil {
-				log.Printf("[ERROR] Failed to refresh image #%d: %v", count+1, err)
-				return tag
-			}
-
-			count++
-			log.Printf("[SUCCESS] Image #%d refreshed", count)
-			return strings.Replace(tag, oldURL, newURL, 1)
-		})
-
-		log.Printf("[INFO] Refreshed %d images in article", count)
-	} else {
-		log.Println("[INFO] No article to refresh")
+		draftData.Article = s.refreshArticleImages(ctx, draftData.Article)
 	}
 
 	log.Printf("[SUCCESS] GetDraftByID completed: %s", id)
 	return draftData, nil
+}
+
+// refreshArticleImages refresh semua URL gambar di article
+func (s *DraftServiceImpl) refreshArticleImages(ctx context.Context, article string) string {
+	re := regexp.MustCompile(`<img[^>]+src="([^"]+)"`)
+	count := 0
+
+	return re.ReplaceAllStringFunc(article, func(tag string) string {
+		reSrc := regexp.MustCompile(`src="([^"]+)"`)
+		match := reSrc.FindStringSubmatch(tag)
+		if len(match) < 2 {
+			return tag
+		}
+
+		oldURL := match[1]
+		newURL, err := s.minioClient.GetURL(ctx, oldURL, 7*24*time.Hour)
+		if err != nil {
+			log.Printf("[ERROR] Failed to refresh image #%d: %v", count+1, err)
+			return tag
+		}
+
+		count++
+		log.Printf("[SUCCESS] Image #%d refreshed", count)
+		return strings.Replace(tag, oldURL, newURL, 1)
+	})
 }
 
 // PublishDraft implements draft.Service
@@ -162,134 +173,36 @@ func (s *DraftServiceImpl) PublishDraft(
 	req draft.CreateDraftRequest,
 	userCtx models.UserContext,
 ) (*draft.PublishResult, error) {
-
 	log.Printf("========== START PublishDraft ==========")
 	log.Printf("DRAFT_ID=%s TEAM_ID=%s USER_ID=%s", id, userCtx.GetTeamID(), userCtx.GetUserID())
 
-	// Get draft data from repository
-	log.Printf("Fetching draft data for ID: %s", id)
+	// Get draft data
 	draftData, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		log.Printf("ERROR GetByID: %v", err)
 		return nil, err
 	}
-	log.Printf("SUCCESS GetByID for ID: %s", id)
 
-	// Log draft data with safe dereference
-	imageURLStr := "nil"
-	if draftData.ImageURL != nil {
-		imageURLStr = *draftData.ImageURL
-	}
-
-	log.Printf("DRAFT_DATA => ID=%s Title=%s Topic=%s ImageURL=%s TargetProducts=%v keywords=%v slug=%s excerpt=%s",
-		id,
-		draftData.Title,
-		draftData.Topic,
-		imageURLStr,
-		draftData.TargetProducts,
-		draftData.Keywords,
-		draftData.Slug,
-		draftData.Excerpt,
-	)
-
-	// Fallback ke draftData jika req kosong
-	title := draftData.Title
-	if req.Title != "" {
-		title = req.Title
-		log.Printf("Using request title: %s", title)
-	}
-
-	topic := draftData.Topic
-	if req.Topic != "" {
-		topic = req.Topic
-		log.Printf("Using request topic: %s", topic)
-	}
-
-	article := draftData.Article
-	if req.Article != "" {
-		article = req.Article
-		log.Printf("Using request article (length: %d)", len(article))
-	}
-
-	// FIX: Safe handling imageURL
-	imageURL := draftData.ImageURL
-	if req.ImageURL != nil {
-		imageURL = req.ImageURL
-		log.Printf("Using request imageURL: %s", *imageURL)
-	}
-
-	// Safe handling imageURL for logging
-	var finalImageURLStr string
-	if imageURL != nil {
-		finalImageURLStr = *imageURL
-		log.Printf("IMAGE_URL from request: %s", finalImageURLStr)
-	} else {
-		finalImageURLStr = ""
-		log.Printf("WARNING: ImageURL is nil, using empty string")
-	}
-
-	// Safe handling targetProducts
-	targetProducts := draftData.TargetProducts
-	if len(req.TargetProducts) > 0 {
-		targetProducts = req.TargetProducts
-		log.Printf("Using request targetProducts: %v", targetProducts)
-	}
-	if len(targetProducts) == 0 {
-		log.Printf("WARNING: TargetProducts is empty")
-	}
-
-	// Safe handling excerpt
-	excerpt := draftData.Excerpt
-	if req.Excerpt != "" {
-		excerpt = req.Excerpt
-		log.Printf("Using request excerpt: %s", excerpt)
-	}
-	if excerpt == "" {
-		log.Printf("WARNING: Excerpt is empty")
-	}
-
-	// Safe handling slug
+	// Merge request data dengan draft data (fallback)
+	title := coalesceString(req.Title, draftData.Title)
+	topic := coalesceString(req.Topic, draftData.Topic)
+	article := coalesceString(req.Article, draftData.Article)
+	imageURL := coalescePointer(req.ImageURL, draftData.ImageURL)
+	targetProducts := coalesceSlice(req.TargetProducts, draftData.TargetProducts)
+	excerpt := coalesceString(req.Excerpt, draftData.Excerpt)
 	slug := draftData.Slug
-	if slug == "" {
-		log.Printf("WARNING: Slug is empty")
-	}
-
-	// Safe handling keywords
 	keywords := draftData.Keywords
-	if len(keywords) == 0 {
-		log.Printf("WARNING: Keywords is empty")
-	}
 
-	// Cek jika article juga bisa kosong
-	if article == "" {
-		log.Printf("WARNING: Article is empty")
-	}
+	// TIDAK inject meta tags saat publish, gunakan article apa adanya
+	// karena meta tags sudah di-inject saat create/update draft
 
-	// Inject meta tags dengan safe imageURL
-	log.Printf("Injecting meta tags to article...")
-	article = s.injectMetaTagsToArticle(
-		article,
-		title,
-		topic,
-		excerpt,
-		finalImageURLStr, // Gunakan string, bukan pointer
-	)
-	log.Printf("Article injected successfully (length: %d)", len(article))
-
-	// Update draftData with all values
+	// Update draftData dengan merged values
 	draftData.Title = title
 	draftData.Topic = topic
 	draftData.Article = article
 	draftData.ImageURL = imageURL
 	draftData.TargetProducts = targetProducts
 	draftData.Excerpt = excerpt
-	// Keep existing SEOScore and Slug
-
-	log.Printf("DRAFT_DATA updated: slug=%s keywords_count=%d products_count=%d",
-		slug,
-		len(keywords),
-		len(targetProducts),
-	)
 
 	// Prepare history request
 	historyReq := draft.PublishHistoryRequest{
@@ -303,96 +216,26 @@ func (s *DraftServiceImpl) PublishDraft(
 		Excerpt:        excerpt,
 		Slug:           slug,
 	}
-	log.Printf("HISTORY_REQ prepared for ID: %s", id)
 
-	// Jika ada schedule
+	// Schedule mode
 	if req.ScheduledFor != "" {
-		log.Printf("SCHEDULE_MODE: scheduledFor=%s", req.ScheduledFor)
-
-		log.Printf("Calling scheduleDraft...")
 		result, err := s.scheduleDraft(ctx, id, req.ScheduledFor, draftData, userCtx)
 		if err != nil {
-			log.Printf("ERROR scheduleDraft: %v", err)
-
-			// Log history failed
-			if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
-				log.Printf("ERROR InsertHistory(failed): %v", histErr)
-			}
-
+			s.insertHistory(ctx, historyReq, userCtx, "failed")
 			return nil, err
 		}
-
-		log.Printf("SUCCESS scheduleDraft for ID: %s", id)
-		log.Printf("========== END PublishDraft ==========")
 		return result, nil
 	}
 
-	// DIRECT PUBLISH MODE
-	log.Printf("DIRECT_PUBLISH_MODE for ID: %s", id)
-
-	// Process publish
-	log.Printf("Calling processPublish...")
+	// Direct publish mode
 	result, err := s.processPublish(ctx, draftData, id, userCtx)
 	if result.AllFailed {
-		log.Printf("ERROR processPublish: %v", err)
-
-		// Log history failed
-		historyReq := draft.PublishHistoryRequest{
-			Title:          req.Title,
-			Topic:          req.Topic,
-			Article:        article,
-			ImageURL:       req.ImageURL,
-			TargetProducts: req.TargetProducts,
-			Keywords:       keywords,
-			SEOScore:       0,
-			Excerpt:        excerpt,
-			Slug:           slug,
-		}
-
-		if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
-			log.Printf("ERROR InsertHistory(failed): %v", histErr)
-		}
-
+		s.insertHistory(ctx, historyReq, userCtx, "failed")
 		return result, err
 	}
 
-	log.Printf("SUCCESS processPublish")
-
-	// Log history success
-	historyReq = draft.PublishHistoryRequest{
-		Title:          req.Title,
-		Topic:          req.Topic,
-		Article:        article,
-		ImageURL:       req.ImageURL,
-		TargetProducts: req.TargetProducts,
-		Keywords:       keywords,
-		SEOScore:       draftData.SEOScore,
-		Excerpt:        excerpt,
-		Slug:           slug,
-	}
-
-	if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "published"); histErr != nil {
-		log.Printf("ERROR InsertHistory(published): %v", histErr)
-	} else {
-		log.Printf("SUCCESS InsertHistory(published)")
-	}
-
-	log.Printf("========== END PublishContent ==========")
+	s.insertHistory(ctx, historyReq, userCtx, "published")
 	return result, nil
-}
-
-// Helper function untuk insert history
-func (s *DraftServiceImpl) insertHistory(
-	ctx context.Context,
-	historyReq draft.PublishHistoryRequest,
-	userCtx models.UserContext,
-	status string,
-) {
-	if err := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), status); err != nil {
-		log.Printf("[PublishDraft] ERROR InsertHistory(%s) slug=%s err=%v", status, historyReq.Slug, err)
-	} else {
-		log.Printf("[PublishDraft] SUCCESS InsertHistory(%s) slug=%s", status, historyReq.Slug)
-	}
 }
 
 // PublishContent implements draft.Service
@@ -401,171 +244,111 @@ func (s *DraftServiceImpl) PublishContent(
 	req draft.CreateDraftRequest,
 	userCtx models.UserContext,
 ) (*draft.PublishResult, error) {
-
 	log.Printf("========== START PublishContent ==========")
-	log.Printf("REQUEST TEAM_ID=%s USER_ID=%s", userCtx.GetTeamID(), userCtx.GetUserID())
 
-	// Log request data dengan safe dereference
-	imageURLStr := "nil"
-	if req.ImageURL != nil {
-		imageURLStr = *req.ImageURL
-	}
-
-	log.Printf("REQUEST DATA => Title=%s Topic=%s ImageURL=%s TargetProducts=%v keywords=%v slug=%s excerpt=%s",
-		req.Title,
-		req.Topic,
-		imageURLStr,
-		req.TargetProducts,
-		req.Keywords,
-		req.Slug,
-		req.Excerpt,
-	)
-
-	// Validasi basic
+	// Validasi
 	if req.Title == "" {
-		log.Printf("VALIDATION ERROR: Title is empty")
 		return nil, fmt.Errorf("title is required")
 	}
 	if req.Topic == "" {
-		log.Printf("VALIDATION ERROR: Topic is empty")
 		return nil, fmt.Errorf("topic is required")
 	}
 
-	log.Printf("VALIDATION SUCCESS")
-
-	// FIX: Safe handling imageURL
-	var articleImageURL string
-	if req.ImageURL != nil {
-		articleImageURL = *req.ImageURL
-		log.Printf("IMAGE_URL from request: %s", articleImageURL)
-	} else {
-		articleImageURL = ""
-		log.Printf("WARNING: ImageURL is nil, using empty string")
-	}
-
-	// Safe handling excerpt
-	excerpt := req.Excerpt
-	if excerpt == "" {
-		log.Printf("WARNING: Excerpt is empty")
-	}
-
-	// Safe handling slug
 	slug := req.Slug
 	if slug == "" {
-		log.Printf("WARNING: Slug is empty, generating from title")
 		slug = s.generateSlug(req.Title)
 	}
 
-	// Safe handling keywords
-	keywords := req.Keywords
-	if len(keywords) == 0 {
-		log.Printf("WARNING: Keywords is empty")
-	}
+	// TIDAK inject meta tags saat publish content
+	// Meta tags sudah ada di article yang disimpan
 
-	// BARIS 354: Kemungkinan error disini - injectMetaTagsToArticle dengan imageURL
-	// FIX: Gunakan articleImageURL yang sudah di-safe
-	log.Printf("Generating article with meta tags...")
-	article := req.Article
-
-	// Cek jika article juga bisa kosong
-	if article == "" {
-		log.Printf("WARNING: Article is empty")
-	}
-
-	// Inject meta tags dengan safe imageURL
-	article = s.injectMetaTagsToArticle(
-		article,
-		req.Title,
-		req.Topic,
-		excerpt,
-		articleImageURL, // Gunakan string, bukan pointer
-	)
-
-	log.Printf("Article generated successfully (length: %d)", len(article))
-
-	// Create draft data untuk dipublish
 	draftData := &draft.DraftData{
 		Title:          req.Title,
 		Topic:          req.Topic,
-		Article:        article,
+		Article:        req.Article, // Gunakan article apa adanya
 		ImageURL:       req.ImageURL,
 		ImagePrompt:    req.ImagePrompt,
 		TargetProducts: req.TargetProducts,
-		Keywords:       keywords,
+		Keywords:       req.Keywords,
 		Slug:           slug,
-		Excerpt:        excerpt,
-		SEOScore:       0, // Akan dihitung ulang
+		Excerpt:        req.Excerpt,
+		SEOScore:       0,
 	}
 
-	log.Printf("DRAFT_DATA created: slug=%s keywords_count=%d products_count=%d",
-		slug,
-		len(keywords),
-		len(req.TargetProducts),
-	)
-
 	// Process publish
-	log.Printf("Calling processPublish...")
 	result, err := s.processPublish(ctx, draftData, "", userCtx)
 	if result.AllFailed {
-		log.Printf("ERROR processPublish: %v", err)
-
-		// Log history failed
 		historyReq := draft.PublishHistoryRequest{
 			Title:          req.Title,
 			Topic:          req.Topic,
-			Article:        article,
+			Article:        req.Article,
 			ImageURL:       req.ImageURL,
 			TargetProducts: req.TargetProducts,
-			Keywords:       keywords,
+			Keywords:       req.Keywords,
 			SEOScore:       0,
-			Excerpt:        excerpt,
+			Excerpt:        req.Excerpt,
 			Slug:           slug,
 		}
-
-		if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "failed"); histErr != nil {
-			log.Printf("ERROR InsertHistory(failed): %v", histErr)
-		}
-
+		s.insertHistory(ctx, historyReq, userCtx, "failed")
 		return result, err
 	}
 
-	log.Printf("SUCCESS processPublish")
-
-	// Log history success
 	historyReq := draft.PublishHistoryRequest{
 		Title:          req.Title,
 		Topic:          req.Topic,
-		Article:        article,
+		Article:        req.Article,
 		ImageURL:       req.ImageURL,
 		TargetProducts: req.TargetProducts,
-		Keywords:       keywords,
+		Keywords:       req.Keywords,
 		SEOScore:       draftData.SEOScore,
-		Excerpt:        excerpt,
+		Excerpt:        req.Excerpt,
 		Slug:           slug,
 	}
+	s.insertHistory(ctx, historyReq, userCtx, "published")
 
-	if histErr := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), "published"); histErr != nil {
-		log.Printf("ERROR InsertHistory(published): %v", histErr)
-	} else {
-		log.Printf("SUCCESS InsertHistory(published)")
-	}
-
-	log.Printf("========== END PublishContent ==========")
 	return result, nil
 }
 
-// Helper function untuk generate slug jika kosong
+// Helper functions untuk coalesce
+func coalesceString(newVal, fallback string) string {
+	if newVal != "" {
+		return newVal
+	}
+	return fallback
+}
+
+func coalescePointer(newVal, fallback *string) *string {
+	if newVal != nil {
+		return newVal
+	}
+	return fallback
+}
+
+func coalesceSlice(newVal, fallback []string) []string {
+	if len(newVal) > 0 {
+		return newVal
+	}
+	return fallback
+}
+
+func getImageURLString(imageURL *string) string {
+	if imageURL != nil {
+		return *imageURL
+	}
+	return ""
+}
+
+// generateSlug generate slug dari title
 func (s *DraftServiceImpl) generateSlug(title string) string {
-	// Simple slug generation
 	slug := strings.ToLower(title)
 	slug = strings.ReplaceAll(slug, " ", "-")
-	// Remove special characters
 	reg := regexp.MustCompile("[^a-z0-9-]")
 	slug = reg.ReplaceAllString(slug, "")
 	return slug
 }
 
 // injectMetaTagsToArticle menambahkan meta tag ke dalam article HTML
+// HANYA dipanggil saat create/update draft, TIDAK saat publish
 func (s *DraftServiceImpl) injectMetaTagsToArticle(
 	article string,
 	title string,
@@ -573,7 +356,6 @@ func (s *DraftServiceImpl) injectMetaTagsToArticle(
 	excerpt string,
 	imageURL string,
 ) string {
-	// Jika article kosong, return apa adanya
 	if article == "" {
 		return article
 	}
@@ -581,26 +363,35 @@ func (s *DraftServiceImpl) injectMetaTagsToArticle(
 	// Generate meta tags
 	metaTags := helper.GenerateMetaTags(title, topic, excerpt, imageURL)
 
-	// Inject meta tags ke dalam <head> atau di awal article
-	// Cek apakah ada tag <head>
+	// Inject meta tags
 	if strings.Contains(article, "<head>") {
-		// Inject setelah <head>
 		article = strings.Replace(article, "<head>", "<head>\n"+metaTags, 1)
 	} else if strings.Contains(article, "<html") {
-		// Inject setelah <html>
 		article = strings.Replace(article, "<html", "<html>\n<head>\n"+metaTags+"\n</head>", 1)
 	} else {
-		// Jika tidak ada struktur HTML, tambahkan di awal
 		article = "<!DOCTYPE html>\n<html>\n<head>\n" + metaTags + "\n</head>\n<body>\n" + article + "\n</body>\n</html>"
 	}
 
 	return article
 }
 
+// insertHistory helper untuk insert history
+func (s *DraftServiceImpl) insertHistory(
+	ctx context.Context,
+	historyReq draft.PublishHistoryRequest,
+	userCtx models.UserContext,
+	status string,
+) {
+	if err := s.repoHistory.Create(ctx, historyReq, userCtx.GetUserID(), userCtx.GetTeamID(), status); err != nil {
+		log.Printf("[ERROR] InsertHistory(%s) slug=%s err=%v", status, historyReq.Slug, err)
+	} else {
+		log.Printf("[SUCCESS] InsertHistory(%s) slug=%s", status, historyReq.Slug)
+	}
+}
+
 // ScheduleDraft implements draft.Service
 func (s *DraftServiceImpl) ScheduleDraft(ctx context.Context, req draft.ScheduleRequest, userCtx models.UserContext) (string, error) {
 	scheduledFor := helper.ParseWIBTime(req.ScheduledFor)
-
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 
 	if scheduledFor.Before(time.Now().In(loc)) {
@@ -642,7 +433,7 @@ func (s *DraftServiceImpl) CancelSchedule(ctx context.Context, draftID string) e
 	return s.repo.UpdateStatus(ctx, draftID, "draft", nil)
 }
 
-// Private methods
+// scheduleDraft handle schedule logic
 func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForStr string, draftData *draft.DraftData, userCtx models.UserContext) (*draft.PublishResult, error) {
 	scheduledFor := helper.ParseWIBTime(scheduledForStr)
 
@@ -651,8 +442,7 @@ func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForSt
 		return nil, err
 	}
 
-	var imageURL string
-
+	imageURL := ""
 	if draftData.ImageURL != nil {
 		imageURL = *draftData.ImageURL
 	}
@@ -680,6 +470,7 @@ func (s *DraftServiceImpl) scheduleDraft(ctx context.Context, id, scheduledForSt
 	}, nil
 }
 
+// processPublish handle publish logic
 func (s *DraftServiceImpl) processPublish(ctx context.Context, draftData *draft.DraftData, id string, userCtx models.UserContext) (*draft.PublishResult, error) {
 	draftPost := draft.DraftDataPost{
 		Id:             id,
@@ -715,7 +506,7 @@ func (s *DraftServiceImpl) GetSEOScore(ctx context.Context, id string) (*draft.S
 		return nil, fmt.Errorf("draft not found: %w", err)
 	}
 
-	score := draft.CalculateSEOScore(draftData.Title, draftData.Article, draftData.Topic, draftData.Topic, draftData.Keywords)
+	score := CalculateSEOScore(draftData.Title, draftData.Article, draftData.Topic, draftData.Excerpt, draftData.Keywords)
 	return &score, nil
 }
 
@@ -765,11 +556,10 @@ func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, useRo
 	return results, nil
 }
 
-// Helper functions
-// Tambahkan parameter minioService
+// ==================== HELPER FUNCTIONS ====================
+
 func prepareUpdateData(updates draft.CreateDraftRequest, minioService *minio.MinioService) draft.CreateDraftRequest {
 	log.Println("========== PREPARE UPDATE DATA ==========")
-
 	ctx := context.Background()
 	processedUpdates := updates
 	hasImage := false
@@ -777,75 +567,53 @@ func prepareUpdateData(updates draft.CreateDraftRequest, minioService *minio.Min
 	// Process image_url
 	if processedUpdates.ImageURL != nil && *processedUpdates.ImageURL != "" {
 		if isBase64Image(processedUpdates.ImageURL) {
-			log.Println("[INFO] Detected base64 in image_url, uploading...")
 			uploadedURL, err := uploadBase64ToMinio(ctx, minioService, *processedUpdates.ImageURL, "image_url")
 			if err != nil {
 				log.Printf("[ERROR] Failed to upload base64 image: %v", err)
 				emptyStr := ""
 				processedUpdates.ImageURL = &emptyStr
 			} else {
-				log.Printf("[SUCCESS] Uploaded image_url: %s", uploadedURL)
 				processedUpdates.ImageURL = &uploadedURL
 				hasImage = true
 			}
 		} else if strings.Contains(*processedUpdates.ImageURL, minioService.Bucket) {
 			objectName := extractObjectName(*processedUpdates.ImageURL)
-			log.Printf("[INFO] Extracted object name from URL: %s", objectName)
 			processedUpdates.ImageURL = &objectName
 			hasImage = true
 		} else {
-			log.Printf("[INFO] Keeping original image_url: %s", *processedUpdates.ImageURL)
 			hasImage = true
 		}
-	} else {
-		log.Println("[INFO] No image_url provided")
 	}
 
 	// Process article images
 	if processedUpdates.Article != "" {
-		log.Println("[INFO] Processing article images...")
 		processedArticle := processArticleImages(ctx, minioService, processedUpdates.Article)
 		processedUpdates.Article = processedArticle
-
-		// Cek apakah article mengandung gambar
 		if containsImageInArticle(processedArticle) {
 			hasImage = true
 		}
-
-		log.Printf("[INFO] Article processed, length: %d", len(processedArticle))
 	}
 
-	// Set has_image
 	processedUpdates.HasImage = hasImage
-	log.Printf("[INFO] has_image set to: %v", hasImage)
-
-	log.Printf("[SUCCESS] prepareUpdateData completed")
 	return processedUpdates
 }
 
-// Helper function untuk cek apakah article mengandung tag img
 func containsImageInArticle(article string) bool {
-	// Cek HTML img tag
 	if strings.Contains(article, "<img ") || strings.Contains(article, "<img>") {
 		return true
 	}
-
-	// Cek Markdown image
 	matched, _ := regexp.MatchString(`!\[.*\]\(.*\)`, article)
 	if matched {
 		return true
 	}
-
-	// Cek base64 image
 	if strings.Contains(article, "data:image/") {
 		return true
 	}
-
 	return false
 }
+
 func processArticleImages(ctx context.Context, minioService *minio.MinioService, article string) string {
 	re := regexp.MustCompile(`<img[^>]+src="([^"]+)"`)
-
 	return re.ReplaceAllStringFunc(article, func(tag string) string {
 		reSrc := regexp.MustCompile(`src="([^"]+)"`)
 		match := reSrc.FindStringSubmatch(tag)
@@ -855,25 +623,20 @@ func processArticleImages(ctx context.Context, minioService *minio.MinioService,
 
 		oldURL := match[1]
 
-		// Base64 → Upload
 		if isBase64Image(&oldURL) {
 			newURL, err := uploadBase64ToMinio(ctx, minioService, oldURL, "article_img")
 			if err != nil {
 				log.Printf("[ERROR] Failed to upload: %v", err)
 				return tag
 			}
-			log.Printf("[SUCCESS] Base64 uploaded: %s", newURL)
 			return strings.Replace(tag, oldURL, newURL, 1)
 		}
 
-		// URL Minio → Ambil object name
 		if strings.Contains(oldURL, minioService.Bucket) {
 			objectName := extractObjectName(oldURL)
-			log.Printf("[INFO] Extracted object name: %s", objectName)
 			return strings.Replace(tag, oldURL, objectName, 1)
 		}
 
-		// URL external → Biarkan
 		return tag
 	})
 }
@@ -883,60 +646,20 @@ func extractObjectName(imageURL string) string {
 	if err != nil {
 		return imageURL
 	}
-
-	// /kabar-storage/blog-images/2026/07/05/uuid.jpg?X-Amz-...
-	// → blog-images/2026/07/05/uuid.jpg
 	path := strings.TrimPrefix(parsedURL.Path, "/")
-	parts := strings.SplitN(path, "/", 2) // ["kabar-storage", "blog-images/..."]
-
+	parts := strings.SplitN(path, "/", 2)
 	if len(parts) == 2 {
 		return parts[1]
 	}
-
 	return path
 }
 
-// Helper function: Proses semua base64 images di article
-func processArticleBase64Images(ctx context.Context, minioService *minio.MinioService, article string) (string, error) {
-	// Regex untuk mencari tag <img> dengan src base64
-	imgTagRegex := regexp.MustCompile(`<img[^>]+src="(data:image\/[^"]+)"[^>]*>`)
-	matches := imgTagRegex.FindAllStringSubmatch(article, -1)
-
-	log.Printf("[INFO] Found %d base64 images in article", len(matches))
-
-	processedArticle := article
-	for i, match := range matches {
-		fullTag := match[0]   // full <img ...> tag
-		base64Src := match[1] // hanya data:image... base64
-
-		log.Printf("[INFO] Processing article image %d/%d", i+1, len(matches))
-
-		// Upload ke Minio
-		uploadedURL, err := uploadBase64ToMinio(ctx, minioService, base64Src, fmt.Sprintf("article_img_%d", i))
-		if err != nil {
-			log.Printf("[ERROR] Failed to upload article image %d: %v", i, err)
-			continue
-		}
-
-		// Replace src di tag img
-		newTag := strings.Replace(fullTag, base64Src, uploadedURL, 1)
-		processedArticle = strings.Replace(processedArticle, fullTag, newTag, 1)
-		log.Printf("[SUCCESS] Replaced image %d with: %s", i+1, uploadedURL)
-	}
-
-	return processedArticle, nil
-}
-
-// Helper function: Cek apakah string adalah base64 image
 func isBase64Image(data *string) bool {
 	base64Pattern := regexp.MustCompile(`^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,`)
 	return base64Pattern.MatchString(*data)
 }
 
-// Helper function: Upload base64 image ke Minio
 func uploadBase64ToMinio(ctx context.Context, minioService *minio.MinioService, base64Data string, source string) (string, error) {
-	log.Printf("[INFO] Uploading base64 from %s to Minio", source)
-
 	re := regexp.MustCompile(`^data:(image\/[^;]+);base64,(.*)`)
 	matches := re.FindStringSubmatch(base64Data)
 	if len(matches) != 3 {
@@ -957,27 +680,16 @@ func uploadBase64ToMinio(ctx context.Context, minioService *minio.MinioService, 
 		uuid.New().String(),
 		ext,
 	)
-	log.Printf("[INFO] Object name: %s", objectName)
 
 	reader := bytes.NewReader(imageData)
-	uploadedResult, err := minioService.Upload(
-		ctx,
-		objectName,
-		reader,
-		int64(len(imageData)),
-		mimeType,
-	)
+	uploadedResult, err := minioService.Upload(ctx, objectName, reader, int64(len(imageData)), mimeType)
 	if err != nil {
-		log.Printf("[ERROR] Failed to upload to Minio: %v", err)
 		return "", fmt.Errorf("failed to upload image to Minio: %w", err)
 	}
-	log.Printf("[DEBUG] Minio upload result: %s", uploadedResult)
 
-	// 🔥 LANGSUNG RETURN PRESIGNED URL, JANGAN DI PARSE!
 	return uploadedResult, nil
 }
 
-// Helper function: Dapatkan extension dari MIME type
 func getExtensionFromMimeType(mimeType string) string {
 	switch mimeType {
 	case "image/png":
@@ -995,14 +707,7 @@ func getExtensionFromMimeType(mimeType string) string {
 	}
 }
 
-func validatePublishRequest(req draft.DraftDataPost) error {
-	if req.Title == "" || req.Article == "" || len(req.TargetProducts) == 0 {
-		return fmt.Errorf("title, article, and target_products are required")
-	}
-	return nil
-}
-
-func CalculateSEOScore(title, content, excerpt, topic string) draft.SEOScore {
+func CalculateSEOScore(title, content, excerpt, topic string, keywords []string) draft.SEOScore {
 	details := map[string]int{}
 	suggestions := []string{}
 	total := 0
@@ -1097,130 +802,49 @@ func stripHTML(content string) string {
 	return buf.String()
 }
 
-// Helper function to mask sensitive values
-func maskSensitiveValue(value string) string {
-	if len(value) <= 4 {
-		return "****"
-	}
-	if len(value) <= 8 {
-		return value[:2] + "****" + value[len(value)-2:]
-	}
-	return value[:3] + "..." + value[len(value)-3:]
-}
-
-// Helper functions
-func getKeys(m map[string]interface{}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func countSuccessfulNodes(nodeResults map[string]interface{}) int {
-	count := 0
-	for _, result := range nodeResults {
-		if resultMap, ok := result.(map[string]interface{}); ok {
-			if success, ok := resultMap["success"].(bool); ok && success {
-				count++
-			}
-		}
-	}
-	return count
-}
-
-// ============================================================
-// 🔑 HELPER: Enrich draft dengan previous results dari config
-// ============================================================
-func (s *DraftServiceImpl) enrichDraftWithPreviousResults(
-	draftData draft.DraftDataPost,
-	cfg *product.ProductConfig,
-) (draft.DraftDataPost, map[string]interface{}) {
-
-	if cfg == nil {
-		return draftData, nil
-	}
-
-	results := cfg.GetAllExecutionResults()
-	if len(results) == 0 {
-		return draftData, nil
-	}
-
-	return draftData, results
-}
-
-func structToMap(data interface{}) map[string]interface{} {
-	jsonBytes, _ := json.Marshal(data)
-	var result map[string]interface{}
-	json.Unmarshal(jsonBytes, &result)
-	return result
-}
-
 func (s *DraftServiceImpl) RescheduleDraft(
 	ctx context.Context,
 	draftID string,
 	newScheduleTime time.Time,
 	userCtx models.UserContext,
 ) (*draft.PublishResult, error) {
-
 	log.Printf("========== RESCHEDULE DRAFT SERVICE ==========")
-	log.Printf("DraftID: %s, NewScheduleTime: %v", draftID, newScheduleTime)
 
-	// 1. Get existing draft
 	existingDraft, err := s.repo.GetByID(ctx, draftID)
 	if err != nil {
-		log.Printf("[ERROR] Draft not found: %v", err)
 		return nil, fmt.Errorf("draft not found")
 	}
 
-	log.Printf("Existing draft found: ID=%s, Status=%s", existingDraft.ID, existingDraft.Status)
-
-	// 2. Validate status
 	if existingDraft.Status != "scheduled" {
-		log.Printf("[ERROR] Draft is not in scheduled status: %s", existingDraft.Status)
 		return nil, fmt.Errorf("draft is not in scheduled status")
 	}
 
-	// 3. Cancel existing schedule di Redis
 	if err := s.redisScheduler.CancelScheduledTask(ctx, draftID); err != nil {
 		log.Printf("[WARNING] Failed to cancel existing schedule: %v", err)
-		// Continue anyway - jangan block proses
 	}
 
-	// Simpan scheduled time lama untuk response
 	oldScheduledTime := existingDraft.ScheduledFor
 
-	// 4. Konversi existingDraft ke CreateDraftRequest untuk update
 	updateRequest := draft.CreateDraftRequest{
 		Title:        existingDraft.Title,
 		Topic:        existingDraft.Topic,
 		Article:      existingDraft.Article,
 		ImageURL:     existingDraft.ImageURL,
 		ImagePrompt:  existingDraft.ImagePrompt,
-		ScheduledFor: newScheduleTime.Format(time.RFC3339), // Format waktu baru
+		ScheduledFor: newScheduleTime.Format(time.RFC3339),
 		Slug:         existingDraft.Slug,
 		SEOScore:     existingDraft.SEOScore,
 		Excerpt:      existingDraft.Excerpt,
 		UpdateAt:     time.Now(),
-		Status:       "scheduled", // Tetap scheduled
+		Status:       "scheduled",
 		TeamID:       userCtx.GetTeamID(),
 		UserID:       userCtx.GetUserID(),
 	}
 
-	log.Printf("Update request prepared: Title=%s, ScheduledFor=%s",
-		updateRequest.Title,
-		updateRequest.ScheduledFor,
-	)
-
-	// 5. Update scheduled time in database menggunakan CreateDraftRequest
 	if err := s.repo.Update(ctx, userCtx.GetTeamID(), draftID, updateRequest); err != nil {
-		log.Printf("[ERROR] Failed to update draft schedule: %v", err)
 		return nil, fmt.Errorf("failed to update draft schedule: %w", err)
 	}
 
-	log.Printf("✅ Database updated successfully")
-
-	// 6. Buat task data untuk scheduler
 	taskData := &scheduler.ScheduledTask{
 		ID:             draftID,
 		Title:          existingDraft.Title,
@@ -1232,32 +856,16 @@ func (s *DraftServiceImpl) RescheduleDraft(
 		UserID:         userCtx.GetUserID(),
 	}
 
-	// 7. Schedule ulang di Redis
-	if err := s.redisScheduler.ScheduleDraftTask(
-		ctx,
-		draftID,
-		newScheduleTime,
-		taskData,
-		userCtx,
-	); err != nil {
-		log.Printf("[ERROR] Failed to create new schedule: %v", err)
-
-		// Rollback: kembalikan ke status draft jika gagal schedule
+	if err := s.redisScheduler.ScheduleDraftTask(ctx, draftID, newScheduleTime, taskData, userCtx); err != nil {
 		rollbackRequest := updateRequest
 		rollbackRequest.Status = "draft"
 		rollbackRequest.ScheduledFor = ""
-
 		if rollbackErr := s.repo.Update(ctx, userCtx.GetTeamID(), draftID, rollbackRequest); rollbackErr != nil {
 			log.Printf("[CRITICAL] Failed to rollback draft status: %v", rollbackErr)
 		}
-
 		return nil, fmt.Errorf("failed to create new schedule: %w", err)
 	}
 
-	log.Printf("✅ Redis rescheduled successfully")
-	log.Printf("========== END RESCHEDULE DRAFT SERVICE ==========")
-
-	// 8. Return result
 	return &draft.PublishResult{
 		Status:       "scheduled",
 		ScheduledFor: &newScheduleTime,
@@ -1274,4 +882,19 @@ func (s *DraftServiceImpl) RescheduleDraft(
 		SuccessCount:  1,
 		FailedCount:   0,
 	}, nil
+}
+
+// enrichDraftWithPreviousResults
+func (s *DraftServiceImpl) enrichDraftWithPreviousResults(
+	draftData draft.DraftDataPost,
+	cfg *product.ProductConfig,
+) (draft.DraftDataPost, map[string]interface{}) {
+	if cfg == nil {
+		return draftData, nil
+	}
+	results := cfg.GetAllExecutionResults()
+	if len(results) == 0 {
+		return draftData, nil
+	}
+	return draftData, results
 }
