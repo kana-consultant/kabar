@@ -12,6 +12,8 @@ import (
 	"seo-backend/internal/domain/product"
 	"seo-backend/internal/helper"
 	"seo-backend/internal/models"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -48,6 +50,8 @@ type RedisScheduler struct {
 	productController product.ProductService
 	postService       helper.PostService
 	isRunning         bool
+	mu                sync.RWMutex
+	activeTasks       map[string]context.CancelFunc // Track active tasks
 }
 
 type TaskHandler func(task *ScheduledTask) error
@@ -65,6 +69,7 @@ func NewRedisScheduler(redisClient *redis.Client, db *sql.DB, productController 
 		taskHandlers:      make(map[string]TaskHandler),
 		db:                db,
 		isRunning:         false,
+		activeTasks:       make(map[string]context.CancelFunc),
 	}
 }
 
@@ -119,7 +124,7 @@ func (s *RedisScheduler) ScheduleDraftTask(
 
 	log.Printf("📝 Scheduling task: key=%s, ttl=%v, scheduledFor=%v", taskKey, ttl, scheduledFor)
 
-	// ✅ Gunakan context dari parameter
+	// Gunakan context dari parameter
 	err = s.redisClient.Set(ctx, taskKey, taskDataBytes, ttl).Err()
 	if err != nil {
 		return fmt.Errorf("failed to save task: %w", err)
@@ -150,53 +155,63 @@ func (s *RedisScheduler) ScheduleDraftTask(
 	return nil
 }
 
-// 🔥 FIX 3: Build cron expression yang benar
+// buildCronExpression creates cron expression for specific time
 func (s *RedisScheduler) buildCronExpression(t time.Time) string {
-	// Format: second minute hour day month weekday
-	// Untuk satu kali eksekusi di waktu tertentu
 	return fmt.Sprintf("%d %d %d %d %d *",
-		t.Second(),     // Detik
-		t.Minute(),     // Menit
-		t.Hour(),       // Jam
-		t.Day(),        // Tanggal
-		int(t.Month()), // Bulan
+		t.Second(),
+		t.Minute(),
+		t.Hour(),
+		t.Day(),
+		int(t.Month()),
 	)
 }
 
-// 🔥 FIX 4: Method untuk log cron entries
+// logCronEntries logs all cron entries
 func (s *RedisScheduler) logCronEntries() {
 	entries := s.cron.Entries()
 	log.Printf("📊 Total cron entries: %d", len(entries))
 	for i, entry := range entries {
-		log.Printf("  Entry %d: ID=%d, Next=%v, Schedule=%s",
+		log.Printf("  Entry %d: ID=%d, Next=%v",
 			i,
 			entry.ID,
 			entry.Next,
-			entry.Schedule)
+		)
 	}
 }
 
-// 🔥 FIX 5: Recovery dari Redis jika aplikasi restart
+// recoverPendingTasks recovers pending tasks from Redis if application restarts
 func (s *RedisScheduler) recoverPendingTasks() {
 	log.Println("🔄 Recovering pending tasks from Redis...")
 
+	// GUNAKAN CONTEXT BACKGROUND AGAR TIDAK TERGANTUNG s.ctx
+	ctx := context.Background()
+
+	// Hanya ambil key yang sesuai format schedule:draft:draft_*
 	pattern := "schedule:draft:draft_*"
-	keys, err := s.redisClient.Keys(s.ctx, pattern).Result()
+	keys, err := s.redisClient.Keys(ctx, pattern).Result()
 	if err != nil {
 		log.Printf("❌ Failed to recover tasks: %v", err)
 		return
 	}
 
-	if len(keys) == 0 {
+	// Filter key yang bukan userctx
+	var taskKeys []string
+	for _, key := range keys {
+		if !strings.Contains(key, ":userctx") {
+			taskKeys = append(taskKeys, key)
+		}
+	}
+
+	if len(taskKeys) == 0 {
 		log.Println("📭 No pending tasks to recover")
 		return
 	}
 
-	log.Printf("📦 Found %d pending tasks in Redis", len(keys))
+	log.Printf("📦 Found %d pending tasks in Redis", len(taskKeys))
 
-	for _, key := range keys {
-		// Ambil task dari Redis
-		taskData, err := s.redisClient.Get(s.ctx, key).Bytes()
+	for _, key := range taskKeys {
+		// Ambil task dari Redis dengan context background
+		taskData, err := s.redisClient.Get(ctx, key).Bytes()
 		if err != nil {
 			log.Printf("❌ Failed to get task %s: %v", key, err)
 			continue
@@ -208,13 +223,20 @@ func (s *RedisScheduler) recoverPendingTasks() {
 			continue
 		}
 
+		// Validasi task ID tidak kosong
+		if task.ID == "" {
+			log.Printf("⚠️ Task with empty ID found, deleting key: %s", key)
+			s.redisClient.Del(ctx, key)
+			s.redisClient.Del(ctx, key+":userctx")
+			continue
+		}
+
 		// Cek apakah task sudah lewat waktunya
 		now := time.Now()
 		if task.ScheduledFor.After(now) {
 			// Belum waktunya, reschedule
 			log.Printf("🔄 Rescheduling task %s for %v", task.ID, task.ScheduledFor)
 
-			// Hitung ulang cron
 			cronExpr := s.buildCronExpression(task.ScheduledFor)
 			_, err := s.cron.AddFunc(cronExpr, func() {
 				s.executeDraftTask(task.ID)
@@ -226,7 +248,7 @@ func (s *RedisScheduler) recoverPendingTasks() {
 				log.Printf("✅ Task %s rescheduled successfully", task.ID)
 			}
 		} else {
-			// Sudah lewat, eksekusi sekarang
+			// Sudah lewat, eksekusi sekarang dengan goroutine
 			log.Printf("⏰ Task %s is overdue, executing now...", task.ID)
 			go s.executeDraftTask(task.ID)
 		}
@@ -239,19 +261,39 @@ func (s *RedisScheduler) recoverPendingTasks() {
 func (s *RedisScheduler) executeDraftTask(taskID string) {
 	log.Printf("🚀 Executing scheduled draft task: %s at %v", taskID, time.Now())
 
-	// Get task from Redis
-	task, err := s.getTask(taskID)
+	// Validasi taskID tidak kosong
+	if taskID == "" {
+		log.Printf("❌ Empty taskID, skipping execution")
+		return
+	}
+
+	// Gunakan context dengan timeout untuk mencegah context canceled
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	// Track active task
+	s.mu.Lock()
+	s.activeTasks[taskID] = cancel
+	s.mu.Unlock()
+
+	defer func() {
+		s.mu.Lock()
+		delete(s.activeTasks, taskID)
+		s.mu.Unlock()
+	}()
+
+	// Get task from Redis dengan context baru
+	task, err := s.getTaskWithContext(ctx, taskID)
 	if err != nil {
 		log.Printf("❌ Failed to get task %s: %v", taskID, err)
 		return
 	}
 
-	// 🔥 FIX 6: Ambil userCtx dari Redis
+	// Ambil userCtx dari Redis
 	userCtxKey := fmt.Sprintf("schedule:draft:%s:userctx", taskID)
-	userCtxBytes, err := s.redisClient.Get(s.ctx, userCtxKey).Bytes()
+	userCtxBytes, err := s.redisClient.Get(ctx, userCtxKey).Bytes()
 	if err != nil {
 		log.Printf("⚠️ Failed to get user context for task %s: %v", taskID, err)
-		// Lanjutkan dengan empty context
 	}
 
 	var userCtx models.UserContext
@@ -259,9 +301,24 @@ func (s *RedisScheduler) executeDraftTask(taskID string) {
 		json.Unmarshal(userCtxBytes, &userCtx)
 	}
 
+	// PENTING: Bersihkan cache Redis di akhir, apapun hasilnya
+	defer func() {
+		taskKey := fmt.Sprintf("schedule:draft:%s", taskID)
+		userCtxKey := fmt.Sprintf("schedule:draft:%s:userctx", taskID)
+
+		// Gunakan context background untuk cleanup
+		cleanupCtx := context.Background()
+		delCount, err := s.redisClient.Del(cleanupCtx, taskKey, userCtxKey).Result()
+		if err != nil {
+			log.Printf("⚠️ Failed to clean Redis cache for task %s: %v", taskID, err)
+		} else {
+			log.Printf("🧹 Cleaned Redis cache for task %s (deleted %d keys)", taskID, delCount)
+		}
+	}()
+
 	// Mark as processing
 	task.Status = "processing"
-	s.updateTask(task)
+	s.updateTaskWithContext(ctx, task)
 
 	// Update draft status to publishing
 	err = s.updateDraftStatus(task.DraftID, "publishing")
@@ -269,12 +326,12 @@ func (s *RedisScheduler) executeDraftTask(taskID string) {
 		log.Printf("❌ Failed to update draft %s status: %v", task.DraftID, err)
 		task.Status = "failed"
 		task.Error = err.Error()
-		s.updateTask(task)
+		s.updateTaskWithContext(ctx, task)
 		return
 	}
 
 	// Execute publishing with retry
-	err = s.publishDraft(task, userCtx)
+	err = s.publishDraftWithContext(ctx, task, userCtx)
 	if err != nil {
 		log.Printf("❌ Failed to publish draft %s after retries: %v", task.DraftID, err)
 		task.Status = "failed"
@@ -289,21 +346,30 @@ func (s *RedisScheduler) executeDraftTask(taskID string) {
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 	now := time.Now().In(loc)
 	task.ExecutedAt = &now
-	s.updateTask(task)
-
-	// 🔥 FIX 7: Hapus task dari Redis setelah selesai (opsional)
-	// s.redisClient.Del(s.ctx, fmt.Sprintf("schedule:draft:%s", taskID))
-	// s.redisClient.Del(s.ctx, fmt.Sprintf("schedule:draft:%s:userctx", taskID))
+	s.updateTaskWithContext(ctx, task)
 }
 
-// publishDraft with retry mechanism
-func (s *RedisScheduler) publishDraft(task *ScheduledTask, userCtx models.UserContext) error {
+// publishDraftWithContext with retry mechanism and context
+func (s *RedisScheduler) publishDraftWithContext(ctx context.Context, task *ScheduledTask, userCtx models.UserContext) error {
 	var lastErr error
 
 	for i := 0; i <= task.MaxRetries; i++ {
+		// Check context cancellation
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled: %w", ctx.Err())
+		default:
+		}
+
 		if i > 0 {
 			log.Printf("🔄 Retrying draft %s (attempt %d/%d)", task.DraftID, i+1, task.MaxRetries+1)
-			time.Sleep(time.Duration(i*5) * time.Second)
+
+			// Sleep with context awareness
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context cancelled during retry: %w", ctx.Err())
+			case <-time.After(time.Duration(i*5) * time.Second):
+			}
 		}
 
 		err := s.doPublishDraft(task, userCtx)
@@ -313,7 +379,7 @@ func (s *RedisScheduler) publishDraft(task *ScheduledTask, userCtx models.UserCo
 
 		lastErr = err
 		task.RetryCount = i + 1
-		s.updateTask(task)
+		s.updateTaskWithContext(ctx, task)
 	}
 
 	return fmt.Errorf("max retries exceeded: %w", lastErr)
@@ -328,7 +394,6 @@ func (s *RedisScheduler) doPublishDraft(task *ScheduledTask, userCtx models.User
 		task.TargetProducts,
 	)
 
-	// langsung gunakan data dari task redis
 	draftData := draft.DraftDataPost{
 		Title:          task.Title,
 		Topic:          task.Topic,
@@ -441,9 +506,15 @@ func (s *RedisScheduler) updateDraftStatus(draftID string, status string) error 
 	return err
 }
 
+// getTask retrieves task from Redis using scheduler context
 func (s *RedisScheduler) getTask(taskID string) (*ScheduledTask, error) {
+	return s.getTaskWithContext(s.ctx, taskID)
+}
+
+// getTaskWithContext retrieves task from Redis with specific context
+func (s *RedisScheduler) getTaskWithContext(ctx context.Context, taskID string) (*ScheduledTask, error) {
 	taskKey := fmt.Sprintf("schedule:draft:%s", taskID)
-	taskData, err := s.redisClient.Get(s.ctx, taskKey).Bytes()
+	taskData, err := s.redisClient.Get(ctx, taskKey).Bytes()
 	if err != nil {
 		return nil, err
 	}
@@ -456,27 +527,36 @@ func (s *RedisScheduler) getTask(taskID string) (*ScheduledTask, error) {
 	return &task, nil
 }
 
+// updateTask updates task in Redis using scheduler context
 func (s *RedisScheduler) updateTask(task *ScheduledTask) error {
+	return s.updateTaskWithContext(s.ctx, task)
+}
+
+// updateTaskWithContext updates task in Redis with specific context
+func (s *RedisScheduler) updateTaskWithContext(ctx context.Context, task *ScheduledTask) error {
 	taskKey := fmt.Sprintf("schedule:draft:%s", task.ID)
 	taskData, err := json.Marshal(task)
 	if err != nil {
 		return err
 	}
-	return s.redisClient.Set(s.ctx, taskKey, taskData, 0).Err()
+	return s.redisClient.Set(ctx, taskKey, taskData, 0).Err()
 }
 
 // CancelScheduledTask cancels a scheduled draft
 func (s *RedisScheduler) CancelScheduledTask(ctx context.Context, draftID string) error {
 	pattern := fmt.Sprintf("schedule:draft:draft_%s_*", draftID)
-	keys, err := s.redisClient.Keys(s.ctx, pattern).Result()
+	keys, err := s.redisClient.Keys(ctx, pattern).Result()
 	if err != nil {
 		return err
 	}
 
 	for _, key := range keys {
-		if err := s.redisClient.Del(s.ctx, key).Err(); err != nil {
+		// Hapus task key
+		if err := s.redisClient.Del(ctx, key).Err(); err != nil {
 			log.Printf("Failed to delete task key %s: %v", key, err)
 		}
+		// Hapus userctx key
+		s.redisClient.Del(ctx, key+":userctx")
 	}
 
 	log.Printf("Cancelled scheduled tasks for draft %s", draftID)
@@ -485,15 +565,23 @@ func (s *RedisScheduler) CancelScheduledTask(ctx context.Context, draftID string
 
 // GetScheduledTasks gets all scheduled drafts
 func (s *RedisScheduler) GetScheduledTasks() ([]*ScheduledTask, error) {
+	// Gunakan context background untuk operasi read
+	ctx := context.Background()
+
 	pattern := "schedule:draft:*"
-	keys, err := s.redisClient.Keys(s.ctx, pattern).Result()
+	keys, err := s.redisClient.Keys(ctx, pattern).Result()
 	if err != nil {
 		return nil, err
 	}
 
 	var tasks []*ScheduledTask
 	for _, key := range keys {
-		taskData, err := s.redisClient.Get(s.ctx, key).Bytes()
+		// Skip userctx keys
+		if strings.Contains(key, ":userctx") {
+			continue
+		}
+
+		taskData, err := s.redisClient.Get(ctx, key).Bytes()
 		if err != nil {
 			continue
 		}
@@ -509,7 +597,7 @@ func (s *RedisScheduler) GetScheduledTasks() ([]*ScheduledTask, error) {
 	return tasks, nil
 }
 
-// 🔥 FIX 8: Start dengan recovery
+// Start starts the scheduler
 func (s *RedisScheduler) Start() {
 	if s.isRunning {
 		log.Println("⚠️ Scheduler already running")
@@ -520,15 +608,31 @@ func (s *RedisScheduler) Start() {
 	s.isRunning = true
 	log.Println("✅ Redis Scheduler started")
 
-	// Recovery pending tasks
-	go s.recoverPendingTasks()
+	// Recovery pending tasks dengan delay kecil agar server siap
+	go func() {
+		time.Sleep(2 * time.Second)
+		s.recoverPendingTasks()
+	}()
 }
 
-// Stop stops the scheduler
+// Stop stops the scheduler gracefully
 func (s *RedisScheduler) Stop() {
 	if !s.isRunning {
 		return
 	}
+
+	log.Println("🛑 Stopping Redis Scheduler...")
+
+	// Cancel semua active tasks
+	s.mu.Lock()
+	for taskID, cancel := range s.activeTasks {
+		log.Printf("⚠️ Cancelling active task: %s", taskID)
+		cancel()
+	}
+	s.mu.Unlock()
+
+	// Tunggu sebentar untuk menyelesaikan task yang sedang berjalan
+	time.Sleep(2 * time.Second)
 
 	s.cron.Stop()
 	s.isRunning = false
@@ -536,10 +640,13 @@ func (s *RedisScheduler) Stop() {
 	log.Println("🛑 Redis Scheduler stopped")
 }
 
-// 🔥 FIX 9: Method untuk cleanup expired tasks
+// CleanupExpiredTasks cleans up expired tasks from Redis
 func (s *RedisScheduler) CleanupExpiredTasks() error {
+	// Gunakan context background
+	ctx := context.Background()
+
 	pattern := "schedule:draft:*"
-	keys, err := s.redisClient.Keys(s.ctx, pattern).Result()
+	keys, err := s.redisClient.Keys(ctx, pattern).Result()
 	if err != nil {
 		return err
 	}
@@ -547,8 +654,13 @@ func (s *RedisScheduler) CleanupExpiredTasks() error {
 	var deleted int
 
 	for _, key := range keys {
+		// Skip userctx keys, akan dihapus bersama task key
+		if strings.Contains(key, ":userctx") {
+			continue
+		}
+
 		// Ambil TTL
-		ttl, err := s.redisClient.TTL(s.ctx, key).Result()
+		ttl, err := s.redisClient.TTL(ctx, key).Result()
 		if err != nil {
 			continue
 		}
@@ -556,13 +668,13 @@ func (s *RedisScheduler) CleanupExpiredTasks() error {
 		// Jika TTL <= 0 dan key masih ada, berarti sudah expired
 		if ttl <= 0 {
 			// Cek apakah key masih ada
-			exists, _ := s.redisClient.Exists(s.ctx, key).Result()
+			exists, _ := s.redisClient.Exists(ctx, key).Result()
 			if exists == 0 {
 				continue
 			}
 
-			// Hapus jika sudah expired
-			s.redisClient.Del(s.ctx, key)
+			// Hapus task key dan userctx key
+			s.redisClient.Del(ctx, key, key+":userctx")
 			deleted++
 		}
 	}
