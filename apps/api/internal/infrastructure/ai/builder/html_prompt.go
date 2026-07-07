@@ -2,62 +2,88 @@ package builder
 
 const htmlRules = `
 ==================================================
-HTML REQUIREMENTS
+HTML STRUCTURE & FORMATTING REQUIREMENTS
 ==================================================
 
-Generate semantic, clean, and well-structured HTML.
+1. ALLOWED TAGS (STRICT):
+   <h1> <h2> <h3> <p> <strong> <em>
+   <ul> <ol> <li>
+   <table> <thead> <tbody> <tr> <th> <td>
+   <img> <a>
 
-Allowed tags:
+   FORBIDDEN:
+   <div> <span> <section> <br> <style> <script>
+   Markdown, backticks, HTML comments, inline styles
 
-<h1>
-<h2>
-<h3>
-<p>
-<ul>
-<ol>
-<li>
-<strong>
-<em>
-<table>
-<thead>
-<tbody>
-<tr>
-<th>
-<td>
-<img>
+2. DOCUMENT STRUCTURE:
+   - Exactly ONE <h1> as first element
+   - 5-8 <h2> sections
+   - <h3> only for subsections (max 3 per H2)
+   - Every heading MUST be followed by at least one <p>
+   - End with text (<p>), never image or table
+   - No empty elements
 
-Document layout:
+3. PARAGRAPH RULES:
+   - 2-5 sentences per paragraph (50-120 words)
+   - Max 3 consecutive paragraphs without break element
+   - Mix with lists/tables/images for visual variety
 
-- Begin with exactly one <h1>.
-- Use <h2> for major sections.
-- Use <h3> only when a subsection is necessary.
-- Every heading should be followed by at least one <p>.
-- Keep paragraphs relatively short (2–5 sentences).
-- Use <ul> or <ol> whenever listing multiple items.
-- Use <table> only when tabular data improves readability.
-- Place images immediately after the paragraph that introduces or explains them.
-- Never place two consecutive images without meaningful text between them.
-- Distribute images naturally throughout the article.
-- Avoid placing an image as the first or last element of the article.
-- End the article with a text section instead of an image.
-- Maintain a balanced flow between headings, paragraphs, lists, tables, and images.
-- Do not create empty sections.
+4. HEADING RULES:
+   - H1: 5-15 words, include primary keyword naturally
+   - H2: 3-10 words, at least 1-2 contain keyword
+   - No keyword stuffing, write for humans
 
-Image layout:
+5. LIST RULES:
+   - Minimum 3 <li> items, maximum 8
+   - Introduce lists with a <p>
+   - Use <strong> for key terms in <li>
 
-- Every <img> must be surrounded by relevant content.
-- Images should support the nearby explanation instead of interrupting it.
-- Avoid clustering multiple visual elements together.
-- Keep image placement consistent with the reading flow.
+6. TABLE RULES:
+   - Only for comparison/structured data
+   - Must have <thead> + <th> + <tbody>
+   - 2-5 columns, 2-10 rows
+   - Introduce tables with a <p>
+   - Keep cells concise (1-2 sentences)
 
-Do NOT generate:
+7. IMAGE RULES (CRITICAL):
+   - EVERY <img> MUST have alt="descriptive text" (5-15 words)
+   - Include keyword naturally in alt text
+   - NEVER image as first or last element
+   - NEVER two consecutive images
+   - Max 2-4 images total, evenly distributed
+   - Place AFTER referencing paragraph
+   - No images in intro (first 150 words) or conclusion
 
-<style>
-<script>
-<iframe>
-<svg>
-<canvas>
-markdown
-backticks
-XML
+8. LINK RULES:
+   - Use <a href="..."> for links
+   - Descriptive anchor text (NOT "click here")
+   - Include 1-3 links where natural
+   - Links should enhance content, not distract
+
+9. TEXT FORMATTING:
+   - <strong>: key terms, important points (2-4 per section)
+   - <em>: emphasis, technical terms on first use
+   - Don't bold/italicize entire sentences
+   - Never nest <strong> and <em>
+
+10. STRUCTURE BALANCE:
+    - Varied elements: text → list → text → table → text
+    - Avoid clustering (no 3+ lists in a row)
+    - Section lengths similar (±30%)
+    - Smooth transitions between content types
+
+11. VALIDATION:
+    - All tags properly closed and nested
+    - No duplicate attributes
+    - Alt text on all images
+    - Table headers on all tables
+    - H1 exactly once
+    - Start with <h1>, end with <p>
+    - No forbidden tags or formatting
+
+12. OUTPUT:
+    - Pure HTML only, start directly with <h1>
+    - No <html>, <head>, <body> wrappers
+    - Valid UTF-8, no hidden characters
+    - No markdown, code fences, or XML
 `

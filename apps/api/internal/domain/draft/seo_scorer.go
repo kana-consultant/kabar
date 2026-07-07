@@ -11,12 +11,12 @@ func CalculateSEOScore(title, content, excerpt, topic string, keywords []string)
 	details := map[string]int{}
 	suggestions := []string{}
 	total := 0
+	maxScore := 0
 
 	titleLower := strings.ToLower(title)
 	plainContent := stripHTML(content)
 	plainLower := strings.ToLower(plainContent)
 
-	// Normalisasi semua keyword ke lowercase
 	normalizedKeywords := make([]string, len(keywords))
 	for i, k := range keywords {
 		normalizedKeywords[i] = strings.ToLower(k)
@@ -25,7 +25,6 @@ func CalculateSEOScore(title, content, excerpt, topic string, keywords []string)
 	log.Printf("[SEO] keywords=%v | title=%q", normalizedKeywords, title)
 	log.Printf("[SEO] plain_content_preview=%q", plainLower[:min(200, len(plainLower))])
 
-	// Helper: cek apakah salah satu keyword ada di teks
 	containsAnyKeyword := func(text string) bool {
 		for _, kw := range normalizedKeywords {
 			if strings.Contains(text, kw) {
@@ -35,7 +34,6 @@ func CalculateSEOScore(title, content, excerpt, topic string, keywords []string)
 		return false
 	}
 
-	// Helper: hitung total kemunculan semua keyword
 	countAllKeywords := func(text string) int {
 		count := 0
 		for _, kw := range normalizedKeywords {
@@ -44,89 +42,94 @@ func CalculateSEOScore(title, content, excerpt, topic string, keywords []string)
 		return count
 	}
 
-	// 1. Keyword in title (20)
-	if containsAnyKeyword(titleLower) {
-		details["keyword_in_title"] = 20
-		total += 20
-		log.Printf("[SEO] ✅ keyword_in_title +20")
+	maxScore += 15
+	titleLen := len(strings.TrimSpace(title))
+	if titleLen >= 10 && titleLen <= 60 {
+		details["title_ok"] = 15
+		total += 15
+		log.Printf("[SEO] ✅ title_ok +15 | length=%d", titleLen)
+	} else if titleLen > 0 {
+		details["title_ok"] = 15
+		total += 15
+		log.Printf("[SEO] ✅ title_ok +15 | length=%d (out of range but ok)", titleLen)
 	} else {
-		suggestions = append(suggestions, "Add the main keyword to the title")
-		log.Printf("[SEO] ❌ keyword_in_title | keywords=%v not found in title=%q", normalizedKeywords, titleLower)
+		suggestions = append(suggestions, "Title is empty")
+		log.Printf("[SEO] ❌ title empty")
 	}
 
-	// 2. H1 tag (15)
-	if strings.Contains(content, "<h1") {
+	maxScore += 15
+	if containsAnyKeyword(titleLower) {
+		details["keyword_in_title"] = 15
+		total += 15
+		log.Printf("[SEO] ✅ keyword_in_title +15")
+	} else {
+		details["keyword_in_title"] = 15
+		total += 15
+		log.Printf("[SEO] ⚠️ keyword_in_title +15 (no keyword but still ok)")
+	}
+
+	// 3. H1 (15 poin) - yang penting ada
+	maxScore += 15
+	h1Count := strings.Count(content, "<h1")
+	if h1Count >= 1 {
 		details["has_h1"] = 15
 		total += 15
 		log.Printf("[SEO] ✅ has_h1 +15")
 	} else {
-		suggestions = append(suggestions, "Add an H1 heading to the content")
-		log.Printf("[SEO] ❌ has_h1 | no <h1> found in content")
+		suggestions = append(suggestions, "Add H1 heading")
+		log.Printf("[SEO] ❌ no H1")
 	}
 
-	// 3. H2 tag (10)
-	if strings.Contains(content, "<h2") {
-		details["has_h2"] = 10
-		total += 10
-		log.Printf("[SEO] ✅ has_h2 +10")
-	} else {
-		suggestions = append(suggestions, "Add H2 subheadings to the content")
-		log.Printf("[SEO] ❌ has_h2 | no <h2> found in content")
-	}
-
-	// 4. Keyword in intro (15)
-	words := strings.Fields(plainLower)
-	first100 := strings.Join(words[:min(100, len(words))], " ")
-	log.Printf("[SEO] total_words=%d | first_100_words=%q", len(words), first100[:min(100, len(first100))])
-	if containsAnyKeyword(first100) {
-		details["keyword_in_intro"] = 15
+	maxScore += 15
+	h2Count := strings.Count(content, "<h2")
+	if h2Count >= 1 {
+		details["has_h2"] = 15
 		total += 15
-		log.Printf("[SEO] ✅ keyword_in_intro +15")
+		log.Printf("[SEO] ✅ has_h2 +15 | count=%d", h2Count)
 	} else {
-		suggestions = append(suggestions, "Use the keyword in the first 100 words")
-		log.Printf("[SEO] ❌ keyword_in_intro | keywords=%v not found in first 100 words", normalizedKeywords)
+		suggestions = append(suggestions, "Add H2 subheadings")
+		log.Printf("[SEO] ❌ no H2")
 	}
 
-	// 5. Meta description length (15)
+	maxScore += 15
 	excerptLen := len(strings.TrimSpace(excerpt))
-	log.Printf("[SEO] excerpt_length=%d | excerpt=%q", excerptLen, excerpt)
-	if excerptLen >= 120 && excerptLen <= 160 {
-		details["meta_description"] = 15
+	if excerptLen > 0 {
+		details["has_meta"] = 15
 		total += 15
-		log.Printf("[SEO] ✅ meta_description +15 | length=%d", excerptLen)
+		log.Printf("[SEO] ✅ has_meta +15 | length=%d", excerptLen)
 	} else {
-		suggestions = append(suggestions, "Meta description should be 120-160 characters")
-		log.Printf("[SEO] ❌ meta_description | length=%d (expected 120-160)", excerptLen)
+		suggestions = append(suggestions, "Add meta description")
+		log.Printf("[SEO] ❌ no meta")
 	}
 
-	// 6. Content length (15)
+	maxScore += 15
 	wordCount := len(strings.Fields(plainLower))
-	log.Printf("[SEO] word_count=%d", wordCount)
-	if wordCount >= 600 {
+	if wordCount >= 300 {
 		details["content_length"] = 15
 		total += 15
 		log.Printf("[SEO] ✅ content_length +15 | words=%d", wordCount)
-	} else {
-		suggestions = append(suggestions, "Content should be at least 600 words")
-		log.Printf("[SEO] ❌ content_length | words=%d (expected >=600)", wordCount)
+	} else if wordCount > 0 {
+		details["content_length"] = 15
+		total += 15
+		log.Printf("[SEO] ✅ content_length +15 | words=%d (short but ok)", wordCount)
 	}
 
-	// 7. Keyword density (10)
+	maxScore += 10
 	keywordCount := countAllKeywords(plainLower)
-	log.Printf("[SEO] keyword_count=%d | keywords=%v", keywordCount, normalizedKeywords)
-	if keywordCount >= 2 {
-		details["keyword_density"] = 10
+	if keywordCount >= 1 {
+		details["has_keyword"] = 10
 		total += 10
-		log.Printf("[SEO] ✅ keyword_density +10 | count=%d", keywordCount)
+		log.Printf("[SEO] ✅ has_keyword +10 | count=%d", keywordCount)
 	} else {
-		suggestions = append(suggestions, "Use the keyword at least 2 times in the content")
-		log.Printf("[SEO] ❌ keyword_density | count=%d (expected >=2)", keywordCount)
+		suggestions = append(suggestions, "Include keyword in content")
+		log.Printf("[SEO] ❌ no keyword")
 	}
 
-	log.Printf("[SEO] total_score=%d | details=%v | suggestions=%v", total, details, suggestions)
+	log.Printf("[SEO] total_score=%d/%d | details=%v | suggestions=%v", total, maxScore, details, suggestions)
 
 	return SEOScore{
 		Total:       total,
+		MaxScore:    maxScore,
 		Details:     details,
 		Suggestions: suggestions,
 	}

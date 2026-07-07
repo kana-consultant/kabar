@@ -61,8 +61,10 @@ type PublishResult struct {
 	Errors        []string    `json:"errors,omitempty"`
 }
 
+// Jangan lupa update struct SEOScore
 type SEOScore struct {
 	Total       int            `json:"total"`
+	MaxScore    int            `json:"max_score"`
 	Details     map[string]int `json:"details"`
 	Suggestions []string       `json:"suggestions"`
 }
