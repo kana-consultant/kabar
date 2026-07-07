@@ -61,16 +61,84 @@ export interface PublishResponse {
 
 
 export interface DraftStats {
+    // Basic metrics
     total_draft: number;
     total_with_image: number;
     total_without_image: number;
     total_scheduled: number;
+    total_published: number;
+    total_with_keywords: number;
+    total_with_seo: number;
+    
+    // Derived metrics
+    completion_rate: number;
+    scheduled_rate: number;
+    image_coverage_rate: number;
+    seo_score_avg: number;
+    keywords_avg_count: number;
+    
+    // Breakdowns
+    status_breakdown: Record<string, number>;
     product_coverage: Record<string, number>;
-    daily_activity: {
-        date: string;
-        count: number;
-    }[];
+    product_status: Record<string, number>;
+    topic_breakdown: Record<string, number>;
+    seo_score_distribution: Record<string, number>;
+    
+    // Time series
+    daily_activity: DailyActivity[];
+    weekly_trend?: WeeklyTrend[];
+    scheduled_upcoming?: ScheduledItem[];
+    
+    // Content quality metrics
+    top_topics?: TopicStats[];
+    top_keywords?: KeywordStats[];
+    
+    // Performance metrics
+    average_completion_time: number;
+    cache_metadata?: CacheMetadata;
 }
+
+export interface DailyActivity {
+    date: string;
+    count: number;
+    scheduled: number;
+    published: number;
+    with_image: number;
+    with_keywords: number;
+    avg_seo_score: number;
+}
+
+export interface WeeklyTrend {
+    week: string;
+    created: number;
+    scheduled: number;
+    published: number;
+}
+
+export interface TopicStats {
+    topic: string;
+    count: number;
+    avg_seo_score: number;
+}
+
+export interface KeywordStats {
+    keyword: string;
+    count: number;
+}
+
+export interface ScheduledItem {
+    id: string;
+    title: string;
+    scheduled_for: string; // ISO date string
+    products?: string[];
+}
+
+export interface CacheMetadata {
+    cached_at: string; // ISO date string
+    ttl: string;
+    generation_time_ms: number;
+}
+
 export interface SEOScore {
     total: number;
     details: Record<string, number>;

@@ -47,60 +47,90 @@ func (r *HistoryRepository) Create(ctx context.Context, req draft.PublishHistory
 		return fmt.Errorf("failed to marshal target products: %w", err)
 	}
 
+	// Hitung SEO score
+	seoScore := draft.CalculateSEOScore(req.Title, req.Article, req.Topic, req.Excerpt, req.Keywords).Total
+
+	// Tentukan has_image
+	hasImage := req.ImageURL != nil && *req.ImageURL != ""
+
 	query := `
         INSERT INTO drafts (
             id, title, topic, article, image_url, target_products,
-            status, published_at,
-            created_by, team_id, created_at,slug,excerpt
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11, $12)
+            status, published_at, has_image, seo_score,
+            created_by, team_id, user_id, created_at, slug, excerpt
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15)
         RETURNING id
     `
 
 	now := helper.ParseWIBTime(time.Now().Format(time.RFC3339))
-	draftID := uuid.New().String() // Assuming UUID, adjust as needed
+	draftID := uuid.New().String()
 
 	err = tx.QueryRowContext(ctx, query,
-		draftID,            // $1 - id
-		req.Title,          // $2 - title
-		req.Topic,          // $3 - topic
-		req.Article,        // $4 - article
-		req.ImageURL,       // $5 - image_url
-		targetProductsJSON, // $6 - target_products
-		action,             // $7 - status
-		now,                // $8 - published_at
-		userID,             // $10 - created_by
-		teamID,             // $11 - team_id
-		req.Slug,           // $12 - slug
-		req.Excerpt,        // $13 - excerpt
+		draftID,
+		req.Title,
+		req.Topic,
+		req.Article,
+		req.ImageURL,
+		targetProductsJSON,
+		action,
+		now,
+		hasImage,
+		seoScore,
+		userID,
+		teamID,
+		userID,
+		req.Slug,
+		req.Excerpt,
 	).Scan(&draftID)
 	if err != nil {
 		return fmt.Errorf("failed to insert history: %w", err)
 	}
 
-	if err := keywords.UpdateKeywords(ctx, tx, keywords.DraftSource{DraftID: draftID}, req.Keywords); err != nil {
-		return fmt.Errorf("failed to update keywords: %w", err)
+	if len(req.Keywords) > 0 {
+		if err := keywords.UpdateKeywords(ctx, tx, keywords.DraftSource{DraftID: draftID}, req.Keywords); err != nil {
+			return fmt.Errorf("failed to update keywords: %w", err)
+		}
 	}
 
-	// Cache invalidation
-	r.invalidateCache(ctx, fmt.Sprintf("dashboard_stats:%s", teamID))
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	r.invalidateDashboardCache(ctx, teamID)
 	if err := r.InvalidateDraftCacheByTeam(ctx, teamID); err != nil {
-		// Log but don't fail the transaction
 		log.Printf("failed to invalidate draft cache: %v", err)
 	}
 
-	return tx.Commit()
+	return nil
 }
-func (r *HistoryRepository) invalidateCache(ctx context.Context, keys ...string) {
-	if len(keys) == 0 {
-		return
+
+func (r *HistoryRepository) invalidateDashboardCache(ctx context.Context, teamID string) {
+	patterns := []string{
+		fmt.Sprintf("dashboard_stats:v2:*:%s", teamID),
+		"dashboard_stats:v2:*",
 	}
 
-	if err := r.redisClient.Del(ctx, keys...).Err(); err != nil {
-		log.Printf("[Cache] failed to delete keys | keys=%v | err=%v", keys, err)
-		return
-	}
+	for _, pattern := range patterns {
+		iter := r.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+		deleted := 0
 
-	log.Printf("[Cache] keys deleted | keys=%v", keys)
+		for iter.Next(ctx) {
+			key := iter.Val()
+			if err := r.redisClient.Del(ctx, key).Err(); err != nil {
+				log.Printf("[Cache] failed to delete key | key=%s | err=%v", key, err)
+				continue
+			}
+			deleted++
+		}
+
+		if err := iter.Err(); err != nil {
+			log.Printf("[Cache] scan error | pattern=%s | err=%v", pattern, err)
+		}
+
+		if deleted > 0 {
+			log.Printf("[Cache] dashboard cache invalidated | pattern=%s | deleted=%d", pattern, deleted)
+		}
+	}
 }
 
 func (r *HistoryRepository) InvalidateDraftCacheByTeam(
@@ -145,8 +175,8 @@ func (r *HistoryRepository) InvalidateDraftCacheByTeam(
 // GetByID retrieves history by ID
 func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.History, error) {
 	query := `
-		SELECT id, title, topic, article, image_url, target_products,
-			status, published_at, scheduled_for,
+		SELECT id, title, slug, topic, article, excerpt, image_url, target_products,
+			status, published_at, scheduled_for, has_image,
 			created_by, team_id, created_at
 		FROM drafts WHERE id = $1
 	`
@@ -155,10 +185,12 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 	var targetProductsJSON []byte
 	var createdBy sql.NullString
 	var teamID sql.NullString
+	var hasImage sql.NullBool
+	var excerpt sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&h.ID, &h.Title, &h.Topic, &h.Content, &h.ImageURL, &targetProductsJSON,
-		&h.Status, &h.PublishedAt, &h.ScheduledFor,
+		&h.ID, &h.Title, &h.Slug, &h.Topic, &h.Content, &excerpt, &h.ImageURL, &targetProductsJSON,
+		&h.Status, &h.PublishedAt, &h.ScheduledFor, &hasImage,
 		&createdBy, &teamID, &h.CreatedAt,
 	)
 
@@ -169,7 +201,6 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 		return nil, fmt.Errorf("failed to get history: %w", err)
 	}
 
-	// Unmarshal JSON
 	if len(targetProductsJSON) > 0 {
 		json.Unmarshal(targetProductsJSON, &h.TargetProducts)
 	}
@@ -179,22 +210,17 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 	if teamID.Valid {
 		h.TeamID = &teamID.String
 	}
+	if hasImage.Valid {
+		h.HasImage = hasImage.Bool
+	}
+	if excerpt.Valid {
+		h.Excerpt = excerpt.String
+	}
 
 	keywords, err := keywords.GetKeywords(ctx, r.db, keywords.DraftSource{DraftID: id})
-
 	if err != nil {
-
-		log.Printf(
-			"Error getting keywords for draft %s: %v",
-			id,
-			err,
-		)
-
-		// fallback empty array
 		h.Keywords = []string{}
-
 	} else {
-
 		h.Keywords = keywords
 	}
 
@@ -202,10 +228,8 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*history.Hi
 }
 
 func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserContext, params history.HistoryFilter) (*paginate.PaginatedResult[history.History], error) {
-	// Build access filter
 	whereClause, whereArgs := userRole.BuildAccessFilter(userCtx)
 
-	// Count total + per status dalam satu query
 	var totalItems, totalSuccess, totalFailed int
 
 	countQuery := fmt.Sprintf(`
@@ -225,11 +249,10 @@ func (r *HistoryRepository) GetAll(ctx context.Context, userCtx models.UserConte
 	totalPages := int(math.Ceil(float64(totalItems) / float64(params.Limit)))
 	currentPage := (params.Offset / params.Limit) + 1
 
-	// Append LIMIT & OFFSET
 	args := append(whereArgs, params.Limit, params.Offset)
 	query := fmt.Sprintf(`
-		SELECT id, title, topic, article, image_url, target_products,
-			status, published_at, scheduled_for,
+		SELECT id, title, slug, topic, article, excerpt, image_url, target_products,
+			status, published_at, scheduled_for, has_image,
 			created_by, team_id, created_at
 		FROM drafts
 		WHERE %s
@@ -279,8 +302,8 @@ func (r *HistoryRepository) GetAllWithQuery(ctx context.Context, query string, a
 // GetByTeamID retrieves history by team ID
 func (r *HistoryRepository) GetByTeamID(ctx context.Context, teamID string) ([]history.History, error) {
 	query := `
-		SELECT id, title, topic, article, image_url, target_products,
-			status,  published_at, scheduled_for,
+		SELECT id, title, slug, topic, article, excerpt, image_url, target_products,
+			status, published_at, scheduled_for, has_image,
 			created_by, team_id, created_at
 		FROM drafts WHERE team_id = $1
 		ORDER BY created_at DESC
@@ -298,8 +321,8 @@ func (r *HistoryRepository) GetByTeamID(ctx context.Context, teamID string) ([]h
 // GetByCreatedBy retrieves history by creator
 func (r *HistoryRepository) GetByCreatedBy(ctx context.Context, createdBy string) ([]history.History, error) {
 	query := `
-		SELECT id, title, topic, article, image_url, target_products,
-			status,  published_at, scheduled_for,
+		SELECT id, title, slug, topic, article, excerpt, image_url, target_products,
+			status, published_at, scheduled_for, has_image,
 			created_by, team_id, created_at
 		FROM drafts WHERE created_by = $1
 		ORDER BY created_at DESC
@@ -317,8 +340,8 @@ func (r *HistoryRepository) GetByCreatedBy(ctx context.Context, createdBy string
 // GetByStatus retrieves history by status
 func (r *HistoryRepository) GetByStatus(ctx context.Context, status string) ([]history.History, error) {
 	query := `
-		SELECT id, title, topic, article, image_url, target_products,
-			status,  published_at, scheduled_for,
+		SELECT id, title, slug, topic, article, excerpt, image_url, target_products,
+			status, published_at, scheduled_for, has_image,
 			created_by, team_id, created_at
 		FROM drafts WHERE status = $1
 		ORDER BY created_at DESC
@@ -336,8 +359,8 @@ func (r *HistoryRepository) GetByStatus(ctx context.Context, status string) ([]h
 // GetRecentActivity retrieves recent history activity
 func (r *HistoryRepository) GetRecentActivity(ctx context.Context, teamID string, limit int) ([]history.History, error) {
 	query := `
-		SELECT id, title, topic, article, image_url, target_products,
-			status,  published_at, scheduled_for,
+		SELECT id, title, slug, topic, article, excerpt, image_url, target_products,
+			status, published_at, scheduled_for, has_image,
 			created_by, team_id, created_at
 		FROM drafts 
 		WHERE team_id = $1
@@ -356,7 +379,6 @@ func (r *HistoryRepository) GetRecentActivity(ctx context.Context, teamID string
 
 // Count returns total count based on filters
 func (r *HistoryRepository) Count(ctx context.Context, query history.HistoryFilter) (int, error) {
-	fmt.Println("============== team_id", query.TeamID)
 	countQuery := `SELECT COUNT(*) FROM drafts WHERE 1=1`
 	args := []interface{}{}
 	argIndex := 1
@@ -429,6 +451,19 @@ func (r *HistoryRepository) Update(ctx context.Context, id string, updates map[s
 	setClauses := make([]string, 0)
 	args := make([]interface{}, 0)
 	argIndex := 1
+
+	// Auto-set has_image if image_url updated
+	if imageURL, ok := updates["image_url"]; ok {
+		hasImage := false
+		if imageURL != nil {
+			if imgStr, ok := imageURL.(string); ok && imgStr != "" {
+				hasImage = true
+			}
+		}
+		setClauses = append(setClauses, fmt.Sprintf("has_image = $%d", argIndex))
+		args = append(args, hasImage)
+		argIndex++
+	}
 
 	for key, value := range updates {
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", key, argIndex))
@@ -510,26 +545,22 @@ func (r *HistoryRepository) DeleteByStatus(ctx context.Context, status string) e
 func (r *HistoryRepository) GetStats(ctx context.Context, query *history.HistoryFilter) (*history.HistoryStats, error) {
 	stats := &history.HistoryStats{}
 
-	// Total
 	total, err := r.Count(ctx, *query)
 	if err != nil {
 		return nil, err
 	}
 	stats.Total = total
 
-	// Count by status
 	statusCount, err := r.GetCountByStatus(ctx, query.TeamID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Mapping ke struct
 	stats.SuccessCount = statusCount["success"]
 	stats.FailedCount = statusCount["failed"]
 	stats.PublishedCount = statusCount["published"]
 	stats.ScheduledCount = statusCount["scheduled"]
 
-	// Hitung success rate
 	if stats.Total > 0 {
 		stats.SuccessRate = float64(stats.SuccessCount) / float64(stats.Total) * 100
 	}
@@ -537,7 +568,6 @@ func (r *HistoryRepository) GetStats(ctx context.Context, query *history.History
 	return stats, nil
 }
 
-// Helper functions
 func (r *HistoryRepository) queryHistory(ctx context.Context, query string) ([]history.History, error) {
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -556,10 +586,12 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 		var targetProductsJSON []byte
 		var createdBy sql.NullString
 		var teamID sql.NullString
+		var hasImage sql.NullBool
+		var excerpt sql.NullString
 
 		err := rows.Scan(
-			&h.ID, &h.Title, &h.Topic, &h.Content, &h.ImageURL, &targetProductsJSON,
-			&h.Status, &h.PublishedAt, &h.ScheduledFor,
+			&h.ID, &h.Title, &h.Slug, &h.Topic, &h.Content, &excerpt, &h.ImageURL, &targetProductsJSON,
+			&h.Status, &h.PublishedAt, &h.ScheduledFor, &hasImage,
 			&createdBy, &teamID, &h.CreatedAt,
 		)
 		if err != nil {
@@ -575,6 +607,12 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 		if teamID.Valid {
 			h.TeamID = &teamID.String
 		}
+		if hasImage.Valid {
+			h.HasImage = hasImage.Bool
+		}
+		if excerpt.Valid {
+			h.Excerpt = excerpt.String
+		}
 
 		histories = append(histories, h)
 	}
@@ -582,15 +620,12 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 	return histories, nil
 }
 
-// repositories/history_repository.go
-
 // GetAllPublished retrieves published histories with optional product filter
 func (r *HistoryRepository) GetAllPublished(
 	ctx context.Context,
 	filter history.HistoryFilter,
 ) (*paginate.PaginatedResult[history.History], error) {
 
-	// Set default limit
 	if filter.Limit == 0 {
 		filter.Limit = 1000
 	}
@@ -601,22 +636,16 @@ func (r *HistoryRepository) GetAllPublished(
 	var countArgs []interface{}
 	argIndex := 1
 
-	// Base WHERE clause
 	whereClause := "status = 'published'"
 
-	// Jika ada ProductID, filter berdasarkan target_products (JSON array)
 	if filter.ProductID != "" {
-		// PostgreSQL JSONB containment: @> berarti "contains"
-		// '["product-id"]' @> target_products
 		whereClause += fmt.Sprintf(` AND target_products @> $%d`, argIndex)
-		// Convert product ID ke JSON array format
 		productJSON := fmt.Sprintf(`["%s"]`, filter.ProductID)
 		args = append(args, productJSON)
 		countArgs = append(countArgs, productJSON)
 		argIndex++
 	}
 
-	// Search filter
 	if filter.Search != "" {
 		whereClause += fmt.Sprintf(` AND (title ILIKE $%d OR topic ILIKE $%d)`, argIndex, argIndex+1)
 		searchPattern := "%" + filter.Search + "%"
@@ -625,7 +654,6 @@ func (r *HistoryRepository) GetAllPublished(
 		argIndex += 2
 	}
 
-	// Build main query dengan LIMIT & OFFSET
 	query = fmt.Sprintf(`
 		SELECT 
 			id, 
@@ -670,7 +698,6 @@ func (r *HistoryRepository) GetAllPublished(
 		return nil, fmt.Errorf("failed to scan history: %w", err)
 	}
 
-	// Count total published dengan filter yang sama
 	countQuery = fmt.Sprintf(`
 		SELECT COUNT(*) 
 		FROM drafts 
@@ -695,7 +722,6 @@ func (r *HistoryRepository) GetAllPublished(
 	}, nil
 }
 
-// scanHistory scans rows into History objects
 func (r *HistoryRepository) scanHistoryPublished(rows *sql.Rows) ([]history.History, error) {
 	var histories []history.History
 
@@ -734,20 +760,22 @@ func (r *HistoryRepository) scanHistoryPublished(rows *sql.Rows) ([]history.Hist
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
-		// Set nullable fields
 		if imageURL.Valid {
 			h.ImageURL = &imageURL.String
 		}
-
 		if publishedAt.Valid {
 			h.PublishedAt = &publishedAt.Time
 		}
+		if hasImage.Valid {
+			h.HasImage = hasImage.Bool
+		}
+		if excerpt.Valid {
+			h.Excerpt = excerpt.String
+		}
 
-		// Parse target products JSON
 		if len(targetProductsJSON) > 0 {
 			var targetProducts []string
 			if err := json.Unmarshal(targetProductsJSON, &targetProducts); err != nil {
-				// Log error but continue
 				log.Printf("Warning: failed to parse target_products JSON: %v", err)
 			} else {
 				h.TargetProducts = targetProducts

@@ -21,26 +21,52 @@ export function Dashboard() {
                 </p>
             </div>
 
-            <div>
-                {/* Stats Cards dengan loading prop */}
-                <StatsCards isLoading={loading} />
-                
-                {/* Draft Stats */}
-                <DraftStats
-                    totalDraft={stats?.total_draft ?? 0}
-                    totalWithImage={stats?.total_with_image ?? 0}
-                    totalWithoutImage={stats?.total_without_image ?? 0}
-                    totalScheduled={stats?.total_scheduled ?? 0}
-                    productCoverage={stats?.product_coverage ?? {}}
-                    dailyActivity={stats?.daily_activity ?? []}
-                    isLoading={loading}
-                />
-                
-                {/* Recent Activity */}
-                <div className="grid gap-6 mt-5">
-                    <RecentActivity />
-                </div>
-            </div>
+            {/* Stats Cards dengan loading prop */}
+            <StatsCards isLoading={loading} />
+
+            {/* Draft Stats */}
+            <DraftStats
+                // Basic metrics
+                totalDraft={stats?.total_draft ?? 0}
+                totalWithImage={stats?.total_with_image ?? 0}
+                totalWithoutImage={stats?.total_without_image ?? 0}
+                totalScheduled={stats?.total_scheduled ?? 0}
+                totalPublished={stats?.total_published ?? 0}
+                totalWithKeywords={stats?.total_with_keywords ?? 0}
+                totalWithSEO={stats?.total_with_seo ?? 0}
+
+                // Derived metrics
+                completionRate={stats?.completion_rate ?? 0}
+                scheduledRate={stats?.scheduled_rate ?? 0}
+                imageCoverageRate={stats?.image_coverage_rate ?? 0}
+                seoScoreAvg={stats?.seo_score_avg ?? 0}
+                keywordsAvgCount={stats?.keywords_avg_count ?? 0}
+
+                // Breakdowns
+                statusBreakdown={stats?.status_breakdown ?? {}}
+                productCoverage={stats?.product_coverage ?? {}}
+                productStatus={stats?.product_status ?? {}}
+                topicBreakdown={stats?.topic_breakdown ?? {}}
+                seoScoreDistribution={stats?.seo_score_distribution ?? {}}
+
+                // Time series
+                dailyActivity={stats?.daily_activity ?? []}
+                weeklyTrend={stats?.weekly_trend ?? []}
+                scheduledUpcoming={stats?.scheduled_upcoming ?? []}
+
+                // Content quality
+                topTopics={stats?.top_topics ?? []}
+                topKeywords={stats?.top_keywords ?? []}
+
+               
+                cacheMetadata={stats?.cache_metadata}
+
+                // UI state
+                isLoading={loading}
+            />
+
+            {/* Recent Activity */}
+            <RecentActivity />
         </div>
     );
 }

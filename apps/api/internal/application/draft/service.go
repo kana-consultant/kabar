@@ -770,14 +770,12 @@ func (s *DraftServiceImpl) CheckSimilarity(ctx context.Context, id string, useRo
 func prepareUpdateData(updates draft.CreateDraftRequest, minioService *minio.MinioService) draft.CreateDraftRequest {
 	log.Println("========== PREPARE UPDATE DATA ==========")
 
-	// ========== PROCESS IMAGES ==========
 	ctx := context.Background()
-
-	// Create a copy of updates to modify
 	processedUpdates := updates
+	hasImage := false
 
 	// Process image_url
-	if processedUpdates.ImageURL != nil {
+	if processedUpdates.ImageURL != nil && *processedUpdates.ImageURL != "" {
 		if isBase64Image(processedUpdates.ImageURL) {
 			log.Println("[INFO] Detected base64 in image_url, uploading...")
 			uploadedURL, err := uploadBase64ToMinio(ctx, minioService, *processedUpdates.ImageURL, "image_url")
@@ -788,13 +786,16 @@ func prepareUpdateData(updates draft.CreateDraftRequest, minioService *minio.Min
 			} else {
 				log.Printf("[SUCCESS] Uploaded image_url: %s", uploadedURL)
 				processedUpdates.ImageURL = &uploadedURL
+				hasImage = true
 			}
 		} else if strings.Contains(*processedUpdates.ImageURL, minioService.Bucket) {
 			objectName := extractObjectName(*processedUpdates.ImageURL)
 			log.Printf("[INFO] Extracted object name from URL: %s", objectName)
 			processedUpdates.ImageURL = &objectName
+			hasImage = true
 		} else {
 			log.Printf("[INFO] Keeping original image_url: %s", *processedUpdates.ImageURL)
+			hasImage = true
 		}
 	} else {
 		log.Println("[INFO] No image_url provided")
@@ -805,13 +806,43 @@ func prepareUpdateData(updates draft.CreateDraftRequest, minioService *minio.Min
 		log.Println("[INFO] Processing article images...")
 		processedArticle := processArticleImages(ctx, minioService, processedUpdates.Article)
 		processedUpdates.Article = processedArticle
+
+		// Cek apakah article mengandung gambar
+		if containsImageInArticle(processedArticle) {
+			hasImage = true
+		}
+
 		log.Printf("[INFO] Article processed, length: %d", len(processedArticle))
 	}
+
+	// Set has_image
+	processedUpdates.HasImage = hasImage
+	log.Printf("[INFO] has_image set to: %v", hasImage)
 
 	log.Printf("[SUCCESS] prepareUpdateData completed")
 	return processedUpdates
 }
 
+// Helper function untuk cek apakah article mengandung tag img
+func containsImageInArticle(article string) bool {
+	// Cek HTML img tag
+	if strings.Contains(article, "<img ") || strings.Contains(article, "<img>") {
+		return true
+	}
+
+	// Cek Markdown image
+	matched, _ := regexp.MatchString(`!\[.*\]\(.*\)`, article)
+	if matched {
+		return true
+	}
+
+	// Cek base64 image
+	if strings.Contains(article, "data:image/") {
+		return true
+	}
+
+	return false
+}
 func processArticleImages(ctx context.Context, minioService *minio.MinioService, article string) string {
 	re := regexp.MustCompile(`<img[^>]+src="([^"]+)"`)
 

@@ -214,16 +214,151 @@ func (r *RepositoryImpl) GetAll(ctx context.Context, filter models.UserContext, 
 	return result, nil
 }
 
-func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, filter models.UserContext) (*draft.DraftStats, error) {
-	// Build access filter
-	whereClause, whereArgs := userRole.BuildAccessFilter(filter)
+// CREATE - tambahin SEO score calculation
+func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftRequest, userID, teamID string) (string, error) {
+	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
 
-	cacheKey := fmt.Sprintf("dashboard_stats:%s", filter.GetRole())
-	if filter.GetTeamID() != "" {
-		cacheKey = fmt.Sprintf("dashboard_stats:%s:%s", filter.GetRole(), filter.GetTeamID())
+	// HITUNG SEO SCORE PAKE CalculateSEOScore
+	seoScore := draft.CalculateSEOScore(req.Title, req.Article, req.Topic, req.Excerpt, req.Keywords).Total
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	slug := req.Slug
+	if slug == "" {
+		slug = generateSlug(req.Title)
+		slug, err = r.generateUniqueSlug(ctx, slug, "")
+		if err != nil {
+			return "", fmt.Errorf("failed to generate unique slug: %w", err)
+		}
+	} else {
+		slug = cleanSlug(slug)
+		exists, err := r.slugExists(ctx, slug, "")
+		if err != nil {
+			return "", fmt.Errorf("failed to check slug existence: %w", err)
+		}
+		if exists {
+			slug, err = r.generateUniqueSlug(ctx, slug, "")
+			if err != nil {
+				return "", fmt.Errorf("failed to generate unique slug: %w", err)
+			}
+		}
 	}
 
-	// 1. Cek Redis cache dulu
+	query := `INSERT INTO drafts (
+		title, topic, article, image_url, image_prompt,
+		status, target_products, has_image, created_by, team_id, user_id, slug, excerpt, seo_score
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+	RETURNING id`
+
+	var draftID string
+	err = tx.QueryRowContext(
+		ctx,
+		query,
+		req.Title, req.Topic, req.Article, req.ImageURL, req.ImagePrompt,
+		"draft", targetProductsJSON, req.HasImage, nullIfEmpty(userID), nullIfEmpty(teamID), nullIfEmpty(userID), slug, req.Excerpt, seoScore,
+	).Scan(&draftID)
+
+	if err != nil {
+		log.Printf("Error creating draft: %v", err)
+		return "", err
+	}
+
+	if len(req.Keywords) > 0 {
+		uniqueKeywords := keywords.UniqueStrings(req.Keywords)
+		var keywordEntities []draft.Keywords
+		now := time.Now()
+
+		for _, keyword := range uniqueKeywords {
+			keywordEntities = append(keywordEntities, draft.Keywords{
+				ID:        uuid.NewString(),
+				IDDraft:   draftID,
+				Name:      keyword,
+				CreatedAt: now,
+				UpdatedAt: now,
+			})
+		}
+
+		err = keywords.InsertKeywordsWithDuplicateCheck(ctx, tx, draftID, keywordEntities)
+		if err != nil {
+			log.Printf("FAILED INSERT KEYWORDS => %v", err)
+			return "", fmt.Errorf("failed to insert keywords: %w", err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return "", fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	r.invalidateDashboardCache(ctx, teamID)
+
+	if err := r.InvalidateDraftCacheByTeam(ctx, teamID); err != nil {
+		log.Printf("failed to invalidate draft cache: %v", err)
+	}
+
+	return draftID, nil
+}
+
+// UPDATE - tambahin SEO score calculation
+func (r *RepositoryImpl) Update(ctx context.Context, id string, TeamID string, data draft.CreateDraftRequest) error {
+	// HITUNG SEO SCORE PAKE CalculateSEOScore
+	data.SEOScore = draft.CalculateSEOScore(data.Title, data.Article, data.Topic, data.Excerpt, data.Keywords).Total
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	data.UpdateAt = helper.ParseWIBTime(time.Now().Format(time.RFC3339))
+
+	query, args, err := r.buildUpdateQuery(id, data)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update draft: %w", err)
+	}
+
+	if data.Keywords != nil {
+		if err := keywords.UpdateKeywords(ctx, tx, keywords.DraftSource{DraftID: id}, data.Keywords); err != nil {
+			return fmt.Errorf("failed to update keywords: %w", err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	r.invalidateDashboardCache(ctx, TeamID)
+
+	if err := r.InvalidateDraftCacheByTeam(ctx, TeamID); err != nil {
+		log.Printf("failed to invalidate draft cache: %v", err)
+	}
+
+	return nil
+}
+
+// DASHBOARD - tetep baca dari DB, GAUSAH diitung ulang
+func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, filter models.UserContext) (*draft.DraftStats, error) {
+	startTime := time.Now()
+
+	whereClause, whereArgs := userRole.BuildAccessFilter(filter)
+
+	cacheKey := fmt.Sprintf("dashboard_stats:v2:%s", filter.GetRole())
+	if filter.GetTeamID() != "" {
+		cacheKey = fmt.Sprintf("dashboard_stats:v2:%s:%s", filter.GetRole(), filter.GetTeamID())
+	}
+
 	cached, err := r.redisClient.Get(ctx, cacheKey).Bytes()
 	if err == nil {
 		var stats draft.DraftStats
@@ -236,34 +371,65 @@ func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, filter models.Us
 	log.Printf("[DashboardStats] cache miss | filter=%+v", filter)
 
 	stats := &draft.DraftStats{
-		ProductCoverage: make(map[string]int),
+		ProductCoverage:      make(map[string]int),
+		ProductStatus:        make(map[string]int),
+		StatusBreakdown:      make(map[string]int),
+		TopicBreakdown:       make(map[string]int),
+		SEOScoreDistribution: make(map[string]int),
 	}
 
-	// 2. Total draft, with/without image, scheduled
 	summaryQuery := fmt.Sprintf(`
 		SELECT
-			COUNT(*)                                        AS total_draft,
-			COUNT(*) FILTER (WHERE has_image = true)        AS total_with_image,
-			COUNT(*) FILTER (WHERE has_image = false)       AS total_without_image,
-			COUNT(*) FILTER (WHERE status = 'scheduled')    AS total_scheduled
-		FROM drafts
+			COUNT(DISTINCT d.id)                                        AS total_draft,
+			COUNT(DISTINCT d.id) FILTER (WHERE d.has_image = true)     AS total_with_image,
+			COUNT(DISTINCT d.id) FILTER (WHERE d.has_image = false)    AS total_without_image,
+			COUNT(DISTINCT d.id) FILTER (WHERE d.status = 'scheduled') AS total_scheduled,
+			COUNT(DISTINCT d.id) FILTER (WHERE d.status = 'published') AS total_published,
+			COUNT(DISTINCT d.id) FILTER (WHERE k.id IS NOT NULL)       AS total_with_keywords,
+			COUNT(DISTINCT d.id) FILTER (WHERE d.seo_score > 0)        AS total_with_seo,
+			COALESCE(AVG(d.seo_score), 0)                               AS avg_seo_score
+		FROM drafts d
+		LEFT JOIN keywords k ON d.id = k.id_draft
 		WHERE %s
 	`, whereClause)
+
 	if err := r.db.QueryRowContext(ctx, summaryQuery, whereArgs...).Scan(
 		&stats.TotalDraft,
 		&stats.TotalWithImage,
 		&stats.TotalWithoutImage,
 		&stats.TotalScheduled,
+		&stats.TotalPublished,
+		&stats.TotalWithKeywords,
+		&stats.TotalWithSEO,
+		&stats.SEOScoreAvg,
 	); err != nil {
 		log.Printf("[DashboardStats] failed to scan summary stats | filter=%+v | err=%v", filter, err)
 		return nil, fmt.Errorf("failed to get summary stats: %w", err)
 	}
-	log.Printf("[DashboardStats] summary | filter=%+v | total=%d with_image=%d without_image=%d scheduled=%d",
-		filter, stats.TotalDraft, stats.TotalWithImage, stats.TotalWithoutImage, stats.TotalScheduled)
 
-	// 3. Product coverage
+	// Status breakdown
+	statusQuery := fmt.Sprintf(`
+		SELECT d.status, COUNT(DISTINCT d.id) as count
+		FROM drafts d
+		WHERE %s
+		GROUP BY d.status
+	`, whereClause)
+
+	statusRows, err := r.db.QueryContext(ctx, statusQuery, whereArgs...)
+	if err == nil {
+		defer statusRows.Close()
+		for statusRows.Next() {
+			var status string
+			var count int
+			if err := statusRows.Scan(&status, &count); err == nil {
+				stats.StatusBreakdown[status] = count
+			}
+		}
+	}
+
+	// Product coverage
 	productQuery := fmt.Sprintf(`
-		SELECT p.name, COUNT(*) AS count
+		SELECT p.name, COUNT(DISTINCT filtered_drafts.id) AS count, p.status as product_status
 		FROM (
 			SELECT id, target_products
 			FROM drafts
@@ -273,78 +439,230 @@ func (r *RepositoryImpl) GetDashboardStats(ctx context.Context, filter models.Us
 		) filtered_drafts,
 		jsonb_array_elements_text(filtered_drafts.target_products) AS product_id
 		JOIN products p ON p.id = product_id::uuid
-		GROUP BY p.id, p.name
+		GROUP BY p.id, p.name, p.status
 		ORDER BY count DESC
+		LIMIT 100
 	`, whereClause)
 
 	productRows, err := r.db.QueryContext(ctx, productQuery, whereArgs...)
-	if err != nil {
-		log.Printf("[DashboardStats] failed to query product coverage | filter=%+v | err=%v", filter, err)
-		return nil, fmt.Errorf("failed to get product coverage: %w", err)
-	}
-	defer productRows.Close()
-
-	for productRows.Next() {
-		var product string
-		var count int
-		if err := productRows.Scan(&product, &count); err != nil {
-			log.Printf("[DashboardStats] failed to scan product coverage | filter=%+v | err=%v", filter, err)
-			return nil, fmt.Errorf("failed to scan product coverage: %w", err)
+	if err == nil {
+		defer productRows.Close()
+		for productRows.Next() {
+			var productName string
+			var count int
+			var productStatus string
+			if err := productRows.Scan(&productName, &count, &productStatus); err == nil {
+				stats.ProductCoverage[productName] = count
+				stats.ProductStatus[productStatus]++
+			}
 		}
-		stats.ProductCoverage[product] = count
 	}
-	if err := productRows.Err(); err != nil {
-		log.Printf("[DashboardStats] product rows iteration error | filter=%+v | err=%v", filter, err)
-		return nil, err
-	}
-	log.Printf("[DashboardStats] product coverage | filter=%+v | total_products=%d", filter, len(stats.ProductCoverage))
 
-	// 4. Daily activity — 30 hari terakhir
+	// Topic breakdown
+	topicQuery := fmt.Sprintf(`
+		SELECT 
+			COALESCE(d.topic, 'Uncategorized') as topic,
+			COUNT(DISTINCT d.id) as count,
+			COALESCE(AVG(d.seo_score), 0) as avg_seo
+		FROM drafts d
+		WHERE %s
+		GROUP BY d.topic
+		ORDER BY count DESC
+		LIMIT 20
+	`, whereClause)
+
+	topicRows, err := r.db.QueryContext(ctx, topicQuery, whereArgs...)
+	if err == nil {
+		defer topicRows.Close()
+		stats.TopTopics = make([]draft.TopicStats, 0)
+		for topicRows.Next() {
+			var topic draft.TopicStats
+			if err := topicRows.Scan(&topic.Topic, &topic.Count, &topic.AvgSEO); err == nil {
+				stats.TopicBreakdown[topic.Topic] = topic.Count
+				stats.TopTopics = append(stats.TopTopics, topic)
+			}
+		}
+	}
+
+	// SEO score distribution
+	seoQuery := fmt.Sprintf(`
+		SELECT 
+			CASE 
+				WHEN d.seo_score = 0 THEN '0'
+				WHEN d.seo_score BETWEEN 1 AND 20 THEN '1-20'
+				WHEN d.seo_score BETWEEN 21 AND 40 THEN '21-40'
+				WHEN d.seo_score BETWEEN 41 AND 60 THEN '41-60'
+				WHEN d.seo_score BETWEEN 61 AND 80 THEN '61-80'
+				WHEN d.seo_score BETWEEN 81 AND 100 THEN '81-100'
+				ELSE 'unknown'
+			END as score_range,
+			COUNT(DISTINCT d.id) as count
+		FROM drafts d
+		WHERE %s
+		GROUP BY score_range
+		ORDER BY MIN(d.seo_score)
+	`, whereClause)
+
+	seoRows, err := r.db.QueryContext(ctx, seoQuery, whereArgs...)
+	if err == nil {
+		defer seoRows.Close()
+		for seoRows.Next() {
+			var scoreRange string
+			var count int
+			if err := seoRows.Scan(&scoreRange, &count); err == nil {
+				stats.SEOScoreDistribution[scoreRange] = count
+			}
+		}
+	}
+
+	// Daily activity
 	activityQuery := fmt.Sprintf(`
 		SELECT
-			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
-			COUNT(*) AS count
-		FROM drafts
+			TO_CHAR(d.created_at, 'YYYY-MM-DD') AS date,
+			COUNT(DISTINCT d.id) AS total,
+			COUNT(DISTINCT d.id) FILTER (WHERE d.status = 'scheduled') AS scheduled,
+			COUNT(DISTINCT d.id) FILTER (WHERE d.status = 'published') AS published,
+			COUNT(DISTINCT d.id) FILTER (WHERE d.has_image = true) AS with_image,
+			COUNT(DISTINCT d.id) FILTER (WHERE k.id IS NOT NULL) AS with_keywords,
+			COALESCE(AVG(d.seo_score), 0) AS avg_seo
+		FROM drafts d
+		LEFT JOIN keywords k ON d.id = k.id_draft
 		WHERE %s
-			AND created_at >= NOW() - INTERVAL '30 days'
+			AND d.created_at >= NOW() - INTERVAL '30 days'
 		GROUP BY date
 		ORDER BY date ASC
 	`, whereClause)
+
 	activityRows, err := r.db.QueryContext(ctx, activityQuery, whereArgs...)
-	if err != nil {
-		log.Printf("[DashboardStats] failed to query daily activity | filter=%+v | err=%v", filter, err)
-		return nil, fmt.Errorf("failed to get daily activity: %w", err)
-	}
-	defer activityRows.Close()
-
-	for activityRows.Next() {
-		var a draft.DailyActivity
-		if err := activityRows.Scan(&a.Date, &a.Count); err != nil {
-			log.Printf("[DashboardStats] failed to scan daily activity | filter=%+v | err=%v", filter, err)
-			return nil, fmt.Errorf("failed to scan daily activity: %w", err)
+	if err == nil {
+		defer activityRows.Close()
+		for activityRows.Next() {
+			var a draft.DailyActivity
+			if err := activityRows.Scan(&a.Date, &a.Count, &a.Scheduled, &a.Published, &a.WithImage, &a.WithKeywords, &a.AvgSEO); err == nil {
+				stats.DailyActivity = append(stats.DailyActivity, a)
+			}
 		}
-		stats.DailyActivity = append(stats.DailyActivity, a)
 	}
-	if err := activityRows.Err(); err != nil {
-		log.Printf("[DashboardStats] activity rows iteration error | filter=%+v | err=%v", filter, err)
-		return nil, err
-	}
-	log.Printf("[DashboardStats] daily activity | filter=%+v | total_days=%d", filter, len(stats.DailyActivity))
 
-	// 5. Simpan ke Redis cache, TTL 5 menit
+	// Keywords stats
+	keywordsQuery := fmt.Sprintf(`
+		SELECT 
+			k.name as keyword,
+			COUNT(DISTINCT k.id_draft) as usage_count
+		FROM keywords k
+		INNER JOIN drafts d ON k.id_draft = d.id
+		WHERE %s
+		GROUP BY k.name
+		ORDER BY usage_count DESC
+		LIMIT 20
+	`, whereClause)
+
+	keywordsRows, err := r.db.QueryContext(ctx, keywordsQuery, whereArgs...)
+	if err == nil {
+		defer keywordsRows.Close()
+		stats.TopKeywords = make([]draft.KeywordStats, 0)
+		for keywordsRows.Next() {
+			var kw draft.KeywordStats
+			if err := keywordsRows.Scan(&kw.Keyword, &kw.Count); err == nil {
+				stats.TopKeywords = append(stats.TopKeywords, kw)
+			}
+		}
+
+		avgKeywordsQuery := fmt.Sprintf(`
+			SELECT COALESCE(AVG(keyword_count), 0) as avg_keywords
+			FROM (
+				SELECT d.id, COUNT(k.id) as keyword_count
+				FROM drafts d
+				LEFT JOIN keywords k ON d.id = k.id_draft
+				WHERE %s
+				GROUP BY d.id
+			) draft_keywords
+		`, whereClause)
+
+		r.db.QueryRowContext(ctx, avgKeywordsQuery, whereArgs...).Scan(&stats.KeywordsAvgCount)
+	}
+
+	// Scheduled upcoming
+	scheduledQuery := fmt.Sprintf(`
+		SELECT 
+			d.id, d.title, d.scheduled_for, d.target_products,
+			COUNT(k.id) as keyword_count
+		FROM drafts d
+		LEFT JOIN keywords k ON d.id = k.id_draft
+		WHERE %s 
+			AND d.status = 'scheduled'
+			AND d.scheduled_for IS NOT NULL
+			AND d.scheduled_for >= NOW()
+		GROUP BY d.id, d.title, d.scheduled_for, d.target_products
+		ORDER BY d.scheduled_for ASC
+		LIMIT 10
+	`, whereClause)
+
+	scheduledRows, err := r.db.QueryContext(ctx, scheduledQuery, whereArgs...)
+	if err == nil {
+		defer scheduledRows.Close()
+		stats.ScheduledUpcoming = make([]draft.ScheduledItem, 0)
+		for scheduledRows.Next() {
+			var item draft.ScheduledItem
+			var products []string
+			var keywordCount int
+			if err := scheduledRows.Scan(&item.ID, &item.Title, &item.ScheduledFor, &products, &keywordCount); err == nil {
+				item.Products = products
+				stats.ScheduledUpcoming = append(stats.ScheduledUpcoming, item)
+			}
+		}
+	}
+
+	stats.CalculateDerivedMetrics()
+
+	stats.CacheMetadata = draft.CacheMetadata{
+		CachedAt:   time.Now(),
+		TTL:        "5m",
+		Generation: float64(time.Since(startTime).Milliseconds()),
+	}
+
 	statsBytes, err := json.Marshal(stats)
-	if err != nil {
-		log.Printf("[DashboardStats] failed to marshal stats for cache | filter=%+v | err=%v", filter, err)
-	} else {
-		if err := r.redisClient.Set(ctx, cacheKey, statsBytes, 5*time.Minute).Err(); err != nil {
-			log.Printf("[DashboardStats] failed to set cache | filter=%+v | err=%v", filter, err)
-		} else {
-			log.Printf("[DashboardStats] cache saved | filter=%+v | ttl=5m", filter)
+	if err == nil {
+		ttl := 5 * time.Minute
+		if stats.TotalDraft > 1000 {
+			ttl = 10 * time.Minute
 		}
+		r.redisClient.Set(ctx, cacheKey, statsBytes, ttl)
 	}
 
-	log.Printf("[DashboardStats] completed | filter=%+v", filter)
+	log.Printf("[DashboardStats] completed | filter=%+v | duration=%v", filter, time.Since(startTime))
 	return stats, nil
+}
+
+// Update cache invalidation di Create, Update, Delete functions
+func (r *RepositoryImpl) invalidateDashboardCache(ctx context.Context, teamID string) {
+	// Invalidate semua dashboard cache untuk team ini
+	patterns := []string{
+		fmt.Sprintf("dashboard_stats:v2:*:%s", teamID),
+		"dashboard_stats:v2:*", // Invalidate semua role-based cache juga
+	}
+
+	for _, pattern := range patterns {
+		iter := r.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+		deleted := 0
+
+		for iter.Next(ctx) {
+			key := iter.Val()
+			if err := r.redisClient.Del(ctx, key).Err(); err != nil {
+				log.Printf("[Cache] failed to delete key | key=%s | err=%v", key, err)
+				continue
+			}
+			deleted++
+		}
+
+		if err := iter.Err(); err != nil {
+			log.Printf("[Cache] scan error | pattern=%s | err=%v", pattern, err)
+		}
+
+		if deleted > 0 {
+			log.Printf("[Cache] dashboard cache invalidated | pattern=%s | deleted=%d", pattern, deleted)
+		}
+	}
 }
 
 func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, userCtx models.UserContext, params paginate.PaginationParams) (*paginate.PaginatedResult[draft.Draft], error) {
@@ -437,104 +755,6 @@ func (r *RepositoryImpl) GetAllScheduled(ctx context.Context, userCtx models.Use
 		Limit:       params.Limit,
 		Offset:      params.Offset,
 	}, nil
-}
-
-func (r *RepositoryImpl) Create(ctx context.Context, req draft.CreateDraftRequest, userID, teamID string) (string, error) {
-	targetProductsJSON, _ := json.Marshal(req.TargetProducts)
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Generate slug if not provided or generate from title
-	slug := req.Slug
-	if slug == "" {
-		slug = generateSlug(req.Title)
-		// Ensure unique slug
-		slug, err = r.generateUniqueSlug(ctx, slug, "")
-		if err != nil {
-			return "", fmt.Errorf("failed to generate unique slug: %w", err)
-		}
-	} else {
-		// Validate and clean provided slug
-		slug = cleanSlug(slug)
-		// Check if slug already exists
-		exists, err := r.slugExists(ctx, slug, "")
-		if err != nil {
-			return "", fmt.Errorf("failed to check slug existence: %w", err)
-		}
-		if exists {
-			// Make slug unique by adding suffix
-			slug, err = r.generateUniqueSlug(ctx, slug, "")
-			if err != nil {
-				return "", fmt.Errorf("failed to generate unique slug: %w", err)
-			}
-		}
-	}
-
-	query := `INSERT INTO drafts (
-		title, topic, article, image_url, image_prompt,
-		status, target_products, has_image, created_by, team_id, user_id, slug, excerpt, seo_score
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-	RETURNING id`
-
-	var draftID string
-	err = tx.QueryRowContext(
-		ctx,
-		query,
-		req.Title, req.Topic, req.Article, req.ImageURL, req.ImagePrompt,
-		"draft", targetProductsJSON, req.HasImage, nullIfEmpty(userID), nullIfEmpty(teamID), nullIfEmpty(userID), slug, req.Excerpt, req.SEOScore,
-	).Scan(&draftID)
-
-	if err != nil {
-		log.Printf("Error creating draft: %v", err)
-		return "", err
-	}
-
-	if len(req.Keywords) > 0 {
-		log.Printf("RAW KEYWORDS => %+v", req.Keywords)
-
-		uniqueKeywords := keywords.UniqueStrings(req.Keywords)
-		log.Printf("UNIQUE KEYWORDS => %+v", uniqueKeywords)
-
-		var keywordEntities []draft.Keywords
-		now := time.Now()
-
-		for _, keyword := range uniqueKeywords {
-			keywordEntities = append(keywordEntities, draft.Keywords{
-				ID:        uuid.NewString(),
-				IDDraft:   draftID,
-				Name:      keyword,
-				CreatedAt: now,
-				UpdatedAt: now,
-			})
-		}
-
-		log.Printf("KEYWORD ENTITIES => %+v", keywordEntities)
-
-		err = keywords.InsertKeywordsWithDuplicateCheck(ctx, tx, draftID, keywordEntities)
-		if err != nil {
-			log.Printf("FAILED INSERT KEYWORDS => %v", err)
-			return "", fmt.Errorf("failed to insert keywords: %w", err)
-		}
-
-		log.Println("INSERT KEYWORDS SUCCESS")
-	}
-
-	if err = tx.Commit(); err != nil {
-		return "", fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	r.invalidateCache(ctx,
-		fmt.Sprintf("dashboard_stats:%s", teamID))
-
-	if err := r.InvalidateDraftCacheByTeam(ctx, teamID); err != nil {
-		log.Printf("failed to invalidate draft cache: %v", err)
-	}
-
-	return draftID, nil
 }
 
 // generateSlug generates a URL slug from title
@@ -662,53 +882,6 @@ func (r *RepositoryImpl) slugExists(ctx context.Context, slug, excludeID string)
 	return count > 0, nil
 }
 
-func (r *RepositoryImpl) Update(ctx context.Context, id string, TeamID string, data draft.CreateDraftRequest) error {
-	// Start transaction
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Update draft
-	data.UpdateAt = helper.ParseWIBTime(time.Now().Format(time.RFC3339))
-
-	query, args, err := r.buildUpdateQuery(id, data)
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to update draft: %w", err)
-	}
-
-	// Handle keywords update if present in data
-	if data.Keywords != nil {
-		if err := keywords.UpdateKeywords(ctx, tx, keywords.DraftSource{DraftID: id}, data.Keywords); err != nil {
-			return fmt.Errorf("failed to update keywords: %w", err)
-		}
-	}
-
-	// Commit transaction
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	r.invalidateCache(ctx,
-		fmt.Sprintf("dashboard_stats:%s", TeamID))
-
-	if err := r.InvalidateDraftCacheByTeam(ctx, TeamID); err != nil {
-		log.Printf("failed to invalidate draft cache: %v", err)
-	}
-
-	return nil
-}
-
 // updateKeywords handles keywords update strategies
 func (r *RepositoryImpl) updateKeywords(ctx context.Context, tx *sql.Tx, draftID string, kw interface{}) error {
 	switch kw := kw.(type) {
@@ -825,7 +998,6 @@ func (r *RepositoryImpl) buildUpdateQuery(id string, data draft.CreateDraftReque
 	addField("topic", data.Topic)
 	addField("article", data.Article)
 	addField("image_url", data.ImageURL)
-	addField("image_prompt", data.ImagePrompt)
 	addField("slug", data.Slug)
 	addField("excerpt", data.Excerpt)
 	addField("status", data.Status)

@@ -34,16 +34,7 @@ const statConfig = [
         getChange: (s: DashboardStats) => `${s.publishedPercentage || 0}% sukses`,
         getValue: (s: DashboardStats) => s.totalPublished || 0,
     },
-    {
-        key: "averageSeoScore" as const,
-        label: "SEO Score Rata-rata",
-        icon: TrendingUp,
-        iconClass: "bg-orange-50 text-orange-600 ring-orange-200/60 dark:bg-orange-500/10 dark:text-orange-400 dark:ring-orange-500/20",
-        dotClass: "bg-orange-500",
-        pingClass: "bg-orange-500",
-        getChange: (s: DashboardStats) => s.seoScoreChange || "0%",
-        getValue: (s: DashboardStats) => Math.round(s.averageSeoScore || 0),
-    },
+   
 ];
 
 interface StatsCardsProps {
@@ -92,7 +83,7 @@ export function StatsCards({ isLoading: externalLoading, stats: externalStats }:
     if (error) return <StatsCardsError message={error} onRetry={() => window.location.reload()} />;
 
     return (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {statConfig.map(({ label, icon: Icon, iconClass, pingClass, getChange, getValue }) => (
                 <div
                     key={label}

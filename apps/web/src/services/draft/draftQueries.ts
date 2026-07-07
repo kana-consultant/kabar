@@ -1,18 +1,7 @@
 import { apiClient } from '../api';
 import type { Draft } from './types';
 import type { SimilarityResult, SEOScore } from './types';
-
-export interface DraftStats {
-    total_draft: number;
-    total_with_image: number;
-    total_without_image: number;
-    total_scheduled: number;
-    product_coverage: Record<string, number>;
-    daily_activity: {
-        date: string;
-        count: number;
-    }[];
-}
+import type { DraftStats } from './types';
 
 interface PaginationParams {
     page?: number;
