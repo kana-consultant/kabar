@@ -106,6 +106,27 @@ func (s *DraftServiceImpl) UpdateDraft(ctx context.Context, id string, userID, T
 
 // DeleteDraft implements draft.Service
 func (s *DraftServiceImpl) DeleteDraft(ctx context.Context, TeamID string, id string) error {
+	// Get draft dulu untuk cek status
+	draft, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get draft: %w", err)
+	}
+
+	// Jika draft scheduled, hapus schedule di Redis
+	if draft.Status == "scheduled" {
+		// Hapus scheduled task di Redis
+		if s.redisScheduler != nil {
+			err := s.redisScheduler.CancelScheduledTask(ctx, id)
+			if err != nil {
+				log.Printf("⚠️ Failed to cancel scheduled task for draft %s: %v", id, err)
+				// Tetap lanjutkan delete meskipun gagal hapus schedule
+			} else {
+				log.Printf("✅ Cancelled scheduled task for draft %s", id)
+			}
+		}
+	}
+
+	// Hapus draft dari database
 	return s.repo.Delete(ctx, TeamID, id)
 }
 
