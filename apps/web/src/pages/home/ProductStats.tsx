@@ -60,7 +60,7 @@ export function ProductStats({ products }: ProductStatsProps) {
                 ))}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10">
+            {/* <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10">
                 <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-500">Koneksi Berhasil</span>
                     <span className="font-medium text-emerald-600 dark:text-violet-400">{activeRate}%</span>
@@ -75,7 +75,7 @@ export function ProductStats({ products }: ProductStatsProps) {
                     <span>✓ {connected} Terhubung</span>
                     <span>⏳ {pending} Menunggu</span>
                 </div>
-            </div>
+            </div> */}
         </div>
     );
 }
