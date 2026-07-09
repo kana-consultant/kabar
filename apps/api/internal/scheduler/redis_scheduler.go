@@ -51,7 +51,8 @@ type RedisScheduler struct {
 	postService       helper.PostService
 	isRunning         bool
 	mu                sync.RWMutex
-	activeTasks       map[string]context.CancelFunc // Track active tasks
+	activeTasks       map[string]context.CancelFunc
+	stopChan          chan struct{} // Channel untuk graceful shutdown
 }
 
 type TaskHandler func(task *ScheduledTask) error
@@ -70,6 +71,7 @@ func NewRedisScheduler(redisClient *redis.Client, db *sql.DB, productController 
 		db:                db,
 		isRunning:         false,
 		activeTasks:       make(map[string]context.CancelFunc),
+		stopChan:          make(chan struct{}),
 	}
 }
 
@@ -259,6 +261,12 @@ func (s *RedisScheduler) recoverPendingTasks() {
 
 // executeDraftTask runs the scheduled draft publishing
 func (s *RedisScheduler) executeDraftTask(taskID string) {
+	// CEK APAKAH SCHEDULER MASIH RUNNING
+	if !s.isRunning {
+		log.Printf("⚠️ Scheduler is not running, skipping task %s", taskID)
+		return
+	}
+
 	log.Printf("🚀 Executing scheduled draft task: %s at %v", taskID, time.Now())
 
 	// Validasi taskID tidak kosong
@@ -599,11 +607,17 @@ func (s *RedisScheduler) GetScheduledTasks() ([]*ScheduledTask, error) {
 
 // Start starts the scheduler
 func (s *RedisScheduler) Start() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.isRunning {
 		log.Println("⚠️ Scheduler already running")
 		return
 	}
 
+	log.Println("✅ Redis Scheduler starting...")
+
+	// Start cron
 	s.cron.Start()
 	s.isRunning = true
 	log.Println("✅ Redis Scheduler started")
@@ -613,30 +627,65 @@ func (s *RedisScheduler) Start() {
 		time.Sleep(2 * time.Second)
 		s.recoverPendingTasks()
 	}()
+
+	// Start health check routine
+	go s.healthCheck()
+}
+
+// healthCheck melakukan pengecekan kesehatan scheduler secara periodik
+func (s *RedisScheduler) healthCheck() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			s.mu.RLock()
+			if s.isRunning {
+				entries := s.cron.Entries()
+				log.Printf("💚 Scheduler health check: running, %d active cron entries", len(entries))
+			}
+			s.mu.RUnlock()
+		}
+	}
 }
 
 // Stop stops the scheduler gracefully
 func (s *RedisScheduler) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if !s.isRunning {
+		log.Println("⚠️ Scheduler already stopped")
 		return
 	}
 
 	log.Println("🛑 Stopping Redis Scheduler...")
 
+	// Set isRunning ke false dulu agar tidak ada task baru yang dijalankan
+	s.isRunning = false
+
 	// Cancel semua active tasks
-	s.mu.Lock()
+	s.mu.Unlock()
+	s.mu.RLock()
 	for taskID, cancel := range s.activeTasks {
 		log.Printf("⚠️ Cancelling active task: %s", taskID)
 		cancel()
 	}
-	s.mu.Unlock()
+	s.mu.RUnlock()
+	s.mu.Lock()
 
 	// Tunggu sebentar untuk menyelesaikan task yang sedang berjalan
 	time.Sleep(2 * time.Second)
 
-	s.cron.Stop()
-	s.isRunning = false
+	// Stop cron
+	<-s.cron.Stop().Done()
+
+	// Cancel context
 	s.cancel()
+
 	log.Println("🛑 Redis Scheduler stopped")
 }
 
@@ -684,4 +733,11 @@ func (s *RedisScheduler) CleanupExpiredTasks() error {
 	}
 
 	return nil
+}
+
+// IsRunning returns whether scheduler is running
+func (s *RedisScheduler) IsRunning() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.isRunning
 }

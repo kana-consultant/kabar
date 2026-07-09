@@ -116,7 +116,6 @@ func NewContainer(
 
 	scheduler := scheduler.NewRedisScheduler(database.RedisClient, db, productService, *PostService)
 	scheduler.Start()
-	defer scheduler.Stop()
 
 	minioStorage, err := minio.NewMinioService(
 		cfg.MinioEndpoint,
