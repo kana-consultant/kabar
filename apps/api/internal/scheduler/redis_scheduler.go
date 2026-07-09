@@ -449,57 +449,6 @@ func (s *RedisScheduler) doPublishDraft(task *ScheduledTask, userCtx models.User
 	if err != nil {
 		return fmt.Errorf("database update failed: %w", err)
 	}
-
-	targetProductsJSON, _ := json.Marshal(task.TargetProducts)
-
-	errorMessage, _ := json.Marshal(map[string]interface{}{
-		"all_failed":  allFailed,
-		"some_failed": someFailed,
-	})
-
-	_, err = database.GetDB().Exec(`
-	INSERT INTO histories (
-		title,
-		topic,
-		content,
-		image_url,
-		target_products,
-		status,
-		action,
-		published_at,
-		created_by,
-		team_id,
-		user_id,
-		error_message
-	)
-	VALUES (
-		$1, $2, $3, $4, $5,
-		$6, 'auto_publish', $7, $8, $9, $10, $11
-	)
-`,
-		task.Title,
-		task.Topic,
-		task.Article,
-		task.ImageURL,
-		targetProductsJSON,
-		status,
-		now,
-		nil,
-		task.TeamID,
-		task.UserID,
-		errorMessage,
-	)
-
-	if err != nil {
-		log.Printf("Warning: Failed to insert history: %v", err)
-	}
-
-	log.Printf(
-		"[Scheduler] ✅ SUCCESS published draft_id=%s status=%s",
-		task.DraftID,
-		status,
-	)
-
 	return nil
 }
 
