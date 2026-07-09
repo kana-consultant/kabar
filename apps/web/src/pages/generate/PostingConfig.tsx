@@ -645,20 +645,6 @@ export function PostingConfig({
                             "bg-slate-50/60 border-slate-200/60",
                             "dark:bg-white/[0.02] dark:border-white/[0.05]"
                         )}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Clock className="h-3.5 w-3.5 text-slate-400" />
-                                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                                        Posting Berulang (Daily)
-                                    </p>
-                                </div>
-                                <Switch
-                                    checked={dailySchedule}
-                                    onCheckedChange={setDailySchedule}
-                                    className="data-[state=checked]:bg-green-600 dark:data-[state=checked]:bg-purple-600"
-                                />
-                            </div>
-
                             {dailySchedule ? (
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] uppercase tracking-wide text-slate-400">
