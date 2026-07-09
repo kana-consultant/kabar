@@ -3,7 +3,10 @@ package minio
 import (
 	"context"
 	"io"
+	"log"
 	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -105,6 +108,30 @@ func (s *MinioService) GetURL(ctx context.Context, objectName string, expiry tim
 		return "", err
 	}
 	return u.String(), nil
+}
+
+func (s *MinioService) RefreshArticleImages(ctx context.Context, article string) string {
+	re := regexp.MustCompile(`<img[^>]+src="([^"]+)"`)
+	count := 0
+
+	return re.ReplaceAllStringFunc(article, func(tag string) string {
+		reSrc := regexp.MustCompile(`src="([^"]+)"`)
+		match := reSrc.FindStringSubmatch(tag)
+		if len(match) < 2 {
+			return tag
+		}
+
+		oldURL := match[1]
+		newURL, err := s.GetURL(ctx, oldURL, 7*24*time.Hour)
+		if err != nil {
+			log.Printf("[ERROR] Failed to refresh image #%d: %v", count+1, err)
+			return tag
+		}
+
+		count++
+		log.Printf("[SUCCESS] Image #%d refreshed", count)
+		return strings.Replace(tag, oldURL, newURL, 1)
+	})
 }
 
 func (s *MinioService) List(ctx context.Context, prefix string) ([]string, error) {

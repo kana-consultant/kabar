@@ -155,7 +155,7 @@ func (s *DraftServiceImpl) GetDraftByID(ctx context.Context, id string) (*draft.
 	// Refresh semua <img> di article
 	if draftData.Article != "" {
 		log.Println("[INFO] Refreshing images in article...")
-		draftData.Article = s.refreshArticleImages(ctx, draftData.Article)
+		draftData.Article = s.minioClient.RefreshArticleImages(ctx, draftData.Article)
 	}
 
 	log.Printf("[SUCCESS] GetDraftByID completed: %s", id)

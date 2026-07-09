@@ -141,7 +141,7 @@ func NewContainer(
 		dashboardHandler.NewRoute(db, protected).SetupRoutes()
 		draftHandler.NewRoute(db, protected, permCache, DraftService).SetupRoutes()
 		generateHandler.NewRoute(db, protected, cfg, minioStorage).SetupRoutes()
-		historyHandler.NewHistoryRoute(db, protected, permCache, repoHistory).SetupRoute()
+		historyHandler.NewHistoryRoute(db, protected, permCache, repoHistory, minioStorage).SetupRoute()
 		productHandler.NewRoute(db, protected, permCache, productService).SetupRoutes()
 		providerHandler.NewRoute(db, protected, redisClient).SetupRoutes()
 		teamHandler.NewRoute(db, protected, emailService).SetupRoutes()

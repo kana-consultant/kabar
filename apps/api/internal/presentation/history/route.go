@@ -6,6 +6,7 @@ import (
 	baseRoutes "seo-backend/internal/domain/base"
 	"seo-backend/internal/domain/history"
 	rbacCache "seo-backend/internal/infrastructure/db/repositories/rbac"
+	"seo-backend/internal/infrastructure/http/minio"
 	authmw "seo-backend/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
@@ -17,8 +18,9 @@ type Route struct {
 	permCache      *rbacCache.PermissionCache
 }
 
-func NewHistoryRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache, historyRepo history.HistoryRepository) *Route {
-	HistoryService := historyService.NewService(historyRepo)
+func NewHistoryRoute(db *sql.DB, chi chi.Router, permCache *rbacCache.PermissionCache,
+	historyRepo history.HistoryRepository, minioClient *minio.MinioService) *Route {
+	HistoryService := historyService.NewService(historyRepo, minioClient)
 	historyHandler := NewHistoryHandler(HistoryService)
 
 	return &Route{

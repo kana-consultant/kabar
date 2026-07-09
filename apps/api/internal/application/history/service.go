@@ -3,22 +3,26 @@ package history
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/domain/paginate"
+	"seo-backend/internal/infrastructure/http/minio"
 	"seo-backend/internal/models"
 )
 
 // Service handles all history business logic
 type Service struct {
-	repo history.HistoryRepository
+	repo        history.HistoryRepository
+	minioClient *minio.MinioService
 }
 
 // NewService creates a new history service
-func NewService(repo history.HistoryRepository) *Service {
+func NewService(repo history.HistoryRepository, minioClient *minio.MinioService) *Service {
 	return &Service{
-		repo: repo,
+		repo:        repo,
+		minioClient: minioClient,
 	}
 }
 
@@ -61,7 +65,29 @@ func (s *Service) GetByID(ctx context.Context, id string) (*history.History, err
 	if id == "" {
 		return nil, fmt.Errorf("history id is required")
 	}
-	return s.repo.GetByID(ctx, id)
+	HistoryData, err := s.repo.GetByID(ctx, id)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed To Get history %s", err)
+	}
+	if HistoryData.ImageURL != nil && *HistoryData.ImageURL != "" {
+		log.Printf("[INFO] Refreshing image_url: %s", *HistoryData.ImageURL)
+		newURL, err := s.minioClient.GetURL(ctx, *HistoryData.ImageURL, 7*24*time.Hour)
+		if err != nil {
+			log.Printf("[ERROR] Failed to refresh image_url: %v", err)
+		} else {
+			log.Printf("[SUCCESS] image_url refreshed: %s", newURL)
+			*HistoryData.ImageURL = newURL
+		}
+	}
+
+	// Refresh semua <img> di article
+	if HistoryData.Content != "" {
+		log.Println("[INFO] Refreshing images in article...")
+		HistoryData.Content = s.minioClient.RefreshArticleImages(ctx, HistoryData.Content)
+	}
+
+	return HistoryData, nil
 }
 
 // GetWithFilters retrieves history with filters
