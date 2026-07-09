@@ -15,6 +15,7 @@ export interface HistoryItem {
     createdAt: string;
     keywords : string[];
     excerpt : string;
+    slug : string;
 }
 
 // services/types.ts

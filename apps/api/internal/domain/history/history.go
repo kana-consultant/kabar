@@ -40,8 +40,8 @@ type History struct {
 	TeamID         *string       `json:"teamId,omitempty"`
 	CreatedAt      time.Time     `json:"createdAt"`
 	Keywords       []string      `json:"keywords"`
-	HasImage       bool
-	Excerpt        string
+	HasImage       bool          `json:"has_image"`
+	Excerpt        string        `json:"excerpt"`
 }
 
 type HistoryFilter struct {
