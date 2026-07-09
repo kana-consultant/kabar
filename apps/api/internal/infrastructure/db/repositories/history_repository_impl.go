@@ -626,66 +626,14 @@ func (r *HistoryRepository) GetAllPublished(
 	filter history.HistoryFilter,
 ) (*paginate.PaginatedResult[history.History], error) {
 
-	if filter.Limit == 0 {
-		filter.Limit = 1000
-	}
+	// Set default pagination
+	filter = r.normalizeFilter(filter)
 
-	var query string
-	var countQuery string
-	var args []interface{}
-	var countArgs []interface{}
-	argIndex := 1
+	// Build where clause
+	whereClause, args := r.buildWhereClause(filter)
 
-	whereClause := "status = 'published'"
-
-	if filter.ProductID != "" {
-		whereClause += fmt.Sprintf(` AND target_products @> $%d`, argIndex)
-		productJSON := fmt.Sprintf(`["%s"]`, filter.ProductID)
-		args = append(args, productJSON)
-		countArgs = append(countArgs, productJSON)
-		argIndex++
-	}
-
-	if filter.Search != "" {
-		whereClause += fmt.Sprintf(` AND (title ILIKE $%d OR topic ILIKE $%d)`, argIndex, argIndex+1)
-		searchPattern := "%" + filter.Search + "%"
-		args = append(args, searchPattern, searchPattern)
-		countArgs = append(countArgs, searchPattern, searchPattern)
-		argIndex += 2
-	}
-
-	query = fmt.Sprintf(`
-		SELECT 
-			id, 
-			title, 
-			slug,
-			topic, 
-			article, 
-			excerpt,
-			image_url, 
-			image_prompt,
-			target_products, 
-			status, 
-			published_at, 
-			scheduled_for,
-			created_by, 
-			team_id, 
-			user_id,
-			has_image,
-			seo_score,
-			created_at
-		FROM drafts
-		WHERE %s
-		ORDER BY 
-			CASE 
-				WHEN published_at IS NOT NULL THEN published_at 
-				ELSE created_at 
-			END DESC,
-			created_at DESC
-		LIMIT $%d OFFSET $%d
-	`, whereClause, argIndex, argIndex+1)
-
-	args = append(args, filter.Limit, filter.Offset)
+	// Build query with pagination
+	query := r.buildPublishedQuery(whereClause)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -698,28 +646,107 @@ func (r *HistoryRepository) GetAllPublished(
 		return nil, fmt.Errorf("failed to scan history: %w", err)
 	}
 
-	countQuery = fmt.Sprintf(`
-		SELECT COUNT(*) 
-		FROM drafts 
-		WHERE %s
-	`, whereClause)
-
-	var totalItems int
-	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&totalItems); err != nil {
-		return nil, fmt.Errorf("failed to count published histories: %w", err)
+	// Get total count
+	totalItems, err := r.countPublished(ctx, whereClause, args)
+	if err != nil {
+		return nil, err
 	}
 
-	totalPages := int(math.Ceil(float64(totalItems) / float64(filter.Limit)))
-	currentPage := (filter.Offset / filter.Limit) + 1
+	return r.buildPaginatedResult(histories, totalItems, filter), nil
+}
+
+// Helper functions
+func (r *HistoryRepository) normalizeFilter(filter history.HistoryFilter) history.HistoryFilter {
+	if filter.Limit <= 0 {
+		filter.Limit = 10
+	}
+	if filter.Limit > 100 {
+		filter.Limit = 100
+	}
+	if filter.Offset < 0 {
+		filter.Offset = 0
+	}
+	return filter
+}
+
+func (r *HistoryRepository) buildWhereClause(filter history.HistoryFilter) (string, []interface{}) {
+	whereClause := "status = 'published'"
+	var args []interface{}
+	argIndex := 1
+
+	if filter.ProductID != "" {
+		whereClause += fmt.Sprintf(` AND target_products @> $%d`, argIndex)
+		args = append(args, fmt.Sprintf(`["%s"]`, filter.ProductID))
+		argIndex++
+	}
+
+	// Tambahkan filter lain jika perlu
+	if filter.Search != "" {
+		whereClause += fmt.Sprintf(` AND (title ILIKE $%d OR topic ILIKE $%d)`, argIndex, argIndex+1)
+		searchTerm := "%" + filter.Search + "%"
+		args = append(args, searchTerm, searchTerm)
+		argIndex += 2
+	}
+
+	if filter.TeamID != "" {
+		whereClause += fmt.Sprintf(` AND team_id = $%d`, argIndex)
+		args = append(args, filter.TeamID)
+		argIndex++
+	}
+
+	return whereClause, args
+}
+
+func (r *HistoryRepository) buildPublishedQuery(whereClause string) string {
+	return fmt.Sprintf(`
+		SELECT 
+			id, title, slug, topic, article, excerpt,
+			image_url, image_prompt, target_products, 
+			status, published_at, scheduled_for,
+			created_by, team_id, user_id,
+			has_image, seo_score, created_at
+		FROM drafts
+		WHERE %s
+		ORDER BY 
+			CASE 
+				WHEN published_at IS NOT NULL THEN published_at 
+				ELSE created_at 
+			END DESC,
+			created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, whereClause, len(whereClause)+1, len(whereClause)+2)
+}
+
+func (r *HistoryRepository) countPublished(ctx context.Context, whereClause string, args []interface{}) (int, error) {
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM drafts WHERE %s`, whereClause)
+	var totalItems int
+	err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalItems)
+	return totalItems, err
+}
+
+func (r *HistoryRepository) buildPaginatedResult(
+	data []history.History,
+	totalItems int,
+	filter history.HistoryFilter,
+) *paginate.PaginatedResult[history.History] {
+	totalPages := 0
+	if filter.Limit > 0 {
+		totalPages = int(math.Ceil(float64(totalItems) / float64(filter.Limit)))
+	}
+
+	currentPage := 1
+	if filter.Limit > 0 {
+		currentPage = (filter.Offset / filter.Limit) + 1
+	}
 
 	return &paginate.PaginatedResult[history.History]{
-		Data:        histories,
+		Data:        data,
 		TotalItems:  totalItems,
 		TotalPages:  totalPages,
 		CurrentPage: currentPage,
 		Limit:       filter.Limit,
 		Offset:      filter.Offset,
-	}, nil
+	}
 }
 
 func (r *HistoryRepository) scanHistoryPublished(rows *sql.Rows) ([]history.History, error) {

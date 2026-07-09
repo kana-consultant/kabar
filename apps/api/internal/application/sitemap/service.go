@@ -48,7 +48,6 @@ func (s *Service) GenerateSitemap(
 
 	// 2. Get all published histories for this product
 	filter := history.HistoryFilter{
-		Limit:     req.Limit,
 		Offset:    0,
 		ProductID: req.ProductID,
 	}
@@ -62,7 +61,7 @@ func (s *Service) GenerateSitemap(
 	log.Printf("[GenerateSitemap] Got %d histories for product %s", len(paginatedResult.Data), req.ProductID)
 
 	// 3. Build sitemap XML from histories with placeholder support
-	sitemapXML := s.buildSitemapXML(paginatedResult.Data, req, productData)
+	sitemapXML := s.buildSitemapXML(paginatedResult.Data, req)
 
 	response := &sitemap.GenerateResponse{
 		SitemapXML:  sitemapXML,
@@ -192,8 +191,12 @@ func getStatusSummary(responses []sitemap.HistoryResponse) map[string]int {
 }
 
 // buildSitemapXML builds XML sitemap from histories with placeholder support
-func (s *Service) buildSitemapXML(histories []history.History, req sitemap.GenerateRequest, productData *product.Product) string {
+func (s *Service) buildSitemapXML(histories []history.History, req sitemap.GenerateRequest) string {
 	var xml strings.Builder
+
+	// Pre-allocate capacity untuk mengurangi reallocation
+	// Estimasi kasar: 200 bytes per item
+	xml.Grow(len(histories) * 200)
 
 	// XML header
 	xml.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
@@ -221,43 +224,66 @@ func (s *Service) buildSitemapXML(histories []history.History, req sitemap.Gener
 	// Add each URL
 	baseURL := strings.TrimSuffix(req.BaseURL, "/")
 
+	// Gunakan buffer untuk setiap URL untuk mengurangi WriteString calls
 	for _, h := range histories {
-		// Generate URL with placeholder replacement
-		finalURL := s.replacePlaceholders(baseURL, h, productData)
-
-		xml.WriteString(`  <url>` + "\n")
-		xml.WriteString(`    <loc>` + escapeXML(finalURL) + `</loc>` + "\n")
-
-		// Last modification date
-		if !h.CreatedAt.IsZero() {
-			xml.WriteString(`    <lastmod>` + h.CreatedAt.Format("2006-01-02") + `</lastmod>` + "\n")
-		}
-
-		// Change frequency
-		xml.WriteString(`    <changefreq>weekly</changefreq>` + "\n")
-
-		// Priority
-		xml.WriteString(`    <priority>0.8</priority>` + "\n")
-
-		// Image (if available)
-		if req.IncludeImages && h.ImageURL != nil && *h.ImageURL != "" {
-			xml.WriteString(`    <image:image>` + "\n")
-			xml.WriteString(`      <image:loc>` + escapeXML(*h.ImageURL) + `</image:loc>` + "\n")
-			if h.Title != "" {
-				xml.WriteString(`      <image:title>` + escapeXML(h.Title) + `</image:title>` + "\n")
-			}
-			xml.WriteString(`    </image:image>` + "\n")
-		}
-
-		xml.WriteString(`  </url>` + "\n")
+		s.writeURL(&xml, h, baseURL, req.IncludeImages)
 	}
 
 	xml.WriteString(`</urlset>`)
 	return xml.String()
 }
 
+// Helper function untuk menulis satu URL
+func (s *Service) writeURL(xml *strings.Builder, h history.History, baseURL string, includeImage bool) {
+	// Generate URL with placeholder replacement
+	finalURL := s.replacePlaceholders(baseURL, h)
+
+	// Gunakan strings.Builder untuk mengumpulkan semua string
+	// sebelum ditulis ke xml builder
+	var urlBuilder strings.Builder
+	urlBuilder.Grow(256) // Pre-allocate
+
+	// Gunakan WriteString secara berurutan tanpa concatenation
+	urlBuilder.WriteString(`  <url>` + "\n")
+	urlBuilder.WriteString(`    <loc>`)
+	urlBuilder.WriteString(escapeXML(finalURL))
+	urlBuilder.WriteString(`</loc>` + "\n")
+
+	// Last modification date
+	if !h.CreatedAt.IsZero() {
+		urlBuilder.WriteString(`    <lastmod>`)
+		urlBuilder.WriteString(h.CreatedAt.Format("2006-01-02"))
+		urlBuilder.WriteString(`</lastmod>` + "\n")
+	}
+
+	// Change frequency
+	urlBuilder.WriteString(`    <changefreq>weekly</changefreq>` + "\n")
+
+	// Priority
+	urlBuilder.WriteString(`    <priority>0.8</priority>` + "\n")
+
+	// Image (if available)
+	if includeImage && h.ImageURL != nil && *h.ImageURL != "" {
+		urlBuilder.WriteString(`    <image:image>` + "\n")
+		urlBuilder.WriteString(`      <image:loc>`)
+		urlBuilder.WriteString(escapeXML(*h.ImageURL))
+		urlBuilder.WriteString(`</image:loc>` + "\n")
+		if h.Title != "" {
+			urlBuilder.WriteString(`      <image:title>`)
+			urlBuilder.WriteString(escapeXML(h.Title))
+			urlBuilder.WriteString(`</image:title>` + "\n")
+		}
+		urlBuilder.WriteString(`    </image:image>` + "\n")
+	}
+
+	urlBuilder.WriteString(`  </url>` + "\n")
+
+	// Tulis semua sekaligus ke xml builder
+	xml.WriteString(urlBuilder.String())
+}
+
 // replacePlaceholders replaces placeholders in URL template with actual data
-func (s *Service) replacePlaceholders(template string, h history.History, productData *product.Product) string {
+func (s *Service) replacePlaceholders(template string, h history.History) string {
 	result := template
 
 	// Replace history-related placeholders

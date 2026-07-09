@@ -5,7 +5,6 @@ export interface GenerateSitemapRequest {
     productId: string;
     baseURL: string;
     includeImages: boolean;
-    limit?: number;
 }
 
 export interface GenerateSitemapResponse {
@@ -37,7 +36,6 @@ export const sitemapService = {
             product_id: params.productId,
             base_url: params.baseURL,
             include_images: params.includeImages,
-            limit: params.limit || 0,
         });
 
         return {

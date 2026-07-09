@@ -20,7 +20,6 @@ type GenerateRequest struct {
 	ProductID     string // ID produk yang dipilih
 	BaseURL       string // Base URL of the website (e.g., https://client.com)
 	IncludeImages bool   // Whether to include images in sitemap
-	Limit         int    // Max number of articles (0 = all)
 }
 
 // GenerateResponse represents response from sitemap generation

@@ -40,13 +40,11 @@ func (h *SitemapHandler) GenerateSitemap(w http.ResponseWriter, r *http.Request)
 	}
 
 	includeImages, _ := strconv.ParseBool(r.URL.Query().Get("include_images"))
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 
 	req := sitemap.GenerateRequest{
 		ProductID:     productID,
 		BaseURL:       baseURL,
 		IncludeImages: includeImages,
-		Limit:         limit,
 	}
 
 	resp, err := h.sitemapService.GenerateSitemap(r.Context(), req)

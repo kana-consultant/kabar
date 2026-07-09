@@ -27,16 +27,12 @@ import {
 } from "@kana-consultant/ui-kit";
 import {
     Download,
-    Copy,
-    Check,
     Loader2,
     AlertCircle,
     FileText,
     Globe,
     Image,
     RefreshCw,
-    Clock,
-    ExternalLink,
     Package,
     Pencil,
     Info,
@@ -73,8 +69,6 @@ export default function SitemapPage() {
     const [selectedProductId, setSelectedProductId] = useState<string>("");
     const [baseURL, setBaseURL] = useState("");
     const [includeImages, setIncludeImages] = useState(true);
-    const [limit, setLimit] = useState<string>("0");
-    const [copied, setCopied] = useState(false);
     const [isBaseURLManuallyEdited, setIsBaseURLManuallyEdited] = useState(false);
     const [showPlaceholderHelp, setShowPlaceholderHelp] = useState(false);
 
@@ -119,7 +113,6 @@ export default function SitemapPage() {
             productId: selectedProductId,
             baseURL: baseURL.trim(),
             includeImages,
-            limit: parseInt(limit) || 0,
         });
 
         toast.success("Sitemap generated successfully!");
@@ -130,25 +123,13 @@ export default function SitemapPage() {
         setIsBaseURLManuallyEdited(true);
     };
 
-    const handleCopyURL = () => {
-        if (!sitemapData) return;
-
-        const sitemapURL = `${window.location.origin}/sitemap?product_id=${selectedProductId}&base_url=${encodeURIComponent(baseURL)}&include_images=${includeImages}`;
-        navigator.clipboard.writeText(sitemapURL);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        toast.success("Sitemap URL copied!");
-    };
-
+  
     const handleDownload = () => {
         downloadSitemap();
         toast.success("Sitemap downloaded!");
     };
 
-    const handleRegenerate = () => {
-        handleGenerate(new Event("submit") as any);
-    };
-
+  
     const handleResetToDefault = () => {
         setIsBaseURLManuallyEdited(false);
         if (selectedProductId) {
@@ -201,27 +182,6 @@ export default function SitemapPage() {
         return preview;
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case "success":
-                return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-            case "failed":
-                return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-            default:
-                return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
-        }
-    };
-
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case "success":
-                return <Check className="h-3 w-3 mr-1" />;
-            case "failed":
-                return <AlertCircle className="h-3 w-3 mr-1" />;
-            default:
-                return <Loader2 className="h-3 w-3 mr-1 animate-spin" />;
-        }
-    };
 
     return (
         <div className="container space-y-6 max-w-full">
@@ -440,24 +400,6 @@ export default function SitemapPage() {
                                     </Label>
                                 </div>
                             </div>
-
-                            <div className="flex items-center space-x-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3">
-                                <div className="flex items-center gap-2 flex-1">
-                                    <FileText className="h-4 w-4 text-slate-400" />
-                                    <Label htmlFor="limit" className="cursor-pointer">
-                                        Limit
-                                    </Label>
-                                </div>
-                                <Input
-                                    id="limit"
-                                    type="number"
-                                    min={0}
-                                    placeholder="0 = all"
-                                    value={limit}
-                                    onChange={(e) => setLimit(e.target.value)}
-                                    className="w-20"
-                                />
-                            </div>
                         </div>
 
                         {/* Generate Button */}
@@ -539,23 +481,6 @@ export default function SitemapPage() {
                             <Button variant="outline" onClick={handleDownload} className="gap-2">
                                 <Download className="h-4 w-4" />
                                 Download Sitemap
-                            </Button>
-                            <Button variant="outline" onClick={handleCopyURL} className="gap-2">
-                                {copied ? (
-                                    <>
-                                        <Check className="h-4 w-4 text-green-600" />
-                                        Copied!
-                                    </>
-                                ) : (
-                                    <>
-                                        <Copy className="h-4 w-4" />
-                                        Copy URL
-                                    </>
-                                )}
-                            </Button>
-                            <Button variant="outline" onClick={handleRegenerate} disabled={isLoading} className="gap-2">
-                                <RefreshCw className={cn("h-4 w-4",`${ isLoading && "animate-spin"}`)} />
-                                Regenerate
                             </Button>
                         </div>
                     </CardContent>

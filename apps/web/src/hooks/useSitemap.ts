@@ -1,16 +1,14 @@
 // hooks/useSitemap.ts
 import { useState, useCallback, useEffect } from "react";
-import { sitemapService,type GenerateSitemapRequest, type GenerateSitemapResponse, type SitemapHistoryItem } from "@/services/sitemap.service";
+import { sitemapService,type GenerateSitemapRequest, type GenerateSitemapResponse } from "@/services/sitemap.service";
 import  { type Product, getProducts } from "@/services/product";
 
 interface UseSitemapReturn {
     // State
     isLoading: boolean;
-    isHistoryLoading: boolean;
     isProductsLoading: boolean;
     error: string | null;
     sitemapData: GenerateSitemapResponse | null;
-    history: SitemapHistoryItem[];
     products: Product[];
     
     // Actions
@@ -22,11 +20,9 @@ interface UseSitemapReturn {
 
 export function useSitemap(): UseSitemapReturn {
     const [isLoading, setIsLoading] = useState(false);
-    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
     const [isProductsLoading, setIsProductsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [sitemapData, setSitemapData] = useState<GenerateSitemapResponse | null>(null);
-    const [history, setHistory] = useState<SitemapHistoryItem[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
 
     const generateSitemap = useCallback(async (params: GenerateSitemapRequest) => {
@@ -81,11 +77,9 @@ export function useSitemap(): UseSitemapReturn {
 
     return {
         isLoading,
-        isHistoryLoading,
         isProductsLoading,
         error,
         sitemapData,
-        history,
         products,
         generateSitemap,
         downloadSitemap,
