@@ -61,7 +61,8 @@ export function useGenerate() {
         productsError, setProductsError,
         isPosting, setIsPosting,
         slug, setSlug,
-        excerpt, setExcerpt
+        excerpt, setExcerpt,
+        topicPrompt,setTopicPrompt
     } = useGenerateState();
 
     useGenerateData(
@@ -76,7 +77,7 @@ export function useGenerate() {
     );
 
     const generateArticle = (autoGenerateImage?: boolean, imageModelId?: string) => generateArticleContent(
-        topic, selectedModelId, tone, articleLength, language,
+        topicPrompt, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
         setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt,setTopic, toast,
         autoGenerateImage, imageModelId  
@@ -264,6 +265,6 @@ export function useGenerate() {
         results,
         errorData,
         onRetry: handleRetry,
-        onCloseError: handleCloseError,
+        onCloseError: handleCloseError,topicPrompt,setTopicPrompt
     };
 }

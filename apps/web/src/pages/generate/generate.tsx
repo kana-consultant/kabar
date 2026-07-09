@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 export default function Generate() {
     const {
-        topic, setTopic,
+        topicPrompt,
         article,
         setArticle,
         keywords,
@@ -45,6 +45,7 @@ export default function Generate() {
         errorData,
         onRetry,
         onCloseError,
+        setTopicPrompt
     } = useGenerate();
 
     console.log(errorData)
@@ -153,8 +154,8 @@ export default function Generate() {
                 {/* Left column */}
                 <div className="space-y-6">
                     <TopicInput
-                        topic={topic}
-                        setTopic={setTopic}
+                        topic={topicPrompt}
+                        setTopic={setTopicPrompt}
                         loadingArticle={loadingArticle}
                         onGenerateArticle={handleGenerateArticle}
                         autoGenerateImage={autoGenerateImage}

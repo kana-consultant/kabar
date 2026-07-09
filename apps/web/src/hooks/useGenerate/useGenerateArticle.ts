@@ -19,7 +19,7 @@ export async function generateArticleContent(
     setSlug: (val: string | null) => void,
     setKeywords: (val: string[]) => void,
     setExcerpt: (val: string | null) => void,
-    setTopic : (val : string ) => void,
+    setTopic: (val: string) => void,
     toast: ToastContextType,
     autoGenerateImage?: boolean,
     imageModelId?: string,
@@ -99,6 +99,7 @@ export async function generateArticleContent(
         } else {
             // User masih di halaman generate → tampilkan editor
             setArticleResponse(response);
+            setTopic(response.title);
             setArticle(response.content);
             setSeoScore(response.seoScore);
             setReadabilityScore(response.readabilityScore);

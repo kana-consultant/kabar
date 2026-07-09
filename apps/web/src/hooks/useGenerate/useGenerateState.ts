@@ -2,6 +2,7 @@ import { useState } from "react";
 
 export function useGenerateState() {
     const [topic, setTopic] = useState<string>("");
+    const [topicPrompt,setTopicPrompt] = useState<string>("")
     const [article, setArticle] = useState("");
     const [excerpt,setExcerpt] = useState<String | null>("");
     const [articleResponse, setArticleResponse] = useState<any>(null);
@@ -80,6 +81,7 @@ export function useGenerateState() {
         isPosting, setIsPosting,
         slug, setSlug,
         tags, SetTags,
-        excerpt,setExcerpt
+        excerpt,setExcerpt,
+        topicPrompt,setTopicPrompt
     };
 }
