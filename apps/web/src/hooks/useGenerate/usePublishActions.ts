@@ -69,7 +69,8 @@ export async function saveAsSchedule(
     onReset: () => void, // Callback untuk reset
     slug: string,
     tags: string[] | null,
-    toast: ToastContextType
+    toast: ToastContextType,
+    excerpt : string
 ): Promise<{ success: boolean; result?: any }> {
     if (!article) {
         toast.error("Generate artikel terlebih dahulu");
@@ -107,7 +108,8 @@ export async function saveAsSchedule(
             scheduled_for: scheduledFor,
             has_image: !!imageUrl,
             keywords: tags as string[],
-            slug: slug as string
+            slug: slug as string,
+            excerpt : excerpt
         };
 
         if (currentDraftId) {

@@ -1,7 +1,8 @@
-// Hapus import Toast langsung
+// services/generate-article.ts
 import type { ToastContextType } from "@/hooks/use-toast";
 import { generateArticle, type GenerateArticleRequest } from "@/services/generate";
-import { createDraft, type CreateDraftRequest } from "@/services/draft"; // 👈 Import createDraft
+import { createDraft, type CreateDraftRequest } from "@/services/draft";
+import { pageTracker } from "@/store/current-page"
 
 export async function generateArticleContent(
     topic: string,
@@ -18,10 +19,10 @@ export async function generateArticleContent(
     setSlug: (val: string | null) => void,
     setKeywords: (val: string[]) => void,
     setExcerpt: (val: string | null) => void,
+    setTopic : (val : string ) => void,
     toast: ToastContextType,
     autoGenerateImage?: boolean,
     imageModelId?: string,
-    // 👇 Parameter opsional untuk draft
     teamId?: string,
     targetProducts?: string[]
 ) {
@@ -40,10 +41,6 @@ export async function generateArticleContent(
 
     setLoadingArticle(true);
     try {
-        // 👇 Cek current path - gunakan includes untuk fleksibilitas
-        const currentPath = window.location.pathname;
-        const isDraft = !currentPath.includes("/generate");
-
         const request: GenerateArticleRequest = {
             topic: topic,
             modelId: selectedModelId,
@@ -56,12 +53,15 @@ export async function generateArticleContent(
 
         const response = await generateArticle(request);
 
-        // 👇 Jika bukan di halaman generate, simpan sebagai draft
-        if (isDraft) {
+        // 👇 Cek dari cache, bukan window.location
+        const currentPage = pageTracker.get();
+        const userStillOnGeneratePage = currentPage.includes('/generate');
+
+        if (!userStillOnGeneratePage) {
+            // User sudah pindah halaman → save draft
             try {
-                // 👇 Sesuaikan dengan tipe CreateDraftRequest
                 const draftRequest: CreateDraftRequest = {
-                    title: response.title || topic, // Fallback ke topic jika title tidak ada
+                    title: response.title || topic,
                     topic: topic,
                     article: response.content,
                     slug: response.slug || "",
@@ -69,52 +69,50 @@ export async function generateArticleContent(
                     excerpt: response.excerpt || "",
                     target_products: targetProducts || [],
                     team_id: teamId,
-                    image_url: response.imageUrl, // Jika ada dari response
-                    image_prompt: response.imagePrompt, // Jika ada dari response
+                    image_url: response.imageUrl,
+                    image_prompt: response.imagePrompt,
                 };
 
                 await createDraft(draftRequest);
 
                 toast.success("Artikel berhasil disimpan sebagai draft!", {
-                    description: `Topik: ${response.title || topic} | ${response.wordCount} kata`,
+                    description: `${response.title || topic} | ${response.wordCount} kata`,
                 });
-
-                // Update state untuk konsistensi UI
-                setArticleResponse(response);
-                setArticle(response.content);
-                setSeoScore(response.seoScore);
-                setReadabilityScore(response.readabilityScore);
-                setWordCount(response.wordCount);
-                setSlug(response.slug);
-                setKeywords(response.keywords || []);
-                setExcerpt(response.excerpt);
-
-                return; // Hentikan eksekusi
             } catch (draftError) {
                 console.error("Error saving draft:", draftError);
                 toast.error("Gagal menyimpan draft", {
-                    description: "Artikel berhasil dibuat tapi gagal disimpan sebagai draft",
+                    description: "Artikel berhasil dibuat tapi gagal disimpan",
                 });
-                // Tetap lanjutkan untuk menampilkan artikel di editor
             }
+
+            // Tetap update state (redundant tapi aman)
+            setArticleResponse(response);
+            setArticle(response.content);
+            setTopic(response.title);
+            setSeoScore(response.seoScore);
+            setReadabilityScore(response.readabilityScore);
+            setWordCount(response.wordCount);
+            setSlug(response.slug);
+            setKeywords(response.keywords || []);
+            setExcerpt(response.excerpt);
+
+        } else {
+            // User masih di halaman generate → tampilkan editor
+            setArticleResponse(response);
+            setArticle(response.content);
+            setSeoScore(response.seoScore);
+            setReadabilityScore(response.readabilityScore);
+            setWordCount(response.wordCount);
+            setSlug(response.slug);
+            setKeywords(response.keywords || []);
+            setExcerpt(response.excerpt);
+
+            toast.success("Artikel berhasil di-generate!", {
+                description: autoGenerateImage
+                    ? `Topik: ${response.title} | ${response.wordCount} kata | gambar disertakan`
+                    : `Topik: ${response.title} | ${response.wordCount} kata`,
+            });
         }
-
-        // 👇 Jika di halaman generate, tampilkan seperti biasa
-        setArticleResponse(response);
-        setArticle(response.content);
-        setSeoScore(response.seoScore);
-        setReadabilityScore(response.readabilityScore);
-        setWordCount(response.wordCount);
-        setSlug(response.slug);
-        setKeywords(response.keywords || []);
-        setExcerpt(response.excerpt);
-        console.log(response.slug);
-
-        toast.success("Artikel berhasil di-generate!", {
-            description: autoGenerateImage
-                ? `Topik: ${response.title} | ${response.wordCount} kata | gambar disertakan`
-                : `Topik: ${response.title} | ${response.wordCount} kata`,
-        });
     } catch (error) {
         console.error("Error generating article:", error);
         toast.error("Gagal mengenerate artikel", {

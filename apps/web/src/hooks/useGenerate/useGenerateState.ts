@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 export function useGenerateState() {
-    const [topic, setTopic] = useState("");
+    const [topic, setTopic] = useState<string>("");
     const [article, setArticle] = useState("");
     const [excerpt,setExcerpt] = useState<String | null>("");
     const [articleResponse, setArticleResponse] = useState<any>(null);

@@ -78,7 +78,7 @@ export function useGenerate() {
     const generateArticle = (autoGenerateImage?: boolean, imageModelId?: string) => generateArticleContent(
         topic, selectedModelId, tone, articleLength, language,
         setLoadingArticle, setArticleResponse, setArticle,
-        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt, toast,
+        setSeoScore, setReadabilityScore, setWordCount, setSlug, setKeywords, setExcerpt,setTopic, toast,
         autoGenerateImage, imageModelId  
     );
 
@@ -126,7 +126,8 @@ export function useGenerate() {
                 );
             },
             slug as string, keywords as string[],
-            toast
+            toast,
+            excerpt as string,
         );
     };
 
