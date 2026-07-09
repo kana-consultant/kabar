@@ -1,13 +1,11 @@
 // components/PostingConfig.tsx
 import { Input } from "@kana-consultant/ui-kit";
 import { Button } from "@kana-consultant/ui-kit";
-import { Switch } from "@kana-consultant/ui-kit";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
     DialogFooter
 } from "@kana-consultant/ui-kit";
 import {
@@ -15,7 +13,6 @@ import {
     Calendar,
     FileText,
     Settings2,
-    Clock,
     Loader2,
     AlertTriangle,
     X,
@@ -24,7 +21,6 @@ import {
     AlertCircle,
     XCircle,
     Copy,
-    ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/services/product";
@@ -518,9 +514,8 @@ export function PostingConfig({
     postMode, setPostMode,
     scheduleDate, setScheduleDate,
     scheduleTime, setScheduleTime,
-    dailySchedule, setDailySchedule,
+    dailySchedule, 
     dailyTime, setDailyTime,
-    autoGenerateImage, setAutoGenerateImage,
     products,
     selectedProduct,
     onSelectProduct,
