@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -62,6 +63,7 @@ func NewService(
 
 func (s *GenerateServiceImpl) GenerateArticle(ctx context.Context, params generate.ArticleGenerationParams) (*generate.ArticleResult, error) {
 	log.Println("========== GENERATE ARTICLE ==========")
+	params.Topic = sanitizeTopic(params.Topic)
 	log.Printf("[INFO] Starting article generation with topic: %s", params.Topic)
 	log.Printf("[INFO] Model ID: %s, Tone: %s, Length: %s, Language: %s, AutoGenerateImage: %v, ImageModelID: %s",
 		params.ModelID, params.Tone, params.Length, params.Language, params.AutoGenerateImage, params.ImageModelID)
@@ -972,4 +974,62 @@ func generateRandomString(length int) string {
 	randMu.Unlock()
 
 	return string(b)
+}
+
+func sanitizeTopic(topic string) string {
+	// Trim whitespace
+	cleaned := strings.TrimSpace(topic)
+
+	// Hapus karakter kontrol (NULL, backspace, dll)
+	cleaned = strings.Map(func(r rune) rune {
+		if r < 32 && r != '\n' && r != '\r' && r != '\t' {
+			return -1
+		}
+		return r
+	}, cleaned)
+
+	// Hapus HTML tags
+	cleaned = regexp.MustCompile(`<[^>]*>`).ReplaceAllString(cleaned, "")
+
+	// Hapus code blocks (``` ... ```)
+	cleaned = regexp.MustCompile("```[\\s\\S]*?```").ReplaceAllString(cleaned, "")
+
+	// Hapus inline code (`...`)
+	cleaned = regexp.MustCompile("`[^`]*`").ReplaceAllString(cleaned, "")
+
+	// Hapus karakter spesial berbahaya
+	cleaned = regexp.MustCompile(`[<>{}|\\^~\[\]]`).ReplaceAllString(cleaned, "")
+
+	// Hapus kata-kata prompt injection
+	dangerousPatterns := []string{
+		`(?i)\bignore\b`,
+		`(?i)\bforget\b`,
+		`(?i)\boverride\b`,
+		`(?i)\bbypass\b`,
+		`(?i)\bdisregard\b`,
+		`(?i)\bdisobey\b`,
+		`(?i)\bpretend\b`,
+		`(?i)\bprevious\b`,
+		`(?i)\broleplay\b`,
+		`(?i)system:`,
+		`(?i)assistant:`,
+		`(?i)user:`,
+		`(?i)instruction:`,
+	}
+	for _, pattern := range dangerousPatterns {
+		cleaned = regexp.MustCompile(pattern).ReplaceAllString(cleaned, "")
+	}
+
+	// Hapus multiple spaces
+	cleaned = regexp.MustCompile(`\s+`).ReplaceAllString(cleaned, " ")
+
+	// Trim lagi setelah bersihin
+	cleaned = strings.TrimSpace(cleaned)
+
+	// Batasi panjang maksimal (opsional)
+	if len(cleaned) > 500 {
+		cleaned = cleaned[:500]
+	}
+
+	return cleaned
 }

@@ -53,7 +53,25 @@ export function TopicInput({
                     <Input
                         placeholder="Contoh: Cara Memilih Sepatu Lari yang Tepat"
                         value={topic}
-                        onChange={(e : any) => setTopic(e.target.value)}
+                        onChange={(e: any) => {
+                            let value = e.target.value;
+
+                            // 🔒 Sanitasi
+                            let sanitized = value
+                                .replace(/<[^>]*>/g, '')
+                                .replace(/```[\s\S]*?```/g, '')
+                                .replace(/`[^`]*`/g, '')
+                                .replace(/[<>{}|\\^~\[\]]/g, '');
+
+                            // 🔒 Hapus semua simbol di depan sampai ketemu huruf
+                            sanitized = sanitized.replace(/^[^a-zA-Z]+/, '');
+
+                            // Batasi 50 karakter
+                            sanitized = sanitized.substring(0, 50);
+
+                            setTopic(sanitized);
+                        }}
+                        maxLength={50}
                         className={cn(
                             "h-8 text-sm rounded-lg",
                             "border-slate-200/80 bg-white placeholder:text-slate-400",
@@ -62,6 +80,14 @@ export function TopicInput({
                             "dark:focus-visible:ring-purple-500/40 dark:focus-visible:border-purple-400/40"
                         )}
                     />
+                    <div className="flex justify-end">
+                        <p className={cn(
+                            "text-[10px]",
+                            topic.length >= 50 ? "text-red-500" : "text-slate-400 dark:text-slate-600"
+                        )}>
+                            {topic.length}/50
+                        </p>
+                    </div>
                 </div>
 
                 {/* Auto-generate image toggle */}
