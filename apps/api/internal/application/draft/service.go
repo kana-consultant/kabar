@@ -588,7 +588,7 @@ func prepareUpdateData(updates draft.CreateDraftRequest, minioService *minio.Min
 	// Process image_url
 	if processedUpdates.ImageURL != nil && *processedUpdates.ImageURL != "" {
 		if isBase64Image(processedUpdates.ImageURL) {
-			uploadedURL, err := uploadBase64ToMinio(ctx, minioService, *processedUpdates.ImageURL, "image_url")
+			uploadedURL, err := uploadBase64ToMinio(ctx, minioService, *processedUpdates.ImageURL)
 			if err != nil {
 				log.Printf("[ERROR] Failed to upload base64 image: %v", err)
 				emptyStr := ""
@@ -645,7 +645,7 @@ func processArticleImages(ctx context.Context, minioService *minio.MinioService,
 		oldURL := match[1]
 
 		if isBase64Image(&oldURL) {
-			newURL, err := uploadBase64ToMinio(ctx, minioService, oldURL, "article_img")
+			newURL, err := uploadBase64ToMinio(ctx, minioService, oldURL)
 			if err != nil {
 				log.Printf("[ERROR] Failed to upload: %v", err)
 				return tag
@@ -680,7 +680,7 @@ func isBase64Image(data *string) bool {
 	return base64Pattern.MatchString(*data)
 }
 
-func uploadBase64ToMinio(ctx context.Context, minioService *minio.MinioService, base64Data string, source string) (string, error) {
+func uploadBase64ToMinio(ctx context.Context, minioService *minio.MinioService, base64Data string) (string, error) {
 	re := regexp.MustCompile(`^data:(image\/[^;]+);base64,(.*)`)
 	matches := re.FindStringSubmatch(base64Data)
 	if len(matches) != 3 {
