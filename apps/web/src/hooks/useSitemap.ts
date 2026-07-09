@@ -31,6 +31,7 @@ export function useSitemap(): UseSitemapReturn {
 
         try {
             const data = await sitemapService.generateSitemap(params);
+            console.log()
             setSitemapData(data);
         } catch (err: any) {
             setError(err.message || "Failed to generate sitemap");

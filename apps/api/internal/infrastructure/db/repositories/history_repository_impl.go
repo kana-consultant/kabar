@@ -620,7 +620,6 @@ func (r *HistoryRepository) scanHistory(rows *sql.Rows) ([]history.History, erro
 	return histories, nil
 }
 
-// GetAllPublished retrieves published histories with optional product filter
 func (r *HistoryRepository) GetAllPublished(
 	ctx context.Context,
 	filter history.HistoryFilter,
@@ -632,10 +631,13 @@ func (r *HistoryRepository) GetAllPublished(
 	// Build where clause
 	whereClause, args := r.buildWhereClause(filter)
 
-	// Build query with pagination
-	query := r.buildPublishedQuery(whereClause)
+	// Build query with pagination - PASS argCount!
+	query := r.buildPublishedQuery(whereClause, len(args))
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	// Combine WHERE args with pagination args
+	allArgs := append(args, filter.Limit, filter.Offset)
+
+	rows, err := r.db.QueryContext(ctx, query, allArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query published histories: %w", err)
 	}
@@ -646,7 +648,7 @@ func (r *HistoryRepository) GetAllPublished(
 		return nil, fmt.Errorf("failed to scan history: %w", err)
 	}
 
-	// Get total count
+	// Get total count - use original WHERE args (without pagination)
 	totalItems, err := r.countPublished(ctx, whereClause, args)
 	if err != nil {
 		return nil, err
@@ -675,12 +677,12 @@ func (r *HistoryRepository) buildWhereClause(filter history.HistoryFilter) (stri
 	argIndex := 1
 
 	if filter.ProductID != "" {
-		whereClause += fmt.Sprintf(` AND target_products @> $%d`, argIndex)
-		args = append(args, fmt.Sprintf(`["%s"]`, filter.ProductID))
+		whereClause += fmt.Sprintf(` AND target_products @> $%d::jsonb`, argIndex)
+		jsonValue, _ := json.Marshal([]string{filter.ProductID})
+		args = append(args, string(jsonValue))
 		argIndex++
 	}
 
-	// Tambahkan filter lain jika perlu
 	if filter.Search != "" {
 		whereClause += fmt.Sprintf(` AND (title ILIKE $%d OR topic ILIKE $%d)`, argIndex, argIndex+1)
 		searchTerm := "%" + filter.Search + "%"
@@ -697,7 +699,7 @@ func (r *HistoryRepository) buildWhereClause(filter history.HistoryFilter) (stri
 	return whereClause, args
 }
 
-func (r *HistoryRepository) buildPublishedQuery(whereClause string) string {
+func (r *HistoryRepository) buildPublishedQuery(whereClause string, argCount int) string {
 	return fmt.Sprintf(`
 		SELECT 
 			id, title, slug, topic, article, excerpt,
@@ -714,7 +716,7 @@ func (r *HistoryRepository) buildPublishedQuery(whereClause string) string {
 			END DESC,
 			created_at DESC
 		LIMIT $%d OFFSET $%d
-	`, whereClause, len(whereClause)+1, len(whereClause)+2)
+	`, whereClause, argCount+1, argCount+2)
 }
 
 func (r *HistoryRepository) countPublished(ctx context.Context, whereClause string, args []interface{}) (int, error) {
@@ -790,14 +792,23 @@ func (r *HistoryRepository) scanHistoryPublished(rows *sql.Rows) ([]history.Hist
 		if imageURL.Valid {
 			h.ImageURL = &imageURL.String
 		}
+
 		if publishedAt.Valid {
 			h.PublishedAt = &publishedAt.Time
 		}
+
 		if hasImage.Valid {
 			h.HasImage = hasImage.Bool
 		}
 		if excerpt.Valid {
 			h.Excerpt = excerpt.String
+		}
+		if seoScore.Valid {
+			h.SeoScore = int(seoScore.Int32)
+		}
+
+		if teamID.Valid {
+			h.TeamID = &teamID.String
 		}
 
 		if len(targetProductsJSON) > 0 {
