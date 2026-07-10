@@ -79,16 +79,19 @@ func (h *UserHandler) handleServiceError(w http.ResponseWriter, err error) {
 // =======================
 // CREATE USER
 // =======================
+
+// Create godoc
 // @Summary Create a new user
-// @Tags users
+// @Description Register a new user account
+// @Tags Users
 // @Accept json
 // @Produce json
-// @Param request body object true "User data"
-// @Success 201 {object} models.User
-// @Failure 400 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users [post]
+// @Param request body CreateUserRequest true "User registration data"
+// @Success 201 {object} models.User "User created"
+// @Failure 400 {object} map[string]string "Bad request - invalid email, name, or password"
+// @Failure 409 {object} map[string]string "Email already exists"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/users [post]
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -126,15 +129,20 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 // =======================
 // GET USER BY ID
 // =======================
+
+// GetByID godoc
 // @Summary Get user by ID
-// @Tags users
+// @Description Get a specific user by their ID
+// @Tags Users
+// @Accept json
 // @Produce json
 // @Param id path string true "User ID"
-// @Success 200 {object} models.User
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users/{id} [get]
+// @Success 200 {object} models.User "User details"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/users/{id} [get]
 func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := h.getUserContext(r)
@@ -158,13 +166,18 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // =======================
 // GET CURRENT USER
 // =======================
+
+// GetCurrentUser godoc
 // @Summary Get current authenticated user
-// @Tags users
+// @Description Get the currently authenticated user's profile
+// @Tags Users
+// @Accept json
 // @Produce json
-// @Success 200 {object} models.User
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users/me [get]
+// @Success 200 {object} models.User "Current user details"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/users/me [get]
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := h.getUserContext(r)
@@ -182,15 +195,22 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 // =======================
 // GET ALL USERS
 // =======================
+
+// GetAll godoc
 // @Summary Get all users
-// @Tags users
+// @Description Get all users with optional filters
+// @Tags Users
+// @Accept json
 // @Produce json
-// @Param role query string false "Filter by role"
-// @Param status query string false "Filter by status"
+// @Param role query string false "Filter by role" Enums(admin,user,viewer)
+// @Param status query string false "Filter by status" Enums(active,inactive,suspended)
 // @Param search query string false "Search by name or email"
-// @Success 200 {array} models.User
-// @Failure 500 {object} map[string]string
-// @Router /users [get]
+// @Param limit query int false "Items per page (default: 10)"
+// @Param page query int false "Page number (default: 1)"
+// @Success 200 {array} models.User "List of users"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/users [get]
 func (h *UserHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := h.getUserContext(r)
@@ -209,18 +229,22 @@ func (h *UserHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // =======================
 // UPDATE USER
 // =======================
+
+// Update godoc
 // @Summary Update a user
-// @Tags users
+// @Description Update an existing user's information
+// @Tags Users
 // @Accept json
 // @Produce json
 // @Param id path string true "User ID"
-// @Param request body object true "Update data"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users/{id} [put]
+// @Param request body UpdateUserRequest true "User update data"
+// @Success 200 {object} map[string]string "id: user_id, message: User updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/users/{id} [put]
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := h.getUserContext(r)
@@ -266,27 +290,34 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 // =======================
 // UPDATE USER PASSWORD
 // =======================
+
+// UpdatePassword godoc
 // @Summary Update user password
-// @Tags users
+// @Description Update a user's password (requires old password verification)
+// @Tags Users
 // @Accept json
 // @Produce json
 // @Param id path string true "User ID"
-// @Param request body object true "Password data"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users/{id}/password [post]
+// @Param request body UpdatePasswordRequest true "Password update data"
+// @Success 200 {object} map[string]string "id: user_id, message: Password updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request or password too short"
+// @Failure 403 {object} map[string]string "Access denied or invalid old password"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/users/{id}/password [put]
+
+type UpdatePasswordRequest struct {
+	OldPassword string `json:"oldPassword"`
+	NewPassword string `json:"newPassword"`
+}
+
 func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := h.getUserContext(r)
 	id := chi.URLParam(r, "id")
 
-	var req struct {
-		OldPassword string `json:"oldPassword"`
-		NewPassword string `json:"newPassword"`
-	}
+	var req UpdatePasswordRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeError(w, "Invalid request body", http.StatusBadRequest)
@@ -321,15 +352,21 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 // =======================
 // DELETE USER
 // =======================
+
+// Delete godoc
 // @Summary Delete a user
-// @Tags users
+// @Description Delete a user by ID (admin only or self-deletion)
+// @Tags Users
+// @Accept json
 // @Produce json
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users/{id} [delete]
+// @Failure 400 {object} map[string]string "Cannot delete this user"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/users/{id} [delete]
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := h.getUserContext(r)
@@ -362,7 +399,7 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 			r.Get("/{id}", h.GetByID)
 			r.Put("/{id}", h.Update)
 			r.Delete("/{id}", h.Delete)
-			r.Post("/{id}/password", h.UpdatePassword)
+			r.Put("/{id}/password", h.UpdatePassword)
 		})
 	})
 }

@@ -14,17 +14,31 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// AIModelHandler handles AI model related HTTP requests
 type AIModelHandler struct {
 	aimodelService aimodel.Service
 }
 
+// NewAIModelHandler creates a new AIModelHandler instance
 func NewAIModelHandler(aimodelService aimodel.Service) *AIModelHandler {
 	return &AIModelHandler{
 		aimodelService: aimodelService,
 	}
 }
 
-// GetAll returns all AI models with pagination
+// GetAll godoc
+// @Summary Get all AI models
+// @Description Get all AI models with pagination and search
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param page query int false "Page number (default: 1)"
+// @Param search query string false "Search term for model name"
+//
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models [get]
 func (h *AIModelHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -60,7 +74,19 @@ func (h *AIModelHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, result, http.StatusOK)
 }
 
-// GetAllWithStatus returns all models with API key status
+// GetAllWithStatus godoc
+// @Summary Get all AI models with API key status
+// @Description Get all AI models with their API key status information
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param page query int false "Page number (default: 1)"
+// @Param search query string false "Search term for model name"
+// @Success 200 {object} paginate.PaginatedResult[aimodel.ModelWithStatus] "Success"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/with-status [get]
 func (h *AIModelHandler) GetAllWithStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -96,7 +122,18 @@ func (h *AIModelHandler) GetAllWithStatus(w http.ResponseWriter, r *http.Request
 	h.writeJSON(w, result, http.StatusOK)
 }
 
-// GetByID returns a specific model by ID
+// GetByID godoc
+// @Summary Get AI model by ID
+// @Description Get a specific AI model by its ID
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param id path string true "Model ID"
+// @Success 200 {object} aimodel.Response "Success"
+// @Failure 404 {object} map[string]string "Model not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/{id} [get]
 func (h *AIModelHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -116,7 +153,18 @@ func (h *AIModelHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, model, http.StatusOK)
 }
 
-// GetSchemaByID returns schema for a specific model
+// GetSchemaByID godoc
+// @Summary Get model schema by ID
+// @Description Get the schema definition for a specific AI model
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param id path string true "Model ID"
+// @Success 200 {object} model_family.ModelFamilyWithSchema "Success"
+// @Failure 404 {object} map[string]string "Model or schema not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/{id}/schema [get]
 func (h *AIModelHandler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	ctx := r.Context()
@@ -136,7 +184,20 @@ func (h *AIModelHandler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, result, http.StatusOK)
 }
 
-// GetByProvider returns models by provider ID with pagination
+// GetByProvider godoc
+// @Summary Get AI models by provider
+// @Description Get AI models filtered by provider ID with pagination
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param providerId path string true "Provider ID"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param page query int false "Page number (default: 1)"
+// @Param search query string false "Search term for model name"
+//
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/provider/{providerId} [get]
 func (h *AIModelHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	providerID := chi.URLParam(r, "providerId")
@@ -173,7 +234,20 @@ func (h *AIModelHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, result, http.StatusOK)
 }
 
-// GetByFamily returns models by family ID with pagination
+// GetByFamily godoc
+// @Summary Get AI models by family
+// @Description Get AI models filtered by family ID with pagination
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param familyId path string true "Family ID"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param page query int false "Page number (default: 1)"
+// @Param search query string false "Search term for model name"
+//
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/family/{familyId} [get]
 func (h *AIModelHandler) GetByFamily(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	familyID := chi.URLParam(r, "familyId")
@@ -210,7 +284,20 @@ func (h *AIModelHandler) GetByFamily(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, result, http.StatusOK)
 }
 
-// GetByTeam returns models by team ID with pagination
+// GetByTeam godoc
+// @Summary Get AI models by team
+// @Description Get AI models filtered by team ID with pagination
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param teamId path string true "Team ID"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param page query int false "Page number (default: 1)"
+// @Param search query string false "Search term for model name"
+//
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/team/{teamId} [get]
 func (h *AIModelHandler) GetByTeam(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	teamID := chi.URLParam(r, "teamId")
@@ -247,7 +334,16 @@ func (h *AIModelHandler) GetByTeam(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, result, http.StatusOK)
 }
 
-// GetDefault returns default models
+// GetDefault godoc
+// @Summary Get default AI models
+// @Description Get all default AI models for each provider
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Success 200 {array} aimodel.Response "Success"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/default [get]
 func (h *AIModelHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -262,7 +358,19 @@ func (h *AIModelHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, models, http.StatusOK)
 }
 
-// Create creates a new AI model
+// Create godoc
+// @Summary Create a new AI model
+// @Description Create a new AI model with the provided details
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param request body aimodel.CreateRequest true "Model creation request"
+// @Success 201 {object} aimodel.Response "Created"
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 409 {object} map[string]string "Model with this name already exists"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models [post]
 func (h *AIModelHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -288,7 +396,21 @@ func (h *AIModelHandler) Create(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, resp, http.StatusCreated)
 }
 
-// Update updates an existing AI model
+// Update godoc
+// @Summary Update an AI model
+// @Description Update an existing AI model by ID
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param id path string true "Model ID"
+// @Param request body aimodel.UpdateRequest true "Model update request"
+// @Success 200 {object} aimodel.Response "Success"
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 404 {object} map[string]string "Model not found"
+// @Failure 409 {object} map[string]string "Model with this name already exists"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/{id} [put]
 func (h *AIModelHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -319,7 +441,18 @@ func (h *AIModelHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, resp, http.StatusOK)
 }
 
-// Delete deletes an AI model
+// Delete godoc
+// @Summary Delete an AI model
+// @Description Delete an AI model by ID
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param id path string true "Model ID"
+// @Success 204 "No Content"
+// @Failure 404 {object} map[string]string "Model not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/{id} [delete]
 func (h *AIModelHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -339,7 +472,18 @@ func (h *AIModelHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// SetAsDefault sets a model as default for its provider
+// SetAsDefault godoc
+// @Summary Set model as default
+// @Description Set a specific AI model as the default for its provider
+// @Tags AI Models
+// @Accept json
+// @Produce json
+// @Param id path string true "Model ID"
+// @Success 200 {object} map[string]string "Success message"
+// @Failure 404 {object} map[string]string "Model not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/ai-models/{id}/default [post]
 func (h *AIModelHandler) SetAsDefault(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")

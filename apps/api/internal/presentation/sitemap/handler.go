@@ -18,7 +18,24 @@ func NewSitemapHandler(sitemapService sitemap.Service) *SitemapHandler {
 	}
 }
 
-// GenerateSitemap handles GET /sitemap
+// GenerateSitemap godoc
+// @Summary Generate sitemap
+// @Description Generate an XML sitemap for a product or base URL
+// @Tags Sitemap
+// @Accept json
+// @Produce xml
+// @Param product_id query string false "Product ID to generate sitemap for"
+// @Param base_url query string true "Base URL for the sitemap" example:"https://example.com"
+// @Param include_images query bool false "Include images in sitemap" default(false)
+// @Success 200 {string} string "XML Sitemap"
+// @Failure 400 {object} map[string]string "Bad request - missing required parameters"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Header 200 {string} X-Total-URLs "Total number of URLs in sitemap"
+// @Header 200 {string} X-Generated-At "Timestamp when sitemap was generated"
+// @Header 200 {string} X-Product-ID "Product ID used for generation"
+// @Header 200 {string} X-Base-URL "Base URL used for generation"
+// @Security BearerAuth
+// @Router /api/sitemap [get]
 func (h *SitemapHandler) GenerateSitemap(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	productID := r.URL.Query().Get("product_id")
@@ -63,7 +80,16 @@ func (h *SitemapHandler) GenerateSitemap(w http.ResponseWriter, r *http.Request)
 	w.Write([]byte(resp.SitemapXML))
 }
 
-// GetSitemapHistory handles GET /sitemap/history
+// GetSitemapHistory godoc
+// @Summary Get sitemap generation history
+// @Description Get history of all sitemap generations
+// @Tags Sitemap
+// @Accept json
+// @Produce json
+// @Success 200 {array} []sitemap.HistoryResponse "List of sitemap generation history"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/sitemap/history [get]
 func (h *SitemapHandler) GetSitemapHistory(w http.ResponseWriter, r *http.Request) {
 	// Get history from service
 	history, err := h.sitemapService.GetSitemapHistory(r.Context())

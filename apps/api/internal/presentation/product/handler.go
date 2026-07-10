@@ -84,18 +84,19 @@ func (h *ProductHandler) writeError(w http.ResponseWriter, err error) {
 	}
 }
 
-// =======================
-// CREATE PRODUCT
-// =======================
-// @Summary Create new product
-// @Tags products
+// Create godoc
+// @Summary Create a new product
+// @Description Create a new product with adapter configuration and workflows
+// @Tags Products
 // @Accept json
 // @Produce json
 // @Param request body product.ProductRequest true "Product data"
-// @Success 201 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /products [post]
+// @Success 201 {object} map[string]string "id: product_id, message: Product created successfully"
+// @Failure 400 {object} map[string]string "Bad request - missing required fields"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/products [post]
 func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -227,17 +228,18 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	log.Println("========== END CREATE PRODUCT ==========")
 }
 
-// =======================
-// GET PRODUCT BY ID
-// =======================
+// GetByID godoc
 // @Summary Get product by ID
-// @Tags products
+// @Description Get a specific product by its ID
+// @Tags Products
+// @Accept json
 // @Produce json
 // @Param id path string true "Product ID"
-// @Success 200 {object} product.Product
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /products/{id} [get]
+// @Success 200 {object} product.Product "Product details"
+// @Failure 404 {object} map[string]string "Product not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/products/{id} [get]
 func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -258,15 +260,21 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, product, http.StatusOK)
 }
 
-// =======================
-// GET ALL PRODUCTS
-// =======================
+// GetAll godoc
 // @Summary Get all products
-// @Tags products
+// @Description Get all products with optional filters
+// @Tags Products
+// @Accept json
 // @Produce json
-// @Success 200 {array} product.Product
-// @Failure 500 {object} map[string]string
-// @Router /products [get]
+// @Param status query string false "Filter by status (active, inactive, draft)" Enums(active, inactive, draft)
+// @Param platform query string false "Filter by platform (shopify, wordpress, custom)"
+// @Param limit query int false "Items per page (default: 10)"
+// @Param offset query int false "Offset for pagination (default: 0)"
+// @Param search query string false "Search by product name"
+// @Success 200 {array} product.Product "List of products"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/products [get]
 func (h *ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -281,21 +289,21 @@ func (h *ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, products, http.StatusOK)
 }
 
-// =======================
-// UPDATE PRODUCT
-// =======================
-// @Summary Update product
-// @Tags products
+// Update godoc
+// @Summary Update a product
+// @Description Update an existing product by ID
+// @Tags Products
 // @Accept json
 // @Produce json
 // @Param id path string true "Product ID"
-// @Param request body map[string]interface{} true "Update fields"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /products/{id} [put]
+// @Param request body product.ProductRequest true "Product update data"
+// @Success 200 {object} map[string]string "id: product_id, message: Product updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request or missing fields"
+// @Failure 404 {object} map[string]string "Product not found"
+// @Failure 409 {object} map[string]string "Conflict - cannot update active product"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/products/{id} [put]
 func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -322,19 +330,20 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-// =======================
-// DELETE PRODUCT
-// =======================
-// @Summary Delete product
-// @Tags products
+// Delete godoc
+// @Summary Delete a product
+// @Description Delete a product by ID (must be inactive)
+// @Tags Products
+// @Accept json
 // @Produce json
 // @Param id path string true "Product ID"
 // @Success 204 "No Content"
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /products/{id} [delete]
+// @Failure 400 {object} map[string]string "Invalid product ID"
+// @Failure 404 {object} map[string]string "Product not found"
+// @Failure 409 {object} map[string]string "Cannot delete active product"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/products/{id} [delete]
 func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -348,21 +357,21 @@ func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// =======================
-// UPDATE CONNECTION STATUS
-// =======================
+// UpdateConnectionStatus godoc
 // @Summary Update product connection status
-// @Tags products
+// @Description Update the connection status of a product
+// @Tags Products
 // @Accept json
 // @Produce json
 // @Param id path string true "Product ID"
-// @Param request body object true "Connection status" example({"isConnected": true})
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /products/{id}/connection [patch]
+// @Param request body UpdateConnectionRequest true "Connection status"
+// @Success 200 {object} map[string]string "id: product_id, message: Connection status updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 404 {object} map[string]string "Product not found"
+// @Failure 409 {object} map[string]string "Cannot disconnect active product"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/products/{id}/connection [patch]
 func (h *ProductHandler) UpdateConnectionStatus(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -417,6 +426,11 @@ func (h *ProductHandler) UpdateConnectionStatus(
 		response,
 		http.StatusOK,
 	)
+}
+
+// UpdateConnectionRequest represents connection status update request
+type UpdateConnectionRequest struct {
+	IsConnected bool `json:"isConnected" example:"true" binding:"required"`
 }
 
 // =======================

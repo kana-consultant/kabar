@@ -10,12 +10,15 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	"seo-backend/internal/config"
 	"seo-backend/internal/container"
 	"seo-backend/internal/database"
 	"seo-backend/internal/scheduler"
 	services "seo-backend/internal/service"
+
+	_ "seo-backend/docs"
 )
 
 // @title SEO Backend API
@@ -64,23 +67,36 @@ func main() {
 	defer database.CloseRedis()
 
 	smtpConfig := config.LoadSMTPConfig()
-
 	emailService := services.NewSMTPEmailService(smtpConfig)
 
 	// 6. INITIALIZE CONTAINER
 	appContainer = container.NewContainer(cfg, database.GetDB(), database.RedisClient, emailService)
 
+	// 7. SETUP SWAGGER ROUTE (jika belum di container)
+	setupSwagger(appContainer)
+
 	// 8. CREATE HTTP SERVER
 	server := &http.Server{
 		Addr:         ":8080",
 		Handler:      appContainer.Router,
-		ReadTimeout:  10 * time.Minute, // 10 menit
-		WriteTimeout: 10 * time.Minute, // 10 menit
+		ReadTimeout:  10 * time.Minute,
+		WriteTimeout: 10 * time.Minute,
 		IdleTimeout:  120 * time.Second,
 	}
 
 	// 9. START SERVER
 	startServerWithGracefulShutdown(server, cfg)
+}
+
+// setupSwagger adds Swagger UI route
+func setupSwagger(container *container.Container) {
+	// Jika container belum punya route Swagger
+	container.Router.Get("/swagger/*", httpSwagger.WrapHandler)
+
+	// Atau jika ingin custom URL
+	// container.Router.Get("/swagger/*", httpSwagger.Handler(
+	//     httpSwagger.URL("/api/docs/swagger.json"),
+	// ))
 }
 
 func startServerWithGracefulShutdown(server *http.Server, cfg *config.Config) {

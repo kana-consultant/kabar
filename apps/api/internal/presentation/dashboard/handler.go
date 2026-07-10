@@ -18,6 +18,17 @@ func NewDashboardHandler(service dashboard.DashboardService) *DashboardHandler {
 	}
 }
 
+// GetStats godoc
+// @Summary Get dashboard statistics
+// @Description Get comprehensive dashboard statistics for authenticated user/team
+// @Tags Dashboard
+// @Accept json
+// @Produce json
+// @Success 200 {object} dashboard.DashboardStats "Dashboard statistics"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/dashboard/stats [get]
 func (h *DashboardHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -26,7 +37,12 @@ func (h *DashboardHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		TeamID: userCtx.GetTeamID(),
 		Role:   userCtx.GetRole(),
 	}
-	stats, _ := h.service.GetStats(ctx, userContext)
+	stats, err := h.service.GetStats(ctx, userContext)
+	if err != nil {
+		log.Printf("Failed to get dashboard stats: %v", err)
+		h.writeError(w, "Failed to retrieve dashboard statistics", http.StatusInternalServerError)
+		return
+	}
 
 	h.writeJSON(w, stats, http.StatusOK)
 }
@@ -38,4 +54,9 @@ func (h *DashboardHandler) writeJSON(w http.ResponseWriter, data interface{}, st
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		log.Printf("Failed to encode JSON response: %v", err)
 	}
+}
+
+// Helper: Write error response
+func (h *DashboardHandler) writeError(w http.ResponseWriter, message string, status int) {
+	h.writeJSON(w, map[string]string{"error": message}, status)
 }

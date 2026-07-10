@@ -56,7 +56,20 @@ func (h *ProviderHandler) writeError(w http.ResponseWriter, message string, stat
 	h.writeJSON(w, map[string]string{"error": message}, status)
 }
 
-// Create handles POST /providers
+// Create godoc
+// @Summary Create a new provider
+// @Description Create a new AI provider with configuration
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param request body provider.CreateRequest true "Provider creation request"
+// @Success 201 {object} provider.Response "Provider created"
+// @Failure 400 {object} map[string]string "Bad request - missing required fields"
+// @Failure 403 {object} map[string]string "Access denied - admin role required"
+// @Failure 409 {object} map[string]string "Provider with this name already exists"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers [post]
 func (h *ProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -127,7 +140,18 @@ func (h *ProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, resp, http.StatusCreated)
 }
 
-// GetByID handles GET /providers/{id}
+// GetByID godoc
+// @Summary Get provider by ID
+// @Description Get a specific provider by its ID
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param id path string true "Provider ID"
+// @Success 200 {object} provider.Response "Provider details"
+// @Failure 404 {object} map[string]string "Provider not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers/{id} [get]
 func (h *ProviderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -146,7 +170,18 @@ func (h *ProviderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, provider, http.StatusOK)
 }
 
-// GetByName handles GET /providers/name/{name}
+// GetByName godoc
+// @Summary Get provider by name
+// @Description Get a specific provider by its name
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param name path string true "Provider name"
+// @Success 200 {object} provider.Response "Provider details"
+// @Failure 404 {object} map[string]string "Provider not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers/name/{name} [get]
 func (h *ProviderHandler) GetByName(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	name := chi.URLParam(r, "name")
@@ -165,7 +200,19 @@ func (h *ProviderHandler) GetByName(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, provider, http.StatusOK)
 }
 
-// GetAll handles GET /providers with pagination
+// GetAll godoc
+// @Summary Get all providers
+// @Description Get all providers with pagination and search
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param offset query int false "Offset for pagination (default: 0)"
+// @Param search query string false "Search term"
+// @Success 200 {object} paginate.PaginatedResult[provider.Response] "List of providers"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers [get]
 func (h *ProviderHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -200,7 +247,19 @@ func (h *ProviderHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, result, http.StatusOK)
 }
 
-// GetActive handles GET /providers/active
+// GetActive godoc
+// @Summary Get active providers
+// @Description Get all active providers with pagination
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param offset query int false "Offset for pagination (default: 0)"
+// @Param search query string false "Search term"
+// @Success 200 {object} paginate.PaginatedResult[provider.Response] "List of active providers"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers/active [get]
 func (h *ProviderHandler) GetActive(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -235,7 +294,22 @@ func (h *ProviderHandler) GetActive(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, result, http.StatusOK)
 }
 
-// Update handles PUT /providers/{id}
+// Update godoc
+// @Summary Update a provider
+// @Description Update an existing provider by ID (admin only)
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param id path string true "Provider ID"
+// @Param request body provider.UpdateRequest true "Provider update data"
+// @Success 200 {object} provider.Response "Updated provider"
+// @Failure 400 {object} map[string]string "Bad request - no fields to update"
+// @Failure 403 {object} map[string]string "Access denied - admin role required"
+// @Failure 404 {object} map[string]string "Provider not found"
+// @Failure 409 {object} map[string]string "Provider with this name already exists"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers/{id} [put]
 func (h *ProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -299,7 +373,20 @@ func (h *ProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, resp, http.StatusOK)
 }
 
-// Delete handles DELETE /providers/{id}
+// Delete godoc
+// @Summary Soft delete a provider
+// @Description Soft delete a provider by ID (admin only)
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param id path string true "Provider ID"
+// @Success 204 "No Content"
+// @Failure 403 {object} map[string]string "Access denied - admin role required"
+// @Failure 404 {object} map[string]string "Provider not found"
+// @Failure 409 {object} map[string]string "Cannot delete provider with existing references"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers/{id} [delete]
 func (h *ProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -322,7 +409,20 @@ func (h *ProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HardDelete handles DELETE /providers/{id}/hard
+// HardDelete godoc
+// @Summary Hard delete a provider
+// @Description Permanently delete a provider by ID (admin only)
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param id path string true "Provider ID"
+// @Success 204 "No Content"
+// @Failure 403 {object} map[string]string "Access denied - admin role required"
+// @Failure 404 {object} map[string]string "Provider not found"
+// @Failure 409 {object} map[string]string "Cannot delete provider with existing references"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers/{id}/hard [delete]
 func (h *ProviderHandler) HardDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -345,7 +445,18 @@ func (h *ProviderHandler) HardDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ToggleActive handles PATCH /providers/{id}/toggle-active
+// ToggleActive godoc
+// @Summary Toggle provider active status
+// @Description Toggle the active status of a provider
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param id path string true "Provider ID"
+// @Success 200 {object} map[string]string "message: Provider status toggled successfully"
+// @Failure 404 {object} map[string]string "Provider not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers/{id}/toggle-active [patch]
 func (h *ProviderHandler) ToggleActive(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -363,7 +474,20 @@ func (h *ProviderHandler) ToggleActive(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, map[string]string{"message": "Provider status toggled successfully"}, http.StatusOK)
 }
 
-// UpdateHeaders handles PATCH /providers/{id}/headers
+// UpdateHeaders godoc
+// @Summary Update provider headers
+// @Description Update default headers for a provider
+// @Tags Providers
+// @Accept json
+// @Produce json
+// @Param id path string true "Provider ID"
+// @Param request body object true "Headers to update" example({"X-API-Key": "new-key", "X-API-Version": "2024-01"})
+// @Success 200 {object} map[string]string "message: Headers updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 404 {object} map[string]string "Provider not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/providers/{id}/headers [patch]
 func (h *ProviderHandler) UpdateHeaders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")

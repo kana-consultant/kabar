@@ -71,7 +71,21 @@ func writeSuccessResponse(w http.ResponseWriter, statusCode int, data interface{
 	writeJSONResponse(w, statusCode, response)
 }
 
-// GetAll - get all drafts with filters
+// GetAll godoc
+// @Summary Get all drafts
+// @Description Get all drafts with pagination and filters
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param limit query int false "Items per page (default: 10)"
+// @Param page query int false "Page number (default: 1)"
+// @Param search query string false "Search term"
+// @Param status query string false "Filter by status (draft, scheduled, published)" Enums(draft, scheduled, published)
+// @Success 200 {object} APIResponse{data=object{drafts=object,stats=object}} "Drafts and stats"
+// @Failure 404 {object} APIResponse "Drafts not found"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts [get]
 func (h *DraftHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	usrCtx := auth.GetUserContext(r)
@@ -101,6 +115,20 @@ func (h *DraftHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
+// GetAllScheduled godoc
+// @Summary Get all scheduled drafts
+// @Description Get all drafts that are scheduled for future publishing
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param limit query int false "Items per page (default: 10)"
+// @Param page query int false "Page number (default: 1)"
+// @Param search query string false "Search term"
+// @Success 200 {object} APIResponse{data=object} "Scheduled drafts"
+// @Failure 404 {object} APIResponse "Scheduled drafts not found"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts/scheduled [get]
 func (h *DraftHandler) GetAllScheduled(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	usrCtx := auth.GetUserContext(r)
@@ -120,7 +148,17 @@ func (h *DraftHandler) GetAllScheduled(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
-// GetByID - get draft by ID
+// GetByID godoc
+// @Summary Get draft by ID
+// @Description Get a specific draft by its ID
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param id path string true "Draft ID"
+// @Success 200 {object} APIResponse{data=draft.Draft} "Draft details"
+// @Failure 404 {object} APIResponse "Draft not found"
+// @Security BearerAuth
+// @Router /api/drafts/{id} [get]
 func (h *DraftHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -140,7 +178,18 @@ func (h *DraftHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
-// Create - create new draft
+// Create godoc
+// @Summary Create a new draft
+// @Description Create a new draft article
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param request body draft.CreateDraftRequest true "Draft creation request"
+// @Success 201 {object} APIResponse{data=object{id=string}} "Draft created"
+// @Failure 400 {object} APIResponse "Invalid request or validation failed"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts [post]
 func (h *DraftHandler) Create(w http.ResponseWriter, r *http.Request) {
 	log.Println("========== START CREATE DRAFT HANDLER ==========")
 
@@ -202,7 +251,20 @@ func (h *DraftHandler) Create(w http.ResponseWriter, r *http.Request) {
 	log.Println("========== END CREATE DRAFT HANDLER ==========")
 }
 
-// Update - update existing draft
+// Update godoc
+// @Summary Update a draft
+// @Description Update an existing draft by ID
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param id path string true "Draft ID"
+// @Param request body draft.CreateDraftRequest true "Draft update request"
+// @Success 200 {object} APIResponse "Draft updated"
+// @Failure 400 {object} APIResponse "Invalid request"
+// @Failure 404 {object} APIResponse "Draft not found"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts/{id} [put]
 func (h *DraftHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	teamID := auth.GetUserContext(r).GetTeamID()
@@ -236,7 +298,18 @@ func (h *DraftHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
-// Delete - delete draft
+// Delete godoc
+// @Summary Delete a draft
+// @Description Delete a draft by ID
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param id path string true "Draft ID"
+// @Success 200 {object} APIResponse "Draft deleted"
+// @Failure 404 {object} APIResponse "Draft not found"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts/{id} [delete]
 func (h *DraftHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -256,7 +329,19 @@ func (h *DraftHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
-// Publish - publish draft by ID
+// Publish godoc
+// @Summary Publish a draft
+// @Description Publish a draft by ID
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param id path string true "Draft ID"
+// @Param request body draft.CreateDraftRequest true "Publish request"
+// @Success 200 {object} APIResponse{data=object{results=array,some_failed=boolean,all_failed=boolean,status=string,published_at=string,total_products=int,success_count=int,failed_count=int}} "Draft published"
+// @Failure 400 {object} APIResponse "Invalid request"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts/{id}/publish [post]
 func (h *DraftHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -279,7 +364,18 @@ func (h *DraftHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	h.writePublishResponse(w, result, "Draft published successfully")
 }
 
-// PublishContent - publish content directly (without saving to drafts)
+// PublishContent godoc
+// @Summary Publish content directly
+// @Description Publish content directly without saving to drafts
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param request body draft.CreateDraftRequest true "Content to publish"
+// @Success 200 {object} APIResponse{data=object{results=array,some_failed=boolean,all_failed=boolean,status=string,published_at=string}} "Content published"
+// @Failure 400 {object} APIResponse "Invalid request"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts/publish [post]
 func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log.Println("========== PUBLISH CONTENT ==========")
@@ -319,7 +415,18 @@ func (h *DraftHandler) PublishContent(w http.ResponseWriter, r *http.Request) {
 	log.Println("========== END PUBLISH CONTENT ==========")
 }
 
-// ScheduleDraft - schedule a draft for future publishing
+// ScheduleDraft godoc
+// @Summary Schedule a draft
+// @Description Schedule a draft for future publishing
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param request body draft.ScheduleRequest true "Schedule request"
+// @Success 201 {object} APIResponse{data=object{draft_id=string,status=string}} "Draft scheduled"
+// @Failure 400 {object} APIResponse "Invalid request"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts/schedule [post]
 func (h *DraftHandler) ScheduleDraft(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -350,7 +457,18 @@ func (h *DraftHandler) ScheduleDraft(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusCreated, response)
 }
 
-// CancelScheduledDraft - cancel scheduled draft
+// CancelScheduledDraft godoc
+// @Summary Cancel scheduled draft
+// @Description Cancel a scheduled draft
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param request body object{draft_id=string} true "Cancel request"
+// @Success 200 {object} APIResponse{data=object{draft_id=string,status=string}} "Schedule cancelled"
+// @Failure 400 {object} APIResponse "Invalid request"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts/schedule/cancel [post]
 func (h *DraftHandler) CancelScheduledDraft(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -381,7 +499,17 @@ func (h *DraftHandler) CancelScheduledDraft(w http.ResponseWriter, r *http.Reque
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
-// GetSEOScore - get SEO score for a draft
+// GetSEOScore godoc
+// @Summary Get SEO score
+// @Description Get SEO score for a draft
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param id path string true "Draft ID"
+// @Success 200 {object} APIResponse{data=object} "SEO score"
+// @Failure 404 {object} APIResponse "Draft not found"
+// @Security BearerAuth
+// @Router /api/drafts/{id}/seo-score [get]
 func (h *DraftHandler) GetSEOScore(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
@@ -400,7 +528,19 @@ func (h *DraftHandler) GetSEOScore(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
-// CheckSimilarity - check similarity of a draft with others
+// CheckSimilarity godoc
+// @Summary Check similarity
+// @Description Check similarity of a draft with other drafts
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param id path string true "Draft ID"
+// @Param limit query int false "Items per page (default: 10)"
+// @Param page query int false "Page number (default: 1)"
+// @Success 200 {object} APIResponse{data=object{draft_id=string,similar_drafts=array,total=int}} "Similarity results"
+// @Failure 404 {object} APIResponse "Draft not found"
+// @Security BearerAuth
+// @Router /api/drafts/{id}/similarity [get]
 func (h *DraftHandler) CheckSimilarity(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	userCtx := auth.GetUserContext(r)
@@ -424,51 +564,20 @@ func (h *DraftHandler) CheckSimilarity(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
-// Helper methods
-func (h *DraftHandler) writePublishResponse(w http.ResponseWriter, result *draft.PublishResult, message string) {
-	data := map[string]interface{}{
-		"results":      result.Results,
-		"some_failed":  result.SomeFailed,
-		"all_failed":   result.AllFailed,
-		"status":       result.Status,
-		"published_at": time.Now().Format(time.RFC3339),
-	}
-
-	if result.ScheduledFor != nil {
-		data["scheduled_for"] = result.ScheduledFor.Format(time.RFC3339)
-	}
-
-	// Add statistics if available
-	if result.TotalProducts > 0 {
-		data["total_products"] = result.TotalProducts
-		data["success_count"] = result.SuccessCount
-		data["failed_count"] = result.FailedCount
-	}
-
-	if len(result.Errors) > 0 {
-		data["errors"] = result.Errors
-	}
-
-	response := APIResponse{
-		Success: !result.AllFailed,
-		Data:    data,
-		Message: message,
-	}
-
-	// Determine status code
-	statusCode := http.StatusOK
-	if result.AllFailed {
-		statusCode = http.StatusBadGateway
-		response.Error = "All products failed to publish"
-	} else if result.SomeFailed {
-		statusCode = http.StatusMultiStatus
-		response.Message = "Some products failed to publish"
-	}
-
-	writeJSONResponse(w, statusCode, response)
-}
-
-// RescheduleDraft - reschedule a scheduled draft to new date/time
+// RescheduleDraft godoc
+// @Summary Reschedule a draft
+// @Description Reschedule a scheduled draft to a new date/time
+// @Tags Drafts
+// @Accept json
+// @Produce json
+// @Param id path string true "Draft ID"
+// @Param request body object{scheduled_for=string} true "Reschedule request (ISO 8601 format: 2026-07-07T15:30:00+07:00)"
+// @Success 200 {object} APIResponse{data=object{draft_id=string,scheduled_for=string,status=string,updated_at=string}} "Draft rescheduled"
+// @Failure 400 {object} APIResponse "Invalid request or scheduled time must be in future"
+// @Failure 404 {object} APIResponse "Draft not found"
+// @Failure 500 {object} APIResponse "Internal server error"
+// @Security BearerAuth
+// @Router /api/drafts/{id}/reschedule [put]
 func (h *DraftHandler) RescheduleDraft(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -586,4 +695,48 @@ func validateCreateRequest(req draft.CreateDraftRequest) error {
 		return fmt.Errorf("title, topic, and article are required")
 	}
 	return nil
+}
+
+// Helper methods
+func (h *DraftHandler) writePublishResponse(w http.ResponseWriter, result *draft.PublishResult, message string) {
+	data := map[string]interface{}{
+		"results":      result.Results,
+		"some_failed":  result.SomeFailed,
+		"all_failed":   result.AllFailed,
+		"status":       result.Status,
+		"published_at": time.Now().Format(time.RFC3339),
+	}
+
+	if result.ScheduledFor != nil {
+		data["scheduled_for"] = result.ScheduledFor.Format(time.RFC3339)
+	}
+
+	// Add statistics if available
+	if result.TotalProducts > 0 {
+		data["total_products"] = result.TotalProducts
+		data["success_count"] = result.SuccessCount
+		data["failed_count"] = result.FailedCount
+	}
+
+	if len(result.Errors) > 0 {
+		data["errors"] = result.Errors
+	}
+
+	response := APIResponse{
+		Success: !result.AllFailed,
+		Data:    data,
+		Message: message,
+	}
+
+	// Determine status code
+	statusCode := http.StatusOK
+	if result.AllFailed {
+		statusCode = http.StatusBadGateway
+		response.Error = "All products failed to publish"
+	} else if result.SomeFailed {
+		statusCode = http.StatusMultiStatus
+		response.Message = "Some products failed to publish"
+	}
+
+	writeJSONResponse(w, statusCode, response)
 }

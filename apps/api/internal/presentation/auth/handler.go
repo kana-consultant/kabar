@@ -29,7 +29,17 @@ func (h *AuthHandler) writeError(w http.ResponseWriter, message string, status i
 	h.writeJSON(w, map[string]string{"error": message}, status)
 }
 
-// Login handles user login
+// Login godoc
+// @Summary User login
+// @Description Authenticate user with email and password
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body models.LoginRequest true "Login credentials"
+// @Success 200 {object} models.LoginResponse "Login successful"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 403 {object} map[string]string "Invalid credentials"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -59,7 +69,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-// Register handles user registration
+// Register godoc
+// @Summary Register new user
+// @Description Register a new user account
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body models.RegisterRequest true "Registration details"
+// @Success 201 {object} models.User "User created successfully"
+// @Failure 400 {object} map[string]string "Bad request - missing required fields or invalid password"
+// @Failure 409 {object} map[string]string "User already exists"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -91,7 +112,18 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, user, http.StatusCreated)
 }
 
-// GetMe returns current authenticated user
+// GetMe godoc
+// @Summary Get current user
+// @Description Get authenticated user information
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.User "User details"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /auth/me [get]
 func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
@@ -114,7 +146,20 @@ func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, user, http.StatusOK)
 }
 
-// ChangePassword handles password change
+// ChangePassword godoc
+// @Summary Change user password
+// @Description Change password for authenticated user
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body ChangePasswordRequest true "Password change details"
+// @Success 200 {object} map[string]string "message: Password changed successfully"
+// @Failure 400 {object} map[string]string "Invalid request or new password must be at least 6 characters"
+// @Failure 401 {object} map[string]string "Unauthorized or invalid old password"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /auth/change-password [post]
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		OldPassword string `json:"oldPassword"`
@@ -156,7 +201,16 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, map[string]string{"message": "Password changed successfully"}, http.StatusOK)
 }
 
-// ForgotPassword handles forgot password request
+// ForgotPassword godoc
+// @Summary Request password reset
+// @Description Send password reset link to user's email
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body ForgotPasswordRequest true "Email address"
+// @Success 200 {object} map[string]string "message: If your email is registered, you will receive a reset link"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Router /auth/forgot-password [post]
 func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email string `json:"email"`
@@ -182,7 +236,15 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-// Logout handles logout
+// Logout godoc
+// @Summary Logout user
+// @Description Logout current user (client-side token removal)
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]string "message: Logged out successfully"
+// @Security BearerAuth
+// @Router /auth/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, map[string]string{"message": "Logged out successfully"}, http.StatusOK)
 }

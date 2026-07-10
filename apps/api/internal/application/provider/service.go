@@ -93,10 +93,17 @@ func (s *ServiceImpl) Create(ctx context.Context, req *provider.CreateRequest, u
 		authPrefix = *req.AuthPrefix
 	}
 
-	defaultHeaders := json.RawMessage("{}")
-	if req.DefaultHeaders != nil {
-		defaultHeaders = req.DefaultHeaders
+	defaultHeaders := req.DefaultHeaders
+	if defaultHeaders == nil {
+		defaultHeaders = make(map[string]string)
 	}
+
+	// 2. KONVERSI map[string]string KE json.RawMessage
+	headersJSON, err := json.Marshal(defaultHeaders)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal default headers: %w", err)
+	}
+	defaultHeadersRaw := json.RawMessage(headersJSON)
 
 	entity := &provider.APIProvider{
 		Name:           req.Name,
@@ -106,7 +113,7 @@ func (s *ServiceImpl) Create(ctx context.Context, req *provider.CreateRequest, u
 		AuthType:       &authType,
 		AuthHeader:     &authHeader,
 		AuthPrefix:     &authPrefix,
-		DefaultHeaders: defaultHeaders,
+		DefaultHeaders: defaultHeadersRaw,
 		IsActive:       &isActive,
 	}
 
@@ -254,15 +261,14 @@ func (s *ServiceImpl) Update(ctx context.Context, id string, req *provider.Updat
 
 	// Update provider fields
 	updates := map[string]interface{}{
-		"name":            nil,
-		"display_name":    nil,
-		"description":     nil,
-		"base_url":        nil,
-		"auth_type":       nil,
-		"auth_header":     nil,
-		"auth_prefix":     nil,
-		"default_headers": nil,
-		"is_active":       nil,
+		"name":         nil,
+		"display_name": nil,
+		"description":  nil,
+		"base_url":     nil,
+		"auth_type":    nil,
+		"auth_header":  nil,
+		"auth_prefix":  nil,
+		"is_active":    nil,
 	}
 
 	if req.Name != nil {
@@ -294,10 +300,6 @@ func (s *ServiceImpl) Update(ctx context.Context, id string, req *provider.Updat
 
 	if req.AuthPrefix != nil {
 		updates["auth_prefix"] = *req.AuthPrefix
-	}
-
-	if req.DefaultHeaders != nil {
-		updates["default_headers"] = req.DefaultHeaders
 	}
 
 	if req.IsActive != nil {
@@ -1076,9 +1078,6 @@ func (s *ServiceImpl) buildUpdates(req *provider.UpdateRequest) map[string]inter
 	}
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
-	}
-	if req.DefaultHeaders != nil {
-		updates["default_headers"] = req.DefaultHeaders
 	}
 
 	return updates

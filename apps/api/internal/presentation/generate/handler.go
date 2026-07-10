@@ -19,20 +19,35 @@ func NewGenerateHandler(generateService generate.Service) *GenerateHandler {
 	}
 }
 
+// GenerateArticle godoc
+// @Summary Generate article content
+// @Description Generate an article using AI based on topic and parameters
+// @Tags Generate
+// @Accept json
+// @Produce json
+// @Param request body GenerateArticleRequest true "Article generation parameters"
+// @Success 200 {object} generate.ArticleGenerationResult "Article generated successfully"
+// @Failure 400 {object} map[string]string "Bad request - missing required fields"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/generate/article [post]
+
+type GenerateArticleRequest struct {
+	Topic             string `json:"topic"`
+	ModelID           string `json:"modelId"`
+	Tone              string `json:"tone"`
+	Length            string `json:"length"`
+	Language          string `json:"language"`
+	Slug              string `json:"slug,omitempty"`
+	ArticleID         string `json:"articleId,omitempty"`
+	AutoGenerateImage bool   `json:"autoGenerateImage"`
+	ImageModelID      string `json:"imageModelId,omitempty"`
+}
+
 func (h *GenerateHandler) GenerateArticle(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var req struct {
-		Topic             string `json:"topic"`
-		ModelID           string `json:"modelId"`
-		Tone              string `json:"tone"`
-		Length            string `json:"length"`
-		Language          string `json:"language"`
-		Slug              string `json:"slug,omitempty"`
-		ArticleID         string `json:"articleId,omitempty"`
-		AutoGenerateImage bool   `json:"autoGenerateImage"`
-		ImageModelID      string `json:"imageModelId,omitempty"`
-	}
+	var req GenerateArticleRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("ERROR decode request: %v", err)
@@ -77,15 +92,30 @@ func (h *GenerateHandler) GenerateArticle(w http.ResponseWriter, r *http.Request
 	h.writeJSON(w, result, http.StatusOK)
 }
 
+// GenerateImage godoc
+// @Summary Generate image content
+// @Description Generate an image using AI based on prompt and parameters
+// @Tags Generate
+// @Accept json
+// @Produce json
+// @Param request body GenerateImageRequest true "Image generation parameters"
+// @Success 200 {object} generate.ImageGenerationResult "Image generated successfully"
+// @Failure 400 {object} map[string]string "Bad request - missing required fields"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/generate/image [post]
+
+type GenerateImageRequest struct {
+	Prompt    string `json:"prompt"`
+	ModelID   string `json:"modelId"`
+	Slug      string `json:"slug,omitempty"`
+	ArticleID string `json:"articleId,omitempty"`
+}
+
 func (h *GenerateHandler) GenerateImage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var req struct {
-		Prompt    string `json:"prompt"`
-		ModelID   string `json:"modelId"`
-		Slug      string `json:"slug,omitempty"`
-		ArticleID string `json:"articleId,omitempty"`
-	}
+	var req GenerateImageRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("ERROR: Failed to decode request: %v", err)

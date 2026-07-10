@@ -21,7 +21,19 @@ func NewRequestSchemaHandler(service request_schema.Service) *RequestSchemaHandl
 	}
 }
 
-// Create
+// Create godoc
+// @Summary Create a new request schema
+// @Description Create a new request schema for API validation
+// @Tags Request Schemas
+// @Accept json
+// @Produce json
+// @Param request body request_schema.CreateRequest true "Request schema creation request"
+// @Success 201 {object} request_schema.RequestSchema "Request schema created"
+// @Failure 400 {object} map[string]string "Bad request - invalid provider_id, name, or endpoint_path"
+// @Failure 409 {object} map[string]string "Duplicate entry"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/request-schemas [post]
 func (h *RequestSchemaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req request_schema.CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -51,7 +63,18 @@ func (h *RequestSchemaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// GetByID
+// GetByID godoc
+// @Summary Get request schema by ID
+// @Description Get a specific request schema by its ID
+// @Tags Request Schemas
+// @Accept json
+// @Produce json
+// @Param id path string true "Request Schema ID"
+// @Success 200 {object} request_schema.RequestSchema "Request schema details"
+// @Failure 404 {object} map[string]string "Request schema not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/request-schemas/{id} [get]
 func (h *RequestSchemaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 
@@ -70,7 +93,18 @@ func (h *RequestSchemaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// GetAll
+// GetAll godoc
+// @Summary Get all request schemas
+// @Description Get all request schemas with pagination
+// @Tags Request Schemas
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number (default: 1)"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Success 200 {object} map[string]interface{} "List of request schemas with pagination"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/request-schemas [get]
 func (h *RequestSchemaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -85,7 +119,17 @@ func (h *RequestSchemaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// GetByProvider
+// GetByProvider godoc
+// @Summary Get request schemas by provider
+// @Description Get all request schemas for a specific provider
+// @Tags Request Schemas
+// @Accept json
+// @Produce json
+// @Param provider_id path string true "Provider ID"
+// @Success 200 {array} request_schema.RequestSchema "List of request schemas"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/request-schemas/provider/{provider_id} [get]
 func (h *RequestSchemaHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
 	providerIDStr := chi.URLParam(r, "provider_id")
 
@@ -99,7 +143,21 @@ func (h *RequestSchemaHandler) GetByProvider(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(resp)
 }
 
-// Update
+// Update godoc
+// @Summary Update a request schema
+// @Description Update an existing request schema by ID
+// @Tags Request Schemas
+// @Accept json
+// @Produce json
+// @Param id path string true "Request Schema ID"
+// @Param request body request_schema.UpdateRequest true "Request schema update request"
+// @Success 200 {object} request_schema.RequestSchema "Updated request schema"
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 404 {object} map[string]string "Request schema not found"
+// @Failure 409 {object} map[string]string "Duplicate entry"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/request-schemas/{id} [put]
 func (h *RequestSchemaHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 
@@ -126,7 +184,18 @@ func (h *RequestSchemaHandler) Update(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// Delete
+// Delete godoc
+// @Summary Delete a request schema
+// @Description Delete a request schema by ID
+// @Tags Request Schemas
+// @Accept json
+// @Produce json
+// @Param id path string true "Request Schema ID"
+// @Success 200 {object} map[string]string "message: deleted successfully"
+// @Failure 404 {object} map[string]string "Request schema not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/request-schemas/{id} [delete]
 func (h *RequestSchemaHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 

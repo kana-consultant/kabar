@@ -18,7 +18,7 @@ type CreateRequest struct {
 	AuthType       *string                              `json:"auth_type"`
 	AuthHeader     *string                              `json:"auth_header"`
 	AuthPrefix     *string                              `json:"auth_prefix"`
-	DefaultHeaders json.RawMessage                      `json:"default_headers"`
+	DefaultHeaders map[string]string                    `json:"default_headers"`
 	IsActive       *bool                                `json:"is_active"`
 	Families       []model_family.ModelFamilyWithSchema `json:"families"`
 }
@@ -47,7 +47,7 @@ type Response struct {
 	AuthType       *string                              `json:"auth_type"`
 	AuthHeader     *string                              `json:"auth_header"`
 	AuthPrefix     *string                              `json:"auth_prefix"`
-	DefaultHeaders json.RawMessage                      `json:"default_headers"`
+	DefaultHeaders json.RawMessage                      `json:"default_headers" swaggertype:"object"`
 	IsActive       bool                                 `json:"is_active"`
 	CreatedAt      time.Time                            `json:"created_at"`
 	UpdatedAt      time.Time                            `json:"updated_at"`

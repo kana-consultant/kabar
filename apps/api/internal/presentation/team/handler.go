@@ -104,7 +104,17 @@ func (u *UserContextImpl) GetUserRole() string {
 
 // ========== Team CRUD Handlers ==========
 
-// GetAll returns all teams based on user permissions
+// GetAll godoc
+// @Summary Get all teams
+// @Description Get all teams based on user permissions with optional status filter
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param status query string false "Filter by team status" Enums(active, inactive, archived)
+// @Success 200 {array} team.Team "List of teams"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams [get]
 func (h *TeamHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -123,7 +133,18 @@ func (h *TeamHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, teams, http.StatusOK)
 }
 
-// GetByID returns a specific team by ID
+// GetByID godoc
+// @Summary Get team by ID
+// @Description Get a specific team by its ID
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param id path string true "Team ID"
+// @Success 200 {object} team.Team "Team details"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "Team not found"
+// @Security BearerAuth
+// @Router /api/teams/{id} [get]
 func (h *TeamHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -148,7 +169,18 @@ func (h *TeamHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, teamData, http.StatusOK)
 }
 
-// Create creates a new team
+// Create godoc
+// @Summary Create a new team
+// @Description Create a new team with the current user as admin
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param request body team.CreateTeamRequest true "Team creation request"
+// @Success 200 {object} team.Team "Team created"
+// @Failure 400 {object} map[string]string "Bad request - invalid team name"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams [post]
 func (h *TeamHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	useCtx := auth.GetUserContext(r)
@@ -174,7 +206,21 @@ func (h *TeamHandler) Create(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, teamData, http.StatusOK)
 }
 
-// Update updates an existing team
+// Update godoc
+// @Summary Update a team
+// @Description Update an existing team by ID
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param id path string true "Team ID"
+// @Param request body map[string]interface{} true "Team update fields"
+// @Success 200 {object} map[string]string "message: Team updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "Team not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams/{id} [put]
 func (h *TeamHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -195,7 +241,20 @@ func (h *TeamHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, map[string]string{"message": "Team updated successfully"}, http.StatusOK)
 }
 
-// Delete removes a team
+// Delete godoc
+// @Summary Delete a team
+// @Description Delete a team by ID (must be empty)
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param id path string true "Team ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} map[string]string "Cannot delete team with active members"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "Team not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams/{id} [delete]
 func (h *TeamHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -212,7 +271,18 @@ func (h *TeamHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // ========== Member Management Handlers ==========
 
-// GetTeamMembers returns all members of a team
+// GetTeamMembers godoc
+// @Summary Get team members
+// @Description Get all members of a team with optional role filter
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param id path string true "Team ID"
+// @Param role query string false "Filter by role" Enums(admin, member, viewer)
+// @Success 200 {array} team.TeamMember "List of team members"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams/{id}/members [get]
 func (h *TeamHandler) GetTeamMembers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	useCtx := auth.GetUserContext(r)
@@ -232,7 +302,21 @@ func (h *TeamHandler) GetTeamMembers(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, members, http.StatusOK)
 }
 
-// AddMember adds a user to a team
+// AddMember godoc
+// @Summary Add member to team
+// @Description Add a user to a team
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param id path string true "Team ID"
+// @Param request body team.AddTeamMemberRequest true "Add member request"
+// @Success 201 {object} team.Team "Team with updated members"
+// @Failure 400 {object} map[string]string "Invalid request or user_id required"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 409 {object} map[string]string "Member already in team"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams/{id}/members [post]
 func (h *TeamHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	useCtx := auth.GetUserContext(r)
@@ -259,7 +343,22 @@ func (h *TeamHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, teamData, http.StatusCreated)
 }
 
-// UpdateMemberRole updates a team member's role
+// UpdateMemberRole godoc
+// @Summary Update member role
+// @Description Update a team member's role
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param id path string true "Team ID"
+// @Param userId path string true "User ID"
+// @Param request body team.TeamMemberRole true "New role"
+// @Success 200 {object} team.Team "Team with updated members"
+// @Failure 400 {object} map[string]string "Invalid request or role required"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "Member not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams/{id}/members/{userId} [put]
 func (h *TeamHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -291,7 +390,20 @@ func (h *TeamHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, teamData, http.StatusOK)
 }
 
-// RemoveMember removes a user from a team
+// RemoveMember godoc
+// @Summary Remove member from team
+// @Description Remove a user from a team
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param id path string true "Team ID"
+// @Param userId path string true "User ID"
+// @Success 200 {object} team.Team "Team with updated members"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "Member not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams/{id}/members/{userId} [delete]
 func (h *TeamHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -313,7 +425,18 @@ func (h *TeamHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 
 // ========== User Teams Handler ==========
 
-// GetUserTeams returns all teams a user belongs to
+// GetUserTeams godoc
+// @Summary Get user's teams
+// @Description Get all teams a user belongs to
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param userId path string true "User ID"
+// @Success 200 {array} team.Team "List of teams"
+// @Failure 400 {object} map[string]string "user_id is required"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/users/{userId}/teams [get]
 func (h *TeamHandler) GetUserTeams(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := chi.URLParam(r, "userId")
@@ -333,6 +456,20 @@ func (h *TeamHandler) GetUserTeams(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, teams, http.StatusOK)
 }
 
+// InviteMember godoc
+// @Summary Invite member to team
+// @Description Send invitation to a user to join a team
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param teamId path string true "Team ID"
+// @Param request body team.InviteTeamMemberRequest true "Invite request"
+// @Success 201 {object} team.TeamInvite "Invitation created"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/teams/{teamId}/invite [post]
 func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 	var req team.InviteTeamMemberRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -353,7 +490,16 @@ func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(invite)
 }
 
-// Handler untuk accept invite
+// VerificationInvite godoc
+// @Summary Verify invitation token
+// @Description Verify a team invitation token
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param token path string true "Invitation token"
+// @Success 200 {object} map[string]bool "isTrue: true/false"
+// @Failure 400 {object} map[string]string "Invalid token"
+// @Router /api/teams/invite/verify/{token} [get]
 func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 
@@ -368,7 +514,17 @@ func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(isTrue)
 }
 
-// AcceptInvite - handler untuk menerima undangan (auto-join)
+// AcceptInvite godoc
+// @Summary Accept team invitation
+// @Description Accept a team invitation and join the team
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param request body team.UserInvitedCreate true "Accept invite request with token"
+// @Success 200 {object} map[string]interface{} "success: true, message, teamId, team"
+// @Failure 400 {object} map[string]string "Invalid request or token"
+// @Security BearerAuth
+// @Router /api/teams/invite/accept [post]
 func (h *TeamHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	// Ambil token dari query parameter (bukan dari URL param)
 
