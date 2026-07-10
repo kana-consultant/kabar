@@ -16,7 +16,7 @@ export function useGenerateState() {
     const [scheduleTime, setScheduleTime] = useState("09:00");
     const [scheduleDate, setScheduleDate] = useState(() => {
         const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setDate(tomorrow.getDate());
         return tomorrow.toISOString().split("T")[0];
     });
     const [dailySchedule, setDailySchedule] = useState(false);
