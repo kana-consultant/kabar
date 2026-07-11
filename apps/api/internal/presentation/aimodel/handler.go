@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"seo-backend/common"
 	aimodel "seo-backend/internal/domain/ai_model"
 	"seo-backend/internal/domain/paginate"
 	auth "seo-backend/internal/middleware"
@@ -35,8 +36,10 @@ func NewAIModelHandler(aimodelService aimodel.Service) *AIModelHandler {
 // @Param limit query int false "Items per page (default: 10, max: 100)"
 // @Param page query int false "Page number (default: 1)"
 // @Param search query string false "Search term for model name"
-//
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} paginate.PaginatedResult[aimodel.Response] "Success"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request"
+// @Failure 401 {object} common.ErrorResponse500 "Unauthorized"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models [get]
 func (h *AIModelHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +63,7 @@ func (h *AIModelHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	params := paginate.PaginationParams{
 		Limit:  limit,
-		Offset: page,
+		Offset: (page - 1) * limit,
 		Search: search,
 	}
 
@@ -84,7 +87,7 @@ func (h *AIModelHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Param page query int false "Page number (default: 1)"
 // @Param search query string false "Search term for model name"
 // @Success 200 {object} paginate.PaginatedResult[aimodel.ModelWithStatus] "Success"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/with-status [get]
 func (h *AIModelHandler) GetAllWithStatus(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +111,7 @@ func (h *AIModelHandler) GetAllWithStatus(w http.ResponseWriter, r *http.Request
 
 	params := paginate.PaginationParams{
 		Limit:  limit,
-		Offset: page,
+		Offset: (page - 1) * limit,
 		Search: search,
 	}
 
@@ -130,8 +133,8 @@ func (h *AIModelHandler) GetAllWithStatus(w http.ResponseWriter, r *http.Request
 // @Produce json
 // @Param id path string true "Model ID"
 // @Success 200 {object} aimodel.Response "Success"
-// @Failure 404 {object} map[string]string "Model not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 404 {object} common.ErrorResponse404 "Model not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/{id} [get]
 func (h *AIModelHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -161,8 +164,8 @@ func (h *AIModelHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Model ID"
 // @Success 200 {object} model_family.ModelFamilyWithSchema "Success"
-// @Failure 404 {object} map[string]string "Model or schema not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 404 {object} common.ErrorResponse404 "Model or schema not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/{id}/schema [get]
 func (h *AIModelHandler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
@@ -194,8 +197,8 @@ func (h *AIModelHandler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 // @Param limit query int false "Items per page (default: 10, max: 100)"
 // @Param page query int false "Page number (default: 1)"
 // @Param search query string false "Search term for model name"
-//
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} paginate.PaginatedResult[aimodel.Response] "Success"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/provider/{providerId} [get]
 func (h *AIModelHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
@@ -220,7 +223,7 @@ func (h *AIModelHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
 
 	params := paginate.PaginationParams{
 		Limit:  limit,
-		Offset: page,
+		Offset: (page - 1) * limit,
 		Search: search,
 	}
 
@@ -244,8 +247,8 @@ func (h *AIModelHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
 // @Param limit query int false "Items per page (default: 10, max: 100)"
 // @Param page query int false "Page number (default: 1)"
 // @Param search query string false "Search term for model name"
-//
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} paginate.PaginatedResult[aimodel.Response] "Success"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/family/{familyId} [get]
 func (h *AIModelHandler) GetByFamily(w http.ResponseWriter, r *http.Request) {
@@ -270,7 +273,7 @@ func (h *AIModelHandler) GetByFamily(w http.ResponseWriter, r *http.Request) {
 
 	params := paginate.PaginationParams{
 		Limit:  limit,
-		Offset: page,
+		Offset: (page - 1) * limit,
 		Search: search,
 	}
 
@@ -294,8 +297,8 @@ func (h *AIModelHandler) GetByFamily(w http.ResponseWriter, r *http.Request) {
 // @Param limit query int false "Items per page (default: 10, max: 100)"
 // @Param page query int false "Page number (default: 1)"
 // @Param search query string false "Search term for model name"
-//
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} paginate.PaginatedResult[aimodel.Response] "Success"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/team/{teamId} [get]
 func (h *AIModelHandler) GetByTeam(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +323,7 @@ func (h *AIModelHandler) GetByTeam(w http.ResponseWriter, r *http.Request) {
 
 	params := paginate.PaginationParams{
 		Limit:  limit,
-		Offset: page,
+		Offset: (page - 1) * limit,
 		Search: search,
 	}
 
@@ -341,7 +344,7 @@ func (h *AIModelHandler) GetByTeam(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Success 200 {array} aimodel.Response "Success"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/default [get]
 func (h *AIModelHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
@@ -366,9 +369,9 @@ func (h *AIModelHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param request body aimodel.CreateRequest true "Model creation request"
 // @Success 201 {object} aimodel.Response "Created"
-// @Failure 400 {object} map[string]string "Invalid request body"
-// @Failure 409 {object} map[string]string "Model with this name already exists"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request body"
+// @Failure 409 {object} common.ErrorResponse409 "Model with this name already exists"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models [post]
 func (h *AIModelHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -405,10 +408,10 @@ func (h *AIModelHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "Model ID"
 // @Param request body aimodel.UpdateRequest true "Model update request"
 // @Success 200 {object} aimodel.Response "Success"
-// @Failure 400 {object} map[string]string "Invalid request body"
-// @Failure 404 {object} map[string]string "Model not found"
-// @Failure 409 {object} map[string]string "Model with this name already exists"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request body"
+// @Failure 404 {object} common.ErrorResponse404 "Model not found"
+// @Failure 409 {object} common.ErrorResponse409 "Model with this name already exists"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/{id} [put]
 func (h *AIModelHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -449,8 +452,8 @@ func (h *AIModelHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Model ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} map[string]string "Model not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 404 {object} common.ErrorResponse404 "Model not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/{id} [delete]
 func (h *AIModelHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -480,8 +483,8 @@ func (h *AIModelHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Model ID"
 // @Success 200 {object} map[string]string "Success message"
-// @Failure 404 {object} map[string]string "Model not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 404 {object} common.ErrorResponse404 "Model not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models/{id}/default [post]
 func (h *AIModelHandler) SetAsDefault(w http.ResponseWriter, r *http.Request) {
@@ -513,5 +516,10 @@ func (h *AIModelHandler) writeJSON(w http.ResponseWriter, data interface{}, stat
 }
 
 func (h *AIModelHandler) writeError(w http.ResponseWriter, message string, status int) {
-	h.writeJSON(w, map[string]string{"error": message}, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(common.ErrorResponse500{
+		Error:  message,
+		Status: status,
+	})
 }

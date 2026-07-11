@@ -179,6 +179,42 @@ definitions:
       email:
         type: string
     type: object
+  common.ErrorResponse400:
+    properties:
+      error:
+        example: Invalid request body
+        type: string
+      status:
+        example: 400
+        type: integer
+    type: object
+  common.ErrorResponse404:
+    properties:
+      error:
+        example: Resource not found
+        type: string
+      status:
+        example: 404
+        type: integer
+    type: object
+  common.ErrorResponse409:
+    properties:
+      error:
+        example: Resource already exists
+        type: string
+      status:
+        example: 409
+        type: integer
+    type: object
+  common.ErrorResponse500:
+    properties:
+      error:
+        example: Internal server error
+        type: string
+      status:
+        example: 500
+        type: integer
+    type: object
   dashboard.DashboardStats:
     properties:
       averageSeoScore:
@@ -605,6 +641,27 @@ definitions:
       data:
         items:
           $ref: '#/definitions/ai_model.ModelWithStatus'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total_failed:
+        type: integer
+      total_items:
+        type: integer
+      total_pages:
+        type: integer
+      total_success:
+        type: integer
+    type: object
+  paginate.PaginatedResult-ai_model_Response:
+    properties:
+      current_page:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/ai_model.Response'
         type: array
       limit:
         type: integer
@@ -1161,12 +1218,22 @@ paths:
       produces:
       - application/json
       responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/paginate.PaginatedResult-ai_model_Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.ErrorResponse400'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.ErrorResponse500'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get all AI models
@@ -1193,21 +1260,15 @@ paths:
         "400":
           description: Invalid request body
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "409":
           description: Model with this name already exists
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Create a new AI model
@@ -1232,15 +1293,11 @@ paths:
         "404":
           description: Model not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Delete an AI model
@@ -1266,15 +1323,11 @@ paths:
         "404":
           description: Model not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get AI model by ID
@@ -1306,27 +1359,19 @@ paths:
         "400":
           description: Invalid request body
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "404":
           description: Model not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "409":
           description: Model with this name already exists
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update an AI model
@@ -1355,15 +1400,11 @@ paths:
         "404":
           description: Model not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Set model as default
@@ -1390,15 +1431,11 @@ paths:
         "404":
           description: Model or schema not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get model schema by ID
@@ -1421,9 +1458,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get default AI models
@@ -1455,12 +1490,14 @@ paths:
       produces:
       - application/json
       responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/paginate.PaginatedResult-ai_model_Response'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get AI models by family
@@ -1492,12 +1529,14 @@ paths:
       produces:
       - application/json
       responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/paginate.PaginatedResult-ai_model_Response'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get AI models by provider
@@ -1529,12 +1568,14 @@ paths:
       produces:
       - application/json
       responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/paginate.PaginatedResult-ai_model_Response'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get AI models by team
@@ -1568,9 +1609,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get all AI models with API key status
