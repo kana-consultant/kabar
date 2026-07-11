@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"seo-backend/common"
 	"seo-backend/internal/domain/apikey"
+
 	auth "seo-backend/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
@@ -16,6 +18,11 @@ type APIKeyHandler struct {
 
 func NewAPIKeyHandler(service apikey.Service) *APIKeyHandler {
 	return &APIKeyHandler{service: service}
+}
+
+type SuccessResponse struct {
+	ID      string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Message string `json:"message" example:"created successfully"`
 }
 
 // UserContextAdapter - adapts auth middleware to service interface
@@ -39,7 +46,30 @@ func (h *APIKeyHandler) writeJSON(w http.ResponseWriter, data interface{}, statu
 func (h *APIKeyHandler) writeError(w http.ResponseWriter, err error, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+
+	// Pilih struct error yang sesuai berdasarkan status code
+	switch status {
+	case http.StatusBadRequest:
+		json.NewEncoder(w).Encode(common.ErrorResponse400{
+			Error:  err.Error(),
+			Status: status,
+		})
+	case http.StatusForbidden:
+		json.NewEncoder(w).Encode(common.ErrorResponse500{
+			Error:  err.Error(),
+			Status: status,
+		})
+	case http.StatusNotFound:
+		json.NewEncoder(w).Encode(common.ErrorResponse404{
+			Error:  err.Error(),
+			Status: status,
+		})
+	default:
+		json.NewEncoder(w).Encode(common.ErrorResponse500{
+			Error:  err.Error(),
+			Status: status,
+		})
+	}
 }
 
 // Create godoc
@@ -49,9 +79,9 @@ func (h *APIKeyHandler) writeError(w http.ResponseWriter, err error, status int)
 // @Accept json
 // @Produce json
 // @Param request body apikey.CreateAPIKeyRequest true "API key creation request"
-// @Success 201 {object} map[string]string "id: key_id, message: created successfully"
-// @Failure 400 {object} map[string]string "Bad request - missing required fields (service, provider_id, model_id, api_key)"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 201 {object} SuccessResponse "id: key_id, message: created successfully"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request - missing required fields (service, provider_id, model_id, api_key)"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/api-keys [post]
 func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -77,9 +107,9 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{
-		"id":      id,
-		"message": "created successfully",
+	h.writeJSON(w, SuccessResponse{
+		ID:      id,
+		Message: "created successfully",
 	}, http.StatusCreated)
 }
 
@@ -91,8 +121,8 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "API Key ID"
 // @Success 200 {object} apikey.APIKey "Success"
-// @Failure 404 {object} map[string]string "API key not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 404 {object} common.ErrorResponse404 "API key not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/api-keys/{id} [get]
 func (h *APIKeyHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -118,8 +148,8 @@ func (h *APIKeyHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Tags API Keys
 // @Accept json
 // @Produce json
-// @Success 200 {array} apikey.APIKey "Success"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {array} apikey.APIKeyDetail "Success"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/api-keys [get]
 func (h *APIKeyHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -144,10 +174,10 @@ func (h *APIKeyHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "API Key ID"
 // @Param request body apikey.UpdateAPIKeyRequest true "API key update request"
 // @Success 200 {object} map[string]string "id: key_id, message: updated successfully"
-// @Failure 400 {object} map[string]string "Bad request"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "API key not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request"
+// @Failure 403 {object} common.ErrorResponse500 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "API key not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/api-keys/{id} [put]
 func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -187,9 +217,9 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "API Key ID"
 // @Success 200 {object} map[string]string "id: key_id, message: deleted successfully"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "API key not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 403 {object} common.ErrorResponse500 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "API key not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/api-keys/{id} [delete]
 func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {

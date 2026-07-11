@@ -5,7 +5,9 @@ import (
 	"log"
 	"net/http"
 
+	"seo-backend/common"
 	"seo-backend/internal/domain/auth"
+
 	authmiddle "seo-backend/internal/middleware"
 	"seo-backend/internal/models"
 )
@@ -26,7 +28,41 @@ func (h *AuthHandler) writeJSON(w http.ResponseWriter, data interface{}, status 
 }
 
 func (h *AuthHandler) writeError(w http.ResponseWriter, message string, status int) {
-	h.writeJSON(w, map[string]string{"error": message}, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	switch status {
+	case http.StatusBadRequest:
+		json.NewEncoder(w).Encode(common.ErrorResponse400{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusUnauthorized:
+		json.NewEncoder(w).Encode(common.ErrorResponse401{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusForbidden:
+		json.NewEncoder(w).Encode(common.ErrorResponse403{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusNotFound:
+		json.NewEncoder(w).Encode(common.ErrorResponse404{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusConflict:
+		json.NewEncoder(w).Encode(common.ErrorResponse409{
+			Error:  message,
+			Status: status,
+		})
+	default:
+		json.NewEncoder(w).Encode(common.ErrorResponse500{
+			Error:  message,
+			Status: status,
+		})
+	}
 }
 
 // Login godoc
@@ -37,8 +73,8 @@ func (h *AuthHandler) writeError(w http.ResponseWriter, message string, status i
 // @Produce json
 // @Param request body models.LoginRequest true "Login credentials"
 // @Success 200 {object} models.LoginResponse "Login successful"
-// @Failure 400 {object} map[string]string "Invalid request"
-// @Failure 403 {object} map[string]string "Invalid credentials"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request"
+// @Failure 403 {object} common.ErrorResponse403 "Invalid credentials"
 // @Router /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
@@ -56,7 +92,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Login failed: %v", err)
-		// Ubah dari 401 Unauthorized menjadi 403 Forbidden
 		h.writeError(w, "Invalid credentials", http.StatusForbidden)
 		return
 	}
@@ -77,9 +112,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param request body models.RegisterRequest true "Registration details"
 // @Success 201 {object} models.User "User created successfully"
-// @Failure 400 {object} map[string]string "Bad request - missing required fields or invalid password"
-// @Failure 409 {object} map[string]string "User already exists"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request - missing required fields or invalid password"
+// @Failure 409 {object} common.ErrorResponse409 "User already exists"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req models.RegisterRequest
@@ -119,9 +154,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Success 200 {object} models.User "User details"
-// @Failure 401 {object} map[string]string "Unauthorized"
-// @Failure 404 {object} map[string]string "User not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 401 {object} common.ErrorResponse401 "Unauthorized"
+// @Failure 404 {object} common.ErrorResponse404 "User not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /auth/me [get]
 func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
@@ -153,11 +188,11 @@ func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body ChangePasswordRequest true "Password change details"
-// @Success 200 {object} map[string]string "message: Password changed successfully"
-// @Failure 400 {object} map[string]string "Invalid request or new password must be at least 6 characters"
-// @Failure 401 {object} map[string]string "Unauthorized or invalid old password"
-// @Failure 404 {object} map[string]string "User not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} common.SuccessMessage "Password changed successfully"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request or new password must be at least 6 characters"
+// @Failure 401 {object} common.ErrorResponse401 "Unauthorized or invalid old password"
+// @Failure 404 {object} common.ErrorResponse404 "User not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /auth/change-password [post]
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +233,9 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{"message": "Password changed successfully"}, http.StatusOK)
+	h.writeJSON(w, common.SuccessMessage{
+		Message: "Password changed successfully",
+	}, http.StatusOK)
 }
 
 // ForgotPassword godoc
@@ -208,8 +245,8 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body ForgotPasswordRequest true "Email address"
-// @Success 200 {object} map[string]string "message: If your email is registered, you will receive a reset link"
-// @Failure 400 {object} map[string]string "Invalid request"
+// @Success 200 {object} common.SuccessMessage "If your email is registered, you will receive a reset link"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request"
 // @Router /auth/forgot-password [post]
 func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -231,8 +268,8 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Always return same message for security
-	h.writeJSON(w, map[string]string{
-		"message": "If your email is registered, you will receive a reset link",
+	h.writeJSON(w, common.SuccessMessage{
+		Message: "If your email is registered, you will receive a reset link",
 	}, http.StatusOK)
 }
 
@@ -242,9 +279,11 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 // @Tags Authentication
 // @Accept json
 // @Produce json
-// @Success 200 {object} map[string]string "message: Logged out successfully"
+// @Success 200 {object} common.SuccessMessage "Logged out successfully"
 // @Security BearerAuth
 // @Router /auth/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	h.writeJSON(w, map[string]string{"message": "Logged out successfully"}, http.StatusOK)
+	h.writeJSON(w, common.SuccessMessage{
+		Message: "Logged out successfully",
+	}, http.StatusOK)
 }

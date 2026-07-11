@@ -704,17 +704,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/apikey.APIKey"
+                                "$ref": "#/definitions/apikey.APIKeyDetail"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -751,28 +748,19 @@ const docTemplate = `{
                     "201": {
                         "description": "id: key_id, message: created successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/apikey.SuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - missing required fields (service, provider_id, model_id, api_key)",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -815,19 +803,13 @@ const docTemplate = `{
                     "404": {
                         "description": "API key not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -880,37 +862,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     },
                     "404": {
                         "description": "API key not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -954,28 +924,19 @@ const docTemplate = `{
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     },
                     "404": {
                         "description": "API key not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3036,10 +2997,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3082,37 +3040,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request - missing required fields",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied - admin role required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "409": {
                         "description": "Provider with this name already exists",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3166,10 +3112,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3212,19 +3155,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Provider not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3267,19 +3204,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Provider not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3329,46 +3260,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request - no fields to update",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied - admin role required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "Provider not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "409": {
                         "description": "Provider with this name already exists",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3406,37 +3322,25 @@ const docTemplate = `{
                     "403": {
                         "description": "Access denied - admin role required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "Provider not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "409": {
                         "description": "Cannot delete provider with existing references",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3476,37 +3380,25 @@ const docTemplate = `{
                     "403": {
                         "description": "Access denied - admin role required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "Provider not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "409": {
                         "description": "Cannot delete provider with existing references",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3550,39 +3442,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "message: Headers updated successfully",
+                        "description": "Headers updated successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessMessage"
                         }
                     },
                     "400": {
                         "description": "Invalid request body",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "404": {
                         "description": "Provider not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3617,30 +3497,21 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "message: Provider status toggled successfully",
+                        "description": "Provider status toggled successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessMessage"
                         }
                     },
                     "404": {
                         "description": "Provider not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3689,10 +3560,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3735,28 +3603,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request - invalid provider_id, name, or endpoint_path",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "409": {
                         "description": "Duplicate entry",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3802,10 +3661,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3848,19 +3704,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Request schema not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3910,37 +3760,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request body",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "404": {
                         "description": "Request schema not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "409": {
                         "description": "Duplicate entry",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -3973,30 +3811,21 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "message: deleted successfully",
+                        "description": "Deleted successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessDeleted"
                         }
                     },
                     "404": {
                         "description": "Request schema not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4175,10 +4004,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4221,19 +4047,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request - invalid team name",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4279,10 +4099,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request or token",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     }
                 }
@@ -4323,10 +4140,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid token",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     }
                 }
@@ -4369,19 +4183,13 @@ const docTemplate = `{
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "Team not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     }
                 }
@@ -4424,48 +4232,33 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "message: Team updated successfully",
+                        "description": "Team updated successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessMessage"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "Team not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4503,37 +4296,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Cannot delete team with active members",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "Team not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4590,10 +4371,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4643,37 +4421,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request or user_id required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "409": {
                         "description": "Member already in team",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4732,37 +4498,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request or role required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "Member not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4810,28 +4564,19 @@ const docTemplate = `{
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "Member not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4883,28 +4628,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -4983,10 +4719,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5024,28 +4757,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request - invalid email, name, or password",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "409": {
                         "description": "Email already exists",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5079,19 +4803,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse401"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5134,28 +4852,19 @@ const docTemplate = `{
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5197,48 +4906,33 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "id: user_id, message: User updated successfully",
+                        "description": "User updated successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessUpdated"
                         }
                     },
                     "400": {
                         "description": "Invalid request body",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5276,37 +4970,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Cannot delete this user",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Access denied",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5352,19 +5034,13 @@ const docTemplate = `{
                     "400": {
                         "description": "user_id is required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5401,48 +5077,33 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "message: Password changed successfully",
+                        "description": "Password changed successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessMessage"
                         }
                     },
                     "400": {
                         "description": "Invalid request or new password must be at least 6 characters",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "401": {
                         "description": "Unauthorized or invalid old password",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse401"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5474,21 +5135,15 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "message: If your email is registered, you will receive a reset link",
+                        "description": "If your email is registered, you will receive a reset link",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessMessage"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     }
                 }
@@ -5528,19 +5183,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "403": {
                         "description": "Invalid credentials",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse403"
                         }
                     }
                 }
@@ -5566,12 +5215,9 @@ const docTemplate = `{
                 "summary": "Logout user",
                 "responses": {
                     "200": {
-                        "description": "message: Logged out successfully",
+                        "description": "Logged out successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessMessage"
                         }
                     }
                 }
@@ -5605,28 +5251,19 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse401"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5666,28 +5303,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request - missing required fields or invalid password",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "409": {
                         "description": "User already exists",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse409"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5743,19 +5371,15 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "History records",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/paginate.PaginatedResult-history_History"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5786,7 +5410,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Recent activities",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -5794,13 +5418,16 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "400": {
+                        "description": "Team ID not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5822,18 +5449,15 @@ const docTemplate = `{
                 "summary": "Get history statistics",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Statistics",
                         "schema": {
                             "$ref": "#/definitions/history.HistoryStats"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5864,7 +5488,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of history records",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -5873,21 +5497,15 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Status is required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5909,7 +5527,7 @@ const docTemplate = `{
                 "summary": "Get history by team ID",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of history records",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -5917,13 +5535,16 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "400": {
+                        "description": "Team ID not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5943,21 +5564,21 @@ const docTemplate = `{
                 "summary": "Delete all history records for a team",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Deleted successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessMessage"
+                        }
+                    },
+                    "400": {
+                        "description": "Team ID not found",
+                        "schema": {
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -5988,27 +5609,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "History details",
                         "schema": {
                             "$ref": "#/definitions/history.History"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "400": {
+                        "description": "History ID is required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
+                        }
+                    },
+                    "404": {
+                        "description": "History not found",
+                        "schema": {
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -6049,39 +5670,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "History updated",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessUpdated"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request or history ID required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "History not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -6109,25 +5718,28 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "Deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/common.SuccessDeleted"
+                        }
+                    },
+                    "400": {
+                        "description": "History ID is required",
+                        "schema": {
+                            "$ref": "#/definitions/common.ErrorResponse400"
+                        }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "History not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -6170,39 +5782,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Status updated",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.SuccessMessage"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request or status required",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse400"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "History not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse404"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/common.ErrorResponse500"
                         }
                     }
                 }
@@ -6418,6 +6018,50 @@ const docTemplate = `{
                 }
             }
         },
+        "apikey.APIKeyDetail": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "model_display_name": {
+                    "type": "string"
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "model_name": {
+                    "type": "string"
+                },
+                "provider_display_name": {
+                    "type": "string"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "provider_name": {
+                    "type": "string"
+                },
+                "service": {
+                    "type": "string"
+                },
+                "system_prompt": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "apikey.CreateAPIKeyRequest": {
             "type": "object",
             "properties": {
@@ -6435,6 +6079,19 @@ const docTemplate = `{
                 },
                 "systemPrompt": {
                     "type": "string"
+                }
+            }
+        },
+        "apikey.SuccessResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "created successfully"
                 }
             }
         },
@@ -6496,6 +6153,32 @@ const docTemplate = `{
                 }
             }
         },
+        "common.ErrorResponse401": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "Unauthorized access"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 401
+                }
+            }
+        },
+        "common.ErrorResponse403": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "Access denied - admin role required"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 403
+                }
+            }
+        },
         "common.ErrorResponse404": {
             "type": "object",
             "properties": {
@@ -6532,6 +6215,41 @@ const docTemplate = `{
                 "status": {
                     "type": "integer",
                     "example": 500
+                }
+            }
+        },
+        "common.SuccessDeleted": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Resource deleted successfully"
+                }
+            }
+        },
+        "common.SuccessMessage": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Operation completed successfully"
+                }
+            }
+        },
+        "common.SuccessUpdated": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Resource updated successfully"
                 }
             }
         },
@@ -7200,6 +6918,38 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/ai_model.Response"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total_failed": {
+                    "type": "integer"
+                },
+                "total_items": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                },
+                "total_success": {
+                    "type": "integer"
+                }
+            }
+        },
+        "paginate.PaginatedResult-history_History": {
+            "type": "object",
+            "properties": {
+                "current_page": {
+                    "type": "integer"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/history.History"
                     }
                 },
                 "limit": {

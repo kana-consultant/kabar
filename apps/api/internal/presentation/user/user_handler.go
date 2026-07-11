@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"seo-backend/common"
 	"seo-backend/internal/domain/user"
+
 	auth "seo-backend/internal/middleware"
 	"seo-backend/internal/models"
 
@@ -46,7 +48,41 @@ func (h *UserHandler) writeJSON(w http.ResponseWriter, data interface{}, status 
 
 // writeError writes error response
 func (h *UserHandler) writeError(w http.ResponseWriter, message string, status int) {
-	h.writeJSON(w, map[string]string{"error": message}, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	switch status {
+	case http.StatusBadRequest:
+		json.NewEncoder(w).Encode(common.ErrorResponse400{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusUnauthorized:
+		json.NewEncoder(w).Encode(common.ErrorResponse401{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusForbidden:
+		json.NewEncoder(w).Encode(common.ErrorResponse403{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusNotFound:
+		json.NewEncoder(w).Encode(common.ErrorResponse404{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusConflict:
+		json.NewEncoder(w).Encode(common.ErrorResponse409{
+			Error:  message,
+			Status: status,
+		})
+	default:
+		json.NewEncoder(w).Encode(common.ErrorResponse500{
+			Error:  message,
+			Status: status,
+		})
+	}
 }
 
 // handleServiceError handles service layer errors
@@ -88,9 +124,9 @@ func (h *UserHandler) handleServiceError(w http.ResponseWriter, err error) {
 // @Produce json
 // @Param request body CreateUserRequest true "User registration data"
 // @Success 201 {object} models.User "User created"
-// @Failure 400 {object} map[string]string "Bad request - invalid email, name, or password"
-// @Failure 409 {object} map[string]string "Email already exists"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request - invalid email, name, or password"
+// @Failure 409 {object} common.ErrorResponse409 "Email already exists"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /api/users [post]
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -138,9 +174,9 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "User ID"
 // @Success 200 {object} models.User "User details"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "User not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "User not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/users/{id} [get]
 func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -174,8 +210,8 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Success 200 {object} models.User "Current user details"
-// @Failure 401 {object} map[string]string "Unauthorized"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 401 {object} common.ErrorResponse401 "Unauthorized"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/users/me [get]
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +244,7 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 // @Param limit query int false "Items per page (default: 10)"
 // @Param page query int false "Page number (default: 1)"
 // @Success 200 {array} models.User "List of users"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/users [get]
 func (h *UserHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -238,11 +274,11 @@ func (h *UserHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "User ID"
 // @Param request body UpdateUserRequest true "User update data"
-// @Success 200 {object} map[string]string "id: user_id, message: User updated successfully"
-// @Failure 400 {object} map[string]string "Invalid request body"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "User not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} common.SuccessUpdated "User updated successfully"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request body"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "User not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/users/{id} [put]
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -281,9 +317,9 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{
-		"id":      id,
-		"message": "User updated successfully",
+	h.writeJSON(w, common.SuccessUpdated{
+		ID:      id,
+		Message: "User updated successfully",
 	}, http.StatusOK)
 }
 
@@ -299,11 +335,11 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "User ID"
 // @Param request body UpdatePasswordRequest true "Password update data"
-// @Success 200 {object} map[string]string "id: user_id, message: Password updated successfully"
-// @Failure 400 {object} map[string]string "Invalid request or password too short"
-// @Failure 403 {object} map[string]string "Access denied or invalid old password"
-// @Failure 404 {object} map[string]string "User not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} common.SuccessUpdated "Password updated successfully"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request or password too short"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied or invalid old password"
+// @Failure 404 {object} common.ErrorResponse404 "User not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/users/{id}/password [put]
 
@@ -343,9 +379,9 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{
-		"id":      id,
-		"message": "Password updated successfully",
+	h.writeJSON(w, common.SuccessUpdated{
+		ID:      id,
+		Message: "Password updated successfully",
 	}, http.StatusOK)
 }
 
@@ -361,10 +397,10 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
-// @Failure 400 {object} map[string]string "Cannot delete this user"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "User not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Cannot delete this user"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "User not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/users/{id} [delete]
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {

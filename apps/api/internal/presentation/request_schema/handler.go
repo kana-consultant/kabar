@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"seo-backend/common"
 	"seo-backend/internal/domain/request_schema"
 
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,41 @@ func NewRequestSchemaHandler(service request_schema.Service) *RequestSchemaHandl
 	}
 }
 
+// Helper functions
+func (h *RequestSchemaHandler) writeJSON(w http.ResponseWriter, data interface{}, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(data)
+}
+
+func (h *RequestSchemaHandler) writeError(w http.ResponseWriter, message string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	switch status {
+	case http.StatusBadRequest:
+		json.NewEncoder(w).Encode(common.ErrorResponse400{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusNotFound:
+		json.NewEncoder(w).Encode(common.ErrorResponse404{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusConflict:
+		json.NewEncoder(w).Encode(common.ErrorResponse409{
+			Error:  message,
+			Status: status,
+		})
+	default:
+		json.NewEncoder(w).Encode(common.ErrorResponse500{
+			Error:  message,
+			Status: status,
+		})
+	}
+}
+
 // Create godoc
 // @Summary Create a new request schema
 // @Description Create a new request schema for API validation
@@ -29,15 +65,15 @@ func NewRequestSchemaHandler(service request_schema.Service) *RequestSchemaHandl
 // @Produce json
 // @Param request body request_schema.CreateRequest true "Request schema creation request"
 // @Success 201 {object} request_schema.RequestSchema "Request schema created"
-// @Failure 400 {object} map[string]string "Bad request - invalid provider_id, name, or endpoint_path"
-// @Failure 409 {object} map[string]string "Duplicate entry"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request - invalid provider_id, name, or endpoint_path"
+// @Failure 409 {object} common.ErrorResponse409 "Duplicate entry"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/request-schemas [post]
 func (h *RequestSchemaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req request_schema.CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		h.writeError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -45,22 +81,20 @@ func (h *RequestSchemaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, request_schema.ErrDuplicate):
-			http.Error(w, err.Error(), http.StatusConflict)
+			h.writeError(w, err.Error(), http.StatusConflict)
 		case errors.Is(err, request_schema.ErrInvalidProviderID):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			h.writeError(w, err.Error(), http.StatusBadRequest)
 		case errors.Is(err, request_schema.ErrInvalidName):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			h.writeError(w, err.Error(), http.StatusBadRequest)
 		case errors.Is(err, request_schema.ErrInvalidEndpointPath):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			h.writeError(w, err.Error(), http.StatusBadRequest)
 		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.writeError(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	h.writeJSON(w, resp, http.StatusCreated)
 }
 
 // GetByID godoc
@@ -71,8 +105,8 @@ func (h *RequestSchemaHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Request Schema ID"
 // @Success 200 {object} request_schema.RequestSchema "Request schema details"
-// @Failure 404 {object} map[string]string "Request schema not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 404 {object} common.ErrorResponse404 "Request schema not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/request-schemas/{id} [get]
 func (h *RequestSchemaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -82,15 +116,14 @@ func (h *RequestSchemaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, request_schema.ErrNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
+			h.writeError(w, err.Error(), http.StatusNotFound)
 		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.writeError(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	h.writeJSON(w, resp, http.StatusOK)
 }
 
 // GetAll godoc
@@ -102,7 +135,7 @@ func (h *RequestSchemaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Param page query int false "Page number (default: 1)"
 // @Param limit query int false "Items per page (default: 10, max: 100)"
 // @Success 200 {object} map[string]interface{} "List of request schemas with pagination"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/request-schemas [get]
 func (h *RequestSchemaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -111,12 +144,11 @@ func (h *RequestSchemaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.GetAll(r.Context(), page, limit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	h.writeJSON(w, resp, http.StatusOK)
 }
 
 // GetByProvider godoc
@@ -127,7 +159,7 @@ func (h *RequestSchemaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param provider_id path string true "Provider ID"
 // @Success 200 {array} request_schema.RequestSchema "List of request schemas"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/request-schemas/provider/{provider_id} [get]
 func (h *RequestSchemaHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
@@ -135,12 +167,11 @@ func (h *RequestSchemaHandler) GetByProvider(w http.ResponseWriter, r *http.Requ
 
 	resp, err := h.service.GetByProvider(r.Context(), providerIDStr)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	h.writeJSON(w, resp, http.StatusOK)
 }
 
 // Update godoc
@@ -152,10 +183,10 @@ func (h *RequestSchemaHandler) GetByProvider(w http.ResponseWriter, r *http.Requ
 // @Param id path string true "Request Schema ID"
 // @Param request body request_schema.UpdateRequest true "Request schema update request"
 // @Success 200 {object} request_schema.RequestSchema "Updated request schema"
-// @Failure 400 {object} map[string]string "Invalid request body"
-// @Failure 404 {object} map[string]string "Request schema not found"
-// @Failure 409 {object} map[string]string "Duplicate entry"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request body"
+// @Failure 404 {object} common.ErrorResponse404 "Request schema not found"
+// @Failure 409 {object} common.ErrorResponse409 "Duplicate entry"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/request-schemas/{id} [put]
 func (h *RequestSchemaHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -163,7 +194,7 @@ func (h *RequestSchemaHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req request_schema.UpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		h.writeError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -171,17 +202,16 @@ func (h *RequestSchemaHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, request_schema.ErrNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
+			h.writeError(w, err.Error(), http.StatusNotFound)
 		case errors.Is(err, request_schema.ErrDuplicate):
-			http.Error(w, err.Error(), http.StatusConflict)
+			h.writeError(w, err.Error(), http.StatusConflict)
 		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.writeError(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	h.writeJSON(w, resp, http.StatusOK)
 }
 
 // Delete godoc
@@ -191,9 +221,9 @@ func (h *RequestSchemaHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Request Schema ID"
-// @Success 200 {object} map[string]string "message: deleted successfully"
-// @Failure 404 {object} map[string]string "Request schema not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} common.SuccessDeleted "Deleted successfully"
+// @Failure 404 {object} common.ErrorResponse404 "Request schema not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/request-schemas/{id} [delete]
 func (h *RequestSchemaHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -202,13 +232,15 @@ func (h *RequestSchemaHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.service.Delete(r.Context(), idStr); err != nil {
 		switch {
 		case errors.Is(err, request_schema.ErrNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
+			h.writeError(w, err.Error(), http.StatusNotFound)
 		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.writeError(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "deleted successfully"})
+	h.writeJSON(w, common.SuccessDeleted{
+		ID:      idStr,
+		Message: "deleted successfully",
+	}, http.StatusOK)
 }

@@ -7,8 +7,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"seo-backend/common"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/domain/provider"
+
 	auth "seo-backend/internal/middleware"
 	"strconv"
 
@@ -53,7 +55,36 @@ func (h *ProviderHandler) writeJSON(w http.ResponseWriter, data interface{}, sta
 }
 
 func (h *ProviderHandler) writeError(w http.ResponseWriter, message string, status int) {
-	h.writeJSON(w, map[string]string{"error": message}, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	switch status {
+	case http.StatusBadRequest:
+		json.NewEncoder(w).Encode(common.ErrorResponse400{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusForbidden:
+		json.NewEncoder(w).Encode(common.ErrorResponse403{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusNotFound:
+		json.NewEncoder(w).Encode(common.ErrorResponse404{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusConflict:
+		json.NewEncoder(w).Encode(common.ErrorResponse409{
+			Error:  message,
+			Status: status,
+		})
+	default:
+		json.NewEncoder(w).Encode(common.ErrorResponse500{
+			Error:  message,
+			Status: status,
+		})
+	}
 }
 
 // Create godoc
@@ -64,10 +95,10 @@ func (h *ProviderHandler) writeError(w http.ResponseWriter, message string, stat
 // @Produce json
 // @Param request body provider.CreateRequest true "Provider creation request"
 // @Success 201 {object} provider.Response "Provider created"
-// @Failure 400 {object} map[string]string "Bad request - missing required fields"
-// @Failure 403 {object} map[string]string "Access denied - admin role required"
-// @Failure 409 {object} map[string]string "Provider with this name already exists"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request - missing required fields"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied - admin role required"
+// @Failure 409 {object} common.ErrorResponse409 "Provider with this name already exists"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers [post]
 func (h *ProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -148,8 +179,8 @@ func (h *ProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Provider ID"
 // @Success 200 {object} provider.Response "Provider details"
-// @Failure 404 {object} map[string]string "Provider not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 404 {object} common.ErrorResponse404 "Provider not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers/{id} [get]
 func (h *ProviderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -178,8 +209,8 @@ func (h *ProviderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param name path string true "Provider name"
 // @Success 200 {object} provider.Response "Provider details"
-// @Failure 404 {object} map[string]string "Provider not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 404 {object} common.ErrorResponse404 "Provider not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers/name/{name} [get]
 func (h *ProviderHandler) GetByName(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +241,7 @@ func (h *ProviderHandler) GetByName(w http.ResponseWriter, r *http.Request) {
 // @Param offset query int false "Offset for pagination (default: 0)"
 // @Param search query string false "Search term"
 // @Success 200 {object} paginate.PaginatedResult[provider.Response] "List of providers"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers [get]
 func (h *ProviderHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -257,7 +288,7 @@ func (h *ProviderHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Param offset query int false "Offset for pagination (default: 0)"
 // @Param search query string false "Search term"
 // @Success 200 {object} paginate.PaginatedResult[provider.Response] "List of active providers"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers/active [get]
 func (h *ProviderHandler) GetActive(w http.ResponseWriter, r *http.Request) {
@@ -303,11 +334,11 @@ func (h *ProviderHandler) GetActive(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "Provider ID"
 // @Param request body provider.UpdateRequest true "Provider update data"
 // @Success 200 {object} provider.Response "Updated provider"
-// @Failure 400 {object} map[string]string "Bad request - no fields to update"
-// @Failure 403 {object} map[string]string "Access denied - admin role required"
-// @Failure 404 {object} map[string]string "Provider not found"
-// @Failure 409 {object} map[string]string "Provider with this name already exists"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request - no fields to update"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied - admin role required"
+// @Failure 404 {object} common.ErrorResponse404 "Provider not found"
+// @Failure 409 {object} common.ErrorResponse409 "Provider with this name already exists"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers/{id} [put]
 func (h *ProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -381,10 +412,10 @@ func (h *ProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Provider ID"
 // @Success 204 "No Content"
-// @Failure 403 {object} map[string]string "Access denied - admin role required"
-// @Failure 404 {object} map[string]string "Provider not found"
-// @Failure 409 {object} map[string]string "Cannot delete provider with existing references"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied - admin role required"
+// @Failure 404 {object} common.ErrorResponse404 "Provider not found"
+// @Failure 409 {object} common.ErrorResponse409 "Cannot delete provider with existing references"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers/{id} [delete]
 func (h *ProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -417,10 +448,10 @@ func (h *ProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Provider ID"
 // @Success 204 "No Content"
-// @Failure 403 {object} map[string]string "Access denied - admin role required"
-// @Failure 404 {object} map[string]string "Provider not found"
-// @Failure 409 {object} map[string]string "Cannot delete provider with existing references"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied - admin role required"
+// @Failure 404 {object} common.ErrorResponse404 "Provider not found"
+// @Failure 409 {object} common.ErrorResponse409 "Cannot delete provider with existing references"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers/{id}/hard [delete]
 func (h *ProviderHandler) HardDelete(w http.ResponseWriter, r *http.Request) {
@@ -452,9 +483,9 @@ func (h *ProviderHandler) HardDelete(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Provider ID"
-// @Success 200 {object} map[string]string "message: Provider status toggled successfully"
-// @Failure 404 {object} map[string]string "Provider not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} common.SuccessMessage "Provider status toggled successfully"
+// @Failure 404 {object} common.ErrorResponse404 "Provider not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers/{id}/toggle-active [patch]
 func (h *ProviderHandler) ToggleActive(w http.ResponseWriter, r *http.Request) {
@@ -471,7 +502,7 @@ func (h *ProviderHandler) ToggleActive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{"message": "Provider status toggled successfully"}, http.StatusOK)
+	h.writeJSON(w, common.SuccessMessage{Message: "Provider status toggled successfully"}, http.StatusOK)
 }
 
 // UpdateHeaders godoc
@@ -482,10 +513,10 @@ func (h *ProviderHandler) ToggleActive(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Provider ID"
 // @Param request body object true "Headers to update" example({"X-API-Key": "new-key", "X-API-Version": "2024-01"})
-// @Success 200 {object} map[string]string "message: Headers updated successfully"
-// @Failure 400 {object} map[string]string "Invalid request body"
-// @Failure 404 {object} map[string]string "Provider not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} common.SuccessMessage "Headers updated successfully"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request body"
+// @Failure 404 {object} common.ErrorResponse404 "Provider not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/providers/{id}/headers [patch]
 func (h *ProviderHandler) UpdateHeaders(w http.ResponseWriter, r *http.Request) {
@@ -508,5 +539,5 @@ func (h *ProviderHandler) UpdateHeaders(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.writeJSON(w, map[string]string{"message": "Headers updated successfully"}, http.StatusOK)
+	h.writeJSON(w, common.SuccessMessage{Message: "Headers updated successfully"}, http.StatusOK)
 }

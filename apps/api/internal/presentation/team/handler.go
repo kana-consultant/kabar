@@ -9,7 +9,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"seo-backend/common"
 	"seo-backend/internal/domain/team"
+
 	auth "seo-backend/internal/middleware"
 )
 
@@ -34,7 +36,36 @@ func (h *TeamHandler) writeJSON(w http.ResponseWriter, data interface{}, status 
 }
 
 func (h *TeamHandler) writeError(w http.ResponseWriter, message string, status int) {
-	h.writeJSON(w, map[string]string{"error": message}, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	switch status {
+	case http.StatusBadRequest:
+		json.NewEncoder(w).Encode(common.ErrorResponse400{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusForbidden:
+		json.NewEncoder(w).Encode(common.ErrorResponse403{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusNotFound:
+		json.NewEncoder(w).Encode(common.ErrorResponse404{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusConflict:
+		json.NewEncoder(w).Encode(common.ErrorResponse409{
+			Error:  message,
+			Status: status,
+		})
+	default:
+		json.NewEncoder(w).Encode(common.ErrorResponse500{
+			Error:  message,
+			Status: status,
+		})
+	}
 }
 
 func (h *TeamHandler) handleServiceError(w http.ResponseWriter, err error) {
@@ -112,7 +143,7 @@ func (u *UserContextImpl) GetUserRole() string {
 // @Produce json
 // @Param status query string false "Filter by team status" Enums(active, inactive, archived)
 // @Success 200 {array} team.Team "List of teams"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams [get]
 func (h *TeamHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -141,8 +172,8 @@ func (h *TeamHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Team ID"
 // @Success 200 {object} team.Team "Team details"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "Team not found"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "Team not found"
 // @Security BearerAuth
 // @Router /api/teams/{id} [get]
 func (h *TeamHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +183,7 @@ func (h *TeamHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	teamData, err := h.teamService.GetByID(ctx, id, userCtx)
 	if err != nil {
-		log.Printf("Failed to fetch team=======================: %v", err)
+		log.Printf("Failed to fetch team: %v", err)
 		if err.Error() == "access denied" {
 			h.writeError(w, "Forbidden", http.StatusForbidden)
 		} else {
@@ -177,8 +208,8 @@ func (h *TeamHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param request body team.CreateTeamRequest true "Team creation request"
 // @Success 200 {object} team.Team "Team created"
-// @Failure 400 {object} map[string]string "Bad request - invalid team name"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request - invalid team name"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams [post]
 func (h *TeamHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -214,11 +245,11 @@ func (h *TeamHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Team ID"
 // @Param request body map[string]interface{} true "Team update fields"
-// @Success 200 {object} map[string]string "message: Team updated successfully"
-// @Failure 400 {object} map[string]string "Invalid request"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "Team not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} common.SuccessMessage "Team updated successfully"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "Team not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams/{id} [put]
 func (h *TeamHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +269,7 @@ func (h *TeamHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{"message": "Team updated successfully"}, http.StatusOK)
+	h.writeJSON(w, common.SuccessMessage{Message: "Team updated successfully"}, http.StatusOK)
 }
 
 // Delete godoc
@@ -249,10 +280,10 @@ func (h *TeamHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Team ID"
 // @Success 204 "No Content"
-// @Failure 400 {object} map[string]string "Cannot delete team with active members"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "Team not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Cannot delete team with active members"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "Team not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams/{id} [delete]
 func (h *TeamHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -280,7 +311,7 @@ func (h *TeamHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "Team ID"
 // @Param role query string false "Filter by role" Enums(admin, member, viewer)
 // @Success 200 {array} team.TeamMember "List of team members"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams/{id}/members [get]
 func (h *TeamHandler) GetTeamMembers(w http.ResponseWriter, r *http.Request) {
@@ -311,10 +342,10 @@ func (h *TeamHandler) GetTeamMembers(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "Team ID"
 // @Param request body team.AddTeamMemberRequest true "Add member request"
 // @Success 201 {object} team.Team "Team with updated members"
-// @Failure 400 {object} map[string]string "Invalid request or user_id required"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 409 {object} map[string]string "Member already in team"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request or user_id required"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 409 {object} common.ErrorResponse409 "Member already in team"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams/{id}/members [post]
 func (h *TeamHandler) AddMember(w http.ResponseWriter, r *http.Request) {
@@ -353,10 +384,10 @@ func (h *TeamHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 // @Param userId path string true "User ID"
 // @Param request body team.TeamMemberRole true "New role"
 // @Success 200 {object} team.Team "Team with updated members"
-// @Failure 400 {object} map[string]string "Invalid request or role required"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "Member not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request or role required"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "Member not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams/{id}/members/{userId} [put]
 func (h *TeamHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
@@ -399,9 +430,9 @@ func (h *TeamHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "Team ID"
 // @Param userId path string true "User ID"
 // @Success 200 {object} team.Team "Team with updated members"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 404 {object} map[string]string "Member not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 404 {object} common.ErrorResponse404 "Member not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams/{id}/members/{userId} [delete]
 func (h *TeamHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
@@ -413,10 +444,7 @@ func (h *TeamHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	teamData, err := h.teamService.RemoveMember(ctx, teamID, userID, userCtx)
 	if err != nil {
 		log.Printf("Failed to remove member: %v", err)
-		if err != nil {
-			h.writeError(w, "Member not found", http.StatusNotFound)
-		}
-		h.writeError(w, "Failed to remove member", http.StatusInternalServerError)
+		h.handleServiceError(w, err)
 		return
 	}
 
@@ -433,8 +461,8 @@ func (h *TeamHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param userId path string true "User ID"
 // @Success 200 {array} team.Team "List of teams"
-// @Failure 400 {object} map[string]string "user_id is required"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "user_id is required"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/users/{userId}/teams [get]
 func (h *TeamHandler) GetUserTeams(w http.ResponseWriter, r *http.Request) {
@@ -465,15 +493,15 @@ func (h *TeamHandler) GetUserTeams(w http.ResponseWriter, r *http.Request) {
 // @Param teamId path string true "Team ID"
 // @Param request body team.InviteTeamMemberRequest true "Invite request"
 // @Success 201 {object} team.TeamInvite "Invitation created"
-// @Failure 400 {object} map[string]string "Bad request"
-// @Failure 403 {object} map[string]string "Access denied"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request"
+// @Failure 403 {object} common.ErrorResponse403 "Access denied"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/teams/{teamId}/invite [post]
 func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 	var req team.InviteTeamMemberRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.writeError(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
@@ -482,12 +510,11 @@ func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 
 	invite, err := h.teamService.InviteMember(r.Context(), teamID, req, userCtx)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(invite)
+	h.writeJSON(w, invite, http.StatusCreated)
 }
 
 // VerificationInvite godoc
@@ -498,7 +525,7 @@ func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param token path string true "Invitation token"
 // @Success 200 {object} map[string]bool "isTrue: true/false"
-// @Failure 400 {object} map[string]string "Invalid token"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid token"
 // @Router /api/teams/invite/verify/{token} [get]
 func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
@@ -507,11 +534,11 @@ func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request)
 
 	isTrue, err := h.teamService.VerificationInvite(r.Context(), token)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	json.NewEncoder(w).Encode(isTrue)
+	h.writeJSON(w, isTrue, http.StatusOK)
 }
 
 // AcceptInvite godoc
@@ -522,34 +549,28 @@ func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request)
 // @Produce json
 // @Param request body team.UserInvitedCreate true "Accept invite request with token"
 // @Success 200 {object} map[string]interface{} "success: true, message, teamId, team"
-// @Failure 400 {object} map[string]string "Invalid request or token"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request or token"
 // @Security BearerAuth
 // @Router /api/teams/invite/accept [post]
 func (h *TeamHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
-	// Ambil token dari query parameter (bukan dari URL param)
-
 	var req team.UserInvitedCreate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeError(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-	// Ambil user context dari request (optional, bisa kosong untuk user baru)
+
 	userCtx := auth.GetUserContext(r)
 
-	// Proses accept invite
-	team, err := h.teamService.AcceptInvite(r.Context(), userCtx, req)
+	teamData, err := h.teamService.AcceptInvite(r.Context(), userCtx, req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Return response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.writeJSON(w, map[string]interface{}{
 		"success": true,
 		"message": "Successfully joined team",
-		"teamId":  team.ID,
-		"team":    team,
-	})
+		"teamId":  teamData.ID,
+		"team":    teamData,
+	}, http.StatusOK)
 }

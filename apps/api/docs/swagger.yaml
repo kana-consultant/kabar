@@ -137,6 +137,35 @@ definitions:
       updatedAt:
         type: string
     type: object
+  apikey.APIKeyDetail:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      model_display_name:
+        type: string
+      model_id:
+        type: string
+      model_name:
+        type: string
+      provider_display_name:
+        type: string
+      provider_id:
+        type: string
+      provider_name:
+        type: string
+      service:
+        type: string
+      system_prompt:
+        type: string
+      updated_at:
+        type: string
+    type: object
   apikey.CreateAPIKeyRequest:
     properties:
       key:
@@ -148,6 +177,15 @@ definitions:
       service:
         type: string
       systemPrompt:
+        type: string
+    type: object
+  apikey.SuccessResponse:
+    properties:
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      message:
+        example: created successfully
         type: string
     type: object
   apikey.UpdateAPIKeyRequest:
@@ -188,6 +226,24 @@ definitions:
         example: 400
         type: integer
     type: object
+  common.ErrorResponse401:
+    properties:
+      error:
+        example: Unauthorized access
+        type: string
+      status:
+        example: 401
+        type: integer
+    type: object
+  common.ErrorResponse403:
+    properties:
+      error:
+        example: Access denied - admin role required
+        type: string
+      status:
+        example: 403
+        type: integer
+    type: object
   common.ErrorResponse404:
     properties:
       error:
@@ -214,6 +270,30 @@ definitions:
       status:
         example: 500
         type: integer
+    type: object
+  common.SuccessDeleted:
+    properties:
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      message:
+        example: Resource deleted successfully
+        type: string
+    type: object
+  common.SuccessMessage:
+    properties:
+      message:
+        example: Operation completed successfully
+        type: string
+    type: object
+  common.SuccessUpdated:
+    properties:
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      message:
+        example: Resource updated successfully
+        type: string
     type: object
   dashboard.DashboardStats:
     properties:
@@ -662,6 +742,27 @@ definitions:
       data:
         items:
           $ref: '#/definitions/ai_model.Response'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total_failed:
+        type: integer
+      total_items:
+        type: integer
+      total_pages:
+        type: integer
+      total_success:
+        type: integer
+    type: object
+  paginate.PaginatedResult-history_History:
+    properties:
+      current_page:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/history.History'
         type: array
       limit:
         type: integer
@@ -1627,14 +1728,12 @@ paths:
           description: Success
           schema:
             items:
-              $ref: '#/definitions/apikey.APIKey'
+              $ref: '#/definitions/apikey.APIKeyDetail'
             type: array
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get all API keys
@@ -1657,22 +1756,16 @@ paths:
         "201":
           description: 'id: key_id, message: created successfully'
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/apikey.SuccessResponse'
         "400":
           description: Bad request - missing required fields (service, provider_id,
             model_id, api_key)
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Create a new API key
@@ -1701,21 +1794,15 @@ paths:
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
         "404":
           description: API key not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Delete an API key
@@ -1741,15 +1828,11 @@ paths:
         "404":
           description: API key not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get API key by ID
@@ -1783,27 +1866,19 @@ paths:
         "400":
           description: Bad request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
         "404":
           description: API key not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update an API key
@@ -3092,9 +3167,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get all providers
@@ -3121,27 +3194,19 @@ paths:
         "400":
           description: Bad request - missing required fields
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied - admin role required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "409":
           description: Provider with this name already exists
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Create a new provider
@@ -3166,27 +3231,19 @@ paths:
         "403":
           description: Access denied - admin role required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: Provider not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "409":
           description: Cannot delete provider with existing references
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Soft delete a provider
@@ -3212,15 +3269,11 @@ paths:
         "404":
           description: Provider not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get provider by ID
@@ -3252,33 +3305,23 @@ paths:
         "400":
           description: Bad request - no fields to update
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied - admin role required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: Provider not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "409":
           description: Provider with this name already exists
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update a provider
@@ -3303,27 +3346,19 @@ paths:
         "403":
           description: Access denied - admin role required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: Provider not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "409":
           description: Cannot delete provider with existing references
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Hard delete a provider
@@ -3350,29 +3385,21 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'message: Headers updated successfully'
+          description: Headers updated successfully
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessMessage'
         "400":
           description: Invalid request body
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "404":
           description: Provider not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update provider headers
@@ -3393,23 +3420,17 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'message: Provider status toggled successfully'
+          description: Provider status toggled successfully
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessMessage'
         "404":
           description: Provider not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Toggle provider active status
@@ -3443,9 +3464,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get active providers
@@ -3472,15 +3491,11 @@ paths:
         "404":
           description: Provider not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get provider by name
@@ -3511,9 +3526,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get all request schemas
@@ -3540,21 +3553,15 @@ paths:
         "400":
           description: Bad request - invalid provider_id, name, or endpoint_path
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "409":
           description: Duplicate entry
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Create a new request schema
@@ -3575,23 +3582,17 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'message: deleted successfully'
+          description: Deleted successfully
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessDeleted'
         "404":
           description: Request schema not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Delete a request schema
@@ -3617,15 +3618,11 @@ paths:
         "404":
           description: Request schema not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get request schema by ID
@@ -3657,27 +3654,19 @@ paths:
         "400":
           description: Invalid request body
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "404":
           description: Request schema not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "409":
           description: Duplicate entry
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update a request schema
@@ -3706,9 +3695,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get request schemas by provider
@@ -3824,9 +3811,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get all teams
@@ -3853,15 +3838,11 @@ paths:
         "400":
           description: Bad request - invalid team name
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Create a new team
@@ -3886,27 +3867,19 @@ paths:
         "400":
           description: Cannot delete team with active members
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: Team not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Delete a team
@@ -3932,15 +3905,11 @@ paths:
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: Team not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
       security:
       - BearerAuth: []
       summary: Get team by ID
@@ -3967,35 +3936,25 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'message: Team updated successfully'
+          description: Team updated successfully
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessMessage'
         "400":
           description: Invalid request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: Team not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update a team
@@ -4032,9 +3991,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get team members
@@ -4066,27 +4023,19 @@ paths:
         "400":
           description: Invalid request or user_id required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "409":
           description: Member already in team
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Add member to team
@@ -4118,21 +4067,15 @@ paths:
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: Member not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Remove member from team
@@ -4169,27 +4112,19 @@ paths:
         "400":
           description: Invalid request or role required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: Member not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update member role
@@ -4222,21 +4157,15 @@ paths:
         "400":
           description: Bad request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Invite member to team
@@ -4265,9 +4194,7 @@ paths:
         "400":
           description: Invalid request or token
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
       security:
       - BearerAuth: []
       summary: Accept team invitation
@@ -4296,9 +4223,7 @@ paths:
         "400":
           description: Invalid token
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
       summary: Verify invitation token
       tags:
       - Teams
@@ -4348,9 +4273,7 @@ paths:
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get all users
@@ -4377,21 +4300,15 @@ paths:
         "400":
           description: Bad request - invalid email, name, or password
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "409":
           description: Email already exists
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       summary: Create a new user
       tags:
       - Users
@@ -4414,27 +4331,19 @@ paths:
         "400":
           description: Cannot delete this user
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: User not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Delete a user
@@ -4460,21 +4369,15 @@ paths:
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: User not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get user by ID
@@ -4500,35 +4403,25 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'id: user_id, message: User updated successfully'
+          description: User updated successfully
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessUpdated'
         "400":
           description: Invalid request body
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Access denied
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
         "404":
           description: User not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update a user
@@ -4557,15 +4450,11 @@ paths:
         "400":
           description: user_id is required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get user's teams
@@ -4586,15 +4475,11 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse401'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get current authenticated user
@@ -4616,35 +4501,25 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'message: Password changed successfully'
+          description: Password changed successfully
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessMessage'
         "400":
           description: Invalid request or new password must be at least 6 characters
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "401":
           description: Unauthorized or invalid old password
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse401'
         "404":
           description: User not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Change user password
@@ -4666,18 +4541,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'message: If your email is registered, you will receive a reset
-            link'
+          description: If your email is registered, you will receive a reset link
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessMessage'
         "400":
           description: Invalid request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
       summary: Request password reset
       tags:
       - Authentication
@@ -4703,15 +4573,11 @@ paths:
         "400":
           description: Invalid request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "403":
           description: Invalid credentials
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse403'
       summary: User login
       tags:
       - Authentication
@@ -4724,11 +4590,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'message: Logged out successfully'
+          description: Logged out successfully
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessMessage'
       security:
       - BearerAuth: []
       summary: Logout user
@@ -4749,21 +4613,15 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse401'
         "404":
           description: User not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get current user
@@ -4791,21 +4649,15 @@ paths:
         "400":
           description: Bad request - missing required fields or invalid password
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "409":
           description: User already exists
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse409'
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       summary: Register new user
       tags:
       - Authentication
@@ -4838,16 +4690,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: History records
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/paginate.PaginatedResult-history_History'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get all history records
@@ -4864,20 +4713,22 @@ paths:
       produces:
       - application/json
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: Deleted successfully
+          schema:
+            $ref: '#/definitions/common.SuccessDeleted'
+        "400":
+          description: History ID is required
+          schema:
+            $ref: '#/definitions/common.ErrorResponse400'
         "404":
-          description: Not Found
+          description: History not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Delete a history record
@@ -4894,21 +4745,21 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: History details
           schema:
             $ref: '#/definitions/history.History'
+        "400":
+          description: History ID is required
+          schema:
+            $ref: '#/definitions/common.ErrorResponse400'
         "404":
-          description: Not Found
+          description: History not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get history by ID
@@ -4933,29 +4784,21 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: History updated
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessUpdated'
         "400":
-          description: Bad Request
+          description: Invalid request or history ID required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "404":
-          description: Not Found
+          description: History not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update a history record
@@ -4981,29 +4824,21 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Status updated
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessMessage'
         "400":
-          description: Bad Request
+          description: Invalid request or status required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "404":
-          description: Not Found
+          description: History not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse404'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Update history status
@@ -5021,17 +4856,19 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Recent activities
           schema:
             items:
               $ref: '#/definitions/history.History'
             type: array
-        "500":
-          description: Internal Server Error
+        "400":
+          description: Team ID not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get recent history activity
@@ -5043,15 +4880,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Statistics
           schema:
             $ref: '#/definitions/history.HistoryStats'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get history statistics
@@ -5069,23 +4904,19 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: List of history records
           schema:
             items:
               $ref: '#/definitions/history.History'
             type: array
         "400":
-          description: Bad Request
+          description: Status is required
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get history by status
@@ -5097,17 +4928,17 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Deleted successfully
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.SuccessMessage'
+        "400":
+          description: Team ID not found
+          schema:
+            $ref: '#/definitions/common.ErrorResponse400'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Delete all history records for a team
@@ -5118,17 +4949,19 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: List of history records
           schema:
             items:
               $ref: '#/definitions/history.History'
             type: array
-        "500":
-          description: Internal Server Error
+        "400":
+          description: Team ID not found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/common.ErrorResponse400'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.ErrorResponse500'
       security:
       - BearerAuth: []
       summary: Get history by team ID

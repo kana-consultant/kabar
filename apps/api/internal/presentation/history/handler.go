@@ -8,10 +8,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"seo-backend/common"
 	app "seo-backend/internal/application/history"
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
+
 	auth "seo-backend/internal/middleware"
 	"seo-backend/internal/models"
 )
@@ -51,7 +53,26 @@ func (h *HistoryHandler) writeJSON(w http.ResponseWriter, data interface{}, stat
 
 // writeError writes error response
 func (h *HistoryHandler) writeError(w http.ResponseWriter, message string, status int) {
-	h.writeJSON(w, map[string]string{"error": message}, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	switch status {
+	case http.StatusBadRequest:
+		json.NewEncoder(w).Encode(common.ErrorResponse400{
+			Error:  message,
+			Status: status,
+		})
+	case http.StatusNotFound:
+		json.NewEncoder(w).Encode(common.ErrorResponse404{
+			Error:  message,
+			Status: status,
+		})
+	default:
+		json.NewEncoder(w).Encode(common.ErrorResponse500{
+			Error:  message,
+			Status: status,
+		})
+	}
 }
 
 // handleServiceError handles service layer errors
@@ -104,28 +125,31 @@ func (h *HistoryHandler) parseFilters(r *http.Request) history.HistoryFilter {
 // =======================
 // CREATE HISTORY
 // =======================
+// Create godoc
 // @Summary Create a new history record
 // @Tags History
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param request body app.CreateHistoryRequest true "History data"
-// @Success 201 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 201 {object} common.SuccessCreated "History created"
+// @Failure 400 {object} common.ErrorResponse400 "Bad request"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history [post]
 
 // =======================
 // GET HISTORY BY ID
 // =======================
+// GetByID godoc
 // @Summary Get history by ID
 // @Tags History
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "History ID"
-// @Success 200 {object} history.History
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} history.History "History details"
+// @Failure 400 {object} common.ErrorResponse400 "History ID is required"
+// @Failure 404 {object} common.ErrorResponse404 "History not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/{id} [get]
 func (h *HistoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -152,6 +176,7 @@ func (h *HistoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // =======================
 // GET ALL HISTORY
 // =======================
+// GetAll godoc
 // @Summary Get all history records
 // @Tags History
 // @Produce json
@@ -161,8 +186,8 @@ func (h *HistoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Param search query string false "Search by title or content"
 // @Param limit query int false "Page size" default(20)
 // @Param offset query int false "Page offset" default(0)
-// @Success 200 {object} map[string]interface{}
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} paginate.PaginatedResult[history.History] "History records"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history [get]
 func (h *HistoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	filters := h.parseFilters(r)
@@ -173,7 +198,6 @@ func (h *HistoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	filters.Offset = paginate.Offset
 
 	user := auth.GetUserContext(r)
-	// Use filters to get history
 
 	log.Printf("FILTER DEBUG: %+v\n", filters)
 	log.Printf("USER DEBUG: %+v\n", user)
@@ -191,12 +215,14 @@ func (h *HistoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // =======================
 // GET HISTORY BY TEAM
 // =======================
+// GetByTeam godoc
 // @Summary Get history by team ID
 // @Tags History
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {array} history.History
-// @Failure 500 {object} map[string]string
+// @Success 200 {array} history.History "List of history records"
+// @Failure 400 {object} common.ErrorResponse400 "Team ID not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/team [get]
 func (h *HistoryHandler) GetByTeam(w http.ResponseWriter, r *http.Request) {
 	userCtx := h.getUserContext(r)
@@ -220,14 +246,15 @@ func (h *HistoryHandler) GetByTeam(w http.ResponseWriter, r *http.Request) {
 // =======================
 // GET HISTORY BY STATUS
 // =======================
+// GetByStatus godoc
 // @Summary Get history by status
 // @Tags History
 // @Produce json
 // @Security BearerAuth
 // @Param status path string true "Status (pending, completed, failed)"
-// @Success 200 {array} history.History
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {array} history.History "List of history records"
+// @Failure 400 {object} common.ErrorResponse400 "Status is required"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/status/{status} [get]
 func (h *HistoryHandler) GetByStatus(w http.ResponseWriter, r *http.Request) {
 	status := chi.URLParam(r, "status")
@@ -249,6 +276,7 @@ func (h *HistoryHandler) GetByStatus(w http.ResponseWriter, r *http.Request) {
 // =======================
 // UPDATE HISTORY
 // =======================
+// Update godoc
 // @Summary Update a history record
 // @Tags History
 // @Accept json
@@ -256,10 +284,10 @@ func (h *HistoryHandler) GetByStatus(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Param id path string true "History ID"
 // @Param request body app.UpdateHistoryRequest true "Update data"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} common.SuccessUpdated "History updated"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request or history ID required"
+// @Failure 404 {object} common.ErrorResponse404 "History not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/{id} [put]
 func (h *HistoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -280,26 +308,27 @@ func (h *HistoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{
-		"id":      id,
-		"message": "History updated successfully",
+	h.writeJSON(w, common.SuccessUpdated{
+		ID:      id,
+		Message: "History updated successfully",
 	}, http.StatusOK)
 }
 
 // =======================
 // UPDATE HISTORY STATUS
 // =======================
+// UpdateStatus godoc
 // @Summary Update history status
 // @Tags History
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "History ID"
-// @Param request body object true "Status data"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Param request body object true "Status data" example({"status": "completed"})
+// @Success 200 {object} common.SuccessMessage "Status updated"
+// @Failure 400 {object} common.ErrorResponse400 "Invalid request or status required"
+// @Failure 404 {object} common.ErrorResponse404 "History not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/{id}/status [patch]
 func (h *HistoryHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -328,24 +357,24 @@ func (h *HistoryHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{
-		"id":      id,
-		"status":  req.Status,
-		"message": "History status updated successfully",
+	h.writeJSON(w, common.SuccessMessage{
+		Message: "History status updated successfully",
 	}, http.StatusOK)
 }
 
 // =======================
 // DELETE HISTORY
 // =======================
+// Delete godoc
 // @Summary Delete a history record
 // @Tags History
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "History ID"
-// @Success 204 "No Content"
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} common.SuccessDeleted "Deleted successfully"
+// @Failure 400 {object} common.ErrorResponse400 "History ID is required"
+// @Failure 404 {object} common.ErrorResponse404 "History not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/{id} [delete]
 func (h *HistoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -360,18 +389,22 @@ func (h *HistoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	h.writeJSON(w, common.SuccessDeleted{
+		ID:      id,
+		Message: "History deleted successfully",
+	}, http.StatusOK)
 }
 
 // =======================
 // GET HISTORY STATISTICS
 // =======================
+// GetStats godoc
 // @Summary Get history statistics
 // @Tags History
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} history.HistoryStats
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} history.HistoryStats "Statistics"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/stats [get]
 func (h *HistoryHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	userCtx := h.getUserContext(r)
@@ -393,13 +426,15 @@ func (h *HistoryHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 // =======================
 // GET RECENT ACTIVITY
 // =======================
+// GetRecentActivity godoc
 // @Summary Get recent history activity
 // @Tags History
 // @Produce json
 // @Security BearerAuth
 // @Param limit query int false "Number of records" default(10)
-// @Success 200 {array} history.History
-// @Failure 500 {object} map[string]string
+// @Success 200 {array} history.History "Recent activities"
+// @Failure 400 {object} common.ErrorResponse400 "Team ID not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/recent [get]
 func (h *HistoryHandler) GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 	userCtx := h.getUserContext(r)
@@ -430,12 +465,14 @@ func (h *HistoryHandler) GetRecentActivity(w http.ResponseWriter, r *http.Reques
 // =======================
 // DELETE BY TEAM
 // =======================
+// DeleteByTeam godoc
 // @Summary Delete all history records for a team
 // @Tags History
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} common.SuccessMessage "Deleted successfully"
+// @Failure 400 {object} common.ErrorResponse400 "Team ID not found"
+// @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Router /history/team [delete]
 func (h *HistoryHandler) DeleteByTeam(w http.ResponseWriter, r *http.Request) {
 	userCtx := h.getUserContext(r)
@@ -452,7 +489,7 @@ func (h *HistoryHandler) DeleteByTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, map[string]string{
-		"message": "All history records for team deleted successfully",
+	h.writeJSON(w, common.SuccessMessage{
+		Message: "All history records for team deleted successfully",
 	}, http.StatusOK)
 }
