@@ -2,7 +2,6 @@ package user
 
 import (
 	"fmt"
-
 	"seo-backend/internal/models"
 )
 

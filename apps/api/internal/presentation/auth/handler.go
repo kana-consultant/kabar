@@ -7,9 +7,9 @@ import (
 
 	"seo-backend/common"
 	"seo-backend/internal/domain/auth"
+	"seo-backend/internal/models"
 
 	authmiddle "seo-backend/internal/middleware"
-	"seo-backend/internal/models"
 )
 
 type AuthHandler struct {

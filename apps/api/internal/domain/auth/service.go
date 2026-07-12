@@ -3,7 +3,6 @@ package auth
 
 import (
 	"context"
-
 	"seo-backend/internal/models"
 )
 

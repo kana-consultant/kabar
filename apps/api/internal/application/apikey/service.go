@@ -9,6 +9,7 @@ import (
 
 	"seo-backend/internal/domain/apikey"
 	"seo-backend/internal/models"
+
 	"seo-backend/internal/pkg/crypto"
 )
 

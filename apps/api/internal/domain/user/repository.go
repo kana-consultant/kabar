@@ -3,7 +3,6 @@ package user
 import (
 	"context"
 	"database/sql"
-
 	"seo-backend/internal/models"
 )
 

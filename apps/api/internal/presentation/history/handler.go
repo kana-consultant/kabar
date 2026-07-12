@@ -13,9 +13,9 @@ import (
 	"seo-backend/internal/domain/history"
 	"seo-backend/internal/domain/paginate"
 	"seo-backend/internal/helper"
+	"seo-backend/internal/models"
 
 	auth "seo-backend/internal/middleware"
-	"seo-backend/internal/models"
 )
 
 // HistoryHandler handles HTTP requests for history
