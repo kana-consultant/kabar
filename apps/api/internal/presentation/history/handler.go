@@ -435,7 +435,7 @@ func (h *HistoryHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {array} history.History "Recent activities"
 // @Failure 400 {object} common.ErrorResponse400 "Team ID not found"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
-// @Router /history/recent [get]
+// @Router /history/recently [get]
 func (h *HistoryHandler) GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 	userCtx := h.getUserContext(r)
 	teamID := userCtx.GetTeamID()

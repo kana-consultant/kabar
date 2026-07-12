@@ -1,23 +1,19 @@
 // internal/domain/sitemap/handler.go
 package sitemap
-
 import (
 	"encoding/json"
 	"net/http"
 	"seo-backend/internal/domain/sitemap"
 	"strconv"
 )
-
 type SitemapHandler struct {
 	sitemapService sitemap.Service
 }
-
 func NewSitemapHandler(sitemapService sitemap.Service) *SitemapHandler {
 	return &SitemapHandler{
 		sitemapService: sitemapService,
 	}
 }
-
 // GenerateSitemap godoc
 // @Summary Generate sitemap
 // @Description Generate an XML sitemap for a product or base URL
@@ -34,19 +30,16 @@ func NewSitemapHandler(sitemapService sitemap.Service) *SitemapHandler {
 // @Header 200 {string} X-Generated-At "Timestamp when sitemap was generated"
 // @Header 200 {string} X-Product-ID "Product ID used for generation"
 // @Header 200 {string} X-Base-URL "Base URL used for generation"
-// @Security BearerAuth
 // @Router /api/sitemap [get]
 func (h *SitemapHandler) GenerateSitemap(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	productID := r.URL.Query().Get("product_id")
 	baseURL := r.URL.Query().Get("base_url")
-
 	// Validasi: product_id atau base_url harus ada
 	if productID == "" && baseURL == "" {
 		http.Error(w, "either product_id or base_url is required", http.StatusBadRequest)
 		return
 	}
-
 	// Jika product_id ada tapi base_url kosong, ambil base_url dari product
 	if productID != "" && baseURL == "" {
 		// TODO: Ambil base_url dari database berdasarkan product_id
@@ -55,21 +48,17 @@ func (h *SitemapHandler) GenerateSitemap(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "base_url is required when product_id is provided", http.StatusBadRequest)
 		return
 	}
-
 	includeImages, _ := strconv.ParseBool(r.URL.Query().Get("include_images"))
-
 	req := sitemap.GenerateRequest{
 		ProductID:     productID,
 		BaseURL:       baseURL,
 		IncludeImages: includeImages,
 	}
-
 	resp, err := h.sitemapService.GenerateSitemap(r.Context(), req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	// Return as XML
 	w.Header().Set("Content-Type", "application/xml")
 	w.Header().Set("X-Total-URLs", strconv.Itoa(resp.TotalURLs))
@@ -79,7 +68,6 @@ func (h *SitemapHandler) GenerateSitemap(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(resp.SitemapXML))
 }
-
 // GetSitemapHistory godoc
 // @Summary Get sitemap generation history
 // @Description Get history of all sitemap generations
@@ -97,7 +85,6 @@ func (h *SitemapHandler) GetSitemapHistory(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	// Return as JSON
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

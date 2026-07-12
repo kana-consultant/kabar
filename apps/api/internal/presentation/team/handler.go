@@ -389,7 +389,7 @@ func (h *TeamHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} common.ErrorResponse404 "Member not found"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/teams/{id}/members/{userId} [put]
+// @Router /api/teams/{teamId}/members/{userId}/role [put]
 func (h *TeamHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userCtx := auth.GetUserContext(r)
@@ -464,7 +464,7 @@ func (h *TeamHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} common.ErrorResponse400 "user_id is required"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/users/{userId}/teams [get]
+// @Router /api/teams/user/{userId} [get]
 func (h *TeamHandler) GetUserTeams(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := chi.URLParam(r, "userId")
@@ -497,7 +497,7 @@ func (h *TeamHandler) GetUserTeams(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} common.ErrorResponse403 "Access denied"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/teams/{teamId}/invite [post]
+// @Router /api/teams/{teamId}/invites [post]
 func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 	var req team.InviteTeamMemberRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -526,7 +526,7 @@ func (h *TeamHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 // @Param token path string true "Invitation token"
 // @Success 200 {object} map[string]bool "isTrue: true/false"
 // @Failure 400 {object} common.ErrorResponse400 "Invalid token"
-// @Router /api/teams/invite/verify/{token} [get]
+// @Router /api/verify-invite/{token} [get]
 func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 
@@ -551,7 +551,7 @@ func (h *TeamHandler) VerificationInvite(w http.ResponseWriter, r *http.Request)
 // @Success 200 {object} map[string]interface{} "success: true, message, teamId, team"
 // @Failure 400 {object} common.ErrorResponse400 "Invalid request or token"
 // @Security BearerAuth
-// @Router /api/teams/invite/accept [post]
+// @Router /api/accept-invite [post]
 func (h *TeamHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	var req team.UserInvitedCreate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

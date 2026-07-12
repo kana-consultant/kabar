@@ -5,7 +5,8 @@
 .env.production
 .env.staging
 setup-github-secrets.sh
-
+.agents
+skills-lock.json
 
 #===============
 docker-compose.minio.yml

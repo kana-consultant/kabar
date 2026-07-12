@@ -371,7 +371,7 @@ func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {object} map[string]string "Cannot disconnect active product"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/products/{id}/connection [patch]
+// @Router /api/products/{id}/test [post]
 func (h *ProductHandler) UpdateConnectionStatus(
 	w http.ResponseWriter,
 	r *http.Request,

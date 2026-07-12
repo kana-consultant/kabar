@@ -38,7 +38,7 @@ func NewAIModelHandler(aimodelService aimodel.Service) *AIModelHandler {
 // @Param search query string false "Search term for model name"
 // @Success 200 {object} paginate.PaginatedResult[aimodel.Response] "Success"
 // @Failure 400 {object} common.ErrorResponse400 "Bad request"
-// @Failure 401 {object} common.ErrorResponse500 "Unauthorized"
+// @Failure 401 {object} common.ErrorResponse401 "Unauthorized"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
 // @Router /api/ai-models [get]
@@ -486,7 +486,7 @@ func (h *AIModelHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} common.ErrorResponse404 "Model not found"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/ai-models/{id}/default [post]
+// @Router /api/ai-models/{id}/default [put]
 func (h *AIModelHandler) SetAsDefault(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")

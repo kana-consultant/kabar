@@ -36,7 +36,7 @@ func NewModelFamilyHandler(service model_family.Service) *ModelFamilyHandler {
 // @Failure 409 {object} map[string]string "Duplicate entry"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families [post]
+// @Router /families [post]
 func (h *ModelFamilyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -87,7 +87,7 @@ func (h *ModelFamilyHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} map[string]string "Model family not found"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families/{id} [get]
+// @Router /families/{id} [get]
 func (h *ModelFamilyHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -124,7 +124,7 @@ func (h *ModelFamilyHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} map[string]string "Model family not found"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families/by-provider-name [get]
+// @Router /families/by-provider-name [get]
 func (h *ModelFamilyHandler) GetByProviderAndName(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	providerID := r.URL.Query().Get("provider_id")
@@ -165,7 +165,7 @@ func (h *ModelFamilyHandler) GetByProviderAndName(w http.ResponseWriter, r *http
 // @Success 200 {object} paginate.PaginatedResult[model_family.Response] "List of model families"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families [get]
+// @Router /families [get]
 func (h *ModelFamilyHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -213,7 +213,7 @@ func (h *ModelFamilyHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string "Invalid provider ID"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families/provider/{provider_id} [get]
+// @Router /families/providers/{provider_id}/families [get]
 func (h *ModelFamilyHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	providerID := chi.URLParam(r, "provider_id")
@@ -244,7 +244,7 @@ func (h *ModelFamilyHandler) GetByProvider(w http.ResponseWriter, r *http.Reques
 // @Failure 400 {object} map[string]string "Invalid schema ID"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families/schema/{schema_id} [get]
+// @Router /families/schemas/{schema_id}/families [get]
 func (h *ModelFamilyHandler) GetBySchema(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	schemaID := chi.URLParam(r, "schema_id")
@@ -278,7 +278,7 @@ func (h *ModelFamilyHandler) GetBySchema(w http.ResponseWriter, r *http.Request)
 // @Failure 409 {object} map[string]string "Duplicate entry"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families/{id} [put]
+// @Router /families/{id} [put]
 func (h *ModelFamilyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -324,7 +324,7 @@ func (h *ModelFamilyHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} map[string]string "Model family not found"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families/{id} [delete]
+// @Router /families/{id} [delete]
 func (h *ModelFamilyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
@@ -359,7 +359,7 @@ func (h *ModelFamilyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string "Missing required parameters"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security BearerAuth
-// @Router /api/model-families/exists [get]
+// @Router /families/exists [get]
 func (h *ModelFamilyHandler) CheckExists(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	providerID := r.URL.Query().Get("provider_id")

@@ -69,7 +69,7 @@ func (h *RequestSchemaHandler) writeError(w http.ResponseWriter, message string,
 // @Failure 409 {object} common.ErrorResponse409 "Duplicate entry"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/request-schemas [post]
+// @Router /schemas [post]
 func (h *RequestSchemaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req request_schema.CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -108,7 +108,7 @@ func (h *RequestSchemaHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} common.ErrorResponse404 "Request schema not found"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/request-schemas/{id} [get]
+// @Router /schemas/{id} [get]
 func (h *RequestSchemaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 
@@ -137,7 +137,7 @@ func (h *RequestSchemaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} map[string]interface{} "List of request schemas with pagination"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/request-schemas [get]
+// @Router /schemas [get]
 func (h *RequestSchemaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -161,7 +161,7 @@ func (h *RequestSchemaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {array} request_schema.RequestSchema "List of request schemas"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/request-schemas/provider/{provider_id} [get]
+// @Router /providers/{provider_id}/schemas [get]
 func (h *RequestSchemaHandler) GetByProvider(w http.ResponseWriter, r *http.Request) {
 	providerIDStr := chi.URLParam(r, "provider_id")
 
@@ -188,7 +188,7 @@ func (h *RequestSchemaHandler) GetByProvider(w http.ResponseWriter, r *http.Requ
 // @Failure 409 {object} common.ErrorResponse409 "Duplicate entry"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/request-schemas/{id} [put]
+// @Router /schemas/{id} [put]
 func (h *RequestSchemaHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 
@@ -225,7 +225,7 @@ func (h *RequestSchemaHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} common.ErrorResponse404 "Request schema not found"
 // @Failure 500 {object} common.ErrorResponse500 "Internal server error"
 // @Security BearerAuth
-// @Router /api/request-schemas/{id} [delete]
+// @Router /schemas/{id} [delete]
 func (h *RequestSchemaHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 
